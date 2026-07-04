@@ -105,6 +105,7 @@ textarea{resize:vertical;min-height:100px;}
 
 /* ── table ── */
 .tbl{width:100%;border-collapse:collapse;}
+.tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
 .tbl th{font-size:11px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.5px;padding:8px 12px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;}
 .tbl td{padding:11px 12px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;}
 .tbl tr:last-child td{border-bottom:none;}
@@ -194,6 +195,81 @@ textarea{resize:vertical;min-height:100px;}
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border-md);border-radius:99px;}
+
+/* ══════════════════════════════════════════
+   모바일 반응형 (768px 이하)
+   ══════════════════════════════════════════ */
+.nav-toggle{display:none;}
+.nav-backdrop{display:none;}
+.rd-back-btn{display:none;}
+
+@media (max-width:768px){
+  .nav-toggle{
+    display:flex;align-items:center;justify-content:center;
+    width:32px;height:32px;border:none;background:none;cursor:pointer;
+    color:var(--text);font-size:20px;flex-shrink:0;
+  }
+  .nav-backdrop.open{
+    display:block;position:fixed;inset:0;z-index:299;
+    background:rgba(0,0,0,.35);
+  }
+  .navtabs{
+    display:flex;
+    position:fixed;top:52px;left:0;bottom:0;
+    width:78vw;max-width:300px;
+    flex-direction:column;gap:0;padding:8px 0;
+    overflow-y:auto;overflow-x:hidden;
+    z-index:300;background:var(--surface);
+    border-bottom:none;border-right:1px solid var(--border);
+    box-shadow:2px 0 16px rgba(0,0,0,.15);
+    transform:translateX(-100%);
+    transition:transform .2s ease;
+  }
+  .shell.drawer-open .navtabs{transform:translateX(0);}
+  .navtabs .nt{
+    padding:12px 20px;border-bottom:none;border-left:3px solid transparent;
+  }
+  .navtabs .nt.active{border-bottom-color:transparent;border-left-color:var(--accent);background:var(--accent-l);}
+
+  .stats{grid-template-columns:repeat(2,1fr)!important;}
+
+  .form-grid{grid-template-columns:1fr!important;}
+
+  .modal-box{
+    width:100%!important;max-width:100%;
+    margin-top:auto;border-radius:var(--r-lg) var(--r-lg) 0 0!important;
+    max-height:88vh;
+  }
+  [id^="modal-"]{align-items:flex-end!important;}
+
+  .topbar{padding:0 12px;gap:8px;}
+
+  .detail-layout{grid-template-columns:1fr!important;}
+
+  /* 요청 상세/처리: 목록 ⇄ 상세를 두 화면처럼 전환 */
+  .rd-grid{grid-template-columns:1fr!important;}
+  .rd-list-col{display:flex!important;}
+  .rd-detail-col{display:none!important;}
+  .rd-grid.showing-detail .rd-list-col{display:none!important;}
+  .rd-grid.showing-detail .rd-detail-col{display:flex!important;}
+  .rd-back-btn{display:inline-flex;}
+
+  .rd-info-bar{flex-wrap:wrap;}
+  .rd-info-bar>div{flex:1 1 45%!important;border-right:none!important;border-bottom:1px solid var(--border);}
+  .rd-reply-grid{grid-template-columns:1fr!important;}
+
+  #rd-admin-controls{flex-wrap:wrap;}
+}
+
+@media (max-width:480px){
+  .stats{grid-template-columns:1fr!important;}
+  .login-wrap{padding:20px;}
+  .login-box{width:100%;padding:28px 20px;}
+
+  .site-name{display:none;}
+  #topbar-company{display:none!important;}
+  #user-menu-email{word-break:break-all;}
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -281,6 +357,7 @@ textarea{resize:vertical;min-height:100px;}
 <div id="screen-main" class="shell" style="display:none;">
   <!-- ── 통합 상단바 ── -->
   <div class="topbar">
+    <button class="nav-toggle" id="nav-toggle" onclick="toggleDrawer()" aria-label="메뉴">☰</button>
     <div class="logo">B</div>
     <span class="site-name">고객지원 포탈</span>
     <span id="topbar-role-badge" style="display:none;margin-left:8px;"></span>
@@ -324,6 +401,7 @@ textarea{resize:vertical;min-height:100px;}
     <span class="nt"        data-roles="admin"                     onclick="showPage(this,'p-integration')">연동 관리</span>
     <span class="nt"        data-roles="admin"                     onclick="showPage(this,'p-notify-log')">알림 로그</span>
   </nav>
+  <div class="nav-backdrop" id="nav-backdrop" onclick="toggleDrawer()"></div>
   <!-- ── 콘텐츠 영역 ── -->
   <div class="body" id="main-body">
 
@@ -355,14 +433,14 @@ textarea{resize:vertical;min-height:100px;}
       </div>
       <div class="card">
         <div class="card-title">최근 기술 지원 요청</div>
-        <table class="tbl">
+        <div class="tbl-scroll"><table class="tbl">
           <thead><tr>
             <th>요청 번호</th><th>제목</th><th>카테고리</th><th>상태</th><th>접수일</th>
           </tr></thead>
           <tbody id="dash-recent-tbody">
             <tr><td colspan="5" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>
           </tbody>
-        </table>
+        </table></div>
         <div style="margin-top:14px;">
           <button class="btn btn-outline btn-sm" onclick="showTab(document.querySelector('.nt:nth-child(3)'),'c-tab','c-support')">전체 요청 목록 보기</button>
         </div>
@@ -384,12 +462,12 @@ textarea{resize:vertical;min-height:100px;}
                 처리 대기 요청 (우선순위)
                 <span style="font-size:11px;color:var(--muted);font-weight:400;">● 빨강 = 지연(3일+)</span>
               </div>
-              <table class="tbl">
+              <div class="tbl-scroll"><table class="tbl">
                 <thead><tr><th>번호</th><th>고객사</th><th>제목</th><th>카테고리</th><th>접수일</th><th>경과</th><th>완료예정일</th><th>지연</th><th>상태</th></tr></thead>
                 <tbody id="dash-admin-pending-tbody">
                   <tr><td colspan="7" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>
                 </tbody>
-              </table>
+              </table></div>
             </div>
             <div class="card">
               <div class="card-title">카테고리별 요청 현황 (이번 달)</div>
@@ -455,14 +533,14 @@ textarea{resize:vertical;min-height:100px;}
       <!-- 목록 / 상세 토글 -->
       <div id="support-list">
         <div class="card" style="padding:0;overflow:hidden;">
-          <table class="tbl">
+          <div class="tbl-scroll"><table class="tbl">
             <thead><tr>
               <th>요청 번호</th><th>제목</th><th>카테고리</th><th>긴급도</th><th>상태</th><th>고객사</th><th>요청자</th><th>담당자</th><th>접수일</th>
             </tr></thead>
             <tbody id="ticket-tbody">
               <tr><td colspan="10" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
             </tbody>
-          </table>
+          </table></div>
         </div>
       </div>
 
@@ -632,23 +710,23 @@ textarea{resize:vertical;min-height:100px;}
           <input class="search-box" id="ar-search" placeholder="요청 번호, 제목 검색..." oninput="renderAllTickets()">
         </div>
         <div class="card" style="padding:0;overflow:hidden;">
-          <table class="tbl">
+          <div class="tbl-scroll"><table class="tbl">
             <thead><tr>
               <th>요청 번호</th><th>제목</th><th>카테고리</th><th>긴급도</th><th>상태</th><th>고객사</th><th>요청자</th><th>담당자</th><th>접수일</th><th>완료예정일</th><th style="width:80px;">액션</th>
             </tr></thead>
             <tbody id="ar-tbody">
               <tr><td colspan="8" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
             </tbody>
-          </table>
+          </table></div>
         </div>
       </div>
 
       <!-- ══ 요청 상세/처리 ══ -->
       <div id="p-request-detail" class="page u-page" style="padding:0;overflow:hidden;flex:1;min-height:0;">
-        <div style="display:grid;grid-template-columns:300px 1fr;height:100%;min-height:0;overflow:hidden;">
+        <div class="rd-grid" style="display:grid;grid-template-columns:300px 1fr;height:100%;min-height:0;overflow:hidden;">
 
           <!-- 좌: 요청 리스트 패널 -->
-          <div style="border-right:1px solid var(--border-md);display:flex;flex-direction:column;overflow:hidden;background:var(--surface);">
+          <div class="rd-list-col" style="border-right:1px solid var(--border-md);display:flex;flex-direction:column;overflow:hidden;background:var(--surface);">
             <div style="padding:14px 14px 10px;border-bottom:1px solid var(--border-md);flex-shrink:0;">
               <div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:8px;">요청 목록</div>
               <input id="rd-list-search" class="search-box" style="width:100%;box-sizing:border-box;" placeholder="번호, 제목 검색..." oninput="renderRdList()">
@@ -659,7 +737,8 @@ textarea{resize:vertical;min-height:100px;}
           </div>
 
           <!-- 우: 상세/처리 패널 -->
-          <div style="overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:12px;" id="rd-detail-panel">
+          <div class="rd-detail-col" style="overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:12px;" id="rd-detail-panel">
+            <button class="btn btn-ghost btn-sm rd-back-btn" onclick="rdBackToList()" style="align-self:flex-start;">← 목록</button>
             <span id="rd-ticket-num" style="display:none;"></span>
             <!-- 선택 전 안내 -->
             <div id="rd-empty-hint" style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:14px;">
@@ -701,7 +780,7 @@ textarea{resize:vertical;min-height:100px;}
                 </div>
                 <div style="display:flex;gap:8px;margin-bottom:12px;" id="rd-badges"></div>
                 <!-- 요청 정보 가로 바 -->
-                <div style="display:flex;gap:0;margin-bottom:8px;border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden;">
+                <div class="rd-info-bar" style="display:flex;gap:0;margin-bottom:8px;border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden;">
                   <div style="flex:1;padding:10px 16px;border-right:1px solid var(--border);">
                     <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">고객사</div>
                     <div style="font-size:13px;font-weight:600;color:var(--text);" id="rd-company">—</div>
@@ -745,7 +824,7 @@ textarea{resize:vertical;min-height:100px;}
               </div>
 
               <!-- 답글 + 내부 메모 2열 -->
-              <div style="display:grid;grid-template-columns:1fr 300px;gap:12px;align-items:start;">
+              <div class="rd-reply-grid" style="display:grid;grid-template-columns:1fr 300px;gap:12px;align-items:start;">
 
                 <!-- 답글 스레드 -->
                 <div class="card">
@@ -810,12 +889,12 @@ textarea{resize:vertical;min-height:100px;}
           <span class="filter-chip" onclick="setCompanyFilter('기타',this)">기타</span>
         </div>
         <div class="card" style="padding:0;overflow:hidden;">
-          <table class="tbl">
+          <div class="tbl-scroll"><table class="tbl">
             <thead><tr><th>고객사명</th><th>산업군</th><th>제품</th><th>영업담당</th><th>기술지원</th><th>계약 시작일</th><th>계약 만료일</th><th>잔여일</th><th>상태</th><th>액션</th></tr></thead>
             <tbody id="companies-tbody">
               <tr><td colspan="9" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
             </tbody>
-          </table>
+          </table></div>
         </div>
       </div>
 
@@ -829,12 +908,12 @@ textarea{resize:vertical;min-height:100px;}
           <input class="search-box" id="user-search" placeholder="이름, 이메일 검색..." oninput="applyUserFilter()">
         </div>
         <div class="card" style="padding:0;overflow:hidden;">
-          <table class="tbl">
+          <div class="tbl-scroll"><table class="tbl">
             <thead><tr><th>이름</th><th>이메일</th><th>고객사</th><th>사용자 유형</th><th>최근 로그인</th><th>상태</th><th>액션</th></tr></thead>
             <tbody id="users-tbody">
               <tr><td colspan="7" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
             </tbody>
-          </table>
+          </table></div>
         </div>
       </div>
 
@@ -845,12 +924,12 @@ textarea{resize:vertical;min-height:100px;}
           <button class="btn btn-primary btn-sm" onclick="openNewDocModal()">+ 자료 등록</button>
         </div>
         <div class="card" style="padding:0;overflow:hidden;">
-          <table class="tbl">
+          <div class="tbl-scroll"><table class="tbl">
             <thead><tr><th>제목</th><th>카테고리</th><th>제품</th><th>파일명</th><th>공개</th><th>다운로드</th><th>등록일</th><th>작업</th></tr></thead>
             <tbody id="docs-tbody">
               <tr><td colspan="8" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
             </tbody>
-          </table>
+          </table></div>
         </div>
       </div>
 
@@ -872,12 +951,12 @@ textarea{resize:vertical;min-height:100px;}
           </div>
         </div>
         <div class="card" style="padding:0;overflow:hidden;">
-          <table class="tbl">
+          <div class="tbl-scroll"><table class="tbl">
             <thead><tr><th>알림 ID</th><th>요청번호</th><th>알림 유형</th><th>이벤트</th><th>수신자</th><th>발송 상태</th><th>실패 사유</th><th>발송일시</th><th>재시도</th></tr></thead>
             <tbody id="notify-tbody">
               <tr><td colspan="9" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
             </tbody>
-          </table>
+          </table></div>
         </div>
       </div>
 
@@ -943,12 +1022,12 @@ textarea{resize:vertical;min-height:100px;}
             <button class="btn btn-ghost btn-sm" onclick="loadIntegrationLogs()">새로고침</button>
           </div>
           <div class="card" style="padding:0;overflow:hidden;">
-            <table class="tbl">
+            <div class="tbl-scroll"><table class="tbl">
               <thead><tr><th>시스템</th><th>액션</th><th>방향</th><th>참조 ID</th><th>소요(ms)</th><th>상태</th><th>일시</th></tr></thead>
               <tbody id="integration-logs-tbody">
                 <tr><td colspan="7" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
               </tbody>
-            </table>
+            </table></div>
           </div>
         </div>
       </div>
@@ -959,7 +1038,7 @@ textarea{resize:vertical;min-height:100px;}
 
 <!-- ════ 요청 관리 모달 (담당자 지정 + 상태 변경) ════ -->
 <div id="modal-manage" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.35);align-items:center;justify-content:center;">
-  <div style="background:var(--surface);border-radius:var(--r-lg);width:460px;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+  <div class="modal-box" style="background:var(--surface);border-radius:var(--r-lg);width:460px;box-shadow:0 20px 60px rgba(0,0,0,.2);">
     <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
       <div>
         <div style="font-size:15px;font-weight:800;">요청 상세/처리</div>
@@ -1005,7 +1084,7 @@ textarea{resize:vertical;min-height:100px;}
 
 <!-- ════ 내 정보 모달 ════ -->
 <div id="modal-mypage" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.35);align-items:center;justify-content:center;">
-  <div style="background:var(--surface);border-radius:var(--r-lg);width:480px;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+  <div class="modal-box" style="background:var(--surface);border-radius:var(--r-lg);width:480px;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
     <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
       <div style="font-size:16px;font-weight:800;">내 정보</div>
       <button onclick="document.getElementById('modal-mypage').style.display='none'" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--faint);">✕</button>
@@ -1064,7 +1143,7 @@ textarea{resize:vertical;min-height:100px;}
 
 <!-- ════ 새 요청 등록 모달 ════ -->
 <div id="modal-new" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.35);align-items:center;justify-content:center;">
-  <div style="background:var(--surface);border-radius:var(--r-lg);width:560px;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+  <div class="modal-box" style="background:var(--surface);border-radius:var(--r-lg);width:560px;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
     <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
       <div style="font-size:16px;font-weight:800;">새 기술 지원 요청</div>
       <button onclick="closeModal('modal-new')" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--faint);">✕</button>
@@ -1146,7 +1225,7 @@ textarea{resize:vertical;min-height:100px;}
 
 <!-- 고객사 등록 모달 -->
 <div id="modal-company" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.35);align-items:center;justify-content:center;">
-  <div style="background:var(--surface);border-radius:var(--r-lg);width:540px;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+  <div class="modal-box" style="background:var(--surface);border-radius:var(--r-lg);width:540px;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
     <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
       <div style="font-size:16px;font-weight:800;">고객사 등록</div>
       <button onclick="closeModal('modal-company')" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--faint);">✕</button>
@@ -1211,7 +1290,7 @@ textarea{resize:vertical;min-height:100px;}
 
 <!-- 사용자 추가 모달 -->
 <div id="modal-user" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.35);align-items:center;justify-content:center;">
-  <div style="background:var(--surface);border-radius:var(--r-lg);width:500px;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+  <div class="modal-box" style="background:var(--surface);border-radius:var(--r-lg);width:500px;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
     <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
       <div style="font-size:16px;font-weight:800;" id="modal-user-title">사용자 추가</div>
       <button onclick="closeModal('modal-user')" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--faint);">✕</button>
@@ -1262,7 +1341,7 @@ textarea{resize:vertical;min-height:100px;}
 
 <!-- 자료 등록 모달 -->
 <div id="modal-doc" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.35);align-items:center;justify-content:center;">
-  <div style="background:var(--surface);border-radius:var(--r-lg);width:560px;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+  <div class="modal-box" style="background:var(--surface);border-radius:var(--r-lg);width:560px;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
     <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
       <div style="font-size:16px;font-weight:800;" id="modal-doc-title">자료 등록</div>
       <button onclick="closeModal('modal-doc')" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--faint);">✕</button>
@@ -1331,7 +1410,7 @@ textarea{resize:vertical;min-height:100px;}
 
 <!-- FAQ 등록/수정 모달 -->
 <div id="modal-faq" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.35);align-items:center;justify-content:center;">
-  <div style="background:var(--surface);border-radius:var(--r-lg);width:560px;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+  <div class="modal-box" style="background:var(--surface);border-radius:var(--r-lg);width:560px;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
     <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
       <div style="font-size:16px;font-weight:800;" id="modal-faq-title">FAQ 등록</div>
       <button onclick="closeModal('modal-faq')" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--faint);">✕</button>
@@ -1608,6 +1687,16 @@ function goScreen(id) {
   el.style.flexDirection = id === 'screen-login' ? '' : 'column';
 }
 
+// 모바일 내비게이션 드로어 열기/닫기
+function toggleDrawer(forceClose) {
+  const shell = document.getElementById('screen-main');
+  const backdrop = document.getElementById('nav-backdrop');
+  if (!shell) return;
+  const open = forceClose ? false : !shell.classList.contains('drawer-open');
+  shell.classList.toggle('drawer-open', open);
+  if (backdrop) backdrop.classList.toggle('open', open);
+}
+
 // 통합 페이지 전환 (탭 클릭)
 function showPage(tabEl, pageId) {
   document.querySelectorAll('.u-page,.c-tab').forEach(p => p.classList.remove('active'));
@@ -1615,6 +1704,7 @@ function showPage(tabEl, pageId) {
   if (page) page.classList.add('active');
   document.querySelectorAll('#main-navtabs .nt').forEach(s => s.classList.remove('active'));
   if (tabEl) tabEl.classList.add('active');
+  toggleDrawer(true); // 모바일 드로어에서 항목 선택 시 자동 닫기 (데스크탑은 영향 없음)
 
   // 페이지별 데이터 로드
   if (pageId === 'p-dashboard')   loadDashboard();
@@ -3353,11 +3443,17 @@ function renderRdList() {
   }).join('');
 }
 
+// 모바일: 요청상세 화면에서 목록으로 되돌아가기
+function rdBackToList() {
+  document.querySelector('.rd-grid')?.classList.remove('showing-detail');
+}
+
 // 좌측 리스트에서 항목 선택 시 우측 상세 로드
 async function selectRdTicket(idx, directTicket) {
   rdTicket = directTicket || allMgTickets[idx];
   if (!rdTicket) return;
   if (!directTicket) renderRdList(); // 선택 하이라이트 갱신
+  document.querySelector('.rd-grid')?.classList.add('showing-detail'); // 모바일: 상세 화면으로 전환
 
   // DB에서 전체 필드 재조회
   if (sb) {
