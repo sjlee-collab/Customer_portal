@@ -2809,6 +2809,12 @@ function fmtTime(iso) {
   const mi = String(d.getMinutes()).padStart(2, '0');
   return `${yy}-${mm}-${dd} ${hh}:${mi}`;
 }
+function fmtTimeSec(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const ss = String(d.getSeconds()).padStart(2, '0');
+  return `${fmtTime(iso)}:${ss}`;
+}
 function escHtml(s) {
   if (!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -3545,7 +3551,7 @@ async function selectRdTicket(idx, directTicket) {
   // 요청 정보 사이드
   document.getElementById('rd-company').textContent    = rdTicket.company?.name   || '—';
   document.getElementById('rd-requester').textContent  = rdTicket.requester?.name || '—';
-  document.getElementById('rd-created-at').textContent = (rdTicket.created_at || '').slice(0, 10);
+  document.getElementById('rd-created-at').textContent = fmtTimeSec(rdTicket.created_at) || '—';
   document.getElementById('rd-category').textContent   = catL;
   document.getElementById('rd-product').textContent    = rdTicket.product || '—';
   document.getElementById('rd-priority').textContent   = PRIORITY_LABELS[rdTicket.priority] || '일반';
