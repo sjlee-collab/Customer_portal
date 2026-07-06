@@ -155,7 +155,7 @@ textarea{resize:vertical;min-height:100px;}
 .reply-actions{display:flex;justify-content:space-between;align-items:center;}
 
 /* ── login screen ── */
-.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);}
+.login-wrap{min-height:100vh;display:flex;align-items:flex-start;justify-content:center;background:var(--bg);padding:40px 20px;box-sizing:border-box;}
 .login-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:36px 40px;width:400px;}
 .login-logo{width:40px;height:40px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:800;margin-bottom:20px;}
 .login-title{font-size:20px;font-weight:800;margin-bottom:4px;}
@@ -380,6 +380,13 @@ textarea{resize:vertical;min-height:100px;}
           <div>
             <div style="font-size:12px;font-weight:600;">이상재</div>
             <div style="font-size:11px;color:var(--faint);">sjlee@bigxdata.io</div>
+          </div>
+          <span class="badge b-red" style="font-size:10px;">관리자</span>
+        </div>
+        <div style="background:var(--surface2);border-radius:var(--r-md);padding:10px 12px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="fillLogin('sj@bigxdata.io','bxd1234!')">
+          <div>
+            <div style="font-size:12px;font-weight:600;">이상민</div>
+            <div style="font-size:11px;color:var(--faint);">sj@bigxdata.io</div>
           </div>
           <span class="badge b-red" style="font-size:10px;">관리자</span>
         </div>
@@ -1546,6 +1553,7 @@ const ACCOUNTS = {
   'tech@bigxdata.io':      { role: 'tech_support', pw: 'bxd1234!', name: '박기술',  company: '빅스데이터' },
   'sales@bigxdata.io':     { role: 'sales',        pw: 'bxd1234!', name: '최영업',  company: '빅스데이터' },
   'sjlee@bigxdata.io':     { role: 'admin',        pw: 'bxd1234!', name: '이상재',  company: '빅스데이터' },
+  'sj@bigxdata.io':        { role: 'admin',        pw: 'bxd1234!', name: '이상민',  company: '빅스데이터' },
 };
 
 let currentUser = null;
