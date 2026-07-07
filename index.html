@@ -3150,7 +3150,6 @@ async function loadUsers() {
     return;
   }
   allUsers = data || [];
-  document.getElementById('users-count').textContent = allUsers.length + '명';
   applyUserFilter();
 }
 
@@ -3159,6 +3158,10 @@ function applyUserFilter() {
   const filtered = allUsers.filter(u =>
     !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
   );
+  const countEl = document.getElementById('users-count');
+  if (countEl) {
+    countEl.textContent = q ? `총 ${allUsers.length}명 중 ${filtered.length}명 검색됨` : `${allUsers.length}명`;
+  }
   renderUsers(filtered);
 }
 
