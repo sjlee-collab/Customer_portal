@@ -642,7 +642,6 @@ textarea{resize:vertical;min-height:100px;}
         <div><div class="section-title" id="lib-page-title">자료실</div></div>
         <div style="display:flex;gap:8px;">
           <button class="btn btn-outline btn-sm" id="lib-btn-doc" data-show-roles="tech_support,admin" onclick="openNewDocModal()" style="display:none;">+ 자료 등록</button>
-          <button class="btn btn-primary btn-sm" id="lib-btn-faq" data-show-roles="tech_support,admin" onclick="openModal('modal-faq')" style="display:none;">+ FAQ 등록</button>
         </div>
       </div>
       <!-- 자료 다운로드 패널 -->
@@ -660,27 +659,7 @@ textarea{resize:vertical;min-height:100px;}
         <div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</div>
       </div>
       </div><!-- /lib-panel-files -->
-
-      <!-- FAQ 패널 -->
-      <div id="lib-panel-faq" style="margin-top:24px;">
-        <div style="font-size:15px;font-weight:700;margin-bottom:12px;">FAQ</div>
-        <div class="filter-bar">
-          <input class="search-box" id="faq-search" placeholder="질문 검색..." oninput="filterFaq(this.value)">
-          <span class="filter-chip active" onclick="setFaqCat('all',this)">전체</span>
-          <span class="filter-chip" onclick="setFaqCat('계정/로그인',this)">계정/로그인</span>
-          <span class="filter-chip" onclick="setFaqCat('설치/환경',this)">설치/환경</span>
-          <span class="filter-chip" onclick="setFaqCat('라이선스',this)">라이선스</span>
-          <span class="filter-chip" onclick="setFaqCat('데이터/연동',this)">데이터/연동</span>
-          <span class="filter-chip" onclick="setFaqCat('성능/오류',this)">성능/오류</span>
-          <span class="filter-chip" onclick="setFaqCat('기타',this)">기타</span>
-        </div>
-        <div id="faq-list" style="display:flex;flex-direction:column;gap:6px;"></div>
-        <tbody id="faq-tbody" style="display:none;"></tbody>
-      </div><!-- /lib-panel-faq -->
     </div><!-- /p-downloads -->
-
-      <!-- ══ p-faq (더 이상 사용 안 함 — 자료실 내 FAQ 패널로 통합) ══ -->
-      <div id="p-faq" class="page u-page" style="display:none!important;"></div>
 
       <!-- ══ 마이페이지 ══ -->
       <div id="p-mypage" class="page u-page">
@@ -1501,44 +1480,6 @@ textarea{resize:vertical;min-height:100px;}
   </div>
 </div>
 
-<!-- FAQ 등록/수정 모달 -->
-<div id="modal-faq" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.35);align-items:center;justify-content:center;">
-  <div class="modal-box" style="background:var(--surface);border-radius:var(--r-lg);width:560px;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
-    <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
-      <div style="font-size:16px;font-weight:800;" id="modal-faq-title">FAQ 등록</div>
-      <button onclick="closeModal('modal-faq')" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--faint);">✕</button>
-    </div>
-    <div style="padding:24px;">
-      <input type="hidden" id="f-idx">
-      <div style="display:grid;gap:16px;">
-        <div class="form-group">
-          <label>카테고리 <span class="req">*</span></label>
-          <select id="f-category">
-            <option value="계정/로그인">계정/로그인</option>
-            <option value="설치/환경">설치/환경</option>
-            <option value="라이선스">라이선스</option>
-            <option value="데이터/연동">데이터/연동</option>
-            <option value="성능/오류">성능/오류</option>
-            <option value="기타">기타</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>질문 <span class="req">*</span></label>
-          <input type="text" id="f-question" placeholder="자주 묻는 질문을 입력하세요">
-        </div>
-        <div class="form-group">
-          <label>답변 <span class="req">*</span></label>
-          <textarea id="f-answer" rows="6" style="width:100%;resize:vertical;" placeholder="답변 내용을 입력하세요"></textarea>
-        </div>
-      </div>
-    </div>
-    <div style="padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;">
-      <button class="btn btn-ghost" onclick="closeModal('modal-faq')">취소</button>
-      <button class="btn btn-primary" onclick="submitFaq()">저장</button>
-    </div>
-  </div>
-</div>
-
 <!-- 접수 완료 toast -->
 <div id="toast" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:12px 20px;border-radius:var(--r-md);font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.25);">
   ✅ SR-2024-0045 접수 완료 — 확인 메일이 발송되었습니다.
@@ -1825,7 +1766,6 @@ function showPage(tabEl, pageId) {
     if (titleEl) titleEl.textContent = isAdmin ? '자료실 관리' : '자료실';
     switchLibTab();
   }
-  if (pageId === 'p-faq')         { loadFaq(); if (currentUser && ['tech_support','admin'].includes(currentUser.role)) loadFaqAdmin(); }
   if (pageId === 'p-integration') loadIntegrationLogs();
   if (pageId === 'p-notify-log')     loadNotifyLog();
   if (pageId === 'p-request-detail') {
@@ -1848,7 +1788,7 @@ function showAdminPage(sbEl, pageId) {
   const map = {
     'a-requests':'p-all-requests','a-request-detail':'p-request-detail',
     'a-customers':'p-customers','a-users':'p-users','a-documents':'p-documents',
-    'a-faq':'p-faq','a-notify-log':'p-notify-log','a-integration':'p-integration',
+    'a-notify-log':'p-notify-log','a-integration':'p-integration',
     'a-dashboard':'p-dashboard'
   };
   showPage(sbEl, map[pageId] || pageId);
@@ -2078,93 +2018,6 @@ async function deleteDocument(id, title) {
   if (error) { showToast('삭제 실패: ' + error.message, true); return; }
   showToast('✅ 삭제됐습니다.');
   loadDocuments();
-}
-
-// ─── FAQ 관리 ────────────────────────────────────────────
-let faqList = [];
-
-async function loadFaqAdmin() {
-  const tbody = document.getElementById('faq-tbody');
-  tbody.innerHTML = '<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>';
-
-  // faqs 테이블이 없을 경우 JS 배열(FAQS) 폴백
-  const { data, error } = await sb.from('faqs').select('*').order('sort_order').order('created_at');
-  if (error) {
-    // Supabase에 faqs 테이블이 없으면 전역 FAQS 배열 사용
-    faqList = (typeof FAQS !== 'undefined') ? FAQS.map((f, i) => ({ _idx: i, ...f })) : [];
-  } else {
-    faqList = data;
-  }
-  renderFaqAdmin();
-}
-
-function renderFaqAdmin() {
-  const tbody = document.getElementById('faq-tbody');
-  document.getElementById('faq-count').textContent = `총 ${faqList.length}개`;
-  if (!faqList.length) { tbody.innerHTML = '<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">등록된 FAQ가 없습니다.</td></tr>'; return; }
-  tbody.innerHTML = faqList.map((f, i) => `
-    <tr>
-      <td style="text-align:center;color:var(--faint);font-variant-numeric:tabular-nums;">${i + 1}</td>
-      <td><span class="badge b-blue" style="font-size:11px;">${f.category || f.category_label || ''}</span></td>
-      <td style="font-weight:600;font-size:13px;">${f.question || f.q || ''}</td>
-      <td style="font-size:12px;color:var(--faint);max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${(f.answer || f.a || '').replace(/<[^>]*>/g,'').slice(0,80)}…</td>
-      <td>
-        <button class="btn btn-ghost btn-sm" onclick="openEditFaq(${i})">수정</button>
-        <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="deleteFaqItem(${i})">삭제</button>
-      </td>
-    </tr>`).join('');
-}
-
-function openEditFaq(idx) {
-  const f = faqList[idx];
-  document.getElementById('modal-faq-title').textContent = 'FAQ 수정';
-  document.getElementById('f-idx').value = f.id || '';
-  document.getElementById('f-category').value = f.category || '기타';
-  document.getElementById('f-question').value = f.question || '';
-  document.getElementById('f-answer').value = (f.answer || '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '');
-  openModal('modal-faq');
-}
-
-async function submitFaq() {
-  const saveBtn = document.querySelector('#modal-faq .btn-primary');
-  if (saveBtn?.disabled) return;
-  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '저장 중...'; }
-  const restoreBtn = () => { if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '저장'; } };
-
-  const dbId    = document.getElementById('f-idx').value;
-  const category = document.getElementById('f-category').value;
-  const question = document.getElementById('f-question').value.trim();
-  const answerRaw = document.getElementById('f-answer').value.trim();
-  if (!question) { showToast('질문을 입력하세요.', true); restoreBtn(); return; }
-  if (!answerRaw) { showToast('답변을 입력하세요.', true); restoreBtn(); return; }
-  const answer = answerRaw.replace(/\n/g, '\n');
-
-  const payload = { category, question, answer, updated_at: new Date().toISOString() };
-  let error;
-  if (dbId) {
-    ({ error } = await sb.from('faqs').update(payload).eq('id', dbId));
-  } else {
-    payload.sort_order = faqList.length;
-    ({ error } = await sb.from('faqs').insert(payload));
-  }
-  restoreBtn();
-  if (error) { showToast('저장 실패: ' + error.message, true); return; }
-
-  closeModal('modal-faq');
-  document.getElementById('modal-faq-title').textContent = 'FAQ 등록';
-  showToast('✅ FAQ가 저장됐습니다.');
-  loadFaqAdmin();
-  loadFaq();
-}
-
-async function deleteFaqItem(idx) {
-  const f = faqList[idx];
-  if (!confirm(`"${f.question}" FAQ를 삭제하시겠습니까?`)) return;
-  const { error } = await sb.from('faqs').delete().eq('id', f.id);
-  if (error) { showToast('삭제 실패: ' + error.message, true); return; }
-  showToast('삭제됐습니다.');
-  loadFaqAdmin();
-  loadFaq();
 }
 
 const PRIORITY_LABELS = { normal:'일반', high:'빠른 확인 필요', critical:'긴급' };
@@ -2402,12 +2255,6 @@ function openModal(id) {
     const fi = document.getElementById('d-file-input');
     if (fi) fi.value = '';
     _docFile = null;
-  }
-  if (id === 'modal-faq') {
-    if (!document.getElementById('f-idx').value && document.getElementById('f-idx').value !== '0') {
-      document.getElementById('modal-faq-title').textContent = 'FAQ 등록';
-      document.getElementById('f-idx').value = '';
-    }
   }
 }
 function closeModal(id) {
@@ -3442,36 +3289,6 @@ function getSampleTickets() {
 }
 
 // ══════════════════════════════════════════
-//  FAQ (DB 연동)
-// ══════════════════════════════════════════
-let faqDbData = [];
-let faqCat = 'all';
-
-async function loadFaq() {
-  const list = document.getElementById('faq-list');
-  if (!list) return;
-  list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</div>';
-  if (!sb) { list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--faint);">DB 연결 없음</div>'; return; }
-
-  const { data, error } = await sb.from('faqs')
-    .select('id, category, question, answer, sort_order')
-    .order('sort_order', { ascending: true })
-    .order('created_at', { ascending: true });
-
-  if (error) { list.innerHTML = `<div style="padding:20px;text-align:center;color:var(--red);">오류: ${escHtml(error.message)}</div>`; return; }
-  faqDbData = data || [];
-  renderFaq();
-}
-
-function setFaqCat(cat, el) {
-  faqCat = cat;
-  document.querySelectorAll('#lib-panel-faq .filter-chip').forEach(c => c.classList.remove('active'));
-  if (el) el.classList.add('active');
-  renderFaq();
-}
-function filterFaq(q) { renderFaq(q); }
-
-// ══════════════════════════════════════════
 //  요청 관리 (운영자용)
 // ══════════════════════════════════════════
 let allMgTickets = [];
@@ -4296,12 +4113,8 @@ async function saveManage() {
 function switchLibTab() {
   const isAdmin = currentUser && ['tech_support','admin'].includes(currentUser.role);
   const btnDoc = document.getElementById('lib-btn-doc');
-  const btnFaq = document.getElementById('lib-btn-faq');
   if (btnDoc) btnDoc.style.display = isAdmin ? '' : 'none';
-  if (btnFaq) btnFaq.style.display = isAdmin ? '' : 'none';
   loadLibFiles();
-  loadFaq();
-  if (isAdmin) loadFaqAdmin();
 }
 
 // ── 자료실 (고객용) DB 연동 ─────────────────────────────────────
@@ -4524,52 +4337,6 @@ async function downloadDoc(url, filename, docId) {
     showToast('다운로드 실패: ' + e.message, true);
   }
 }
-function renderFaq(q) {
-  q = (q || document.getElementById('faq-search')?.value || '').toLowerCase();
-  const list = document.getElementById('faq-list');
-  if (!list) return;
-  if (!faqDbData.length) {
-    list.innerHTML = '<div style="padding:30px;text-align:center;color:var(--faint);font-size:13px;">등록된 FAQ가 없습니다.</div>';
-    return;
-  }
-  const filtered = faqDbData.filter(f =>
-    (faqCat === 'all' || f.category === faqCat) &&
-    (!q || (f.question||'').toLowerCase().includes(q) || (f.answer||'').toLowerCase().includes(q))
-  );
-  if (!filtered.length) {
-    list.innerHTML = '<div style="padding:30px;text-align:center;color:var(--faint);font-size:13px;">🔍 검색 결과가 없습니다.</div>';
-    return;
-  }
-  list.innerHTML = filtered.map(f => `
-    <div class="card" style="margin-bottom:0;padding:0;overflow:hidden;">
-      <div style="padding:14px 18px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;" onclick="toggleFaq(this)">
-        <div>
-          <span class="badge b-blue" style="font-size:10px;margin-right:6px;">${escHtml(f.category || '')}</span>
-          <span style="font-size:13px;font-weight:600;">Q. ${escHtml(f.question || '')}</span>
-        </div>
-        <span style="font-size:16px;color:var(--faint);flex-shrink:0;transition:.2s;" class="faq-arrow">▾</span>
-      </div>
-      <div class="faq-ans" style="display:none;padding:0 18px 16px;font-size:13px;color:var(--muted);line-height:1.7;border-top:1px solid var(--border);">${(f.answer||'').replace(/\n/g,'<br>')}</div>
-    </div>`).join('');
-}
-function toggleFaq(header) {
-  const ans = header.nextElementSibling;
-  const arrow = header.querySelector('.faq-arrow');
-  const open = ans.style.display !== 'none';
-  ans.style.display = open ? 'none' : 'block';
-  arrow.style.transform = open ? '' : 'rotate(180deg)';
-}
-
-// ══════════════════════════════════════════
-//  filter chips — FAQ 탭 전용
-// ══════════════════════════════════════════
-document.querySelectorAll('#c-faq .filter-chip').forEach(c => {
-  c.addEventListener('click', () => {
-    c.closest('.filter-bar').querySelectorAll('.filter-chip').forEach(x => x.classList.remove('active'));
-    c.classList.add('active');
-  });
-});
-
 // ══════════════════════════════════════════
 //  시작
 // ══════════════════════════════════════════
