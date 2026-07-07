@@ -3501,7 +3501,7 @@ function rdBackToList() {
 async function selectRdTicket(idx, directTicket) {
   rdTicket = directTicket || allMgTickets[idx];
   if (!rdTicket) return;
-  if (!directTicket) renderRdList(); // 선택 하이라이트 갱신
+  renderRdList(); // 선택 하이라이트 갱신 (고객/관리자 화면 공통)
   document.querySelector('.rd-grid')?.classList.add('showing-detail'); // 모바일: 상세 화면으로 전환
 
   // DB에서 전체 필드 재조회
