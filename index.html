@@ -2466,8 +2466,8 @@ async function loadDashboard() {
   if (role === 'customer' || role === 'internal') {
     const companyId = currentUser.company_id;
     const userId    = currentUser.id;
-    // 소속 고객사 전체 티켓 기준 (company_id 우선, 없으면 created_by)
-    const applyFilter = (q) => companyId ? q.eq('company_id', companyId) : q.eq('created_by', userId);
+    // 소속 고객사 전체 티켓 기준 (company_id 우선, id 있으면 created_by, 둘 다 없으면 전체)
+    const applyFilter = (q) => companyId ? q.eq('company_id', companyId) : userId ? q.eq('created_by', userId) : q;
 
     // 라이선스
     if (companyId) {
@@ -3616,7 +3616,9 @@ async function loadCustomerRdList(activeId) {
     .order('created_at', { ascending: false });
   const { data } = currentUser.company_id
     ? await rdQ.eq('company_id', currentUser.company_id)
-    : await rdQ.eq('created_by', currentUser.id);
+    : currentUser.id
+      ? await rdQ.eq('created_by', currentUser.id)
+      : await rdQ;
   customerRdTickets = data || [];
   renderCustomerRdListPanel(activeId);
 }
