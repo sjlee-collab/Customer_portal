@@ -922,7 +922,7 @@ textarea{resize:vertical;min-height:100px;}
       <div id="p-customers" class="page u-page">
         <div class="section-header">
           <div><div class="section-title">고객사 관리</div><div class="section-sub" id="companies-count">불러오는 중...</div></div>
-          <button class="btn btn-primary btn-sm" onclick="openModal('modal-company')">+ 고객사 등록</button>
+          <button class="btn btn-primary btn-sm" onclick="openNewCompanyModal()">+ 고객사 등록</button>
         </div>
         <div class="filter-bar">
           <input class="search-box" id="company-search" placeholder="고객사명 검색..." oninput="applyCompanyFilter()">
@@ -936,7 +936,7 @@ textarea{resize:vertical;min-height:100px;}
         </div>
         <div class="card" style="padding:0;overflow:hidden;">
           <div class="tbl-scroll"><table class="tbl">
-            <thead><tr><th>고객사명</th><th>산업군</th><th>제품</th><th>영업담당</th><th>기술지원</th><th>Salesforce ID</th><th>계약 시작일</th><th>계약 만료일</th><th>잔여일</th><th>상태</th><th>액션</th></tr></thead>
+            <thead><tr><th>고객사명</th><th>상태</th><th>고객유형</th><th>사용제품</th><th>담당영업</th><th>담당기술지원</th><th>대표담당자</th><th>연락처</th><th>알림이메일</th><th>이메일알림</th><th>계약기간</th><th>라이선스</th><th>액션</th></tr></thead>
             <tbody id="companies-tbody">
               <tr><td colspan="9" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
             </tbody>
@@ -1278,7 +1278,7 @@ textarea{resize:vertical;min-height:100px;}
 
 <!-- 고객사 등록 모달 -->
 <div id="modal-company" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.35);align-items:center;justify-content:center;">
-  <div class="modal-box" style="background:var(--surface);border-radius:var(--r-lg);width:540px;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+  <div class="modal-box" style="background:var(--surface);border-radius:var(--r-lg);width:640px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
     <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
       <div style="font-size:16px;font-weight:800;">고객사 등록</div>
       <button onclick="closeModal('modal-company')" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--faint);">✕</button>
@@ -1286,33 +1286,93 @@ textarea{resize:vertical;min-height:100px;}
     <div style="padding:24px;">
       <input type="hidden" id="co-id">
       <div class="form-grid" style="gap:16px;">
+
+        <!-- ① 고객사명 -->
         <div class="form-group span2">
           <label>고객사명 <span class="req">*</span></label>
           <input type="text" id="co-name" placeholder="㈜ 예시회사">
         </div>
-        <div class="form-group span2">
-          <label>Salesforce ID</label>
-          <input type="text" id="co-salesforce-id" placeholder="001XXXXXXXXXXXXXXX">
-        </div>
-        <div class="form-group span2">
-          <label>산업군</label>
-          <select id="co-industry">
-            <option value="">선택 안 함</option>
-            <option value="제조">제조</option>
-            <option value="금융">금융</option>
-            <option value="공공">공공</option>
-            <option value="유통/물류">유통/물류</option>
-            <option value="IT/서비스">IT/서비스</option>
-            <option value="기타">기타</option>
+
+        <!-- ② 고객사상태  ③ 고객유형 -->
+        <div class="form-group">
+          <label>고객사 상태</label>
+          <select id="co-status">
+            <option value="active">활성</option>
+            <option value="inactive">비활성</option>
+            <option value="prospect">잠재 고객</option>
+            <option value="suspended">일시 중단</option>
           </select>
         </div>
         <div class="form-group">
-          <label>담당 기술지원 담당자</label>
-          <input type="text" id="co-tech-manager" placeholder="박기술">
+          <label>고객 유형</label>
+          <select id="co-customer-type">
+            <option value="">선택 안 함</option>
+            <option value="enterprise">엔터프라이즈</option>
+            <option value="mid-market">중견기업</option>
+            <option value="smb">중소기업</option>
+            <option value="public">공공기관</option>
+            <option value="education">교육기관</option>
+            <option value="other">기타</option>
+          </select>
+        </div>
+
+        <!-- ④ 사용 제품 -->
+        <div class="form-group span2">
+          <label>사용 제품</label>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;padding:6px 0;">
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Tableau Server" style="accent-color:var(--accent);"> Tableau Server</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Tableau Cloud" style="accent-color:var(--accent);"> Tableau Cloud</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Tableau Desktop" style="accent-color:var(--accent);"> Tableau Desktop</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Dataworks" style="accent-color:var(--accent);"> Dataworks</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="AgentWorks" style="accent-color:var(--accent);"> AgentWorks</label>
+          </div>
+        </div>
+
+        <!-- ⑤ 담당 영업대표  ⑥ 담당 기술지원자 -->
+        <div class="form-group">
+          <label>담당 영업대표</label>
+          <select id="co-manager"><option value="">선택 안 함</option></select>
         </div>
         <div class="form-group">
-          <label>담당 영업</label>
-          <input type="text" id="co-manager" placeholder="이름">
+          <label>담당 기술지원자</label>
+          <select id="co-tech-manager"><option value="">선택 안 함</option></select>
+        </div>
+
+        <!-- ⑦⑧⑨ 대표 고객 담당자 -->
+        <div class="form-group span2" style="border-top:1px solid var(--border);padding-top:14px;margin-top:2px;">
+          <label style="font-weight:700;font-size:13px;color:var(--faint);letter-spacing:.04em;text-transform:uppercase;">대표 고객 담당자</label>
+        </div>
+        <div class="form-group">
+          <label>담당자 이름</label>
+          <input type="text" id="co-contact-name" placeholder="홍길동">
+        </div>
+        <div class="form-group">
+          <label>연락처</label>
+          <input type="tel" id="co-contact-phone" placeholder="010-0000-0000">
+        </div>
+        <div class="form-group span2">
+          <label>이메일</label>
+          <input type="email" id="co-contact-email" placeholder="contact@company.com">
+        </div>
+
+        <!-- ⑩⑪ 알림 설정 -->
+        <div class="form-group span2" style="border-top:1px solid var(--border);padding-top:14px;margin-top:2px;">
+          <label style="font-weight:700;font-size:13px;color:var(--faint);letter-spacing:.04em;text-transform:uppercase;">알림 설정</label>
+        </div>
+        <div class="form-group span2">
+          <label>기본 알림 이메일 목록 <span style="font-size:11px;color:var(--faint);">쉼표 또는 줄바꿈으로 구분</span></label>
+          <textarea id="co-notification-emails" rows="2" style="width:100%;resize:vertical;" placeholder="example@company.com, manager@company.com"></textarea>
+        </div>
+        <div class="form-group span2">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <input type="checkbox" id="co-email-notify" style="accent-color:var(--accent);width:16px;height:16px;" checked>
+            <span>이메일 알림 사용</span>
+          </label>
+        </div>
+
+        <!-- ⑫ 계약 정보 -->
+        <div class="form-group span2" style="border-top:1px solid var(--border);padding-top:14px;margin-top:2px;">
+          <label style="font-weight:700;font-size:13px;color:var(--faint);letter-spacing:.04em;text-transform:uppercase;">계약 정보</label>
         </div>
         <div class="form-group">
           <label>계약 시작일</label>
@@ -1322,20 +1382,20 @@ textarea{resize:vertical;min-height:100px;}
           <label>계약 만료일</label>
           <input type="date" id="co-end">
         </div>
-        <div class="form-group span2">
-          <label>계약 제품</label>
-          <div style="display:flex;flex-wrap:wrap;gap:8px;padding:8px 0;">
-            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Tableau Server" style="accent-color:var(--accent);"> Tableau Server</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Tableau Cloud" style="accent-color:var(--accent);"> Tableau Cloud</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Tableau Desktop" style="accent-color:var(--accent);"> Tableau Desktop</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Dataworks" style="accent-color:var(--accent);"> Dataworks</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="AgentWorks" style="accent-color:var(--accent);"> AgentWorks</label>
-          </div>
+
+        <!-- ⑬ 라이선스 정보 -->
+        <div class="form-group span2" style="border-top:1px solid var(--border);padding-top:14px;margin-top:2px;">
+          <label style="font-weight:700;font-size:13px;color:var(--faint);letter-spacing:.04em;text-transform:uppercase;">라이선스 정보</label>
         </div>
-        <div class="form-group span2">
-          <label>고객사 환경 정보 <span style="font-size:11px;color:var(--faint);">JSON 또는 메모</span></label>
-          <textarea id="co-env-info" rows="2" style="width:100%;resize:vertical;" placeholder='{"os": "Windows Server 2022", "version": "2024.1"}'></textarea>
+        <div class="form-group">
+          <label>총 라이선스 수</label>
+          <input type="number" id="co-max-seats" min="0" placeholder="0">
         </div>
+        <div class="form-group">
+          <label>사용 중 라이선스</label>
+          <input type="number" id="co-used-seats" min="0" placeholder="0">
+        </div>
+
       </div>
     </div>
     <div style="padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;">
@@ -2897,11 +2957,16 @@ function applyCompanyFilter() {
   renderCompanies(filtered);
 }
 
+const CUSTOMER_TYPE_KO = {
+  enterprise: '엔터프라이즈', 'mid-market': '중견기업', smb: '중소기업',
+  public: '공공기관', education: '교육기관', other: '기타',
+};
+
 function renderCompanies(companies) {
   const tbody = document.getElementById('companies-tbody');
   if (!tbody) return;
   if (!companies.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="padding:40px;text-align:center;color:var(--faint);">등록된 고객사가 없습니다.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="13" style="padding:40px;text-align:center;color:var(--faint);">등록된 고객사가 없습니다.</td></tr>';
     return;
   }
   const isAdmin = currentUser && ['tech_support','admin'].includes(currentUser.role);
@@ -2912,26 +2977,42 @@ function renderCompanies(companies) {
     const products = Array.isArray(c.products) && c.products.length
       ? c.products.map(p => `<span class="badge b-gray" style="font-size:10px;margin:1px;">${escHtml(p)}</span>`).join('')
       : '<span style="color:var(--faint);">—</span>';
-    const startDate = c.contract_start ? c.contract_start.slice(0,10) : '—';
-    const endDate   = c.contract_end   ? c.contract_end.slice(0,10)   : '—';
-    const daysLeft  = c.contract_end ? Math.ceil((new Date(c.contract_end) - today) / 86400000) : null;
-    const daysHtml  = daysLeft === null ? '—'
-      : daysLeft < 0   ? `<span style="color:var(--red);font-weight:600;">만료</span>`
-      : daysLeft <= 30 ? `<span style="color:var(--red);font-weight:600;">${daysLeft}일</span>`
-      : daysLeft <= 90 ? `<span style="color:var(--amber);font-weight:600;">${daysLeft}일</span>`
-      : `<span style="color:var(--accent);font-weight:600;">${daysLeft}일</span>`;
+    const ctLabel = CUSTOMER_TYPE_KO[c.customer_type] || (c.customer_type ? escHtml(c.customer_type) : '—');
+    const notifyEmails = Array.isArray(c.notification_emails) && c.notification_emails.length
+      ? `<span style="font-size:11px;">${escHtml(c.notification_emails[0])}${c.notification_emails.length > 1 ? `<br><span style="color:var(--faint);">외 ${c.notification_emails.length-1}개</span>` : ''}</span>`
+      : '<span style="color:var(--faint);">—</span>';
+    const emailNotify = c.email_notification_enabled === false
+      ? '<span class="badge b-gray" style="font-size:10px;">끔</span>'
+      : '<span class="badge b-green" style="font-size:10px;">켜짐</span>';
+    const startDate = c.contract_start ? c.contract_start.slice(0,10) : null;
+    const endDate   = c.contract_end   ? c.contract_end.slice(0,10)   : null;
+    let contractHtml = '—';
+    if (startDate || endDate) {
+      const daysLeft = endDate ? Math.ceil((new Date(endDate) - today) / 86400000) : null;
+      const daysBadge = daysLeft === null ? ''
+        : daysLeft < 0   ? ` <span style="color:var(--red);font-size:10px;font-weight:600;">만료</span>`
+        : daysLeft <= 30 ? ` <span style="color:var(--red);font-size:10px;font-weight:600;">${daysLeft}일</span>`
+        : daysLeft <= 90 ? ` <span style="color:var(--amber);font-size:10px;font-weight:600;">${daysLeft}일</span>`
+        : '';
+      contractHtml = `<span style="font-size:11px;">${startDate||'—'} ~ ${endDate||'—'}${daysBadge}</span>`;
+    }
+    const licenseHtml = (c.max_seats > 0)
+      ? `<span style="font-size:12px;">${c.used_seats || 0} / ${c.max_seats}</span>`
+      : '<span style="color:var(--faint);">—</span>';
     return `
       <tr>
         <td style="font-weight:600;">${escHtml(c.name)}</td>
-        <td style="font-size:12px;">${escHtml(c.industry || '—')}</td>
-        <td style="font-size:12px;max-width:160px;white-space:normal;">${products}</td>
+        <td><span class="badge ${stBadge}">${stLabel}</span></td>
+        <td style="font-size:12px;">${ctLabel}</td>
+        <td style="font-size:12px;max-width:150px;white-space:normal;">${products}</td>
         <td style="font-size:12px;">${escHtml(c.account_manager || '—')}</td>
         <td style="font-size:12px;">${escHtml(c.tech_support_manager || '—')}</td>
-        <td style="font-size:12px;">${c.salesforce_id ? `<span style="font-family:monospace;background:var(--surface2);padding:2px 6px;border-radius:4px;">${escHtml(c.salesforce_id)}</span>` : '—'}</td>
-        <td style="font-size:12px;">${startDate}</td>
-        <td style="font-size:12px;">${endDate}</td>
-        <td>${daysHtml}</td>
-        <td><span class="badge ${stBadge}">${stLabel}</span></td>
+        <td style="font-size:12px;">${escHtml(c.main_contact_name || '—')}</td>
+        <td style="font-size:12px;">${escHtml(c.main_contact_phone || '—')}</td>
+        <td style="font-size:12px;">${notifyEmails}</td>
+        <td>${emailNotify}</td>
+        <td style="font-size:12px;">${contractHtml}</td>
+        <td>${licenseHtml}</td>
         <td style="white-space:nowrap;">
           ${isAdmin ? `<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick='openEditCompany(${escHtml(JSON.stringify(c).replace(/'/g,"&#39;"))})'>수정</button>` : ''}
           <button class="btn btn-ghost btn-sm" style="font-size:11px;color:#e53e3e;" onclick="deleteCompany('${c.id}','${escHtml(c.name)}')">삭제</button>
@@ -2940,24 +3021,75 @@ function renderCompanies(companies) {
   }).join('');
 }
 
-function openEditCompany(c) {
+async function populateCompanyUserSelects() {
+  if (!sb) return;
+  const { data } = await sb.from('users')
+    .select('id, name, role, department, division')
+    .eq('is_active', true)
+    .order('name');
+  if (!data) return;
+
+  const salesSel = document.getElementById('co-manager');
+  const techSel  = document.getElementById('co-tech-manager');
+  const curSales = salesSel.value;
+  const curTech  = techSel.value;
+
+  const makeOpts = (users) => users.map(u =>
+    `<option value="${escHtml(u.name)}">${escHtml(u.name)}${u.division ? ' (' + escHtml(u.division) + ')' : ''}</option>`
+  ).join('');
+
+  salesSel.innerHTML = '<option value="">선택 안 함</option>' + makeOpts(data);
+  techSel.innerHTML  = '<option value="">선택 안 함</option>' + makeOpts(data);
+
+  if (curSales) salesSel.value = curSales;
+  if (curTech)  techSel.value  = curTech;
+}
+
+async function openNewCompanyModal() {
+  document.querySelector('#modal-company div[style*="font-size:16px"]').textContent = '고객사 등록';
+  document.querySelector('#modal-company .btn-primary').textContent = '등록';
+  document.getElementById('co-id').value = '';
+  document.getElementById('co-name').value = '';
+  document.getElementById('co-status').value = 'active';
+  document.getElementById('co-customer-type').value = '';
+  document.getElementById('co-contact-name').value = '';
+  document.getElementById('co-contact-email').value = '';
+  document.getElementById('co-contact-phone').value = '';
+  document.getElementById('co-notification-emails').value = '';
+  document.getElementById('co-email-notify').checked = true;
+  document.getElementById('co-start').value = '';
+  document.getElementById('co-end').value = '';
+  document.getElementById('co-max-seats').value = '';
+  document.getElementById('co-used-seats').value = '';
+  document.querySelectorAll('.co-product-chk').forEach(chk => { chk.checked = false; });
+  await populateCompanyUserSelects();
+  openModal('modal-company');
+}
+
+async function openEditCompany(c) {
   document.querySelector('#modal-company div[style*="font-size:16px"]').textContent = '고객사 수정';
   document.querySelector('#modal-company .btn-primary').textContent = '저장';
   document.getElementById('co-id').value = c.id;
   document.getElementById('co-name').value = c.name || '';
-  document.getElementById('co-industry').value = c.industry || '';
-  document.getElementById('co-tech-manager').value = c.tech_support_manager || '';
-  document.getElementById('co-manager').value = c.account_manager || '';
-  document.getElementById('co-salesforce-id').value = c.salesforce_id || '';
+  document.getElementById('co-status').value = c.status || 'active';
+  document.getElementById('co-customer-type').value = c.customer_type || '';
+  document.getElementById('co-contact-name').value = c.main_contact_name || '';
+  document.getElementById('co-contact-email').value = c.main_contact_email || '';
+  document.getElementById('co-contact-phone').value = c.main_contact_phone || '';
+  const emails = Array.isArray(c.notification_emails) ? c.notification_emails : [];
+  document.getElementById('co-notification-emails').value = emails.join('\n');
+  document.getElementById('co-email-notify').checked = c.email_notification_enabled !== false;
   document.getElementById('co-start').value = c.contract_start ? c.contract_start.slice(0,10) : '';
   document.getElementById('co-end').value   = c.contract_end   ? c.contract_end.slice(0,10)   : '';
-  document.getElementById('co-env-info').value = c.environment_info
-    ? (typeof c.environment_info === 'string' ? c.environment_info : JSON.stringify(c.environment_info, null, 2))
-    : '';
+  document.getElementById('co-max-seats').value  = c.max_seats  != null ? c.max_seats  : '';
+  document.getElementById('co-used-seats').value = c.used_seats != null ? c.used_seats : '';
   const selected = Array.isArray(c.products) ? c.products : [];
   document.querySelectorAll('.co-product-chk').forEach(chk => {
     chk.checked = selected.includes(chk.value);
   });
+  document.getElementById('co-manager').value = c.account_manager || '';
+  document.getElementById('co-tech-manager').value = c.tech_support_manager || '';
+  await populateCompanyUserSelects();
   openModal('modal-company');
 }
 
@@ -2969,31 +3101,47 @@ async function submitCompany() {
   const btn = document.querySelector('#modal-company .btn-primary');
   if (btn) { btn.disabled = true; btn.textContent = '등록 중...'; }
 
-  const industry = document.getElementById('co-industry')?.value;
-  const payload = { name, status: 'active' };
-  if (industry) payload.industry = industry;
+  const status       = document.getElementById('co-status')?.value || 'active';
+  const customerType = document.getElementById('co-customer-type')?.value?.trim() || null;
+  const manager      = document.getElementById('co-manager')?.value?.trim() || null;
+  const techMgr      = document.getElementById('co-tech-manager')?.value?.trim() || null;
+  const contactName  = document.getElementById('co-contact-name')?.value?.trim() || null;
+  const contactEmail = document.getElementById('co-contact-email')?.value?.trim() || null;
+  const contactPhone = document.getElementById('co-contact-phone')?.value?.trim() || null;
 
-  const techMgr = document.getElementById('co-tech-manager')?.value?.trim();
-  if (techMgr) payload.tech_support_manager = techMgr;
-  const manager = document.getElementById('co-manager')?.value?.trim();
-  if (manager) payload.account_manager = manager;
-  const salesforceId = document.getElementById('co-salesforce-id')?.value?.trim();
-  if (salesforceId) payload.salesforce_id = salesforceId;
-  else payload.salesforce_id = null;
-  const start = document.getElementById('co-start')?.value;
-  const end   = document.getElementById('co-end')?.value;
-  if (start) payload.contract_start = start;
-  if (end)   payload.contract_end   = end;
+  const emailsRaw = document.getElementById('co-notification-emails')?.value || '';
+  const notificationEmails = emailsRaw
+    .split(/[\n,]+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
 
-  const products = Array.from(document.querySelectorAll('.co-product-chk:checked')).map(el => el.value);
-  if (products.length) payload.products = products;
+  const emailNotify = document.getElementById('co-email-notify')?.checked ?? true;
+  const products    = Array.from(document.querySelectorAll('.co-product-chk:checked')).map(el => el.value);
 
-  const envRaw = document.getElementById('co-env-info')?.value?.trim();
-  if (envRaw) {
-    try { payload.environment_info = JSON.parse(envRaw); }
-    catch { payload.environment_info = { memo: envRaw }; }
-  }
+  const contractStart = document.getElementById('co-start')?.value || null;
+  const contractEnd   = document.getElementById('co-end')?.value   || null;
+  const maxSeatsRaw   = document.getElementById('co-max-seats')?.value;
+  const usedSeatsRaw  = document.getElementById('co-used-seats')?.value;
+  const maxSeats      = maxSeatsRaw  !== '' && maxSeatsRaw  != null ? parseInt(maxSeatsRaw,  10) : null;
+  const usedSeats     = usedSeatsRaw !== '' && usedSeatsRaw != null ? parseInt(usedSeatsRaw, 10) : null;
 
+  const payload = {
+    name,
+    status,
+    customer_type:              customerType,
+    account_manager:            manager,
+    tech_support_manager:       techMgr,
+    main_contact_name:          contactName,
+    main_contact_email:         contactEmail,
+    main_contact_phone:         contactPhone,
+    notification_emails:        notificationEmails.length ? notificationEmails : null,
+    email_notification_enabled: emailNotify,
+    products:                   products.length ? products : null,
+    contract_start:             contractStart,
+    contract_end:               contractEnd,
+    max_seats:                  maxSeats,
+    used_seats:                 usedSeats,
+  };
 
   let error;
   if (id) {
@@ -3004,7 +3152,6 @@ async function submitCompany() {
   if (btn) { btn.disabled = false; btn.textContent = id ? '저장' : '등록'; }
   if (error) { showToast((id ? '수정' : '등록') + ' 실패: ' + error.message, true); return; }
 
-  // 모달 제목/버튼 초기화
   document.querySelector('#modal-company div[style*="font-size:16px"]').textContent = '고객사 등록';
   document.querySelector('#modal-company .btn-primary').textContent = '등록';
   document.getElementById('co-id').value = '';
@@ -3028,7 +3175,7 @@ async function loadNotifyLog() {
   }
 
   let q = sb.from('notification_logs')
-    .select(`id, ticket_id, channel, event_type, recipient, status, error_message, sent_at, retry_count,
+    .select(`id, ticket_id, channel, notification_type, recipient, status, error_message, sent_at, retry_count,
              tickets(ticket_number, title, category, priority, created_at,
                companies(name), users!tickets_created_by_fkey(name), assignee:users!tickets_assigned_to_fkey(name))`)
     .order('sent_at', { ascending: false })
@@ -3053,7 +3200,19 @@ async function loadNotifyLog() {
 
   const CATEGORY_KO  = { tech_support:'기술지원', contract:'계약 문의', license:'라이선스 문의', education:'교육 문의', other:'기타' };
   const PRIORITY_KO  = { normal:'일반', high:'빠른 확인 필요', critical:'긴급' };
-  const EVENT_TYPE_KO = { new_ticket:'신규 요청', assigned:'담당자 변경', status_change:'상태 변경', reply:'답글 등록' };
+  const EVENT_TYPE_KO = {
+    new_ticket:       '신규 요청',
+    assigned:         '담당자 변경',
+    status_change:    '상태 변경',
+    status_changed:   '상태 변경',
+    reply:            '답글 등록',
+    completed:        '처리 완료',
+    pending_customer: '고객 확인 요청',
+    internal_new:     '내부 신규 알림',
+    internal_sales:   '내부 영업 알림',
+    urgent:           '긴급 요청',
+    overdue:          '지연 요청',
+  };
 
   tbody.innerHTML = data.map(n => {
     const ticketNum = n.tickets?.ticket_number || (n.ticket_id ? n.ticket_id.slice(0,8) : '—');
@@ -3095,7 +3254,7 @@ async function loadNotifyLog() {
       <td style="font-size:11px;font-variant-numeric:tabular-nums;color:var(--faint);">${escHtml(n.id.slice(0,8))}…</td>
       <td style="font-size:12px;font-weight:600;">${escHtml(ticketNum)}</td>
       <td><span class="badge ${n.channel === 'slack' ? 'b-accent' : 'b-red'}" style="font-size:11px;">${n.channel === 'email' ? 'Gmail' : escHtml(n.channel || '—')}</span></td>
-      <td style="font-size:12px;">${escHtml(EVENT_TYPE_KO[n.event_type] || n.event_type || '—')}</td>
+      <td style="font-size:12px;">${escHtml(EVENT_TYPE_KO[n.notification_type] || n.notification_type || '—')}</td>
       <td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(n.recipient || '—')}</td>
       <td>${statusBadge}</td>
       <td style="font-size:11px;color:var(--red);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(n.error_message || '')}">${escHtml(n.error_message || '—')}</td>
