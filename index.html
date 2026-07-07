@@ -639,16 +639,11 @@ textarea{resize:vertical;min-height:100px;}
       <!-- ══ 자료 다운로드 ══ -->
       <div id="p-downloads" class="page u-page">
       <div class="section-header">
-        <div><div class="section-title" id="lib-page-title">자료실</div><div class="section-sub">제품 매뉴얼, 교육 자료, 릴리스 노트, FAQ를 확인합니다.</div></div>
+        <div><div class="section-title" id="lib-page-title">자료실</div></div>
         <div style="display:flex;gap:8px;">
           <button class="btn btn-outline btn-sm" id="lib-btn-doc" data-show-roles="tech_support,admin" onclick="openNewDocModal()" style="display:none;">+ 자료 등록</button>
           <button class="btn btn-primary btn-sm" id="lib-btn-faq" data-show-roles="tech_support,admin" onclick="openModal('modal-faq')" style="display:none;">+ FAQ 등록</button>
         </div>
-      </div>
-      <!-- 서브탭 -->
-      <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:16px;">
-        <button id="lib-tab-files" onclick="switchLibTab('files')" style="padding:8px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:var(--accent);border-bottom:2px solid var(--accent);margin-bottom:-2px;">자료 다운로드</button>
-        <button id="lib-tab-faq"   onclick="switchLibTab('faq')"   style="padding:8px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;">FAQ</button>
       </div>
       <!-- 자료 다운로드 패널 -->
       <div id="lib-panel-files">
@@ -667,7 +662,8 @@ textarea{resize:vertical;min-height:100px;}
       </div><!-- /lib-panel-files -->
 
       <!-- FAQ 패널 -->
-      <div id="lib-panel-faq" style="display:none;">
+      <div id="lib-panel-faq" style="margin-top:24px;">
+        <div style="font-size:15px;font-weight:700;margin-bottom:12px;">FAQ</div>
         <div class="filter-bar">
           <input class="search-box" id="faq-search" placeholder="질문 검색..." oninput="filterFaq(this.value)">
           <span class="filter-chip active" onclick="setFaqCat('all',this)">전체</span>
@@ -679,7 +675,6 @@ textarea{resize:vertical;min-height:100px;}
           <span class="filter-chip" onclick="setFaqCat('기타',this)">기타</span>
         </div>
         <div id="faq-list" style="display:flex;flex-direction:column;gap:6px;"></div>
-        <!-- FAQ 관리 테이블 (숨김 — faq-tbody는 JS에서만 사용) -->
         <tbody id="faq-tbody" style="display:none;"></tbody>
       </div><!-- /lib-panel-faq -->
     </div><!-- /p-downloads -->
@@ -1828,9 +1823,7 @@ function showPage(tabEl, pageId) {
     const isAdmin = currentUser && ['tech_support','admin'].includes(currentUser.role);
     const titleEl = document.getElementById('lib-page-title');
     if (titleEl) titleEl.textContent = isAdmin ? '자료실 관리' : '자료실';
-    loadLibFiles();
-    loadFaq();
-    if (isAdmin) loadFaqAdmin();
+    switchLibTab();
   }
   if (pageId === 'p-faq')         { loadFaq(); if (currentUser && ['tech_support','admin'].includes(currentUser.role)) loadFaqAdmin(); }
   if (pageId === 'p-integration') loadIntegrationLogs();
@@ -4300,29 +4293,15 @@ async function saveManage() {
   loadAllTickets();
 }
 
-function switchLibTab(tab) {
-  const isFiles = tab === 'files';
-  document.getElementById('lib-panel-files').style.display = isFiles ? '' : 'none';
-  document.getElementById('lib-panel-faq').style.display   = isFiles ? 'none' : '';
-  const tFiles = document.getElementById('lib-tab-files');
-  const tFaq   = document.getElementById('lib-tab-faq');
-  const ON  = 'color:var(--accent);border-bottom:2px solid var(--accent);margin-bottom:-2px;';
-  const OFF = 'color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;';
-  tFiles.style.cssText = tFiles.style.cssText.replace(/color:[^;]+;border-bottom:[^;]+;margin-bottom:[^;]+;/, '') + (isFiles ? ON : OFF);
-  tFaq.style.cssText   = tFaq.style.cssText.replace(/color:[^;]+;border-bottom:[^;]+;margin-bottom:[^;]+;/, '')   + (isFiles ? OFF : ON);
+function switchLibTab() {
   const isAdmin = currentUser && ['tech_support','admin'].includes(currentUser.role);
   const btnDoc = document.getElementById('lib-btn-doc');
   const btnFaq = document.getElementById('lib-btn-faq');
-  if (isFiles) {
-    loadLibFiles();
-    if (btnDoc) btnDoc.style.display = isAdmin ? '' : 'none';
-    if (btnFaq) btnFaq.style.display = 'none';
-  } else {
-    loadFaq();
-    if (isAdmin) loadFaqAdmin();
-    if (btnDoc) btnDoc.style.display = 'none';
-    if (btnFaq) btnFaq.style.display = isAdmin ? '' : 'none';
-  }
+  if (btnDoc) btnDoc.style.display = isAdmin ? '' : 'none';
+  if (btnFaq) btnFaq.style.display = isAdmin ? '' : 'none';
+  loadLibFiles();
+  loadFaq();
+  if (isAdmin) loadFaqAdmin();
 }
 
 // ── 자료실 (고객용) DB 연동 ─────────────────────────────────────
