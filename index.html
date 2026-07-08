@@ -759,12 +759,12 @@ textarea{resize:vertical;min-height:100px;}
                 <!-- 헤더: 제목 좌 / 담당자+상태 우 -->
                 <div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:12px;">
                   <div style="flex:1;min-width:0;">
-                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
                       <span style="font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.3px;white-space:nowrap;" id="rd-ticket-num-inline">—</span>
                       <span class="badge b-gray" id="rd-status-badge"></span>
-                      <span style="font-size:17px;font-weight:800;" id="rd-title">—</span>
                       <button id="rd-owner-edit-btn" class="btn btn-outline btn-sm" style="display:none;white-space:nowrap;" onclick="openEditRequestModal()">수정</button>
                     </div>
+                    <div style="font-size:17px;font-weight:800;word-break:break-word;overflow-wrap:break-word;" id="rd-title">—</div>
                   </div>
                   <!-- 우측 상단 컨트롤 (admin only) -->
                   <div id="rd-admin-controls" style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
