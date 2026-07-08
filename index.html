@@ -3952,9 +3952,19 @@ async function loadRdAttachments() {
     .eq('ticket_id', rdTicket.id)
     .order('created_at', { ascending: true });
 
-  if (error || !data || !data.length) { card.style.display = 'none'; return; }
-
   card.style.display = '';
+
+  if (error) {
+    if (countEl) countEl.textContent = '';
+    list.innerHTML = `<div style="color:var(--faint);font-size:12px;padding:8px 0;">오류: ${escHtml(error.message)}</div>`;
+    return;
+  }
+  if (!data || !data.length) {
+    if (countEl) countEl.textContent = '';
+    list.innerHTML = '<div style="color:var(--faint);font-size:12px;padding:8px 0;">등록된 첨부파일이 없습니다.</div>';
+    return;
+  }
+
   if (countEl) countEl.textContent = `${data.length}개`;
 
   list.innerHTML = data.map(f => {
