@@ -2558,7 +2558,7 @@ async function loadDashboard() {
           const stL  = STATUS_LABELS[t.status] || t.status;
           const stC  = STATUS_BADGE[t.status] || 'b-gray';
           return `<tr style="cursor:pointer;" onclick="showDetail(dashRecentTickets[${i}])"><td><span style="font-variant-numeric:tabular-nums;color:var(--accent);font-weight:600;">${escHtml(t.ticket_number||'')}</span></td>` +
-            `<td>${escHtml(t.title||'')}</td><td><span class="badge ${catC}">${catL}</span></td>` +
+            `<td><div style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(t.title||'')}">${escHtml(t.title||'')}</div></td><td><span class="badge ${catC}">${catL}</span></td>` +
             `<td><span class="badge ${stC}">${stL}</span></td><td style="color:var(--faint);">${fmtTime(t.created_at).slice(0,10)}</td></tr>`;
         }).join('');
       }
