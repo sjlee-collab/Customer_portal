@@ -756,34 +756,36 @@ textarea{resize:vertical;min-height:100px;}
 
               <!-- 상단: 기본 정보 카드 (담당자·상태 우측 상단 인라인) -->
               <div class="card">
-                <!-- 헤더: 접수번호/상태/수정 -->
-                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
-                  <span style="font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.3px;white-space:nowrap;" id="rd-ticket-num-inline">—</span>
-                  <span class="badge b-gray" id="rd-status-badge"></span>
-                  <button id="rd-owner-edit-btn" class="btn btn-outline btn-sm" style="display:none;white-space:nowrap;" onclick="openEditRequestModal()">수정</button>
+                <!-- 헤더: 접수번호/상태/수정 좌, 관리자 컨트롤 우 -->
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px;">
+                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <span style="font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.3px;white-space:nowrap;" id="rd-ticket-num-inline">—</span>
+                    <span class="badge b-gray" id="rd-status-badge"></span>
+                    <button id="rd-owner-edit-btn" class="btn btn-outline btn-sm" style="display:none;white-space:nowrap;" onclick="openEditRequestModal()">수정</button>
+                  </div>
+                  <!-- 관리자 컨트롤 (admin only) -->
+                  <div id="rd-admin-controls" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+                    <select id="rd-assignee" style="width:auto;min-width:140px;padding:5px 8px;border:1px solid var(--border-md);border-radius:var(--r-md);font-size:12px;"></select>
+                    <button class="btn btn-outline btn-sm" style="white-space:nowrap;" onclick="saveRdAssignee()">담당자 변경</button>
+                    <select id="rd-status-select" style="width:auto;min-width:120px;padding:5px 8px;border:1px solid var(--border-md);border-radius:var(--r-md);font-size:12px;">
+                      <option value="received">접수</option>
+                      <option value="classifying">분류 중</option>
+                      <option value="in_progress">처리 중</option>
+                      <option value="pending_customer">고객 확인 필요</option>
+                      <option value="on_hold">보류</option>
+                      <option value="completed">완료</option>
+                      <option value="cancelled">취소</option>
+                    </select>
+                    <button class="btn btn-outline btn-sm" style="white-space:nowrap;" onclick="saveRdStatus()">상태 변경</button>
+                    <label style="font-size:11px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:4px;">
+                      완료예정일
+                      <input type="date" id="rd-due-date" style="padding:4px 6px;border:1px solid var(--border-md);border-radius:var(--r-md);font-size:12px;color:var(--text);background:var(--surface);">
+                    </label>
+                    <button class="btn btn-outline btn-sm" style="white-space:nowrap;" onclick="saveRdDueDate()">예정일변경</button>
+                  </div>
                 </div>
                 <!-- 제목 -->
                 <div style="font-size:17px;font-weight:800;word-break:break-word;overflow-wrap:break-word;margin-bottom:12px;" id="rd-title">—</div>
-                <!-- 관리자 컨트롤 (admin only, 자체 줄) -->
-                <div id="rd-admin-controls" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
-                  <select id="rd-assignee" style="min-width:140px;padding:5px 8px;border:1px solid var(--border-md);border-radius:var(--r-md);font-size:12px;"></select>
-                  <button class="btn btn-outline btn-sm" style="white-space:nowrap;" onclick="saveRdAssignee()">담당자 변경</button>
-                  <select id="rd-status-select" style="min-width:120px;padding:5px 8px;border:1px solid var(--border-md);border-radius:var(--r-md);font-size:12px;">
-                    <option value="received">접수</option>
-                    <option value="classifying">분류 중</option>
-                    <option value="in_progress">처리 중</option>
-                    <option value="pending_customer">고객 확인 필요</option>
-                    <option value="on_hold">보류</option>
-                    <option value="completed">완료</option>
-                    <option value="cancelled">취소</option>
-                  </select>
-                  <button class="btn btn-outline btn-sm" style="white-space:nowrap;" onclick="saveRdStatus()">상태 변경</button>
-                  <label style="font-size:11px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:4px;">
-                    완료예정일
-                    <input type="date" id="rd-due-date" style="padding:4px 6px;border:1px solid var(--border-md);border-radius:var(--r-md);font-size:12px;color:var(--text);background:var(--surface);">
-                  </label>
-                  <button class="btn btn-outline btn-sm" style="white-space:nowrap;" onclick="saveRdDueDate()">예정일변경</button>
-                </div>
                 <!-- 요청 정보 가로 바 -->
                 <div class="rd-info-bar" style="display:flex;gap:0;margin-bottom:8px;border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden;">
                   <div style="flex:1;padding:10px 16px;border-right:1px solid var(--border);">
