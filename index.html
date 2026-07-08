@@ -448,6 +448,7 @@ textarea{resize:vertical;min-height:100px;}
     <span class="nt"        data-roles="admin"                     onclick="showPage(this,'p-users')">사용자 관리</span>
     <span class="nt"        data-roles="admin"                     onclick="showPage(this,'p-integration')">연동 관리</span>
     <span class="nt"        data-roles="admin"                     onclick="showPage(this,'p-notify-log')">알림 로그</span>
+    <span class="nt"        data-roles="admin"                     onclick="showPage(this,'p-permissions')">권한 관리</span>
   </nav>
   <div class="nav-backdrop" id="nav-backdrop" onclick="toggleDrawer()"></div>
   <!-- ── 콘텐츠 영역 ── -->
@@ -1016,6 +1017,31 @@ textarea{resize:vertical;min-height:100px;}
             <thead><tr><th>알림 ID</th><th>요청번호</th><th>알림 유형</th><th>이벤트</th><th>수신자</th><th>발송 상태</th><th>실패 사유</th><th>발송일시</th><th>재시도</th></tr></thead>
             <tbody id="notify-tbody">
               <tr><td colspan="9" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- ══ 권한 관리 ══ -->
+      <div id="p-permissions" class="page u-page">
+        <div class="section-header">
+          <div><div class="section-title">권한 관리</div><div class="section-sub" id="perm-count">사용자 역할을 변경합니다.</div></div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <select id="perm-filter-role" onchange="renderPermissions()" style="padding:7px 10px;border:1px solid var(--border-md);border-radius:var(--r-md);font-size:12px;">
+              <option value="">전체 역할</option>
+              <option value="admin">관리자</option>
+              <option value="tech_support">기술지원</option>
+              <option value="sales">영업</option>
+              <option value="customer">고객</option>
+            </select>
+            <input class="search-box" id="perm-search" placeholder="이름, 이메일 검색..." oninput="renderPermissions()" style="width:200px;">
+          </div>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div class="tbl-scroll list-scroll"><table class="tbl">
+            <thead><tr><th>이름</th><th>이메일</th><th>소속</th><th>현재 역할</th><th style="width:160px;">역할 변경</th><th style="width:70px;">저장</th></tr></thead>
+            <tbody id="perm-tbody">
+              <tr><td colspan="6" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
             </tbody>
           </table></div>
         </div>
@@ -1915,6 +1941,7 @@ function showPage(tabEl, pageId) {
   }
   if (pageId === 'p-integration') loadIntegrationLogs();
   if (pageId === 'p-notify-log')     loadNotifyLog();
+  if (pageId === 'p-permissions')   loadPermissions();
   if (pageId === 'p-request-detail') {
     const isCustomerUser = currentUser && !ADMIN_ROLES.has(currentUser.role);
     if (isCustomerUser) {
@@ -3621,6 +3648,74 @@ async function deleteUser(id, name) {
   if (error) { showToast('삭제 실패: ' + error.message, true); return; }
   showToast('✅ ' + name + ' 삭제 완료');
   await loadUsers();
+}
+
+// ── 권한 관리 ──
+let allPermUsers = [];
+
+async function loadPermissions() {
+  const tbody = document.getElementById('perm-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>';
+  if (!sb) return;
+  const { data, error } = await sb.from('users')
+    .select('id,name,email,role,is_active,company:companies(name)')
+    .order('role').order('name');
+  if (error) { tbody.innerHTML = '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--red);">로드 실패: ' + escHtml(error.message) + '</td></tr>'; return; }
+  allPermUsers = data || [];
+  renderPermissions();
+}
+
+function renderPermissions() {
+  const tbody = document.getElementById('perm-tbody');
+  if (!tbody) return;
+  const q = (document.getElementById('perm-search')?.value || '').trim().toLowerCase();
+  const filterRole = document.getElementById('perm-filter-role')?.value || '';
+  const filtered = allPermUsers.filter(u => {
+    if (filterRole && u.role !== filterRole) return false;
+    if (q && !u.name.toLowerCase().includes(q) && !u.email.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  const countEl = document.getElementById('perm-count');
+  if (countEl) countEl.textContent = '총 ' + allPermUsers.length + '명' + (filtered.length < allPermUsers.length ? ' 중 ' + filtered.length + '명 표시' : '');
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--faint);">검색 결과가 없습니다.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filtered.map(u => {
+    const roleLabel = ROLE_LABELS[u.role] || u.role;
+    const roleBadge = ROLE_BADGE[u.role] || 'b-gray';
+    const companyName = escHtml(u.company?.name || '—');
+    return `<tr>
+      <td style="font-weight:600;">${escHtml(u.name)}</td>
+      <td style="font-size:12px;color:var(--muted);">${escHtml(u.email)}</td>
+      <td style="font-size:12px;">${companyName}</td>
+      <td><span class="badge ${roleBadge}">${roleLabel}</span></td>
+      <td>
+        <select id="perm-role-${u.id}" style="padding:5px 8px;border:1px solid var(--border-md);border-radius:var(--r-md);font-size:12px;width:100%;">
+          <option value="admin"${u.role==='admin'?' selected':''}>관리자</option>
+          <option value="tech_support"${u.role==='tech_support'?' selected':''}>기술지원</option>
+          <option value="sales"${u.role==='sales'?' selected':''}>영업</option>
+          <option value="customer"${u.role==='customer'?' selected':''}>고객</option>
+        </select>
+      </td>
+      <td>
+        <button class="btn btn-outline btn-sm" style="font-size:11px;" onclick="saveUserRole('${u.id}','${escHtml(u.name)}')">저장</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function saveUserRole(userId, userName) {
+  const sel = document.getElementById('perm-role-' + userId);
+  if (!sel) return;
+  const newRole = sel.value;
+  const { error } = await sb.from('users').update({ role: newRole }).eq('id', userId);
+  if (error) { showToast('역할 변경 실패: ' + error.message, true); return; }
+  const u = allPermUsers.find(x => x.id === userId);
+  if (u) u.role = newRole;
+  showToast('✅ ' + userName + ' → ' + (ROLE_LABELS[newRole] || newRole));
+  renderPermissions();
 }
 
 async function populateCompanySelect() {
