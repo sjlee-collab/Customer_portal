@@ -3386,12 +3386,12 @@ async function loadNotifyLog() {
   tbody.innerHTML = data.map(n => {
     const ticketNum = n.tickets?.ticket_number || (n.ticket_id ? n.ticket_id.slice(0,8) : '—');
     const sentAt = n.sent_at ? new Date(n.sent_at).toLocaleString('ko-KR', { hour12: false }) : '—';
-    const statusBadge = n.status === 'success'
+    const statusBadge = (n.status === 'success' || n.status === 'sent')
       ? `<span class="badge b-green">✅ 성공</span>`
-      : n.status === 'failure'
+      : (n.status === 'failed' || n.status === 'failure')
         ? `<span class="badge b-red">❌ 실패</span>`
         : `<span class="badge b-gray">⏳ 대기</span>`;
-    const retryBtn = n.status === 'failure'
+    const retryBtn = (n.status === 'failed' || n.status === 'failure')
       ? `<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="event.stopPropagation();retryNotify('${n.id}')">재시도</button>`
       : `<span style="color:var(--faint);">—</span>`;
 
