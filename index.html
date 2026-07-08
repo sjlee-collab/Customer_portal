@@ -912,11 +912,50 @@ textarea{resize:vertical;min-height:100px;}
         </div>
         <div class="card" style="padding:0;overflow:hidden;">
           <div class="tbl-scroll list-scroll"><table class="tbl">
-            <thead><tr><th>고객사명</th><th>상태</th><th>고객유형</th><th>사용제품</th><th>담당영업</th><th>담당기술지원</th><th>대표담당자</th><th>연락처</th><th>알림이메일</th><th>이메일알림</th><th>계약기간</th><th>라이선스</th><th>액션</th></tr></thead>
+            <thead><tr><th>고객사명</th><th>상태</th><th>고객유형</th><th>사용제품</th><th>담당영업</th><th>담당기술지원</th><th>대표담당자</th><th>연락처</th><th>알림이메일</th><th>이메일알림</th><th>액션</th></tr></thead>
             <tbody id="companies-tbody">
-              <tr><td colspan="9" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
+              <tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
             </tbody>
           </table></div>
+        </div>
+
+        <!-- 고객사 선택 시 상세 패널 -->
+        <div id="company-detail-panel" style="display:none;margin-top:16px;">
+          <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <span style="font-size:15px;font-weight:800;" id="company-detail-name">—</span>
+                <span class="badge b-accent" id="company-detail-status"></span>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button class="btn btn-outline btn-sm" onclick="openContractModal()">+ 계약정보 입력</button>
+                <button class="btn btn-outline btn-sm" onclick="openLicenseModal()">+ 라이선스정보 입력</button>
+                <button class="btn btn-ghost btn-sm" onclick="closeCompanyDetail()">✕ 닫기</button>
+              </div>
+            </div>
+
+            <!-- 탭 -->
+            <div style="display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:16px;">
+              <span class="nt active" id="cdtab-contract" style="font-size:13px;padding:8px 16px;" onclick="switchCompanyDetailTab('contract')">계약 정보</span>
+              <span class="nt" id="cdtab-license" style="font-size:13px;padding:8px 16px;" onclick="switchCompanyDetailTab('license')">라이선스 정보</span>
+            </div>
+
+            <!-- 계약 정보 탭 -->
+            <div id="cdpanel-contract">
+              <div class="tbl-scroll"><table class="tbl">
+                <thead><tr><th>계약명</th><th>계약종류</th><th>계약상태</th><th>계약시작일</th><th>계약종료일</th><th>고객계약담당자</th><th>빅스계약담당자</th><th>계약금액</th><th>비고</th><th>계약문서</th><th>액션</th></tr></thead>
+                <tbody id="contracts-tbody"><tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);">계약 정보를 불러오는 중...</td></tr></tbody>
+              </table></div>
+            </div>
+
+            <!-- 라이선스 정보 탭 -->
+            <div id="cdpanel-license" style="display:none;">
+              <div class="tbl-scroll"><table class="tbl">
+                <thead><tr><th>제품정보</th><th>라이선스종류</th><th>라이선스상태</th><th>수량</th><th>시작일자</th><th>만료일자</th><th>갱신예정일자</th><th>라이선스키</th><th>비고</th><th>액션</th></tr></thead>
+                <tbody id="licenses-tbody"><tr><td colspan="10" style="padding:20px;text-align:center;color:var(--faint);">라이선스 정보를 불러오는 중...</td></tr></tbody>
+              </table></div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1320,37 +1359,161 @@ textarea{resize:vertical;min-height:100px;}
           </label>
         </div>
 
-        <!-- ⑫ 계약 정보 -->
-        <div class="form-group span2" style="border-top:1px solid var(--border);padding-top:14px;margin-top:2px;">
-          <label style="font-weight:700;font-size:13px;color:var(--faint);letter-spacing:.04em;text-transform:uppercase;">계약 정보</label>
-        </div>
-        <div class="form-group">
-          <label>계약 시작일</label>
-          <input type="date" id="co-start">
-        </div>
-        <div class="form-group">
-          <label>계약 만료일</label>
-          <input type="date" id="co-end">
-        </div>
-
-        <!-- ⑬ 라이선스 정보 -->
-        <div class="form-group span2" style="border-top:1px solid var(--border);padding-top:14px;margin-top:2px;">
-          <label style="font-weight:700;font-size:13px;color:var(--faint);letter-spacing:.04em;text-transform:uppercase;">라이선스 정보</label>
-        </div>
-        <div class="form-group">
-          <label>총 라이선스 수</label>
-          <input type="number" id="co-max-seats" min="0" placeholder="0">
-        </div>
-        <div class="form-group">
-          <label>사용 중 라이선스</label>
-          <input type="number" id="co-used-seats" min="0" placeholder="0">
-        </div>
-
       </div>
     </div>
     <div style="padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;">
       <button class="btn btn-ghost" onclick="closeModal('modal-company')">취소</button>
       <button class="btn btn-primary" onclick="submitCompany()">등록</button>
+    </div>
+  </div>
+</div>
+
+<!-- 계약정보 입력 모달 -->
+<div id="modal-contract" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.35);align-items:center;justify-content:center;">
+  <div class="modal-box" style="background:var(--surface);border-radius:var(--r-lg);width:680px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+    <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:16px;font-weight:800;" id="modal-contract-title">계약정보 입력</div>
+      <button onclick="closeModal('modal-contract')" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--faint);">✕</button>
+    </div>
+    <div style="padding:24px;">
+      <input type="hidden" id="ct-id">
+      <input type="hidden" id="ct-company-id">
+      <div class="form-grid" style="gap:16px;">
+        <div class="form-group span2">
+          <label>계약명 <span class="req">*</span></label>
+          <input type="text" id="ct-name" placeholder="예: 2026년 Tableau Enterprise 계약">
+        </div>
+        <div class="form-group">
+          <label>계약시작일자</label>
+          <input type="date" id="ct-start">
+        </div>
+        <div class="form-group">
+          <label>계약종료일자</label>
+          <input type="date" id="ct-end">
+        </div>
+        <div class="form-group">
+          <label>계약종류</label>
+          <select id="ct-type">
+            <option value="">선택</option>
+            <option value="신규">신규</option>
+            <option value="갱신">갱신</option>
+            <option value="확장">확장</option>
+            <option value="유지보수">유지보수</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>계약상태</label>
+          <select id="ct-status">
+            <option value="진행중">진행중</option>
+            <option value="완료">완료</option>
+            <option value="협의중">협의중</option>
+            <option value="해지">해지</option>
+            <option value="만료">만료</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>고객계약담당자</label>
+          <input type="text" id="ct-customer-contact" placeholder="고객사 담당자 이름">
+        </div>
+        <div class="form-group">
+          <label>빅스계약담당자</label>
+          <input type="text" id="ct-bixs-contact" placeholder="빅스데이터 담당자 이름">
+        </div>
+        <div class="form-group">
+          <label>계약금액</label>
+          <input type="text" id="ct-amount" placeholder="예: 50,000,000">
+        </div>
+        <div class="form-group">
+          <label>계약문서 URL</label>
+          <input type="text" id="ct-doc-url" placeholder="https://...">
+        </div>
+        <div class="form-group span2">
+          <label>비고</label>
+          <textarea id="ct-note" rows="3" placeholder="특이사항, 조건 등"></textarea>
+        </div>
+      </div>
+    </div>
+    <div style="padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;">
+      <button class="btn btn-ghost" onclick="closeModal('modal-contract')">취소</button>
+      <button class="btn btn-primary" id="btn-submit-contract" onclick="submitContract()">등록</button>
+    </div>
+  </div>
+</div>
+
+<!-- 라이선스정보 입력 모달 -->
+<div id="modal-license" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.35);align-items:center;justify-content:center;">
+  <div class="modal-box" style="background:var(--surface);border-radius:var(--r-lg);width:680px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+    <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:16px;font-weight:800;" id="modal-license-title">라이선스정보 입력</div>
+      <button onclick="closeModal('modal-license')" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--faint);">✕</button>
+    </div>
+    <div style="padding:24px;">
+      <input type="hidden" id="lic-id">
+      <input type="hidden" id="lic-company-id">
+      <div class="form-grid" style="gap:16px;">
+        <div class="form-group span2">
+          <label>제품정보 <span class="req">*</span></label>
+          <select id="lic-product">
+            <option value="">선택</option>
+            <option value="Tableau Server">Tableau Server</option>
+            <option value="Tableau Cloud">Tableau Cloud</option>
+            <option value="Tableau Desktop">Tableau Desktop</option>
+            <option value="Dataworks">Dataworks</option>
+            <option value="AgentWorks">AgentWorks</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>라이선스종류</label>
+          <select id="lic-type">
+            <option value="">선택</option>
+            <option value="Creator">Creator</option>
+            <option value="Explorer">Explorer</option>
+            <option value="Viewer">Viewer</option>
+            <option value="Enterprise">Enterprise</option>
+            <option value="Developer">Developer</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>라이선스상태</label>
+          <select id="lic-status">
+            <option value="활성">활성</option>
+            <option value="만료">만료</option>
+            <option value="일시중단">일시중단</option>
+            <option value="대기">대기</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>라이선스 수량</label>
+          <input type="number" id="lic-quantity" min="0" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>라이선스 키</label>
+          <input type="text" id="lic-key" placeholder="라이선스 키 입력">
+        </div>
+        <div class="form-group">
+          <label>시작일자</label>
+          <input type="date" id="lic-start">
+        </div>
+        <div class="form-group">
+          <label>만료일자</label>
+          <input type="date" id="lic-expire">
+        </div>
+        <div class="form-group span2">
+          <label>갱신예정일자</label>
+          <input type="date" id="lic-renewal">
+        </div>
+        <div class="form-group span2">
+          <label>비고</label>
+          <textarea id="lic-note" rows="3" placeholder="특이사항"></textarea>
+        </div>
+      </div>
+    </div>
+    <div style="padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;">
+      <button class="btn btn-ghost" onclick="closeModal('modal-license')">취소</button>
+      <button class="btn btn-primary" id="btn-submit-license" onclick="submitLicense()">등록</button>
     </div>
   </div>
 </div>
@@ -2764,7 +2927,6 @@ function setCompanyFilter(filter, el) {
 
 function applyCompanyFilter() {
   const q = (document.getElementById('company-search')?.value || '').trim().toLowerCase();
-  const today = new Date();
   const filtered = allCompanies.filter(c => {
     if (q && !c.name.toLowerCase().includes(q)) return false;
     if (companyFilter !== 'all') return (c.industry || '기타') === companyFilter;
@@ -2782,7 +2944,7 @@ function renderCompanies(companies) {
   const tbody = document.getElementById('companies-tbody');
   if (!tbody) return;
   if (!companies.length) {
-    tbody.innerHTML = '<tr><td colspan="13" style="padding:40px;text-align:center;color:var(--faint);">등록된 고객사가 없습니다.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" style="padding:40px;text-align:center;color:var(--faint);">등록된 고객사가 없습니다.</td></tr>';
     return;
   }
   const isAdmin = currentUser && ['tech_support','admin'].includes(currentUser.role);
@@ -2800,23 +2962,8 @@ function renderCompanies(companies) {
     const emailNotify = c.email_notification_enabled === false
       ? '<span class="badge b-gray" style="font-size:10px;">끔</span>'
       : '<span class="badge b-green" style="font-size:10px;">켜짐</span>';
-    const startDate = c.contract_start ? c.contract_start.slice(0,10) : null;
-    const endDate   = c.contract_end   ? c.contract_end.slice(0,10)   : null;
-    let contractHtml = '—';
-    if (startDate || endDate) {
-      const daysLeft = endDate ? Math.ceil((new Date(endDate) - today) / 86400000) : null;
-      const daysBadge = daysLeft === null ? ''
-        : daysLeft < 0   ? ` <span style="color:var(--red);font-size:10px;font-weight:600;">만료</span>`
-        : daysLeft <= 30 ? ` <span style="color:var(--red);font-size:10px;font-weight:600;">${daysLeft}일</span>`
-        : daysLeft <= 90 ? ` <span style="color:var(--amber);font-size:10px;font-weight:600;">${daysLeft}일</span>`
-        : '';
-      contractHtml = `<span style="font-size:11px;">${startDate||'—'} ~ ${endDate||'—'}${daysBadge}</span>`;
-    }
-    const licenseHtml = (c.max_seats > 0)
-      ? `<span style="font-size:12px;">${c.used_seats || 0} / ${c.max_seats}</span>`
-      : '<span style="color:var(--faint);">—</span>';
     return `
-      <tr>
+      <tr style="cursor:pointer;" onclick="selectCompany('${c.id}','${escHtml(c.name)}','${stLabel}')">
         <td style="font-weight:600;">${escHtml(c.name)}</td>
         <td><span class="badge ${stBadge}">${stLabel}</span></td>
         <td style="font-size:12px;">${ctLabel}</td>
@@ -2827,9 +2974,7 @@ function renderCompanies(companies) {
         <td style="font-size:12px;">${escHtml(c.main_contact_phone || '—')}</td>
         <td style="font-size:12px;">${notifyEmails}</td>
         <td>${emailNotify}</td>
-        <td style="font-size:12px;">${contractHtml}</td>
-        <td>${licenseHtml}</td>
-        <td style="white-space:nowrap;">
+        <td style="white-space:nowrap;" onclick="event.stopPropagation()">
           ${isAdmin ? `<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick='openEditCompany(${escHtml(JSON.stringify(c).replace(/'/g,"&#39;"))})'>수정</button>` : ''}
           <button class="btn btn-ghost btn-sm" style="font-size:11px;color:#e53e3e;" onclick="deleteCompany('${c.id}','${escHtml(c.name)}')">삭제</button>
         </td>
@@ -2873,10 +3018,6 @@ async function openNewCompanyModal() {
   document.getElementById('co-contact-phone').value = '';
   document.getElementById('co-notification-emails').value = '';
   document.getElementById('co-email-notify').checked = true;
-  document.getElementById('co-start').value = '';
-  document.getElementById('co-end').value = '';
-  document.getElementById('co-max-seats').value = '';
-  document.getElementById('co-used-seats').value = '';
   document.querySelectorAll('.co-product-chk').forEach(chk => { chk.checked = false; });
   await populateCompanyUserSelects();
   openModal('modal-company');
@@ -2895,10 +3036,6 @@ async function openEditCompany(c) {
   const emails = Array.isArray(c.notification_emails) ? c.notification_emails : [];
   document.getElementById('co-notification-emails').value = emails.join('\n');
   document.getElementById('co-email-notify').checked = c.email_notification_enabled !== false;
-  document.getElementById('co-start').value = c.contract_start ? c.contract_start.slice(0,10) : '';
-  document.getElementById('co-end').value   = c.contract_end   ? c.contract_end.slice(0,10)   : '';
-  document.getElementById('co-max-seats').value  = c.max_seats  != null ? c.max_seats  : '';
-  document.getElementById('co-used-seats').value = c.used_seats != null ? c.used_seats : '';
   const selected = Array.isArray(c.products) ? c.products : [];
   document.querySelectorAll('.co-product-chk').forEach(chk => {
     chk.checked = selected.includes(chk.value);
@@ -2934,13 +3071,6 @@ async function submitCompany() {
   const emailNotify = document.getElementById('co-email-notify')?.checked ?? true;
   const products    = Array.from(document.querySelectorAll('.co-product-chk:checked')).map(el => el.value);
 
-  const contractStart = document.getElementById('co-start')?.value || null;
-  const contractEnd   = document.getElementById('co-end')?.value   || null;
-  const maxSeatsRaw   = document.getElementById('co-max-seats')?.value;
-  const usedSeatsRaw  = document.getElementById('co-used-seats')?.value;
-  const maxSeats      = maxSeatsRaw  !== '' && maxSeatsRaw  != null ? parseInt(maxSeatsRaw,  10) : null;
-  const usedSeats     = usedSeatsRaw !== '' && usedSeatsRaw != null ? parseInt(usedSeatsRaw, 10) : null;
-
   const payload = {
     name,
     status,
@@ -2953,10 +3083,6 @@ async function submitCompany() {
     notification_emails:        notificationEmails.length ? notificationEmails : null,
     email_notification_enabled: emailNotify,
     products:                   products.length ? products : null,
-    contract_start:             contractStart,
-    contract_end:               contractEnd,
-    max_seats:                  maxSeats,
-    used_seats:                 usedSeats,
   };
 
   let error;
@@ -2974,6 +3100,249 @@ async function submitCompany() {
   closeModal('modal-company');
   showToast('✅ ' + name + (id ? ' 수정 완료' : ' 등록 완료'));
   await loadCompanies();
+}
+
+// ── 고객사 선택 / 상세 패널 ─────────────────────────────────────
+let selectedCompanyId   = null;
+let selectedCompanyName = null;
+
+function selectCompany(id, name, statusLabel) {
+  selectedCompanyId   = id;
+  selectedCompanyName = name;
+  document.getElementById('company-detail-name').textContent   = name;
+  document.getElementById('company-detail-status').textContent = statusLabel;
+  document.getElementById('company-detail-panel').style.display = 'block';
+  document.getElementById('company-detail-panel').scrollIntoView({ behavior:'smooth', block:'nearest' });
+  switchCompanyDetailTab('contract');
+  loadCompanyContracts();
+}
+
+function closeCompanyDetail() {
+  selectedCompanyId = null;
+  document.getElementById('company-detail-panel').style.display = 'none';
+}
+
+function switchCompanyDetailTab(tab) {
+  const isContract = (tab === 'contract');
+  document.getElementById('cdpanel-contract').style.display = isContract ? 'block' : 'none';
+  document.getElementById('cdpanel-license').style.display  = isContract ? 'none'  : 'block';
+  document.getElementById('cdtab-contract').classList.toggle('active', isContract);
+  document.getElementById('cdtab-license').classList.toggle('active', !isContract);
+  if (!isContract) loadCompanyLicenses();
+  else             loadCompanyContracts();
+}
+
+async function loadCompanyContracts() {
+  const tbody = document.getElementById('contracts-tbody');
+  if (!tbody || !selectedCompanyId) return;
+  tbody.innerHTML = '<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>';
+  if (!sb) { tbody.innerHTML = '<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);">DB 미연결</td></tr>'; return; }
+  const { data, error } = await sb.from('contracts').select('*').eq('company_id', selectedCompanyId).order('created_at', { ascending: false });
+  if (error || !data || !data.length) {
+    tbody.innerHTML = '<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);">등록된 계약 정보가 없습니다.</td></tr>';
+    return;
+  }
+  const CONTRACT_STATUS_BADGE = { 진행중:'b-accent', 완료:'b-green', 협의중:'b-amber', 해지:'b-red', 만료:'b-gray' };
+  tbody.innerHTML = data.map(ct => `
+    <tr>
+      <td style="font-weight:600;">${escHtml(ct.contract_name || '—')}</td>
+      <td style="font-size:12px;">${escHtml(ct.contract_type || '—')}</td>
+      <td><span class="badge ${CONTRACT_STATUS_BADGE[ct.status] || 'b-gray'}">${escHtml(ct.status || '—')}</span></td>
+      <td style="font-size:12px;">${ct.start_date ? ct.start_date.slice(0,10) : '—'}</td>
+      <td style="font-size:12px;">${ct.end_date   ? ct.end_date.slice(0,10)   : '—'}</td>
+      <td style="font-size:12px;">${escHtml(ct.customer_contact || '—')}</td>
+      <td style="font-size:12px;">${escHtml(ct.bixs_contact    || '—')}</td>
+      <td style="font-size:12px;">${ct.amount ? escHtml(ct.amount) : '—'}</td>
+      <td style="font-size:12px;max-width:120px;white-space:normal;">${escHtml(ct.note || '—')}</td>
+      <td style="font-size:12px;">${ct.document_url ? `<a href="${escHtml(ct.document_url)}" target="_blank" style="color:var(--accent);">보기</a>` : '—'}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick='openEditContractModal(${escHtml(JSON.stringify(ct).replace(/'/g,"&#39;"))})'>수정</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:11px;color:#e53e3e;" onclick="deleteContract('${ct.id}')">삭제</button>
+      </td>
+    </tr>`).join('');
+}
+
+async function loadCompanyLicenses() {
+  const tbody = document.getElementById('licenses-tbody');
+  if (!tbody || !selectedCompanyId) return;
+  tbody.innerHTML = '<tr><td colspan="10" style="padding:20px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>';
+  if (!sb) { tbody.innerHTML = '<tr><td colspan="10" style="padding:20px;text-align:center;color:var(--faint);">DB 미연결</td></tr>'; return; }
+  const { data, error } = await sb.from('licenses').select('*').eq('company_id', selectedCompanyId).order('created_at', { ascending: false });
+  if (error || !data || !data.length) {
+    tbody.innerHTML = '<tr><td colspan="10" style="padding:20px;text-align:center;color:var(--faint);">등록된 라이선스 정보가 없습니다.</td></tr>';
+    return;
+  }
+  const LIC_STATUS_BADGE = { 활성:'b-green', 만료:'b-red', 일시중단:'b-amber', 대기:'b-gray' };
+  const today = new Date();
+  tbody.innerHTML = data.map(l => {
+    const daysLeft = l.expire_date ? Math.ceil((new Date(l.expire_date) - today) / 86400000) : null;
+    const expireDisplay = l.expire_date
+      ? `${l.expire_date.slice(0,10)}${daysLeft !== null && daysLeft <= 30 && daysLeft >= 0 ? ` <span style="color:var(--red);font-size:10px;font-weight:600;">${daysLeft}일</span>` : daysLeft < 0 ? ` <span style="color:var(--red);font-size:10px;font-weight:600;">만료</span>` : ''}`
+      : '—';
+    return `
+    <tr>
+      <td style="font-weight:600;">${escHtml(l.product_info || '—')}</td>
+      <td style="font-size:12px;">${escHtml(l.license_type || '—')}</td>
+      <td><span class="badge ${LIC_STATUS_BADGE[l.status] || 'b-gray'}">${escHtml(l.status || '—')}</span></td>
+      <td style="font-size:12px;">${l.quantity != null ? l.quantity : '—'}</td>
+      <td style="font-size:12px;">${l.start_date  ? l.start_date.slice(0,10)  : '—'}</td>
+      <td style="font-size:12px;">${expireDisplay}</td>
+      <td style="font-size:12px;">${l.renewal_date ? l.renewal_date.slice(0,10) : '—'}</td>
+      <td style="font-size:12px;max-width:100px;overflow:hidden;text-overflow:ellipsis;">${escHtml(l.license_key || '—')}</td>
+      <td style="font-size:12px;max-width:100px;white-space:normal;">${escHtml(l.note || '—')}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick='openEditLicenseModal(${escHtml(JSON.stringify(l).replace(/'/g,"&#39;"))})'>수정</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:11px;color:#e53e3e;" onclick="deleteLicense('${l.id}')">삭제</button>
+      </td>
+    </tr>`; }).join('');
+}
+
+function openContractModal() {
+  if (!selectedCompanyId) { showToast('고객사를 먼저 선택해주세요.', true); return; }
+  document.getElementById('modal-contract-title').textContent = '계약정보 입력';
+  document.getElementById('btn-submit-contract').textContent  = '등록';
+  document.getElementById('ct-id').value = '';
+  document.getElementById('ct-company-id').value = selectedCompanyId;
+  ['ct-name','ct-start','ct-end','ct-customer-contact','ct-bixs-contact','ct-amount','ct-doc-url','ct-note'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.getElementById('ct-type').value   = '';
+  document.getElementById('ct-status').value = '진행중';
+  openModal('modal-contract');
+}
+
+function openEditContractModal(ct) {
+  document.getElementById('modal-contract-title').textContent = '계약정보 수정';
+  document.getElementById('btn-submit-contract').textContent  = '저장';
+  document.getElementById('ct-id').value              = ct.id;
+  document.getElementById('ct-company-id').value      = ct.company_id;
+  document.getElementById('ct-name').value            = ct.contract_name  || '';
+  document.getElementById('ct-start').value           = ct.start_date     ? ct.start_date.slice(0,10) : '';
+  document.getElementById('ct-end').value             = ct.end_date       ? ct.end_date.slice(0,10)   : '';
+  document.getElementById('ct-type').value            = ct.contract_type  || '';
+  document.getElementById('ct-status').value          = ct.status         || '진행중';
+  document.getElementById('ct-customer-contact').value= ct.customer_contact || '';
+  document.getElementById('ct-bixs-contact').value   = ct.bixs_contact   || '';
+  document.getElementById('ct-amount').value          = ct.amount         || '';
+  document.getElementById('ct-doc-url').value         = ct.document_url   || '';
+  document.getElementById('ct-note').value            = ct.note           || '';
+  openModal('modal-contract');
+}
+
+async function submitContract() {
+  const id         = document.getElementById('ct-id').value;
+  const companyId  = document.getElementById('ct-company-id').value;
+  const name       = document.getElementById('ct-name').value.trim();
+  if (!name) { showToast('계약명은 필수입니다.', true); return; }
+  const btn = document.getElementById('btn-submit-contract');
+  if (btn) { btn.disabled = true; btn.textContent = '처리 중...'; }
+  const payload = {
+    company_id:       companyId,
+    contract_name:    name,
+    start_date:       document.getElementById('ct-start').value   || null,
+    end_date:         document.getElementById('ct-end').value     || null,
+    contract_type:    document.getElementById('ct-type').value    || null,
+    status:           document.getElementById('ct-status').value  || '진행중',
+    customer_contact: document.getElementById('ct-customer-contact').value.trim() || null,
+    bixs_contact:     document.getElementById('ct-bixs-contact').value.trim()    || null,
+    amount:           document.getElementById('ct-amount').value.trim()          || null,
+    document_url:     document.getElementById('ct-doc-url').value.trim()         || null,
+    note:             document.getElementById('ct-note').value.trim()            || null,
+  };
+  let error;
+  if (id) {
+    ({ error } = await sb.from('contracts').update(payload).eq('id', id));
+  } else {
+    ({ error } = await sb.from('contracts').insert(payload));
+  }
+  if (btn) { btn.disabled = false; btn.textContent = id ? '저장' : '등록'; }
+  if (error) { showToast('저장 실패: ' + error.message, true); return; }
+  closeModal('modal-contract');
+  showToast('✅ 계약정보가 ' + (id ? '수정' : '등록') + '되었습니다.');
+  loadCompanyContracts();
+}
+
+async function deleteContract(id) {
+  if (!confirm('계약 정보를 삭제하시겠습니까?')) return;
+  const { error } = await sb.from('contracts').delete().eq('id', id);
+  if (error) { showToast('삭제 실패: ' + error.message, true); return; }
+  showToast('삭제되었습니다.');
+  loadCompanyContracts();
+}
+
+function openLicenseModal() {
+  if (!selectedCompanyId) { showToast('고객사를 먼저 선택해주세요.', true); return; }
+  document.getElementById('modal-license-title').textContent = '라이선스정보 입력';
+  document.getElementById('btn-submit-license').textContent  = '등록';
+  document.getElementById('lic-id').value = '';
+  document.getElementById('lic-company-id').value = selectedCompanyId;
+  ['lic-key','lic-note'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('lic-product').value  = '';
+  document.getElementById('lic-type').value     = '';
+  document.getElementById('lic-status').value   = '활성';
+  document.getElementById('lic-quantity').value = '';
+  document.getElementById('lic-start').value    = '';
+  document.getElementById('lic-expire').value   = '';
+  document.getElementById('lic-renewal').value  = '';
+  openModal('modal-license');
+}
+
+function openEditLicenseModal(l) {
+  document.getElementById('modal-license-title').textContent = '라이선스정보 수정';
+  document.getElementById('btn-submit-license').textContent  = '저장';
+  document.getElementById('lic-id').value         = l.id;
+  document.getElementById('lic-company-id').value = l.company_id;
+  document.getElementById('lic-product').value    = l.product_info   || '';
+  document.getElementById('lic-type').value       = l.license_type   || '';
+  document.getElementById('lic-status').value     = l.status         || '활성';
+  document.getElementById('lic-quantity').value   = l.quantity       != null ? l.quantity : '';
+  document.getElementById('lic-key').value        = l.license_key    || '';
+  document.getElementById('lic-start').value      = l.start_date     ? l.start_date.slice(0,10)   : '';
+  document.getElementById('lic-expire').value     = l.expire_date    ? l.expire_date.slice(0,10)   : '';
+  document.getElementById('lic-renewal').value    = l.renewal_date   ? l.renewal_date.slice(0,10)  : '';
+  document.getElementById('lic-note').value       = l.note           || '';
+  openModal('modal-license');
+}
+
+async function submitLicense() {
+  const id        = document.getElementById('lic-id').value;
+  const companyId = document.getElementById('lic-company-id').value;
+  const product   = document.getElementById('lic-product').value;
+  if (!product) { showToast('제품정보는 필수입니다.', true); return; }
+  const btn = document.getElementById('btn-submit-license');
+  if (btn) { btn.disabled = true; btn.textContent = '처리 중...'; }
+  const qtyRaw = document.getElementById('lic-quantity').value;
+  const payload = {
+    company_id:   companyId,
+    product_info: product,
+    license_type: document.getElementById('lic-type').value    || null,
+    status:       document.getElementById('lic-status').value  || '활성',
+    quantity:     qtyRaw !== '' ? parseInt(qtyRaw, 10)         : null,
+    license_key:  document.getElementById('lic-key').value.trim()     || null,
+    start_date:   document.getElementById('lic-start').value           || null,
+    expire_date:  document.getElementById('lic-expire').value          || null,
+    renewal_date: document.getElementById('lic-renewal').value         || null,
+    note:         document.getElementById('lic-note').value.trim()     || null,
+  };
+  let error;
+  if (id) {
+    ({ error } = await sb.from('licenses').update(payload).eq('id', id));
+  } else {
+    ({ error } = await sb.from('licenses').insert(payload));
+  }
+  if (btn) { btn.disabled = false; btn.textContent = id ? '저장' : '등록'; }
+  if (error) { showToast('저장 실패: ' + error.message, true); return; }
+  closeModal('modal-license');
+  showToast('✅ 라이선스정보가 ' + (id ? '수정' : '등록') + '되었습니다.');
+  loadCompanyLicenses();
+}
+
+async function deleteLicense(id) {
+  if (!confirm('라이선스 정보를 삭제하시겠습니까?')) return;
+  const { error } = await sb.from('licenses').delete().eq('id', id);
+  if (error) { showToast('삭제 실패: ' + error.message, true); return; }
+  showToast('삭제되었습니다.');
+  loadCompanyLicenses();
 }
 
 // ── 알림 로그 ──────────────────────────────────────────────────
