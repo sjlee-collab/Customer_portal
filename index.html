@@ -2645,7 +2645,7 @@ async function submitRequest() {
   if (currentUser?.company_id)  payload.company_id = currentUser.company_id;
   else if (DEMO_COMPANY_ID)     payload.company_id = DEMO_COMPANY_ID;
 
-  const { data, error } = await sb.from('tickets').insert(payload).select('id, ticket_number').single();
+  const { data, error } = await sb.from('tickets').insert(payload).select('id, ticket_number, title, category, priority, created_at, company_id').single();
 
   if (btn) { btn.disabled = false; btn.textContent = '요청 접수'; }
 
@@ -2688,6 +2688,19 @@ async function submitRequest() {
         showToast('첨부파일 정보 저장 실패: ' + insErr.message, true);
       }
     }
+  }
+
+  // 접수 확인 메일 직접 발송 (currentUser.email 우선 사용)
+  if (ticketId && currentUser?.email) {
+    sb.functions.invoke('send-email', {
+      body: {
+        type: 'INSERT',
+        record: data,
+        old_record: null,
+        requester_email: currentUser.email,
+        requester_name:  currentUser.name || '고객'
+      }
+    }).catch(e => console.error('[send-email 직접 발송 실패]', e));
   }
 
   closeModal('modal-new');
