@@ -846,7 +846,7 @@ textarea{resize:vertical;min-height:100px;}
               </div>
 
               <!-- 답글 + 내부 메모 2열 -->
-              <div class="rd-reply-grid" style="display:grid;grid-template-columns:1fr 300px;gap:12px;align-items:start;">
+              <div class="rd-reply-grid" id="rd-reply-grid" style="display:grid;grid-template-columns:1fr 300px;gap:12px;align-items:start;">
 
                 <!-- 답글 스레드 -->
                 <div class="card">
@@ -1910,9 +1910,11 @@ function showPage(tabEl, pageId) {
       const adminCtrl = document.getElementById('rd-admin-controls');
       const memoCard  = document.getElementById('rd-memo-card');
       const dueCol    = document.getElementById('rd-due-col');
+      const replyGrid = document.getElementById('rd-reply-grid');
       if (adminCtrl) adminCtrl.style.display = 'none';
       if (memoCard)  memoCard.style.display  = 'none';
       if (dueCol)    dueCol.style.display    = 'none';
+      if (replyGrid) replyGrid.style.gridTemplateColumns = '1fr';
       loadCustomerRdList();
     } else {
       if (allMgTickets.length === 0) loadAllTickets().then(() => renderRdList());
@@ -3939,8 +3941,10 @@ async function selectRdTicket(idx, directTicket) {
   const isAdminUser = currentUser && ADMIN_ROLES.has(currentUser.role);
   const adminCtrl = document.getElementById('rd-admin-controls');
   const memoCard  = document.getElementById('rd-memo-card');
+  const replyGrid = document.getElementById('rd-reply-grid');
   if (adminCtrl) adminCtrl.style.display = isAdminUser ? 'flex' : 'none';
   if (memoCard)  memoCard.style.display  = isAdminUser ? ''     : 'none';
+  if (replyGrid) replyGrid.style.gridTemplateColumns = isAdminUser ? '1fr 300px' : '1fr';
 
   // 처리 이력 + 고객 대화 + 내부 메모 + 첨부파일
   const historyBox = document.getElementById('rd-history');
