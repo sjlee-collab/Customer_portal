@@ -270,7 +270,6 @@ textarea{resize:vertical;min-height:100px;}
 
   .rd-info-bar{flex-wrap:wrap;}
   .rd-info-bar>div{flex:1 1 45%!important;border-right:none!important;border-bottom:1px solid var(--border);}
-  .rd-reply-grid{grid-template-columns:1fr!important;}
 
   #rd-admin-controls{flex-wrap:wrap;}
 
@@ -843,41 +842,44 @@ textarea{resize:vertical;min-height:100px;}
                     <div style="color:var(--faint);font-size:13px;padding:8px 0;">불러오는 중...</div>
                   </div>
                 </div>
+                <!-- 내부 메모 (관리자 전용, 접기/펼치기) -->
+                <div id="rd-memo-card" style="display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">
+                  <div onclick="toggleRdMemo()" style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;">
+                    <div style="font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                      <span style="font-weight:700;">내부 메모</span>
+                      <span style="font-size:11px;font-weight:400;color:var(--faint);margin-left:4px;">(고객 비공개)</span>
+                      <span id="rd-memo-summary" style="color:var(--muted);margin-left:8px;font-size:12px;"></span>
+                    </div>
+                    <span id="rd-memo-arrow" style="font-size:12px;color:var(--faint);white-space:nowrap;flex-shrink:0;">펼치기 ▾</span>
+                  </div>
+                  <div id="rd-memo-body" style="display:none;margin-top:10px;">
+                    <div id="rd-memo-list" style="display:flex;flex-direction:column;gap:0;margin-bottom:12px;max-height:200px;overflow-y:auto;"></div>
+                    <textarea id="rd-reply" rows="4" placeholder="내부 처리 내용, 메모를 기록하세요." style="width:100%;resize:vertical;margin-bottom:8px;"></textarea>
+                    <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;" onclick="saveMemo()">메모 저장</button>
+                  </div>
+                </div>
               </div>
 
-              <!-- 답글 + 내부 메모 2열 -->
-              <div class="rd-reply-grid" id="rd-reply-grid" style="display:grid;grid-template-columns:1fr 300px;gap:12px;align-items:start;">
-
-                <!-- 답글 스레드 -->
-                <div class="card">
-                  <div class="card-title" style="margin-bottom:16px;">답글</div>
-                  <div id="rd-messages" style="display:flex;flex-direction:column;gap:0;max-height:420px;overflow-y:auto;">
-                    <div style="color:var(--faint);font-size:13px;padding:8px 0;">등록된 답글이 없습니다.</div>
-                  </div>
-                  <!-- 새 답글 입력 -->
-                  <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
-                    <div style="flex:1;">
-                      <textarea id="rd-customer-reply" rows="3" placeholder="답글을 입력하세요..." style="width:100%;resize:vertical;margin-bottom:8px;"></textarea>
-                      <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer;color:var(--muted);">
-                          <input type="checkbox" id="rd-send-email" style="accent-color:var(--accent);">
-                          <span>메일 발송</span>
-                        </label>
-                        <button class="btn btn-primary btn-sm" onclick="sendCustomerReply()">답글 등록</button>
-                      </div>
+              <!-- 답글 -->
+              <div class="card">
+                <div class="card-title" style="margin-bottom:16px;">답글</div>
+                <div id="rd-messages" style="display:flex;flex-direction:column;gap:0;max-height:420px;overflow-y:auto;">
+                  <div style="color:var(--faint);font-size:13px;padding:8px 0;">등록된 답글이 없습니다.</div>
+                </div>
+                <!-- 새 답글 입력 -->
+                <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
+                  <div style="flex:1;">
+                    <textarea id="rd-customer-reply" rows="3" placeholder="답글을 입력하세요..." style="width:100%;resize:vertical;margin-bottom:8px;"></textarea>
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                      <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer;color:var(--muted);">
+                        <input type="checkbox" id="rd-send-email" style="accent-color:var(--accent);">
+                        <span>메일 발송</span>
+                      </label>
+                      <button class="btn btn-primary btn-sm" onclick="sendCustomerReply()">답글 등록</button>
                     </div>
                   </div>
                 </div>
-
-                <!-- 우: 내부 메모 -->
-                <div id="rd-memo-card" class="card" style="display:flex;flex-direction:column;gap:0;">
-                  <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;">내부 메모 <span style="font-size:10px;font-weight:400;">(고객 비공개)</span></div>
-                  <div id="rd-memo-list" style="display:flex;flex-direction:column;gap:0;margin-bottom:12px;max-height:200px;overflow-y:auto;"></div>
-                  <textarea id="rd-reply" rows="4" placeholder="내부 처리 내용, 메모를 기록하세요." style="width:100%;resize:vertical;margin-bottom:8px;"></textarea>
-                  <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;" onclick="saveMemo()">메모 저장</button>
-                </div>
-
-              </div><!-- /2열 그리드 -->
+              </div>
 
             </div>
           </div>
@@ -1910,11 +1912,9 @@ function showPage(tabEl, pageId) {
       const adminCtrl = document.getElementById('rd-admin-controls');
       const memoCard  = document.getElementById('rd-memo-card');
       const dueCol    = document.getElementById('rd-due-col');
-      const replyGrid = document.getElementById('rd-reply-grid');
       if (adminCtrl) adminCtrl.style.display = 'none';
       if (memoCard)  memoCard.style.display  = 'none';
       if (dueCol)    dueCol.style.display    = 'none';
-      if (replyGrid) replyGrid.style.gridTemplateColumns = '1fr';
       loadCustomerRdList();
     } else {
       if (allMgTickets.length === 0) loadAllTickets().then(() => renderRdList());
@@ -3941,14 +3941,16 @@ async function selectRdTicket(idx, directTicket) {
   const isAdminUser = currentUser && ADMIN_ROLES.has(currentUser.role);
   const adminCtrl = document.getElementById('rd-admin-controls');
   const memoCard  = document.getElementById('rd-memo-card');
-  const replyGrid = document.getElementById('rd-reply-grid');
   if (adminCtrl) adminCtrl.style.display = isAdminUser ? 'flex' : 'none';
   if (memoCard)  memoCard.style.display  = isAdminUser ? ''     : 'none';
-  if (replyGrid) replyGrid.style.gridTemplateColumns = isAdminUser ? '1fr 300px' : '1fr';
 
   // 처리 이력 + 고객 대화 + 내부 메모 + 첨부파일
   const historyBox = document.getElementById('rd-history');
   if (historyBox) historyBox.style.display = 'none';
+  const memoBody = document.getElementById('rd-memo-body');
+  const memoArrow = document.getElementById('rd-memo-arrow');
+  if (memoBody) memoBody.style.display = 'none';
+  if (memoArrow) memoArrow.textContent = '펼치기 ▾';
   loadRdHistory();
   loadRdMessages();
   loadRdAttachments();
@@ -4039,6 +4041,15 @@ async function rdAddAttachments(input) {
   // 첨부파일 없던 경우 카드 표시
   const card = document.getElementById('rd-attachments-card');
   if (card) card.style.display = '';
+}
+
+function toggleRdMemo() {
+  const body   = document.getElementById('rd-memo-body');
+  const arrowEl = document.getElementById('rd-memo-arrow');
+  if (!body) return;
+  const opening = body.style.display === 'none';
+  body.style.display = opening ? '' : 'none';
+  if (arrowEl) arrowEl.textContent = opening ? '접기 ▴' : '펼치기 ▾';
 }
 
 function toggleRdHistory() {
@@ -4217,12 +4228,14 @@ async function saveEditMessage(historyId) {
 
 async function loadRdMemos() {
   const container = document.getElementById('rd-memo-list');
+  const summaryEl = document.getElementById('rd-memo-summary');
   if (!container || !rdTicket) return;
   if (!sb) { container.innerHTML = ''; return; }
   const { data, error } = await sb.from('ticket_memos')
     .select('id, note, created_at, changed_by')
     .eq('ticket_id', rdTicket.id)
     .order('created_at', { ascending: false });
+  if (summaryEl) summaryEl.textContent = (data && data.length) ? `메모 ${data.length}건` : '메모 없음';
   if (error || !data || !data.length) { container.innerHTML = ''; return; }
   const memoUserIds = [...new Set(data.map(m => m.changed_by).filter(Boolean))];
   const memoNameMap = {};
