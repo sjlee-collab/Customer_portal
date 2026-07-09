@@ -631,7 +631,8 @@ textarea{resize:vertical;min-height:100px;}
       <div class="section-header">
         <div></div>
         <div style="display:flex;gap:8px;">
-          <button class="btn btn-outline btn-sm" id="lib-btn-doc" data-show-roles="tech_support,admin" onclick="openNewDocModal()" style="display:none;">+ 자료 등록</button>
+          <button class="btn btn-outline btn-sm" id="lib-btn-doc" data-show-roles="tech_support,admin" onclick="openNewDocModal('')" style="display:none;">+ 자료 등록</button>
+          <button class="btn btn-outline btn-sm" id="lib-btn-faq" data-show-roles="tech_support,admin" onclick="openNewDocModal('faq')" style="display:none;">+ FAQ 등록</button>
         </div>
       </div>
 
@@ -1004,7 +1005,10 @@ textarea{resize:vertical;min-height:100px;}
       <div id="p-documents" class="page u-page">
         <div class="section-header">
           <div><div class="section-sub" id="docs-count"></div></div>
-          <button class="btn btn-primary btn-sm" onclick="openNewDocModal()">+ 자료 등록</button>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary btn-sm" id="docs-btn-doc" onclick="openNewDocModal('')">+ 자료 등록</button>
+            <button class="btn btn-primary btn-sm" id="docs-btn-faq" onclick="openNewDocModal('faq')" style="display:none;">+ FAQ 등록</button>
+          </div>
         </div>
 
         <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:14px;">
@@ -2163,6 +2167,10 @@ function switchDocsTab(tab) {
   const OFF = 'color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;';
   tFiles.style.cssText = tFiles.style.cssText.replace(/color:[^;]+;border-bottom:[^;]+;margin-bottom:[^;]+;/, '') + (isFiles ? ON : OFF);
   tFaq.style.cssText   = tFaq.style.cssText.replace(/color:[^;]+;border-bottom:[^;]+;margin-bottom:[^;]+;/, '')   + (isFiles ? OFF : ON);
+  const btnDoc = document.getElementById('docs-btn-doc');
+  const btnFaq = document.getElementById('docs-btn-faq');
+  if (btnDoc) btnDoc.style.display = isFiles ? '' : 'none';
+  if (btnFaq) btnFaq.style.display = isFiles ? 'none' : '';
 }
 
 function setDocsCategory(cat, el) {
@@ -4780,9 +4788,7 @@ async function saveManage() {
 }
 
 function switchLibTab() {
-  const isAdmin = currentUser && ['tech_support','admin'].includes(currentUser.role);
-  const btnDoc = document.getElementById('lib-btn-doc');
-  if (btnDoc) btnDoc.style.display = isAdmin ? '' : 'none';
+  switchLibDisplayTab('files');
   loadLibFiles();
 }
 
@@ -4819,6 +4825,11 @@ function switchLibDisplayTab(tab) {
   const OFF = 'color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;';
   tFiles.style.cssText = tFiles.style.cssText.replace(/color:[^;]+;border-bottom:[^;]+;margin-bottom:[^;]+;/, '') + (isFiles ? ON : OFF);
   tFaq.style.cssText   = tFaq.style.cssText.replace(/color:[^;]+;border-bottom:[^;]+;margin-bottom:[^;]+;/, '')   + (isFiles ? OFF : ON);
+  const isAdmin = currentUser && ['tech_support','admin'].includes(currentUser.role);
+  const btnDoc = document.getElementById('lib-btn-doc');
+  const btnFaq = document.getElementById('lib-btn-faq');
+  if (btnDoc) btnDoc.style.display = (isAdmin && isFiles) ? '' : 'none';
+  if (btnFaq) btnFaq.style.display = (isAdmin && !isFiles) ? '' : 'none';
 }
 
 function setLibCategory(cat, el) {
@@ -4926,18 +4937,19 @@ function renderLibFaq() {
   }).join('');
 }
 
-// 신규 자료 등록 — 폼 완전 초기화 후 모달 오픈
-function openNewDocModal() {
+// 신규 자료/FAQ 등록 — 폼 완전 초기화 후 모달 오픈
+function openNewDocModal(type) {
+  const isFaq = type === 'faq';
   const saveBtn = document.querySelector('#modal-doc .btn-primary');
   if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '저장'; }
-  document.getElementById('modal-doc-title').textContent = '자료 등록';
+  document.getElementById('modal-doc-title').textContent = isFaq ? 'FAQ 등록' : '자료 등록';
   document.getElementById('d-id').value = '';
   document.getElementById('d-storage-path').value = '';
   document.getElementById('d-file-size').value = '';
   const isPubChk = document.getElementById('d-is-public');
   if (isPubChk) { isPubChk.checked = true; document.getElementById('d-is-public-label').textContent = '공개 (고객에게 노출됨)'; }
   document.getElementById('doc-title').value = '';
-  document.getElementById('d-type').value = '';
+  document.getElementById('d-type').value = isFaq ? 'faq' : '';
   document.getElementById('d-category').value = 'tableau';
   document.getElementById('doc-description').value = '';
   document.getElementById('d-filename').value = '';
