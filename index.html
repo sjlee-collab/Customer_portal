@@ -674,8 +674,8 @@ textarea{resize:vertical;min-height:100px;}
       </div>
       <div class="card" style="padding:0;overflow:hidden;">
         <div class="tbl-scroll list-scroll"><table class="tbl tbl-fit">
-          <colgroup><col style="width:40%"><col style="width:12%"><col style="width:10%"><col style="width:12%"><col style="width:26%"></colgroup>
-          <thead><tr><th>질문</th><th>카테고리</th><th>조회수</th><th>등록일</th><th>액션</th></tr></thead>
+          <colgroup id="lib-faq-colgroup"><col style="width:40%"><col style="width:12%"><col style="width:10%"><col style="width:12%"><col style="width:26%"></colgroup>
+          <thead id="lib-faq-thead"><tr><th>질문</th><th>카테고리</th><th>조회수</th><th>등록일</th><th>액션</th></tr></thead>
           <tbody id="lib-faq-tbody">
             <tr><td colspan="5" style="padding:40px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
           </tbody>
@@ -4936,6 +4936,21 @@ function renderLibFaq() {
   const tbody = document.getElementById('lib-faq-tbody');
   if (!tbody) return;
   const isAdmin = currentUser && ['tech_support','admin'].includes(currentUser.role);
+  const colCount = isAdmin ? 5 : 4;
+
+  const colgroup = document.getElementById('lib-faq-colgroup');
+  if (colgroup) {
+    colgroup.innerHTML = isAdmin
+      ? '<col style="width:40%"><col style="width:12%"><col style="width:10%"><col style="width:12%"><col style="width:26%">'
+      : '<col style="width:46%"><col style="width:16%"><col style="width:14%"><col style="width:24%">';
+  }
+  const thead = document.getElementById('lib-faq-thead');
+  if (thead) {
+    thead.innerHTML = isAdmin
+      ? '<tr><th>질문</th><th>카테고리</th><th>조회수</th><th>등록일</th><th>액션</th></tr>'
+      : '<tr><th>질문</th><th>카테고리</th><th>조회수</th><th>등록일</th></tr>';
+  }
+
   const q = (document.getElementById('lib-faq-search')?.value || '').toLowerCase();
   const list = allLibDocs.filter(d => {
     if (d.product !== 'faq') return false;
@@ -4945,7 +4960,7 @@ function renderLibFaq() {
   });
 
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="padding:40px;text-align:center;color:var(--faint);font-size:13px;">등록된 FAQ가 없습니다.</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="${colCount}" style="padding:40px;text-align:center;color:var(--faint);font-size:13px;">등록된 FAQ가 없습니다.</td></tr>`;
     return;
   }
 
@@ -4957,10 +4972,10 @@ function renderLibFaq() {
       <td class="tbl-ellipsis">${DOC_CAT_LABEL_KO[d.category] || d.category || '-'}</td>
       <td style="font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;" id="vc-count-lib-${d.id}">${(d.download_count || 0).toLocaleString()}</td>
       <td style="white-space:nowrap;color:var(--faint);">${(d.created_at || '').slice(0,10)}</td>
-      <td style="overflow:hidden;" onclick="event.stopPropagation();">${libFaqActions(d, isAdmin, isPublic)}</td>
+      ${isAdmin ? `<td style="overflow:hidden;" onclick="event.stopPropagation();">${libFaqActions(d, isAdmin, isPublic)}</td>` : ''}
     </tr>
     <tr class="faq-ans-row" style="display:none;">
-      <td colspan="5" style="background:var(--surface2);font-size:13px;color:var(--muted);line-height:1.7;padding:14px 16px;">${escHtml(d.description||'').replace(/\n/g,'<br>')}</td>
+      <td colspan="${colCount}" style="background:var(--surface2);font-size:13px;color:var(--muted);line-height:1.7;padding:14px 16px;">${escHtml(d.description||'').replace(/\n/g,'<br>')}</td>
     </tr>`;
   }).join('');
 }
