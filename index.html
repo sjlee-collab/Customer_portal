@@ -2208,6 +2208,22 @@ function renderDocsFiles() {
     </tr>`).join('');
 }
 
+function docFaqActions(d) {
+  const btnStyle = 'padding:4px 8px;font-size:11px;';
+  return `<div style="display:flex;gap:4px;flex-wrap:nowrap;overflow:hidden;">
+    <button class="btn btn-ghost btn-sm" style="${btnStyle}" onclick='openEditDoc(${JSON.stringify(d).replace(/'/g,"&#39;")})'>수정</button>
+    <button class="btn btn-ghost btn-sm" style="${btnStyle}color:var(--danger);" onclick="deleteDocument('${d.id}','${(d.title||'').replace(/'/g,"\\'")}')">삭제</button>
+  </div>`;
+}
+
+function toggleFaqRow(tr) {
+  const ansRow = tr.nextElementSibling;
+  const isOpen = ansRow.style.display !== 'none';
+  const scopeBody = tr.closest('tbody');
+  scopeBody.querySelectorAll('.faq-ans-row').forEach(r => r.style.display = 'none');
+  if (!isOpen) ansRow.style.display = 'table-row';
+}
+
 function renderDocsFaq() {
   const tbody = document.getElementById('docs-faq-tbody');
   if (!tbody) return;
@@ -2218,12 +2234,15 @@ function renderDocsFaq() {
   );
   if (!list.length) { tbody.innerHTML = '<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">등록된 FAQ가 없습니다.</td></tr>'; return; }
   tbody.innerHTML = list.map(d => `
-    <tr>
+    <tr class="faq-row" onclick="toggleFaqRow(this)" style="cursor:pointer;">
       <td class="tbl-ellipsis" style="font-weight:600;font-size:13px;">${escHtml(d.title)}</td>
       <td class="tbl-ellipsis" style="font-size:12px;color:var(--faint);">${escHtml((d.description||'').slice(0,80))}</td>
       <td class="tbl-ellipsis"><span class="badge ${d.is_public ? 'b-green' : 'b-gray'}">${d.is_public ? '공개' : '비공개'}</span></td>
       <td style="font-size:12px;color:var(--faint);white-space:nowrap;">${(d.created_at || '').slice(0,10)}</td>
-      <td style="overflow:hidden;">${docRowActions(d)}</td>
+      <td style="overflow:hidden;" onclick="event.stopPropagation();">${docFaqActions(d)}</td>
+    </tr>
+    <tr class="faq-ans-row" style="display:none;">
+      <td colspan="5" style="background:var(--surface2);font-size:13px;color:var(--muted);line-height:1.7;padding:14px 16px;">${escHtml(d.description||'').replace(/\n/g,'<br>')}</td>
     </tr>`).join('');
 }
 
@@ -2261,11 +2280,12 @@ async function submitDocument() {
 
   const id = document.getElementById('d-id').value;
   const title = document.getElementById('doc-title').value.trim();
+  const category = document.getElementById('d-category').value;
   const file_name = document.getElementById('d-filename').value.trim();
   const existingStoragePath = document.getElementById('d-storage-path').value.trim();
   const existingFileSize = document.getElementById('d-file-size').value;
   if (!title) { showToast('제목을 입력하세요.', true); restoreBtn(); return; }
-  if (!file_name) { showToast('파일을 선택하세요.', true); restoreBtn(); return; }
+  if (category !== 'faq' && !file_name) { showToast('파일을 선택하세요.', true); restoreBtn(); return; }
 
   // 기존 값 유지, 새 파일 선택 시 교체
   let storage_path = existingStoragePath;
@@ -2295,7 +2315,7 @@ async function submitDocument() {
 
   const payload = {
     title,
-    category: document.getElementById('d-category').value,
+    category,
     description: document.getElementById('doc-description').value.trim() || null,
     file_name,
     file_size,
@@ -4844,6 +4864,17 @@ function renderLibFiles() {
   }).join('');
 }
 
+function libFaqActions(d, isAdmin, isPublic) {
+  if (!isAdmin) return '';
+  const btnStyle = 'padding:4px 8px;font-size:11px;';
+  const dJson = escHtml(JSON.stringify(d).replace(/'/g,"&#39;"));
+  return `<div style="display:flex;gap:4px;flex-wrap:nowrap;overflow:hidden;">
+    <button class="btn btn-ghost btn-sm" style="${btnStyle}color:${isPublic?'var(--faint)':'var(--accent)'};" onclick="toggleDocPublic('${d.id}',${isPublic})" title="${isPublic?'비공개로 전환':'공개로 전환'}">${isPublic?'비공개':'공개'}</button>
+    <button class="btn btn-ghost btn-sm" style="${btnStyle}" onclick='openLibEditDoc(${dJson})'>수정</button>
+    <button class="btn btn-ghost btn-sm" style="${btnStyle}color:#e53e3e;" onclick="deleteDoc('${d.id}','${escHtml(d.storage_path||'')}','${escHtml(d.title||'')}')">삭제</button>
+  </div>`;
+}
+
 function renderLibFaq() {
   const tbody = document.getElementById('lib-faq-tbody');
   if (!tbody) return;
@@ -4862,15 +4893,15 @@ function renderLibFaq() {
 
   tbody.innerHTML = list.map(d => {
     const isPublic = d.is_public !== false;
-    const fileUrl = d.storage_path && sb
-      ? sb.storage.from('documents').getPublicUrl(d.storage_path.split('/').map(s => encodeURIComponent(decodeURIComponent(s))).join('/')).data?.publicUrl
-      : null;
     const privateBadge = isAdmin && !isPublic ? '<span class="badge b-red" style="font-size:10px;margin-left:6px;">비공개</span>' : '';
-    return `<tr${isAdmin && !isPublic ? ' style="background:rgba(220,38,38,.05);"' : ''}>
+    return `<tr class="faq-row" onclick="toggleFaqRow(this)" style="cursor:pointer;${isAdmin && !isPublic ? 'background:rgba(220,38,38,.05);' : ''}">
       <td class="tbl-ellipsis" style="font-weight:600;">Q. ${escHtml(d.title)}${privateBadge}</td>
       <td class="tbl-ellipsis" style="font-size:12px;color:var(--faint);">${escHtml((d.description||'').slice(0,80))}</td>
       <td style="white-space:nowrap;color:var(--faint);">${(d.created_at || '').slice(0,10)}</td>
-      <td style="overflow:hidden;">${libRowActions(d, isAdmin, isPublic, fileUrl)}</td>
+      <td style="overflow:hidden;" onclick="event.stopPropagation();">${libFaqActions(d, isAdmin, isPublic)}</td>
+    </tr>
+    <tr class="faq-ans-row" style="display:none;">
+      <td colspan="4" style="background:var(--surface2);font-size:13px;color:var(--muted);line-height:1.7;padding:14px 16px;">${escHtml(d.description||'').replace(/\n/g,'<br>')}</td>
     </tr>`;
   }).join('');
 }
