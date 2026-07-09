@@ -652,10 +652,10 @@ textarea{resize:vertical;min-height:100px;}
       </div>
       <div class="card" style="padding:0;overflow:hidden;">
         <div class="tbl-scroll list-scroll"><table class="tbl tbl-fit">
-          <colgroup><col style="width:32%"><col style="width:10%"><col style="width:18%"><col style="width:10%"><col style="width:30%"></colgroup>
-          <thead><tr><th>제목</th><th>카테고리</th><th>파일명</th><th>등록일</th><th>액션</th></tr></thead>
+          <colgroup><col style="width:28%"><col style="width:9%"><col style="width:16%"><col style="width:9%"><col style="width:10%"><col style="width:28%"></colgroup>
+          <thead><tr><th>제목</th><th>카테고리</th><th>파일명</th><th>다운로드</th><th>등록일</th><th>액션</th></tr></thead>
           <tbody id="lib-files-tbody">
-            <tr><td colspan="5" style="padding:40px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
+            <tr><td colspan="6" style="padding:40px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
           </tbody>
         </table></div>
       </div>
@@ -668,10 +668,10 @@ textarea{resize:vertical;min-height:100px;}
       </div>
       <div class="card" style="padding:0;overflow:hidden;">
         <div class="tbl-scroll list-scroll"><table class="tbl tbl-fit">
-          <colgroup><col style="width:32%"><col style="width:34%"><col style="width:10%"><col style="width:24%"></colgroup>
-          <thead><tr><th>질문</th><th>답변 미리보기</th><th>등록일</th><th>액션</th></tr></thead>
+          <colgroup><col style="width:40%"><col style="width:12%"><col style="width:10%"><col style="width:12%"><col style="width:26%"></colgroup>
+          <thead><tr><th>질문</th><th>카테고리</th><th>조회수</th><th>등록일</th><th>액션</th></tr></thead>
           <tbody id="lib-faq-tbody">
-            <tr><td colspan="4" style="padding:40px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
+            <tr><td colspan="5" style="padding:40px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
           </tbody>
         </table></div>
       </div>
@@ -1038,10 +1038,10 @@ textarea{resize:vertical;min-height:100px;}
           </div>
           <div class="card" style="padding:0;overflow:hidden;">
             <div class="tbl-scroll list-scroll"><table class="tbl tbl-fit">
-              <colgroup><col style="width:26%"><col style="width:30%"><col style="width:10%"><col style="width:10%"><col style="width:24%"></colgroup>
-              <thead><tr><th>질문</th><th>답변 미리보기</th><th>공개</th><th>등록일</th><th>작업</th></tr></thead>
+              <colgroup><col style="width:30%"><col style="width:10%"><col style="width:8%"><col style="width:10%"><col style="width:12%"><col style="width:30%"></colgroup>
+              <thead><tr><th>질문</th><th>카테고리</th><th>조회수</th><th>공개</th><th>등록일</th><th>작업</th></tr></thead>
               <tbody id="docs-faq-tbody">
-                <tr><td colspan="5" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
+                <tr><td colspan="6" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
               </tbody>
             </table></div>
           </div>
@@ -2177,7 +2177,7 @@ function docRowActions(d) {
     ? sb.storage.from('documents').getPublicUrl(d.storage_path.split('/').map(s => encodeURIComponent(decodeURIComponent(s))).join('/')).data?.publicUrl
     : null;
   const dlBtn = fileUrl
-    ? `<button class="btn btn-outline btn-sm" style="${btnStyle}" onclick="window.open('${fileUrl}','_blank')">⬇ 다운로드</button>`
+    ? `<button class="btn btn-outline btn-sm" style="${btnStyle}" onclick="downloadDoc('${fileUrl}','${escHtml(d.file_name || d.title)}','${d.id}')">⬇ 다운로드</button>`
     : `<button class="btn btn-outline btn-sm" style="${btnStyle}" disabled>⬇ 다운로드</button>`;
   return `<div style="display:flex;gap:4px;flex-wrap:nowrap;overflow:hidden;">
     ${dlBtn}
@@ -2202,7 +2202,7 @@ function renderDocsFiles() {
       <td class="tbl-ellipsis"><span class="badge b-blue">${DOC_CATEGORY_LABEL[d.category] || d.category}</span></td>
       <td class="tbl-ellipsis" style="font-size:12px;color:var(--faint);">${escHtml(d.file_name || '-')}</td>
       <td class="tbl-ellipsis"><span class="badge ${d.is_public ? 'b-green' : 'b-gray'}">${d.is_public ? '공개' : '비공개'}</span></td>
-      <td style="font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;">${(d.download_count || 0).toLocaleString()}</td>
+      <td style="font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;" id="dl-count-docs-${d.id}">${(d.download_count || 0).toLocaleString()}</td>
       <td style="font-size:12px;color:var(--faint);white-space:nowrap;">${(d.created_at || '').slice(0,10)}</td>
       <td style="overflow:hidden;">${docRowActions(d)}</td>
     </tr>`).join('');
@@ -2221,7 +2221,11 @@ function toggleFaqRow(tr) {
   const isOpen = ansRow.style.display !== 'none';
   const scopeBody = tr.closest('tbody');
   scopeBody.querySelectorAll('.faq-ans-row').forEach(r => r.style.display = 'none');
-  if (!isOpen) ansRow.style.display = 'table-row';
+  if (!isOpen) {
+    ansRow.style.display = 'table-row';
+    const docId = tr.dataset.docId;
+    if (docId && sb) bumpDocCount(docId);
+  }
 }
 
 function renderDocsFaq() {
@@ -2232,17 +2236,18 @@ function renderDocsFaq() {
     d.category === 'faq' &&
     (!q || (d.title||'').toLowerCase().includes(q) || (d.description||'').toLowerCase().includes(q))
   );
-  if (!list.length) { tbody.innerHTML = '<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">등록된 FAQ가 없습니다.</td></tr>'; return; }
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">등록된 FAQ가 없습니다.</td></tr>'; return; }
   tbody.innerHTML = list.map(d => `
-    <tr class="faq-row" onclick="toggleFaqRow(this)" style="cursor:pointer;">
+    <tr class="faq-row" onclick="toggleFaqRow(this)" style="cursor:pointer;" data-doc-id="${d.id}">
       <td class="tbl-ellipsis" style="font-weight:600;font-size:13px;">${escHtml(d.title)}</td>
-      <td class="tbl-ellipsis" style="font-size:12px;color:var(--faint);">${escHtml((d.description||'').slice(0,80))}</td>
+      <td class="tbl-ellipsis">${DOC_CATEGORY_LABEL[d.category] || d.category}</td>
+      <td style="font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;" id="vc-count-docs-${d.id}">${(d.download_count || 0).toLocaleString()}</td>
       <td class="tbl-ellipsis"><span class="badge ${d.is_public ? 'b-green' : 'b-gray'}">${d.is_public ? '공개' : '비공개'}</span></td>
       <td style="font-size:12px;color:var(--faint);white-space:nowrap;">${(d.created_at || '').slice(0,10)}</td>
       <td style="overflow:hidden;" onclick="event.stopPropagation();">${docFaqActions(d)}</td>
     </tr>
     <tr class="faq-ans-row" style="display:none;">
-      <td colspan="5" style="background:var(--surface2);font-size:13px;color:var(--muted);line-height:1.7;padding:14px 16px;">${escHtml(d.description||'').replace(/\n/g,'<br>')}</td>
+      <td colspan="6" style="background:var(--surface2);font-size:13px;color:var(--muted);line-height:1.7;padding:14px 16px;">${escHtml(d.description||'').replace(/\n/g,'<br>')}</td>
     </tr>`).join('');
 }
 
@@ -4837,7 +4842,7 @@ function renderLibFiles() {
   });
 
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="padding:40px;text-align:center;color:var(--faint);font-size:13px;">등록된 자료가 없습니다.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--faint);font-size:13px;">등록된 자료가 없습니다.</td></tr>';
     return;
   }
 
@@ -4858,6 +4863,7 @@ function renderLibFiles() {
       </td>
       <td class="tbl-ellipsis">${DOC_CAT_LABEL_KO[d.category] || d.category || '-'}</td>
       <td class="tbl-ellipsis" style="font-size:12px;color:var(--faint);">${(isAdmin || isPublic) ? escHtml(d.file_name || '-') : '—'}</td>
+      <td style="font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;" id="dl-count-lib-${d.id}">${(d.download_count || 0).toLocaleString()}</td>
       <td style="white-space:nowrap;color:var(--faint);">${(d.created_at || '').slice(0,10)}</td>
       <td style="overflow:hidden;">${libRowActions(d, isAdmin, isPublic, fileUrl)}</td>
     </tr>`;
@@ -4887,21 +4893,22 @@ function renderLibFaq() {
   });
 
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="4" style="padding:40px;text-align:center;color:var(--faint);font-size:13px;">등록된 FAQ가 없습니다.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="padding:40px;text-align:center;color:var(--faint);font-size:13px;">등록된 FAQ가 없습니다.</td></tr>';
     return;
   }
 
   tbody.innerHTML = list.map(d => {
     const isPublic = d.is_public !== false;
     const privateBadge = isAdmin && !isPublic ? '<span class="badge b-red" style="font-size:10px;margin-left:6px;">비공개</span>' : '';
-    return `<tr class="faq-row" onclick="toggleFaqRow(this)" style="cursor:pointer;${isAdmin && !isPublic ? 'background:rgba(220,38,38,.05);' : ''}">
+    return `<tr class="faq-row" onclick="toggleFaqRow(this)" style="cursor:pointer;${isAdmin && !isPublic ? 'background:rgba(220,38,38,.05);' : ''}" data-doc-id="${d.id}">
       <td class="tbl-ellipsis" style="font-weight:600;">Q. ${escHtml(d.title)}${privateBadge}</td>
-      <td class="tbl-ellipsis" style="font-size:12px;color:var(--faint);">${escHtml((d.description||'').slice(0,80))}</td>
+      <td class="tbl-ellipsis">${DOC_CAT_LABEL_KO[d.category] || d.category || '-'}</td>
+      <td style="font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;" id="vc-count-lib-${d.id}">${(d.download_count || 0).toLocaleString()}</td>
       <td style="white-space:nowrap;color:var(--faint);">${(d.created_at || '').slice(0,10)}</td>
       <td style="overflow:hidden;" onclick="event.stopPropagation();">${libFaqActions(d, isAdmin, isPublic)}</td>
     </tr>
     <tr class="faq-ans-row" style="display:none;">
-      <td colspan="4" style="background:var(--surface2);font-size:13px;color:var(--muted);line-height:1.7;padding:14px 16px;">${escHtml(d.description||'').replace(/\n/g,'<br>')}</td>
+      <td colspan="5" style="background:var(--surface2);font-size:13px;color:var(--muted);line-height:1.7;padding:14px 16px;">${escHtml(d.description||'').replace(/\n/g,'<br>')}</td>
     </tr>`;
   }).join('');
 }
@@ -5007,6 +5014,20 @@ async function deleteDoc(docId, storagePath, title) {
   loadLibFiles();
 }
 
+async function bumpDocCount(docId) {
+  const libDoc = allLibDocs.find(x => x.id === docId);
+  const adminDoc = (typeof allDocsAdmin !== 'undefined') ? allDocsAdmin.find(x => x.id === docId) : null;
+  const next = ((libDoc || adminDoc)?.download_count || 0) + 1;
+  const { error } = await sb.from('documents').update({ download_count: next }).eq('id', docId);
+  if (error) return;
+  if (libDoc) libDoc.download_count = next;
+  if (adminDoc) adminDoc.download_count = next;
+  ['dl-count-lib-', 'dl-count-docs-', 'vc-count-lib-', 'vc-count-docs-'].forEach(prefix => {
+    const el = document.getElementById(prefix + docId);
+    if (el) el.textContent = next.toLocaleString();
+  });
+}
+
 async function downloadDoc(url, filename, docId) {
   try {
     const res = await fetch(url);
@@ -5020,7 +5041,7 @@ async function downloadDoc(url, filename, docId) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(blobUrl);
-    if (docId && sb) sb.from('documents').update({ download_count: undefined }).eq('id', docId); // count는 DB function으로
+    if (docId && sb) await bumpDocCount(docId);
   } catch (e) {
     showToast('다운로드 실패: ' + e.message, true);
   }
