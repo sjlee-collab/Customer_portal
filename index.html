@@ -893,24 +893,23 @@ textarea{resize:vertical;min-height:100px;}
                     <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;" onclick="saveMemo()">메모 저장</button>
                   </div>
                 </div>
-              </div>
-
-              <!-- 답글 -->
-              <div class="card">
-                <div class="card-title" style="margin-bottom:16px;">답글</div>
-                <div id="rd-messages" style="display:flex;flex-direction:column;gap:0;max-height:420px;overflow-y:auto;">
-                  <div style="color:var(--faint);font-size:13px;padding:8px 0;">등록된 답글이 없습니다.</div>
-                </div>
-                <!-- 새 답글 입력 -->
-                <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
-                  <div style="flex:1;">
-                    <textarea id="rd-customer-reply" rows="3" placeholder="답글을 입력하세요..." style="width:100%;resize:vertical;margin-bottom:8px;"></textarea>
-                    <div style="display:flex;justify-content:space-between;align-items:center;">
-                      <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer;color:var(--muted);">
-                        <input type="checkbox" id="rd-send-email" style="accent-color:var(--accent);">
-                        <span>메일 발송</span>
-                      </label>
-                      <button class="btn btn-primary btn-sm" onclick="sendCustomerReply()">답글 등록</button>
+                <!-- 답글 -->
+                <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:16px;">
+                  <div class="card-title" style="margin-bottom:16px;">답글</div>
+                  <div id="rd-messages" style="display:flex;flex-direction:column;gap:0;max-height:420px;overflow-y:auto;">
+                    <div style="color:var(--faint);font-size:13px;padding:8px 0;">등록된 답글이 없습니다.</div>
+                  </div>
+                  <!-- 새 답글 입력 -->
+                  <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
+                    <div style="flex:1;">
+                      <textarea id="rd-customer-reply" rows="3" placeholder="답글을 입력하세요..." style="width:100%;resize:vertical;margin-bottom:8px;"></textarea>
+                      <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer;color:var(--muted);">
+                          <input type="checkbox" id="rd-send-email" style="accent-color:var(--accent);">
+                          <span>메일 발송</span>
+                        </label>
+                        <button class="btn btn-primary btn-sm" onclick="sendCustomerReply()">답글 등록</button>
+                      </div>
                     </div>
                   </div>
                 </div>
