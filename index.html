@@ -897,6 +897,7 @@ textarea{resize:vertical;min-height:100px;}
                     </div>
                     <span id="rd-memo-arrow" style="font-size:12px;color:var(--faint);white-space:nowrap;flex-shrink:0;">펼치기 ▾</span>
                   </div>
+                  <div id="rd-memo-latest" style="margin-top:8px;"></div>
                   <div id="rd-memo-body" style="display:none;margin-top:10px;">
                     <div id="rd-memo-list" style="display:flex;flex-direction:column;gap:0;margin-bottom:12px;max-height:200px;overflow-y:auto;"></div>
                     <textarea id="rd-reply" rows="4" placeholder="내부 처리 내용, 메모를 기록하세요." style="width:100%;resize:vertical;margin-bottom:8px;"></textarea>
@@ -4639,8 +4640,10 @@ async function selectRdTicket(idx, directTicket) {
   if (historyBox) historyBox.style.display = 'none';
   const memoBody = document.getElementById('rd-memo-body');
   const memoArrow = document.getElementById('rd-memo-arrow');
+  const memoLatest = document.getElementById('rd-memo-latest');
   if (memoBody) memoBody.style.display = 'none';
   if (memoArrow) memoArrow.textContent = '펼치기 ▾';
+  if (memoLatest) memoLatest.style.display = '';
   loadRdHistory();
   loadRdMessages();
   loadRdAttachments();
@@ -4735,10 +4738,12 @@ async function rdAddAttachments(input) {
 
 function toggleRdMemo() {
   const body   = document.getElementById('rd-memo-body');
+  const latest = document.getElementById('rd-memo-latest');
   const arrowEl = document.getElementById('rd-memo-arrow');
   if (!body) return;
   const opening = body.style.display === 'none';
   body.style.display = opening ? '' : 'none';
+  if (latest) latest.style.display = opening ? 'none' : '';
   if (arrowEl) arrowEl.textContent = opening ? '접기 ▴' : '펼치기 ▾';
 }
 
@@ -4918,15 +4923,16 @@ async function saveEditMessage(historyId) {
 
 async function loadRdMemos() {
   const container = document.getElementById('rd-memo-list');
+  const latestEl  = document.getElementById('rd-memo-latest');
   const summaryEl = document.getElementById('rd-memo-summary');
   if (!container || !rdTicket) return;
-  if (!sb) { container.innerHTML = ''; return; }
+  if (!sb) { container.innerHTML = ''; if (latestEl) latestEl.innerHTML = ''; return; }
   const { data, error } = await sb.from('ticket_memos')
     .select('id, note, created_at, changed_by')
     .eq('ticket_id', rdTicket.id)
     .order('created_at', { ascending: false });
   if (summaryEl) summaryEl.textContent = (data && data.length) ? `메모 ${data.length}건` : '메모 없음';
-  if (error || !data || !data.length) { container.innerHTML = ''; return; }
+  if (error || !data || !data.length) { container.innerHTML = ''; if (latestEl) latestEl.innerHTML = ''; return; }
   const memoUserIds = [...new Set(data.map(m => m.changed_by).filter(Boolean))];
   const memoNameMap = {};
   if (memoUserIds.length) {
@@ -4960,6 +4966,20 @@ async function loadRdMemos() {
       <div id="memo-body-${m.id}" style="font-size:13px;line-height:1.6;color:var(--muted);white-space:pre-wrap;word-break:break-all;">${escHtml(m.note || '')}</div>
     </div>`;
   }).join('');
+
+  if (latestEl) {
+    const latest = data[0];
+    const author = (latest.changed_by && memoNameMap[latest.changed_by]) || '(알 수 없음)';
+    const time   = fmtTime(latest.created_at);
+    latestEl.innerHTML = `
+      <div style="padding:10px 12px;background:var(--surface2);border-radius:var(--r-md);">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+          <span style="font-size:12px;font-weight:700;color:var(--text);">${escHtml(author)}</span>
+          <span style="font-size:11px;color:var(--faint);">${time}</span>
+        </div>
+        <div style="font-size:13px;line-height:1.6;color:var(--muted);white-space:pre-wrap;word-break:break-all;">${escHtml(latest.note || '')}</div>
+      </div>`;
+  }
 }
 
 async function editMemo(memoId, currentNote) {
