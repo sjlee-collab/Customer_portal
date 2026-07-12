@@ -998,16 +998,38 @@ textarea{resize:vertical;min-height:100px;}
           <div><div class="section-title">사용자 관리</div><div class="section-sub" id="users-count"></div></div>
           <button class="btn btn-primary btn-sm" onclick="openModal('modal-user')">+ 사용자 추가</button>
         </div>
-        <div class="filter-bar">
-          <input class="search-box" id="user-search" placeholder="이름, 이메일 검색..." oninput="applyUserFilter()">
+
+        <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:14px;">
+          <button id="users-tab-customer" onclick="switchUsersTab('customer')" style="padding:8px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:var(--accent);border-bottom:2px solid var(--accent);margin-bottom:-2px;">고객</button>
+          <button id="users-tab-internal" onclick="switchUsersTab('internal')" style="padding:8px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;">내부</button>
         </div>
-        <div class="card" style="padding:0;overflow:hidden;">
-          <div class="tbl-scroll list-scroll"><table class="tbl">
-            <thead><tr><th>이름</th><th>이메일</th><th>고객사</th><th>사용자 유형</th><th>최근 로그인</th><th>상태</th><th>액션</th></tr></thead>
-            <tbody id="users-tbody">
-              <tr><td colspan="7" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
-            </tbody>
-          </table></div>
+
+        <div id="users-panel-customer">
+          <div class="filter-bar">
+            <input class="search-box" id="user-search-customer" placeholder="이름, 이메일 검색..." oninput="applyUserFilter()">
+          </div>
+          <div class="card" style="padding:0;overflow:hidden;">
+            <div class="tbl-scroll list-scroll"><table class="tbl">
+              <thead><tr><th>이름</th><th>이메일</th><th>고객사</th><th>사용자 유형</th><th>최근 로그인</th><th>상태</th><th>액션</th></tr></thead>
+              <tbody id="users-tbody-customer">
+                <tr><td colspan="7" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
+              </tbody>
+            </table></div>
+          </div>
+        </div>
+
+        <div id="users-panel-internal" style="display:none;">
+          <div class="filter-bar">
+            <input class="search-box" id="user-search-internal" placeholder="이름, 이메일 검색..." oninput="applyUserFilter()">
+          </div>
+          <div class="card" style="padding:0;overflow:hidden;">
+            <div class="tbl-scroll list-scroll"><table class="tbl">
+              <thead><tr><th>이름</th><th>이메일</th><th>고객사</th><th>사용자 유형</th><th>최근 로그인</th><th>상태</th><th>액션</th></tr></thead>
+              <tbody id="users-tbody-internal">
+                <tr><td colspan="7" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
+              </tbody>
+            </table></div>
+          </div>
         </div>
       </div>
 
@@ -4080,9 +4102,10 @@ const ROLE_LABELS = { customer:'고객', internal:'내부', tech_support:'기술
 const ROLE_BADGE  = { customer:'b-gray', internal:'b-gray', tech_support:'b-red', sales:'b-amber', admin:'b-accent' };
 
 let allUsers = [];
+let currentUsersTab = 'customer';
 
 async function loadUsers() {
-  const tbody = document.getElementById('users-tbody');
+  const tbody = document.getElementById('users-tbody-customer');
   if (!tbody) return;
   tbody.innerHTML = '<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>';
 
@@ -4101,20 +4124,37 @@ async function loadUsers() {
   applyUserFilter();
 }
 
+function switchUsersTab(tab) {
+  currentUsersTab = tab;
+  const isCustomer = tab === 'customer';
+  document.getElementById('users-panel-customer').style.display = isCustomer ? '' : 'none';
+  document.getElementById('users-panel-internal').style.display = isCustomer ? 'none' : '';
+  const tCustomer = document.getElementById('users-tab-customer');
+  const tInternal = document.getElementById('users-tab-internal');
+  const ON  = 'color:var(--accent);border-bottom:2px solid var(--accent);margin-bottom:-2px;';
+  const OFF = 'color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;';
+  tCustomer.style.cssText = tCustomer.style.cssText.replace(/color:[^;]+;border-bottom:[^;]+;margin-bottom:[^;]+;/, '') + (isCustomer ? ON : OFF);
+  tInternal.style.cssText = tInternal.style.cssText.replace(/color:[^;]+;border-bottom:[^;]+;margin-bottom:[^;]+;/, '') + (isCustomer ? OFF : ON);
+  applyUserFilter();
+}
+
 function applyUserFilter() {
-  const q = (document.getElementById('user-search')?.value || '').trim().toLowerCase();
-  const filtered = allUsers.filter(u =>
+  const isCustomer = currentUsersTab === 'customer';
+  const searchId = isCustomer ? 'user-search-customer' : 'user-search-internal';
+  const q = (document.getElementById(searchId)?.value || '').trim().toLowerCase();
+  const scoped = allUsers.filter(u => isCustomer ? u.role === 'customer' : u.role !== 'customer');
+  const filtered = scoped.filter(u =>
     !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
   );
   const countEl = document.getElementById('users-count');
   if (countEl) {
-    countEl.textContent = q ? `총 ${allUsers.length}명 중 ${filtered.length}명 검색됨` : `${allUsers.length}명`;
+    countEl.textContent = q ? `총 ${scoped.length}명 중 ${filtered.length}명 검색됨` : `${scoped.length}명`;
   }
-  renderUsers(filtered);
+  renderUsers(filtered, isCustomer ? 'users-tbody-customer' : 'users-tbody-internal');
 }
 
-function renderUsers(users) {
-  const tbody = document.getElementById('users-tbody');
+function renderUsers(users, tbodyId) {
+  const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
   if (!users.length) {
     tbody.innerHTML = '<tr><td colspan="7" style="padding:40px;text-align:center;color:var(--faint);">등록된 사용자가 없습니다.</td></tr>';
