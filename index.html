@@ -2132,7 +2132,7 @@ async function loadIntegrationLogs() {
   const tbody = document.getElementById('integration-logs-tbody');
   if (!tbody) return;
   tbody.innerHTML = '<tr><td colspan="7" style="padding:16px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>';
-  const { data, error } = await sb.from('integration_logs')
+  const { data, error } = await sb.from('log_integration')
     .select('*').order('created_at', { ascending: false }).limit(50);
   if (error) {
     tbody.innerHTML = `<tr><td colspan="7" style="padding:16px;text-align:center;color:var(--danger);font-size:13px;">오류: ${error.message}</td></tr>`;
@@ -2172,7 +2172,7 @@ let docsFaqCatFilter = '';
 async function loadDocuments() {
   const tbody = document.getElementById('docs-tbody');
   tbody.innerHTML = '<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>';
-  const { data, error } = await sb.from('documents').select('*').order('created_at', { ascending: false });
+  const { data, error } = await sb.from('content_documents').select('*').order('created_at', { ascending: false });
   if (error) { tbody.innerHTML = `<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--danger);">오류: ${error.message}</td></tr>`; return; }
   allDocsAdmin = data || [];
   const faqCount = allDocsAdmin.filter(d => d.product === 'faq').length;
@@ -2384,10 +2384,10 @@ async function submitDocument() {
   let error;
   try {
     if (id) {
-      ({ error } = await sb.from('documents').update(payload).eq('id', id));
+      ({ error } = await sb.from('content_documents').update(payload).eq('id', id));
     } else {
       payload.download_count = 0;
-      ({ error } = await sb.from('documents').insert(payload));
+      ({ error } = await sb.from('content_documents').insert(payload));
     }
   } catch (e) {
     showToast('저장 실패: ' + e.message, true); restoreBtn(); return;
@@ -2405,11 +2405,11 @@ async function submitDocument() {
 async function deleteDocument(id, title) {
   if (!confirm(`"${title}" 자료를 삭제하시겠습니까?`)) return;
   // storage_path 먼저 조회 후 파일 삭제
-  const { data: doc } = await sb.from('documents').select('storage_path').eq('id', id).single();
+  const { data: doc } = await sb.from('content_documents').select('storage_path').eq('id', id).single();
   if (doc?.storage_path) {
     await sb.storage.from('documents').remove([doc.storage_path]);
   }
-  const { error } = await sb.from('documents').delete().eq('id', id);
+  const { error } = await sb.from('content_documents').delete().eq('id', id);
   if (error) { showToast('삭제 실패: ' + error.message, true); return; }
   showToast('✅ 삭제됐습니다.');
   loadDocuments();
@@ -2687,7 +2687,7 @@ async function loadNotices() {
   const cards = document.querySelectorAll('.dash-notice-card');
   const lists = document.querySelectorAll('.dash-notice-list');
   if (!cards.length || !sb) return;
-  const { data, error } = await sb.from('notices').select('*').order('created_at', { ascending: false }).limit(3);
+  const { data, error } = await sb.from('content_notices').select('*').order('created_at', { ascending: false }).limit(3);
   if (error || !data || !data.length) { cards.forEach(c => c.style.display = 'none'); return; }
   const html = data.map((n, i) => `
     <div style="display:flex;gap:10px;align-items:center;padding:8px 0;${i < data.length - 1 ? 'border-bottom:1px solid var(--border);' : ''}">
@@ -2705,7 +2705,7 @@ async function openAllNoticesModal() {
   body.innerHTML = '<div style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</div>';
   openModal('modal-notices');
   if (!sb) return;
-  const { data, error } = await sb.from('notices').select('*').order('created_at', { ascending: false });
+  const { data, error } = await sb.from('content_notices').select('*').order('created_at', { ascending: false });
   if (error || !data || !data.length) {
     body.innerHTML = '<div style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">등록된 공지가 없습니다.</div>';
     return;
@@ -3467,7 +3467,7 @@ async function loadCompanyContracts() {
   if (!tbody || !selectedCompanyId) return;
   tbody.innerHTML = '<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>';
   if (!sb) { tbody.innerHTML = '<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);">DB 미연결</td></tr>'; return; }
-  const { data, error } = await sb.from('contracts').select('*').eq('company_id', selectedCompanyId).order('created_at', { ascending: false });
+  const { data, error } = await sb.from('company_contracts').select('*').eq('company_id', selectedCompanyId).order('created_at', { ascending: false });
   if (error || !data || !data.length) {
     tbody.innerHTML = '<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);">등록된 계약 정보가 없습니다.</td></tr>';
     return;
@@ -3497,7 +3497,7 @@ async function loadCompanyLicenses() {
   if (!tbody || !selectedCompanyId) return;
   tbody.innerHTML = '<tr><td colspan="10" style="padding:20px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>';
   if (!sb) { tbody.innerHTML = '<tr><td colspan="10" style="padding:20px;text-align:center;color:var(--faint);">DB 미연결</td></tr>'; return; }
-  const { data, error } = await sb.from('licenses').select('*').eq('company_id', selectedCompanyId).order('created_at', { ascending: false });
+  const { data, error } = await sb.from('company_licenses').select('*').eq('company_id', selectedCompanyId).order('created_at', { ascending: false });
   if (error || !data || !data.length) {
     tbody.innerHTML = '<tr><td colspan="10" style="padding:20px;text-align:center;color:var(--faint);">등록된 라이선스 정보가 없습니다.</td></tr>';
     return;
@@ -3581,9 +3581,9 @@ async function submitContract() {
   };
   let error;
   if (id) {
-    ({ error } = await sb.from('contracts').update(payload).eq('id', id));
+    ({ error } = await sb.from('company_contracts').update(payload).eq('id', id));
   } else {
-    ({ error } = await sb.from('contracts').insert(payload));
+    ({ error } = await sb.from('company_contracts').insert(payload));
   }
   if (btn) { btn.disabled = false; btn.textContent = id ? '저장' : '등록'; }
   if (error) { showToast('저장 실패: ' + error.message, true); return; }
@@ -3594,7 +3594,7 @@ async function submitContract() {
 
 async function deleteContract(id) {
   if (!confirm('계약 정보를 삭제하시겠습니까?')) return;
-  const { error } = await sb.from('contracts').delete().eq('id', id);
+  const { error } = await sb.from('company_contracts').delete().eq('id', id);
   if (error) { showToast('삭제 실패: ' + error.message, true); return; }
   showToast('삭제되었습니다.');
   loadCompanyContracts();
@@ -3656,9 +3656,9 @@ async function submitLicense() {
   };
   let error;
   if (id) {
-    ({ error } = await sb.from('licenses').update(payload).eq('id', id));
+    ({ error } = await sb.from('company_licenses').update(payload).eq('id', id));
   } else {
-    ({ error } = await sb.from('licenses').insert(payload));
+    ({ error } = await sb.from('company_licenses').insert(payload));
   }
   if (btn) { btn.disabled = false; btn.textContent = id ? '저장' : '등록'; }
   if (error) { showToast('저장 실패: ' + error.message, true); return; }
@@ -3669,7 +3669,7 @@ async function submitLicense() {
 
 async function deleteLicense(id) {
   if (!confirm('라이선스 정보를 삭제하시겠습니까?')) return;
-  const { error } = await sb.from('licenses').delete().eq('id', id);
+  const { error } = await sb.from('company_licenses').delete().eq('id', id);
   if (error) { showToast('삭제 실패: ' + error.message, true); return; }
   showToast('삭제되었습니다.');
   loadCompanyLicenses();
@@ -3689,7 +3689,7 @@ async function loadNotifyLog() {
     return;
   }
 
-  let q = sb.from('notification_logs')
+  let q = sb.from('log_notification')
     .select(`id, ticket_id, channel, notification_type, recipient, status, error_message, sent_at, retry_count,
              tickets(ticket_number, title, category, priority, created_at,
                companies(name), users!tickets_created_by_fkey(name), assignee:users!tickets_assigned_to_fkey(name))`)
@@ -3805,7 +3805,7 @@ function toggleNotifyDetail(tr) {
 
 async function retryNotify(id) {
   if (!sb) return;
-  const { error } = await sb.from('notification_logs').update({ status: 'pending', error_message: null }).eq('id', id);
+  const { error } = await sb.from('log_notification').update({ status: 'pending', error_message: null }).eq('id', id);
   if (error) { showToast('재시도 처리 실패: ' + error.message, true); return; }
   showToast('재시도 요청이 등록됐습니다.');
   loadNotifyLog();
@@ -4888,7 +4888,7 @@ async function loadLibFiles() {
   if (!sb) { tbody.innerHTML = '<tr><td colspan="5" style="padding:40px;text-align:center;color:var(--faint);font-size:13px;">DB 연결 없음</td></tr>'; return; }
   tbody.innerHTML = '<tr><td colspan="5" style="padding:40px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>';
 
-  const { data, error } = await sb.from('documents')
+  const { data, error } = await sb.from('content_documents')
     .select('id, title, category, product, description, file_name, file_size, storage_path, is_public, created_at, updated_at, download_count')
     .order('created_at', { ascending: false });
 
@@ -5113,7 +5113,7 @@ function replaceDocFile(docId) {
     const { data: upData, error: upErr } = await sb.storage
       .from('documents').upload(storageName, file, { upsert: false, contentType: file.type || 'application/octet-stream' });
     if (upErr) { showToast('업로드 실패: ' + upErr.message, true); return; }
-    const { error } = await sb.from('documents').update({
+    const { error } = await sb.from('content_documents').update({
       file_name: file.name,
       file_size: file.size,
       storage_path: upData.path,
@@ -5128,7 +5128,7 @@ function replaceDocFile(docId) {
 
 async function toggleDocPublic(docId, currentIsPublic) {
   const next = !currentIsPublic;
-  const { error } = await sb.from('documents').update({ is_public: next, updated_at: new Date().toISOString() }).eq('id', docId);
+  const { error } = await sb.from('content_documents').update({ is_public: next, updated_at: new Date().toISOString() }).eq('id', docId);
   if (error) { showToast('변경 실패: ' + error.message, true); return; }
   showToast(next ? '✅ 공개로 전환됐습니다.' : '✅ 비공개로 전환됐습니다.');
   loadLibFiles();
@@ -5143,7 +5143,7 @@ async function deleteDoc(docId, storagePath, title) {
     if (stErr) { showToast('스토리지 삭제 실패: ' + stErr.message, true); return; }
   }
   // DB 레코드 삭제
-  const { error } = await sb.from('documents').delete().eq('id', docId);
+  const { error } = await sb.from('content_documents').delete().eq('id', docId);
   if (error) { showToast('DB 삭제 실패: ' + error.message, true); return; }
   showToast('✅ 자료가 삭제됐습니다.');
   loadLibFiles();
@@ -5153,7 +5153,7 @@ async function bumpDocCount(docId) {
   const libDoc = allLibDocs.find(x => x.id === docId);
   const adminDoc = (typeof allDocsAdmin !== 'undefined') ? allDocsAdmin.find(x => x.id === docId) : null;
   const next = ((libDoc || adminDoc)?.download_count || 0) + 1;
-  const { error } = await sb.from('documents').update({ download_count: next }).eq('id', docId);
+  const { error } = await sb.from('content_documents').update({ download_count: next }).eq('id', docId);
   if (error) return;
   if (libDoc) libDoc.download_count = next;
   if (adminDoc) adminDoc.download_count = next;
