@@ -3143,7 +3143,11 @@ function toggleTicketRow(tr, ticket) {
   if (detailTr) {
     detailTr.style.display = '';
     const td = detailTr.querySelector('td');
-    if (td && detailContent) td.appendChild(detailContent);
+    if (td && detailContent) {
+      td.appendChild(detailContent);
+      // 고정(sticky)된 요청 행이 상세 내용 상단을 가리지 않도록, 행 높이만큼 위쪽 여백 확보
+      td.style.paddingTop = tr.getBoundingClientRect().height + 'px';
+    }
   }
   selectRdTicket(null, ticket);
   pinRowToTop(tr);
@@ -3630,11 +3634,14 @@ function selectCompany(rowEl, id, name, statusLabel) {
   selectedCompanyName = name;
   document.getElementById('company-detail-name').textContent   = name;
   document.getElementById('company-detail-status').textContent = statusLabel;
-  targetRow.querySelector('td').appendChild(panel);
+  const detailTd = targetRow.querySelector('td');
+  detailTd.appendChild(panel);
   panel.style.display = 'block';
   targetRow.style.display = '';
   rowEl.classList.add('open');
   pinRowToTop(rowEl);
+  // 고정(sticky)된 고객사 행이 상세 내용 상단을 가리지 않도록, 행 높이만큼 위쪽 여백 확보
+  detailTd.style.paddingTop = (rowEl.getBoundingClientRect().height + 16) + 'px';
   loadCompanyContracts();
   loadCompanyLicenses();
 }
@@ -4492,7 +4499,11 @@ function toggleAllTicketRow(tr, ticket) {
   if (detailTr) {
     detailTr.style.display = '';
     const td = detailTr.querySelector('td');
-    if (td && detailContent) td.appendChild(detailContent);
+    if (td && detailContent) {
+      td.appendChild(detailContent);
+      // 고정(sticky)된 요청 행이 상세 내용 상단을 가리지 않도록, 행 높이만큼 위쪽 여백 확보
+      td.style.paddingTop = tr.getBoundingClientRect().height + 'px';
+    }
   }
   selectRdTicket(null, ticket);
   pinRowToTop(tr);
