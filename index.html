@@ -481,7 +481,7 @@ textarea{resize:vertical;min-height:100px;}
             <div class="card-title" style="margin-bottom:0;">최근 기술 지원 요청</div>
             <button class="btn btn-primary btn-sm" onclick="openModal('modal-new')">+ 빠른 요청 생성</button>
           </div>
-          <div class="tbl-scroll list-scroll" style="flex:1;"><table class="tbl">
+          <div class="tbl-scroll list-scroll" style="height:480px;max-height:none;"><table class="tbl">
             <thead><tr>
               <th>요청 번호</th><th>제목</th><th>카테고리</th><th>상태</th><th>접수일</th>
             </tr></thead>
@@ -518,7 +518,7 @@ textarea{resize:vertical;min-height:100px;}
                 처리 대기 요청 (우선순위)
                 <span style="font-size:11px;color:var(--muted);font-weight:400;">● 빨강 = 지연(3일+)</span>
               </div>
-              <div class="tbl-scroll list-scroll" style="flex:1;"><table class="tbl">
+              <div class="tbl-scroll list-scroll" style="height:480px;max-height:none;"><table class="tbl">
                 <thead><tr><th>번호</th><th>고객사</th><th>제목</th><th>카테고리</th><th>접수일</th><th>경과</th><th>완료예정일</th><th>지연</th><th>상태</th></tr></thead>
                 <tbody id="dash-admin-pending-tbody">
                   <tr><td colspan="7" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>
