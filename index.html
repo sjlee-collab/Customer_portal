@@ -3988,7 +3988,8 @@ async function loadNotifyLog() {
       : `<span style="color:var(--faint);">—</span>`;
 
     const t = n.tickets;
-    const detailRows = t ? (() => {
+    const isFailed = (n.status === 'failed' || n.status === 'failure');
+    const ticketDetailRows = t ? (() => {
       const regAt = t.created_at ? new Date(t.created_at).toLocaleString('ko-KR') : '—';
       const companyName  = t.companies?.name || '—';
       const requester    = t.users?.name || '—';
@@ -4010,6 +4011,13 @@ async function loadNotifyLog() {
         </div>`
       ).join('');
     })() : `<span style="color:var(--faint);font-size:12px;">티켓 정보 없음</span>`;
+    const failReasonBlock = isFailed
+      ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+          <div style="font-size:12px;font-weight:600;color:var(--red);margin-bottom:4px;">❌ 실패 사유</div>
+          <div style="font-size:12px;color:var(--red-d);white-space:pre-wrap;word-break:break-all;background:var(--red-l);border-radius:var(--r-sm);padding:8px 10px;">${escHtml(n.error_message || '사유 정보 없음')}</div>
+        </div>`
+      : '';
+    const detailRows = ticketDetailRows + failReasonBlock;
 
     return `<tr style="cursor:pointer;" onclick="toggleNotifyDetail(this)">
       <td style="font-size:11px;font-variant-numeric:tabular-nums;color:var(--faint);">${escHtml(n.id.slice(0,8))}…</td>
