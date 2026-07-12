@@ -954,34 +954,30 @@ textarea{resize:vertical;min-height:100px;}
                 <span style="font-size:15px;font-weight:800;" id="company-detail-name">—</span>
                 <span class="badge b-accent" id="company-detail-status"></span>
               </div>
-              <div style="display:flex;gap:8px;">
-                <button class="btn btn-outline btn-sm" onclick="openContractModal()">+ 계약정보 입력</button>
-                <button class="btn btn-outline btn-sm" onclick="openLicenseModal()">+ 라이선스정보 입력</button>
-                <button class="btn btn-ghost btn-sm" onclick="closeCompanyDetail()">✕ 닫기</button>
-              </div>
+              <button class="btn btn-ghost btn-sm" onclick="closeCompanyDetail()">✕ 닫기</button>
             </div>
 
-            <!-- 탭 -->
-            <div style="display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:16px;">
-              <span class="nt active" id="cdtab-contract" style="font-size:13px;padding:8px 16px;" onclick="switchCompanyDetailTab('contract')">계약 정보</span>
-              <span class="nt" id="cdtab-license" style="font-size:13px;padding:8px 16px;" onclick="switchCompanyDetailTab('license')">라이선스 정보</span>
+            <!-- 계약 정보 -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <div style="font-size:13px;font-weight:700;">계약 정보</div>
+              <button class="btn btn-outline btn-sm" onclick="openContractModal()">+ 계약정보 입력</button>
             </div>
+            <div class="tbl-scroll"><table class="tbl">
+              <thead><tr><th>계약명</th><th>계약종류</th><th>계약상태</th><th>계약시작일</th><th>계약종료일</th><th>고객계약담당자</th><th>빅스계약담당자</th><th>계약금액</th><th>비고</th><th>계약문서</th><th>액션</th></tr></thead>
+              <tbody id="contracts-tbody"><tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);">계약 정보를 불러오는 중...</td></tr></tbody>
+            </table></div>
 
-            <!-- 계약 정보 탭 -->
-            <div id="cdpanel-contract">
-              <div class="tbl-scroll"><table class="tbl">
-                <thead><tr><th>계약명</th><th>계약종류</th><th>계약상태</th><th>계약시작일</th><th>계약종료일</th><th>고객계약담당자</th><th>빅스계약담당자</th><th>계약금액</th><th>비고</th><th>계약문서</th><th>액션</th></tr></thead>
-                <tbody id="contracts-tbody"><tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);">계약 정보를 불러오는 중...</td></tr></tbody>
-              </table></div>
-            </div>
+            <div style="height:24px;"></div>
 
-            <!-- 라이선스 정보 탭 -->
-            <div id="cdpanel-license" style="display:none;">
-              <div class="tbl-scroll"><table class="tbl">
-                <thead><tr><th>제품정보</th><th>라이선스종류</th><th>라이선스상태</th><th>수량</th><th>시작일자</th><th>만료일자</th><th>갱신예정일자</th><th>라이선스키</th><th>비고</th><th>액션</th></tr></thead>
-                <tbody id="licenses-tbody"><tr><td colspan="10" style="padding:20px;text-align:center;color:var(--faint);">라이선스 정보를 불러오는 중...</td></tr></tbody>
-              </table></div>
+            <!-- 라이선스 정보 -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <div style="font-size:13px;font-weight:700;">라이선스 정보</div>
+              <button class="btn btn-outline btn-sm" onclick="openLicenseModal()">+ 라이선스정보 입력</button>
             </div>
+            <div class="tbl-scroll"><table class="tbl">
+              <thead><tr><th>제품정보</th><th>라이선스종류</th><th>라이선스상태</th><th>수량</th><th>시작일자</th><th>만료일자</th><th>갱신예정일자</th><th>라이선스키</th><th>비고</th><th>액션</th></tr></thead>
+              <tbody id="licenses-tbody"><tr><td colspan="10" style="padding:20px;text-align:center;color:var(--faint);">라이선스 정보를 불러오는 중...</td></tr></tbody>
+            </table></div>
           </div>
         </div>
       </div>
@@ -3413,8 +3409,8 @@ function selectCompany(rowEl, id, name, statusLabel) {
   panel.style.display = 'block';
   targetRow.style.display = '';
   targetRow.scrollIntoView({ behavior:'smooth', block:'nearest' });
-  switchCompanyDetailTab('contract');
   loadCompanyContracts();
+  loadCompanyLicenses();
 }
 
 function closeCompanyDetail() {
@@ -3423,16 +3419,6 @@ function closeCompanyDetail() {
   selectedCompanyId = null;
   panel.style.display = 'none';
   if (row) row.style.display = 'none';
-}
-
-function switchCompanyDetailTab(tab) {
-  const isContract = (tab === 'contract');
-  document.getElementById('cdpanel-contract').style.display = isContract ? 'block' : 'none';
-  document.getElementById('cdpanel-license').style.display  = isContract ? 'none'  : 'block';
-  document.getElementById('cdtab-contract').classList.toggle('active', isContract);
-  document.getElementById('cdtab-license').classList.toggle('active', !isContract);
-  if (!isContract) loadCompanyLicenses();
-  else             loadCompanyContracts();
 }
 
 async function loadCompanyContracts() {
