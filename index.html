@@ -119,6 +119,8 @@ textarea{resize:vertical;min-height:100px;}
 .ticket-row.open{position:sticky;z-index:2;box-shadow:0 1px 0 var(--border-md);}
 .ticket-row .row-arrow{display:inline-block;font-size:11px;color:var(--faint);margin-left:6px;transition:transform .15s;}
 .ticket-row.open .row-arrow{transform:rotate(180deg);color:var(--accent);}
+.company-row.open td{background:var(--accent-l);}
+.company-row.open{position:sticky;z-index:2;box-shadow:0 1px 0 var(--border-md);}
 .ticket-detail-row:hover td{background:inherit !important;cursor:default !important;}
 .ticket-detail-row td{white-space:normal;}
 .ticket-detail-row td>div{width:100%;box-sizing:border-box;}
@@ -3459,7 +3461,7 @@ function renderCompanies(companies) {
       ? '<span class="badge b-gray" style="font-size:10px;">끔</span>'
       : '<span class="badge b-green" style="font-size:10px;">켜짐</span>';
     return `
-      <tr style="cursor:pointer;" onclick="selectCompany(this,'${c.id}','${escHtml(c.name)}','${stLabel}')">
+      <tr class="company-row" style="cursor:pointer;" onclick="selectCompany(this,'${c.id}','${escHtml(c.name)}','${stLabel}')">
         <td style="font-weight:600;">${escHtml(c.name)}</td>
         <td><span class="badge ${stBadge}">${stLabel}</span></td>
         <td style="font-size:12px;">${ctLabel}</td>
@@ -3612,6 +3614,7 @@ function selectCompany(rowEl, id, name, statusLabel) {
 
   // 아코디언: 다른 고객사의 펼쳐진 행은 모두 접기
   document.querySelectorAll('#companies-tbody tr.company-detail-row').forEach(r => r.style.display = 'none');
+  document.querySelectorAll('#companies-tbody tr.company-row.open').forEach(r => r.classList.remove('open'));
 
   if (wasOpenForThis) {
     selectedCompanyId = null;
@@ -3626,7 +3629,8 @@ function selectCompany(rowEl, id, name, statusLabel) {
   targetRow.querySelector('td').appendChild(panel);
   panel.style.display = 'block';
   targetRow.style.display = '';
-  targetRow.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  rowEl.classList.add('open');
+  pinRowToTop(rowEl);
   loadCompanyContracts();
   loadCompanyLicenses();
 }
@@ -3636,7 +3640,11 @@ function closeCompanyDetail() {
   const row = panel.closest('tr.company-detail-row');
   selectedCompanyId = null;
   panel.style.display = 'none';
-  if (row) row.style.display = 'none';
+  if (row) {
+    row.style.display = 'none';
+    const summaryRow = row.previousElementSibling;
+    if (summaryRow) summaryRow.classList.remove('open');
+  }
 }
 
 async function downloadPrivateFile(bucket, path, filename) {
