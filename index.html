@@ -468,20 +468,20 @@ textarea{resize:vertical;min-height:100px;}
           <div class="stat-sub" id="dash-avgtime-sub">최근 30일 기준</div>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:400px 1fr;gap:16px;align-items:start;">
-        <div class="card dash-notice-card" style="display:none;">
+      <div style="display:grid;grid-template-columns:400px 1fr;gap:16px;align-items:stretch;">
+        <div class="card dash-notice-card" style="display:none;flex-direction:column;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
             <div class="card-title" style="margin-bottom:0;">📢 공지사항</div>
             <span style="font-size:11px;color:var(--accent);cursor:pointer;" onclick="openAllNoticesModal()">전체 보기 →</span>
           </div>
-          <div class="dash-notice-list"></div>
+          <div class="dash-notice-list" style="flex:1;overflow-y:auto;"></div>
         </div>
-        <div class="card">
+        <div class="card" style="display:flex;flex-direction:column;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
             <div class="card-title" style="margin-bottom:0;">최근 기술 지원 요청</div>
             <button class="btn btn-primary btn-sm" onclick="openModal('modal-new')">+ 빠른 요청 생성</button>
           </div>
-          <div class="tbl-scroll list-scroll"><table class="tbl">
+          <div class="tbl-scroll list-scroll" style="flex:1;"><table class="tbl">
             <thead><tr>
               <th>요청 번호</th><th>제목</th><th>카테고리</th><th>상태</th><th>접수일</th>
             </tr></thead>
@@ -505,20 +505,20 @@ textarea{resize:vertical;min-height:100px;}
             <div class="stat"><div class="stat-label">처리 완료 (오늘)</div><div class="stat-val" style="color:var(--green);" id="dash-admin-done-val">—</div><div class="stat-sub"></div></div>
             <div class="stat"><div class="stat-label">전체 고객사</div><div class="stat-val" id="dash-admin-companies-val">—</div><div class="stat-sub" id="dash-admin-companies-sub"></div></div>
           </div>
-          <div style="display:grid;grid-template-columns:400px 1fr;gap:16px;align-items:start;">
-            <div class="card dash-notice-card" style="display:none;">
+          <div style="display:grid;grid-template-columns:400px 1fr;gap:16px;align-items:stretch;">
+            <div class="card dash-notice-card" style="display:none;flex-direction:column;">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
                 <div class="card-title" style="margin-bottom:0;">📢 공지사항</div>
                 <span style="font-size:11px;color:var(--accent);cursor:pointer;" onclick="openAllNoticesModal()">전체 보기 →</span>
               </div>
-              <div class="dash-notice-list"></div>
+              <div class="dash-notice-list" style="flex:1;overflow-y:auto;"></div>
             </div>
-            <div class="card">
+            <div class="card" style="display:flex;flex-direction:column;">
               <div class="card-title" style="display:flex;align-items:center;gap:8px;">
                 처리 대기 요청 (우선순위)
                 <span style="font-size:11px;color:var(--muted);font-weight:400;">● 빨강 = 지연(3일+)</span>
               </div>
-              <div class="tbl-scroll list-scroll"><table class="tbl">
+              <div class="tbl-scroll list-scroll" style="flex:1;"><table class="tbl">
                 <thead><tr><th>번호</th><th>고객사</th><th>제목</th><th>카테고리</th><th>접수일</th><th>경과</th><th>완료예정일</th><th>지연</th><th>상태</th></tr></thead>
                 <tbody id="dash-admin-pending-tbody">
                   <tr><td colspan="7" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>
@@ -2765,7 +2765,7 @@ async function loadNotices() {
       </div>
       <div style="font-size:11px;line-height:1.4;overflow-wrap:break-word;">${escHtml(n.title)}</div>
     </div>`).join('');
-  cards.forEach(c => c.style.display = '');
+  cards.forEach(c => c.style.display = 'flex');
   lists.forEach(l => l.innerHTML = html);
 }
 
