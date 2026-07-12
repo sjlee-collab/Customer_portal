@@ -2959,7 +2959,7 @@ async function loadDashboard() {
     const DASH_ALLOWED_CATS = { tech_support: ['tech_support', 'other'], sales: ['contract', 'license', 'education', 'other'] };
     const dashAllowedCats = DASH_ALLOWED_CATS[role] || null;
     let pendingQ = sb.from('tickets')
-      .select('ticket_number, title, category, status, created_at, due_date, company:company_id(name)')
+      .select('id, ticket_number, title, category, status, created_at, due_date, company:company_id(name)')
       .in('status', ACTIVE).order('created_at', { ascending: true }).limit(10);
     if (dashAllowedCats) pendingQ = pendingQ.in('category', dashAllowedCats);
     const { data: pendingTickets } = await pendingQ;
@@ -2979,7 +2979,7 @@ async function loadDashboard() {
           const statB = STATUS_BADGE[t.status] || 'b-gray';
           const rowBg = isDelayed ? 'background:rgba(229,62,62,0.04);' : '';
           const delayBadge = isDelayed ? '<span style="font-size:10px;background:#fed7d7;color:#c53030;padding:1px 5px;border-radius:3px;margin-left:4px;">지연</span>' : '';
-          return `<tr style="cursor:pointer;${rowBg}" onclick="showPage(null,'p-all-requests')">` +
+          return `<tr style="cursor:pointer;${rowBg}" onclick="goToManageTicket('${t.id}')">` +
             `<td style="color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;font-size:12px;">${escHtml(t.ticket_number||'')}${delayBadge}</td>` +
             `<td style="font-size:12px;">${escHtml(t.company?.name||'—')}</td>` +
             `<td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(t.title||'')}</td>` +
@@ -4502,6 +4502,18 @@ function openAllTicketRowById(ticketId) {
   const idx = allMgTickets.findIndex(t => t.id === ticketId);
   if (idx === -1) return;
   toggleAllTicketRow(row, allMgTickets[idx]);
+}
+
+// 홈 화면(처리 대기 요청 등)에서 "요청 관리"로 이동해 해당 티켓의 아코디언을 펼침
+async function goToManageTicket(ticketId) {
+  document.querySelectorAll('.u-page,.c-tab').forEach(p => p.classList.remove('active'));
+  const listPage = document.getElementById('p-all-requests');
+  if (listPage) listPage.classList.add('active');
+  const reqTab = document.querySelector('#main-navtabs .nt[data-roles="tech_support,sales,admin"][onclick*="p-all-requests"]');
+  document.querySelectorAll('#main-navtabs .nt').forEach(s => s.classList.remove('active'));
+  if (reqTab) reqTab.classList.add('active');
+  await loadAllTickets();
+  openAllTicketRowById(ticketId);
 }
 
 // 좌측 리스트 렌더
