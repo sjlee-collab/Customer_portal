@@ -3592,13 +3592,21 @@ async function downloadPrivateFile(bucket, path, filename) {
   if (!path || !sb) return;
   const { data, error } = await sb.storage.from(bucket).createSignedUrl(path, 60);
   if (error || !data?.signedUrl) { showToast('파일을 불러올 수 없습니다: ' + (error?.message || ''), true); return; }
-  const a = document.createElement('a');
-  a.href = data.signedUrl;
-  a.download = filename || '';
-  a.target = '_blank';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  try {
+    const res = await fetch(data.signedUrl);
+    if (!res.ok) { showToast('다운로드 실패: ' + res.statusText, true); return; }
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename || '';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+  } catch (e) {
+    showToast('다운로드 실패: ' + e.message, true);
+  }
 }
 
 let _contractFile = null;
