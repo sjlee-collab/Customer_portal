@@ -3254,6 +3254,7 @@ async function submitRequest() {
   closeModal('modal-new');
   showToast('✅ ' + (ticketNum || '티켓') + ' 접수 완료 — 확인 메일이 발송됩니다.');
   await loadTickets();
+  loadDashboard();
 }
 
 function openEditRequestModal() {
