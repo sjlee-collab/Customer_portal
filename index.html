@@ -810,6 +810,8 @@ textarea{resize:vertical;min-height:100px;}
                   <div style="font-size:17px;font-weight:800;word-break:break-word;overflow-wrap:break-word;" id="rd-title">—</div>
                   <button id="rd-owner-edit-btn" class="btn btn-outline btn-sm" style="display:none;white-space:nowrap;flex-shrink:0;" onclick="openEditRequestModal()">수정</button>
                 </div>
+                <!-- 완료예정일 (고객 계정에는 미노출) -->
+                <div id="rd-due-date-row" style="display:none;font-size:12px;color:var(--muted);margin-bottom:10px;">완료예정일 <span id="rd-due-date-value" style="font-weight:600;color:var(--text);">—</span></div>
                 <!-- 고객 문의 내용 -->
                 <div style="background:var(--surface2);border-radius:var(--r-md);padding:14px;font-size:13px;line-height:1.7;word-break:break-all;overflow-wrap:break-word;white-space:pre-wrap;" id="rd-description">—</div>
                 <!-- 첨부 파일 -->
@@ -4494,6 +4496,14 @@ function toggleAllTicketRow(tr, ticket) {
   pinRowToTop(tr);
 }
 
+function openAllTicketRowById(ticketId) {
+  const row = document.querySelector(`#ar-tbody tr.ticket-row[data-id="${ticketId}"]`);
+  if (!row) return;
+  const idx = allMgTickets.findIndex(t => t.id === ticketId);
+  if (idx === -1) return;
+  toggleAllTicketRow(row, allMgTickets[idx]);
+}
+
 // 좌측 리스트 렌더
 // 고객용 좌측 요청 목록 로드 (DB 재조회)
 async function loadCustomerRdList(activeId) {
@@ -4597,7 +4607,7 @@ async function selectRdTicket(idx, directTicket) {
   // DB에서 전체 필드 재조회
   if (sb) {
     const { data } = await sb.from('tickets')
-      .select('id, ticket_number, title, description, category, product, priority, status, created_at, created_by, assigned_to, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
+      .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, created_by, assigned_to, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
       .eq('id', rdTicket.id).single();
     if (data) rdTicket = data;
   }
@@ -4614,6 +4624,13 @@ async function selectRdTicket(idx, directTicket) {
   // 본문
   document.getElementById('rd-title').textContent = rdTicket.title || '—';
   document.getElementById('rd-description').textContent = rdTicket.description || '(내용 없음)';
+
+  // 완료예정일 (고객 계정에는 미노출)
+  const isCustomerRole = currentUser?.role === 'customer';
+  const dueDateRow = document.getElementById('rd-due-date-row');
+  const dueDateValue = document.getElementById('rd-due-date-value');
+  if (dueDateRow) dueDateRow.style.display = isCustomerRole ? 'none' : '';
+  if (dueDateValue) dueDateValue.textContent = rdTicket.due_date ? rdTicket.due_date.slice(0, 10) : '—';
 
   // admin-only 컨트롤 표시/숨김
   const isAdminUser = currentUser && ADMIN_ROLES.has(currentUser.role);
@@ -5113,7 +5130,9 @@ async function saveManage() {
   _savingManage = false;
   closeModal('modal-manage');
   showToast('✅ 저장됐습니다.');
-  loadAllTickets();
+  const savedTicketId = mgTicket.id;
+  await loadAllTickets();
+  openAllTicketRowById(savedTicketId);
 }
 
 function switchLibTab() {
