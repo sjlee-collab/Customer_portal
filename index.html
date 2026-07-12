@@ -115,6 +115,10 @@ textarea{resize:vertical;min-height:100px;}
 .tbl tr:last-child td{border-bottom:none;}
 .tbl tr:hover td{background:var(--surface2);cursor:pointer;}
 .company-detail-row:hover td{background:inherit !important;cursor:default !important;}
+.ticket-row.open td{background:var(--accent-l);}
+.ticket-row .row-arrow{display:inline-block;font-size:11px;color:var(--faint);margin-left:6px;transition:transform .15s;}
+.ticket-row.open .row-arrow{transform:rotate(180deg);color:var(--accent);}
+.ticket-detail-row:hover td{background:inherit !important;cursor:default !important;}
 .tbl-fit{table-layout:fixed;}
 .tbl-fit td{white-space:normal;overflow:hidden;}
 .tbl-ellipsis{overflow:hidden;text-overflow:ellipsis;white-space:nowrap !important;}
@@ -427,7 +431,6 @@ textarea{resize:vertical;min-height:100px;}
   <nav class="navtabs" id="main-navtabs">
     <span class="nt active" data-roles="all"                       onclick="showPage(this,'p-dashboard')">홈</span>
     <span class="nt"        data-roles="customer,internal"         onclick="showPage(this,'p-my-requests')">요청</span>
-    <span class="nt"        data-roles="customer,internal"         onclick="showPage(this,'p-request-detail')">요청 상세</span>
     <span class="nt"        data-roles="tech_support,sales,admin"  onclick="showPage(this,'p-all-requests')">요청 관리</span>
     <span class="nt"        data-roles="tech_support,admin"        onclick="showPage(this,'p-request-detail')">요청 상세/처리</span>
     <span class="nt"        data-roles="__none__"                  onclick="showPage(this,'p-license')">라이선스 / 계약</span>
@@ -802,14 +805,8 @@ textarea{resize:vertical;min-height:100px;}
 
               <!-- 상단: 기본 정보 카드 (담당자·상태 우측 상단 인라인) -->
               <div class="card">
-                <!-- 헤더: 접수번호/상태/수정 좌, 관리자 컨트롤 우 -->
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px;">
-                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                    <span style="font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.3px;white-space:nowrap;" id="rd-ticket-num-inline">—</span>
-                    <span class="badge b-gray" id="rd-status-badge"></span>
-                    <button id="rd-owner-edit-btn" class="btn btn-outline btn-sm" style="display:none;white-space:nowrap;" onclick="openEditRequestModal()">수정</button>
-                  </div>
-                  <!-- 관리자 컨트롤 (admin only) -->
+                <!-- 관리자 컨트롤 (admin only) -->
+                <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:6px;">
                   <div id="rd-admin-controls" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
                     <select id="rd-assignee" style="width:auto;min-width:140px;padding:5px 8px;border:1px solid var(--border-md);border-radius:var(--r-md);font-size:12px;"></select>
                     <button class="btn btn-outline btn-sm" style="white-space:nowrap;" onclick="saveRdAssignee()">담당자 변경</button>
@@ -830,38 +827,10 @@ textarea{resize:vertical;min-height:100px;}
                     <button class="btn btn-outline btn-sm" style="white-space:nowrap;" onclick="saveRdDueDate()">예정일변경</button>
                   </div>
                 </div>
-                <!-- 제목 -->
-                <div style="font-size:17px;font-weight:800;word-break:break-word;overflow-wrap:break-word;margin-bottom:12px;" id="rd-title">—</div>
-                <!-- 요청 정보 가로 바 -->
-                <div class="rd-info-bar" style="display:flex;gap:0;margin-bottom:8px;border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden;">
-                  <div style="flex:1;padding:10px 16px;border-right:1px solid var(--border);">
-                    <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">고객사</div>
-                    <div style="font-size:13px;font-weight:600;color:var(--text);" id="rd-company">—</div>
-                  </div>
-                  <div style="flex:1;padding:10px 16px;border-right:1px solid var(--border);">
-                    <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">요청자</div>
-                    <div style="font-size:13px;font-weight:600;color:var(--text);" id="rd-requester">—</div>
-                  </div>
-                  <div style="flex:1;padding:10px 16px;border-right:1px solid var(--border);">
-                    <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">카테고리</div>
-                    <div style="font-size:13px;font-weight:600;color:var(--text);" id="rd-category">—</div>
-                  </div>
-                  <div style="flex:1;padding:10px 16px;border-right:1px solid var(--border);">
-                    <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">제품</div>
-                    <div style="font-size:13px;font-weight:600;color:var(--text);" id="rd-product">—</div>
-                  </div>
-                  <div style="flex:1;padding:10px 16px;border-right:1px solid var(--border);">
-                    <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">긴급도</div>
-                    <div style="font-size:13px;font-weight:600;" id="rd-priority">—</div>
-                  </div>
-                  <div style="flex:1;padding:10px 16px;border-right:1px solid var(--border);">
-                    <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">접수일</div>
-                    <div style="font-size:13px;font-weight:600;color:var(--text);" id="rd-created-at">—</div>
-                  </div>
-                  <div style="flex:1;padding:10px 16px;" id="rd-due-col">
-                    <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">완료예정일</div>
-                    <div style="font-size:13px;font-weight:600;color:var(--text);" id="rd-due-date-display">—</div>
-                  </div>
+                <!-- 제목 + 수정 (같은 줄) -->
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
+                  <div style="font-size:17px;font-weight:800;word-break:break-word;overflow-wrap:break-word;" id="rd-title">—</div>
+                  <button id="rd-owner-edit-btn" class="btn btn-outline btn-sm" style="display:none;white-space:nowrap;flex-shrink:0;" onclick="openEditRequestModal()">수정</button>
                 </div>
                 <!-- 고객 문의 내용 -->
                 <div style="background:var(--surface2);border-radius:var(--r-md);padding:14px;font-size:13px;line-height:1.7;word-break:break-all;overflow-wrap:break-word;white-space:pre-wrap;" id="rd-description">—</div>
@@ -2520,24 +2489,17 @@ const PRIORITY_LABELS = { normal:'일반', high:'빠른 확인 필요', critical
 const PRIORITY_BADGE  = { normal:'b-gray', high:'b-amber', critical:'b-red' };
 
 async function showDetail(ticket) {
-  // 고객/internal은 관리자와 동일한 요청 상세/처리 화면으로 이동 (admin 전용 컨트롤만 숨김)
+  // 고객/internal: "요청" 화면으로 이동해 해당 행의 아코디언을 펼침 (별도 "요청 상세" 화면 없이 통합)
   if (currentUser && !ADMIN_ROLES.has(currentUser.role)) {
     document.querySelectorAll('.u-page,.c-tab').forEach(p => p.classList.remove('active'));
-    const detailPage = document.getElementById('p-request-detail');
-    if (detailPage) detailPage.classList.add('active');
-    // 요청 상세 탭 활성화
-    const rdTab = document.querySelector('#main-navtabs .nt[data-roles="customer,internal"][onclick*="p-request-detail"]');
+    const listPage = document.getElementById('p-my-requests');
+    if (listPage) listPage.classList.add('active');
+    const reqTab = document.querySelector('#main-navtabs .nt[data-roles="customer,internal"][onclick*="p-my-requests"]');
     document.querySelectorAll('#main-navtabs .nt').forEach(s => s.classList.remove('active'));
-    if (rdTab) rdTab.classList.add('active');
+    if (reqTab) reqTab.classList.add('active');
 
-    // allTickets를 customerRdTickets로 동기화하여 좌측 패널 렌더
-    if (allTickets && allTickets.length) customerRdTickets = allTickets;
-    renderCustomerRdListPanel(ticket.id);
-
-    const dueCol = document.getElementById('rd-due-col');
-    if (dueCol) dueCol.style.display = 'none';
-
-    selectRdTicket(null, ticket);
+    await loadTickets();
+    openRequestRowById(ticket.id);
     return;
   }
 
@@ -3110,8 +3072,20 @@ function applyTicketFilter() {
 function renderTickets(tickets) {
   const tbody = document.getElementById('ticket-tbody');
   if (!tbody) return;
+
+  // 재렌더링(검색/필터) 시 아코디언에 들어가 있던 상세 패널이 함께 삭제되지 않도록 미리 빼두고 접기
+  const detailContent = document.getElementById('rd-detail-content');
+  if (detailContent && tbody.contains(detailContent)) {
+    const rdPanel = document.getElementById('rd-detail-panel');
+    if (rdPanel) rdPanel.appendChild(detailContent);
+    detailContent.style.display = 'none';
+    const emptyHint = document.getElementById('rd-empty-hint');
+    if (emptyHint) emptyHint.style.display = '';
+    rdTicket = null;
+  }
+
   if (!tickets.length) {
-    tbody.innerHTML = '<tr><td colspan="10" style="padding:40px;text-align:center;color:var(--faint);">등록된 요청이 없습니다.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="padding:40px;text-align:center;color:var(--faint);">등록된 요청이 없습니다.</td></tr>';
     return;
   }
   tbody.innerHTML = tickets.map(t => {
@@ -3127,9 +3101,9 @@ function renderTickets(tickets) {
     const date      = t.created_at ? t.created_at.slice(0, 10) : '—';
     const num       = t.ticket_number || t.id?.slice(0, 8);
     const idx = allTickets.indexOf(t);
-    return `<tr style="cursor:pointer;" onclick="showDetail(allTickets[${idx}])">
+    return `<tr class="ticket-row" style="cursor:pointer;" data-id="${t.id}" onclick="toggleTicketRow(this, allTickets[${idx}])">
       <td style="color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;font-size:12px;">${escHtml(num)}</td>
-      <td style="font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(t.title||'')}</td>
+      <td style="font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(t.title||'')}<span class="row-arrow">▾</span></td>
       <td><span class="badge ${catBadge}">${catLabel}</span></td>
       <td><span class="badge ${priBadge}">${priLabel}</span></td>
       <td><span class="badge ${statBadge}">${statLabel}</span></td>
@@ -3137,8 +3111,52 @@ function renderTickets(tickets) {
       <td style="font-size:12px;">${requester}</td>
       <td style="font-size:12px;">${asgn}</td>
       <td style="color:var(--faint);font-size:12px;">${date}</td>
+    </tr>
+    <tr class="ticket-detail-row" style="display:none;">
+      <td colspan="9" style="padding:0;background:var(--surface2);"></td>
     </tr>`;
   }).join('');
+}
+
+function toggleTicketRow(tr, ticket) {
+  const detailTr = tr.nextElementSibling;
+  const wasOpen = tr.classList.contains('open');
+
+  // 다른 곳에서 열려있던 요청 상세는 모두 접기
+  document.querySelectorAll('#ticket-tbody tr.ticket-row.open').forEach(r => {
+    r.classList.remove('open');
+    const dr = r.nextElementSibling;
+    if (dr) dr.style.display = 'none';
+  });
+
+  const detailContent = document.getElementById('rd-detail-content');
+  const rdPanel = document.getElementById('rd-detail-panel');
+  const emptyHint = document.getElementById('rd-empty-hint');
+
+  if (wasOpen) {
+    if (rdPanel && detailContent) rdPanel.appendChild(detailContent);
+    if (detailContent) detailContent.style.display = 'none';
+    if (emptyHint) emptyHint.style.display = '';
+    rdTicket = null;
+    return;
+  }
+
+  tr.classList.add('open');
+  if (detailTr) {
+    detailTr.style.display = '';
+    const td = detailTr.querySelector('td');
+    if (td && detailContent) td.appendChild(detailContent);
+  }
+  selectRdTicket(null, ticket);
+}
+
+function openRequestRowById(ticketId) {
+  const row = document.querySelector(`#ticket-tbody tr.ticket-row[data-id="${ticketId}"]`);
+  if (!row) return;
+  const idx = allTickets.findIndex(t => t.id === ticketId);
+  if (idx === -1) return;
+  toggleTicketRow(row, allTickets[idx]);
+  row.scrollIntoView({ block: 'center' });
 }
 
 // ══════════════════════════════════════════
@@ -4562,34 +4580,17 @@ async function selectRdTicket(idx, directTicket) {
 
   // 헤더
   document.getElementById('rd-ticket-num').textContent = rdTicket.ticket_number || '—';
-  const inlineNum = document.getElementById('rd-ticket-num-inline');
-  if (inlineNum) inlineNum.textContent = rdTicket.ticket_number || '—';
-  const statL = STATUS_LABELS[rdTicket.status] || rdTicket.status;
-  const statB = STATUS_BADGE[rdTicket.status] || 'b-gray';
-  const statusBadge = document.getElementById('rd-status-badge');
-  statusBadge.textContent = statL; statusBadge.className = 'badge ' + statB;
 
   // 본문
   document.getElementById('rd-title').textContent = rdTicket.title || '—';
   document.getElementById('rd-description').textContent = rdTicket.description || '(내용 없음)';
 
-  const catL = CATEGORY_LABELS[rdTicket.category] || rdTicket.category || '—';
-
   // 상태 셀렉트 현재값
   const rdSel = document.getElementById('rd-status-select');
   if (rdSel) rdSel.value = rdTicket.status || 'received';
 
-  // 요청 정보 사이드
-  document.getElementById('rd-company').textContent    = rdTicket.company?.name   || '—';
-  document.getElementById('rd-requester').textContent  = rdTicket.requester?.name || '—';
-  document.getElementById('rd-created-at').textContent = fmtTimeSec(rdTicket.created_at) || '—';
-  document.getElementById('rd-category').textContent   = catL;
-  document.getElementById('rd-product').textContent    = rdTicket.product || '—';
-  document.getElementById('rd-priority').textContent   = PRIORITY_LABELS[rdTicket.priority] || '일반';
   const dueDateInput = document.getElementById('rd-due-date');
-  const dueDateDisplay = document.getElementById('rd-due-date-display');
   if (dueDateInput) dueDateInput.value = rdTicket.due_date || '';
-  if (dueDateDisplay) dueDateDisplay.textContent = rdTicket.due_date ? rdTicket.due_date.slice(0,10) : '—';
 
   // 담당자 목록 — 카테고리별 역할 필터 적용
   const assigneeSel = document.getElementById('rd-assignee');
@@ -4620,8 +4621,6 @@ async function selectRdTicket(idx, directTicket) {
   const memoCard  = document.getElementById('rd-memo-card');
   if (adminCtrl) adminCtrl.style.display = isAdminUser ? 'flex' : 'none';
   if (memoCard)  memoCard.style.display  = isAdminUser ? ''     : 'none';
-  const dueCol = document.getElementById('rd-due-col');
-  if (dueCol) dueCol.style.display = isAdminUser ? '' : 'none';
 
   // 요청 작성자 본인 수정 버튼
   const ownerEditBtn = document.getElementById('rd-owner-edit-btn');
