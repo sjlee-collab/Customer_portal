@@ -4218,6 +4218,8 @@ async function selectRdTicket(idx, directTicket) {
   const memoCard  = document.getElementById('rd-memo-card');
   if (adminCtrl) adminCtrl.style.display = isAdminUser ? 'flex' : 'none';
   if (memoCard)  memoCard.style.display  = isAdminUser ? ''     : 'none';
+  const dueCol = document.getElementById('rd-due-col');
+  if (dueCol) dueCol.style.display = isAdminUser ? '' : 'none';
 
   // 요청 작성자 본인 수정 버튼
   const ownerEditBtn = document.getElementById('rd-owner-edit-btn');
