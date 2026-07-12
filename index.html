@@ -443,14 +443,6 @@ textarea{resize:vertical;min-height:100px;}
 
       <!-- ══ 대시보드 ══ -->
       <div id="p-dashboard" class="page u-page active">
-        <!-- 공지사항 (전 계정 공통) -->
-        <div class="card" id="dash-notice-card" style="display:none;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <div class="card-title" style="margin-bottom:0;">📢 공지사항</div>
-            <span style="font-size:11px;color:var(--accent);cursor:pointer;" onclick="openAllNoticesModal()">전체 보기 →</span>
-          </div>
-          <div id="dash-notice-list"></div>
-        </div>
         <!-- 고객/내부 대시보드 -->
         <div data-show-roles="customer,internal">
       <div class="stats">
@@ -475,18 +467,27 @@ textarea{resize:vertical;min-height:100px;}
           <div class="stat-sub" id="dash-avgtime-sub">최근 30일 기준</div>
         </div>
       </div>
-      <div class="card">
-        <div class="card-title">최근 기술 지원 요청</div>
-        <div class="tbl-scroll"><table class="tbl">
-          <thead><tr>
-            <th>요청 번호</th><th>제목</th><th>카테고리</th><th>상태</th><th>접수일</th>
-          </tr></thead>
-          <tbody id="dash-recent-tbody">
-            <tr><td colspan="5" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>
-          </tbody>
-        </table></div>
-        <div style="margin-top:14px;">
-          <button class="btn btn-outline btn-sm" onclick="showTab(document.querySelector('.nt:nth-child(3)'),'c-tab','c-support')">전체 요청 목록 보기</button>
+      <div style="display:grid;grid-template-columns:300px 1fr;gap:16px;align-items:start;">
+        <div class="card dash-notice-card" style="display:none;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div class="card-title" style="margin-bottom:0;">📢 공지사항</div>
+            <span style="font-size:11px;color:var(--accent);cursor:pointer;" onclick="openAllNoticesModal()">전체 보기 →</span>
+          </div>
+          <div class="dash-notice-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">최근 기술 지원 요청</div>
+          <div class="tbl-scroll"><table class="tbl">
+            <thead><tr>
+              <th>요청 번호</th><th>제목</th><th>카테고리</th><th>상태</th><th>접수일</th>
+            </tr></thead>
+            <tbody id="dash-recent-tbody">
+              <tr><td colspan="5" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>
+            </tbody>
+          </table></div>
+          <div style="margin-top:14px;">
+            <button class="btn btn-outline btn-sm" onclick="showTab(document.querySelector('.nt:nth-child(3)'),'c-tab','c-support')">전체 요청 목록 보기</button>
+          </div>
         </div>
       </div>
         </div><!-- /customer section -->
@@ -500,7 +501,14 @@ textarea{resize:vertical;min-height:100px;}
             <div class="stat"><div class="stat-label">처리 완료 (오늘)</div><div class="stat-val" style="color:var(--green);" id="dash-admin-done-val">—</div><div class="stat-sub"></div></div>
             <div class="stat"><div class="stat-label">전체 고객사</div><div class="stat-val" id="dash-admin-companies-val">—</div><div class="stat-sub" id="dash-admin-companies-sub"></div></div>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div style="display:grid;grid-template-columns:300px 1fr;gap:16px;align-items:start;">
+            <div class="card dash-notice-card" style="display:none;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <div class="card-title" style="margin-bottom:0;">📢 공지사항</div>
+                <span style="font-size:11px;color:var(--accent);cursor:pointer;" onclick="openAllNoticesModal()">전체 보기 →</span>
+              </div>
+              <div class="dash-notice-list"></div>
+            </div>
             <div class="card">
               <div class="card-title" style="display:flex;align-items:center;gap:8px;">
                 처리 대기 요청 (우선순위)
@@ -512,15 +520,6 @@ textarea{resize:vertical;min-height:100px;}
                   <tr><td colspan="7" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>
                 </tbody>
               </table></div>
-            </div>
-            <div class="card">
-              <div class="card-title">카테고리별 요청 현황 (이번 달)</div>
-              <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px;">
-                <div style="display:flex;align-items:center;gap:10px;"><span style="font-size:12px;width:80px;color:var(--muted);">기술지원</span><div style="flex:1;height:10px;background:var(--surface2);border-radius:99px;overflow:hidden;"><div id="dash-cat-tech-bar" style="width:0%;height:100%;background:var(--red);border-radius:99px;transition:width .4s;"></div></div><span id="dash-cat-tech-val" style="font-size:12px;font-variant-numeric:tabular-nums;width:24px;text-align:right;">0</span></div>
-                <div style="display:flex;align-items:center;gap:10px;"><span style="font-size:12px;width:80px;color:var(--muted);">계약 문의</span><div style="flex:1;height:10px;background:var(--surface2);border-radius:99px;overflow:hidden;"><div id="dash-cat-contract-bar" style="width:0%;height:100%;background:var(--amber);border-radius:99px;transition:width .4s;"></div></div><span id="dash-cat-contract-val" style="font-size:12px;font-variant-numeric:tabular-nums;width:24px;text-align:right;">0</span></div>
-                <div style="display:flex;align-items:center;gap:10px;"><span style="font-size:12px;width:80px;color:var(--muted);">교육 문의</span><div style="flex:1;height:10px;background:var(--surface2);border-radius:99px;overflow:hidden;"><div id="dash-cat-edu-bar" style="width:0%;height:100%;background:var(--green);border-radius:99px;transition:width .4s;"></div></div><span id="dash-cat-edu-val" style="font-size:12px;font-variant-numeric:tabular-nums;width:24px;text-align:right;">0</span></div>
-                <div style="display:flex;align-items:center;gap:10px;"><span style="font-size:12px;width:80px;color:var(--muted);">기타 문의</span><div style="flex:1;height:10px;background:var(--surface2);border-radius:99px;overflow:hidden;"><div id="dash-cat-other-bar" style="width:0%;height:100%;background:var(--faint);border-radius:99px;transition:width .4s;"></div></div><span id="dash-cat-other-val" style="font-size:12px;font-variant-numeric:tabular-nums;width:24px;text-align:right;">0</span></div>
-              </div>
             </div>
           </div>
         </div><!-- /admin section -->
@@ -2685,18 +2684,19 @@ let dashRecentTickets = [];
 const NOTICE_BADGE = { 점검:'b-amber', 안내:'b-gray', 완료:'b-green' };
 
 async function loadNotices() {
-  const card = document.getElementById('dash-notice-card');
-  const list = document.getElementById('dash-notice-list');
-  if (!card || !list || !sb) return;
+  const cards = document.querySelectorAll('.dash-notice-card');
+  const lists = document.querySelectorAll('.dash-notice-list');
+  if (!cards.length || !sb) return;
   const { data, error } = await sb.from('notices').select('*').order('created_at', { ascending: false }).limit(3);
-  if (error || !data || !data.length) { card.style.display = 'none'; return; }
-  card.style.display = '';
-  list.innerHTML = data.map((n, i) => `
+  if (error || !data || !data.length) { cards.forEach(c => c.style.display = 'none'); return; }
+  const html = data.map((n, i) => `
     <div style="display:flex;gap:10px;align-items:center;padding:8px 0;${i < data.length - 1 ? 'border-bottom:1px solid var(--border);' : ''}">
       <span class="badge ${NOTICE_BADGE[n.category] || 'b-gray'}" style="flex-shrink:0;">${escHtml(n.category || '안내')}</span>
       <span style="font-size:11px;flex:1;">${escHtml(n.title)}</span>
       <span style="font-size:10px;color:var(--faint);flex-shrink:0;">${(n.created_at || '').slice(0,10)}</span>
     </div>`).join('');
+  cards.forEach(c => c.style.display = '');
+  lists.forEach(l => l.innerHTML = html);
 }
 
 async function openAllNoticesModal() {
@@ -2809,7 +2809,6 @@ async function loadDashboard() {
     const todayStart = new Date(); todayStart.setHours(0,0,0,0);
     const todayISO = todayStart.toISOString();
     const yesterdayISO = new Date(todayStart.getTime() - 86400000).toISOString();
-    const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
 
     const [
       { count: todayCount }, { count: yesterdayCount },
@@ -2884,23 +2883,6 @@ async function loadDashboard() {
             `<td><span class="badge ${statB}" style="font-size:11px;">${statL}</span></td></tr>`;
         }).join('');
       }
-    }
-
-    // 카테고리 현황 바
-    const { data: catData } = await sb.from('tickets')
-      .select('category').gte('created_at', monthStart.toISOString());
-    if (catData) {
-      const counts = {};
-      catData.forEach(t => { counts[t.category] = (counts[t.category]||0) + 1; });
-      const total = catData.length || 1;
-      [['tech_support','tech'],['contract','contract'],['education','edu'],['other','other']].forEach(([key, id]) => {
-        const cnt = counts[key] || 0;
-        const pct = Math.round(cnt / total * 100);
-        const vEl = document.getElementById('dash-cat-' + id + '-val');
-        const bEl = document.getElementById('dash-cat-' + id + '-bar');
-        if (vEl) vEl.textContent = cnt;
-        if (bEl) bEl.style.width = pct + '%';
-      });
     }
   }
 }
