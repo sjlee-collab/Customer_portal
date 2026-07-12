@@ -684,8 +684,8 @@ textarea{resize:vertical;min-height:100px;}
       </div>
       <div class="card" style="padding:0;overflow:hidden;">
         <div class="tbl-scroll list-scroll"><table class="tbl tbl-fit">
-          <colgroup><col style="width:28%"><col style="width:9%"><col style="width:16%"><col style="width:9%"><col style="width:10%"><col style="width:28%"></colgroup>
-          <thead><tr><th>제목</th><th>카테고리</th><th>파일명</th><th>다운로드</th><th>등록일</th><th>액션</th></tr></thead>
+          <colgroup><col style="width:9%"><col style="width:28%"><col style="width:16%"><col style="width:9%"><col style="width:10%"><col style="width:28%"></colgroup>
+          <thead><tr><th>카테고리</th><th>제목</th><th>파일명</th><th>다운로드</th><th>등록일</th><th>액션</th></tr></thead>
           <tbody id="lib-files-tbody">
             <tr><td colspan="6" style="padding:40px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
           </tbody>
@@ -5402,11 +5402,11 @@ function renderLibFiles() {
     const privateBadge = isAdmin && !isPublic ? '<span class="badge b-red" style="font-size:10px;margin-left:6px;">비공개</span>' : '';
     const newBadge = isNew ? '<span class="badge b-accent" style="font-size:10px;margin-left:6px;">NEW</span>' : '';
     return `<tr${isAdmin && !isPublic ? ' style="background:rgba(220,38,38,.05);"' : ''}>
+      <td class="tbl-ellipsis">${DOC_CAT_LABEL_KO[d.category] || d.category || '-'}</td>
       <td style="overflow:hidden;">
         <div class="tbl-ellipsis" style="font-weight:600;">${DOC_CAT_ICON[d.category] || '📁'} ${escHtml(d.title)}${privateBadge}${newBadge}</div>
         ${d.description ? `<div class="tbl-ellipsis" style="font-size:11px;color:var(--faint);margin-top:2px;">${escHtml(d.description)}</div>` : ''}
       </td>
-      <td class="tbl-ellipsis">${DOC_CAT_LABEL_KO[d.category] || d.category || '-'}</td>
       <td class="tbl-ellipsis" style="font-size:12px;color:var(--faint);">${(isAdmin || isPublic) ? escHtml(d.file_name || '-') : '—'}</td>
       <td style="font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;" id="dl-count-lib-${d.id}">${(d.download_count || 0).toLocaleString()}</td>
       <td style="white-space:nowrap;color:var(--faint);">${(d.created_at || '').slice(0,10)}</td>
