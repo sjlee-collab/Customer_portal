@@ -1007,9 +1007,8 @@ textarea{resize:vertical;min-height:100px;}
         <div id="users-panel-customer">
           <div class="filter-bar">
             <input class="search-box" id="user-search-customer" placeholder="이름, 이메일 검색..." oninput="applyUserFilter()">
-            <select id="user-filter-company" onchange="applyUserFilter()" style="padding:7px 10px;border:1px solid var(--border-md);border-radius:var(--r-md);font-size:12px;">
-              <option value="">전체 고객사</option>
-            </select>
+            <span class="filter-chip active" onclick="setUserCompanyFilter('',this)">전체</span>
+            <span id="user-company-chips" style="display:contents;"></span>
           </div>
           <div class="card" style="padding:0;overflow:hidden;">
             <div class="tbl-scroll list-scroll"><table class="tbl">
@@ -4112,6 +4111,7 @@ const ROLE_BADGE  = { customer:'b-gray', internal:'b-gray', tech_support:'b-red'
 let allUsers = [];
 let currentUsersTab = 'customer';
 let userRoleFilter = '';
+let userCompanyFilter = '';
 
 async function loadUsers() {
   const tbody = document.getElementById('users-tbody-customer');
@@ -4135,15 +4135,24 @@ async function loadUsers() {
 }
 
 function populateUserCompanyFilter() {
-  const sel = document.getElementById('user-filter-company');
-  if (!sel) return;
+  const wrap = document.getElementById('user-company-chips');
+  if (!wrap) return;
   const companies = new Map();
   allUsers.forEach(u => { if (u.company_id && u.company?.name) companies.set(u.company_id, u.company.name); });
   const sorted = [...companies.entries()].sort((a, b) => a[1].localeCompare(b[1], 'ko'));
-  const current = sel.value;
-  sel.innerHTML = '<option value="">전체 고객사</option>' +
-    sorted.map(([id, name]) => `<option value="${id}">${escHtml(name)}</option>`).join('');
-  if (sorted.some(([id]) => id === current)) sel.value = current;
+  if (userCompanyFilter && !sorted.some(([id]) => id === userCompanyFilter)) userCompanyFilter = '';
+  wrap.innerHTML = sorted.map(([id, name]) =>
+    `<span class="filter-chip${id === userCompanyFilter ? ' active' : ''}" onclick="setUserCompanyFilter('${id}',this)">${escHtml(name)}</span>`
+  ).join('');
+  const allChip = wrap.previousElementSibling;
+  if (allChip) allChip.classList.toggle('active', !userCompanyFilter);
+}
+
+function setUserCompanyFilter(companyId, el) {
+  userCompanyFilter = companyId;
+  document.querySelectorAll('#users-panel-customer .filter-chip').forEach(c => c.classList.remove('active'));
+  if (el) el.classList.add('active');
+  applyUserFilter();
 }
 
 function setUserRoleFilter(role, el) {
@@ -4172,9 +4181,8 @@ function applyUserFilter() {
   const searchId = isCustomer ? 'user-search-customer' : 'user-search-internal';
   const q = (document.getElementById(searchId)?.value || '').trim().toLowerCase();
   let scoped = allUsers.filter(u => isCustomer ? u.role === 'customer' : u.role !== 'customer');
-  if (isCustomer) {
-    const companyFilter = document.getElementById('user-filter-company')?.value || '';
-    if (companyFilter) scoped = scoped.filter(u => u.company_id === companyFilter);
+  if (isCustomer && userCompanyFilter) {
+    scoped = scoped.filter(u => u.company_id === userCompanyFilter);
   }
   if (!isCustomer && userRoleFilter) {
     scoped = scoped.filter(u => u.role === userRoleFilter);
