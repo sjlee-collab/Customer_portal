@@ -2477,6 +2477,8 @@ async function showDetail(ticket) {
     const reqTab = document.querySelector('#main-navtabs .nt[data-roles="customer,internal"][onclick*="p-my-requests"]');
     document.querySelectorAll('#main-navtabs .nt').forEach(s => s.classList.remove('active'));
     if (reqTab) reqTab.classList.add('active');
+    const mainBody = document.getElementById('main-body');
+    if (mainBody) mainBody.scrollTop = 0;
 
     await loadTickets();
     openRequestRowById(ticket.id);
@@ -4512,6 +4514,8 @@ async function goToManageTicket(ticketId) {
   const reqTab = document.querySelector('#main-navtabs .nt[data-roles="tech_support,sales,admin"][onclick*="p-all-requests"]');
   document.querySelectorAll('#main-navtabs .nt').forEach(s => s.classList.remove('active'));
   if (reqTab) reqTab.classList.add('active');
+  const mainBody = document.getElementById('main-body');
+  if (mainBody) mainBody.scrollTop = 0;
   await loadAllTickets();
   openAllTicketRowById(ticketId);
 }
