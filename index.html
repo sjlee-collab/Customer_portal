@@ -3453,9 +3453,21 @@ const STATUS_CO_BADGE  = { active:'b-green', expiring_soon:'b-amber', expired:'b
 let allCompanies = [];
 let companyFilter = 'all';
 
+// 고객사 아코디언에 열려 있던 공용 상세 패널(company-detail-panel)이 tbody를 통째로 갈아끼울 때
+// (innerHTML 재할당) 함께 파괴되지 않도록, 갈아끼우기 전에 안전한 자리로 빼둔다.
+function detachCompanyDetailPanel(tbody) {
+  const detailPanel = document.getElementById('company-detail-panel');
+  if (!detailPanel || !tbody || !tbody.contains(detailPanel)) return;
+  const homePage = document.getElementById('p-customers');
+  if (homePage) homePage.appendChild(detailPanel);
+  detailPanel.style.display = 'none';
+  selectedCompanyId = null;
+}
+
 async function loadCompanies() {
   const tbody = document.getElementById('companies-tbody');
   if (!tbody) return;
+  detachCompanyDetailPanel(tbody);
   tbody.innerHTML = '<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>';
 
   if (!sb) return;
@@ -3495,13 +3507,7 @@ const CUSTOMER_TYPE_KO = {
 function renderCompanies(companies) {
   const tbody = document.getElementById('companies-tbody');
   if (!tbody) return;
-  // 재렌더링(검색/필터) 시 행 안에 들어가 있던 상세 패널이 함께 삭제되지 않도록 미리 빼두고 접기
-  const detailPanel = document.getElementById('company-detail-panel');
-  if (detailPanel && tbody.contains(detailPanel)) {
-    document.getElementById('p-customers').appendChild(detailPanel);
-    detailPanel.style.display = 'none';
-    selectedCompanyId = null;
-  }
+  detachCompanyDetailPanel(tbody);
   if (!companies.length) {
     tbody.innerHTML = '<tr><td colspan="11" style="padding:40px;text-align:center;color:var(--faint);">등록된 고객사가 없습니다.</td></tr>';
     return;
