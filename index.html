@@ -58,9 +58,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Ne
 .body>#p-request-detail.active{flex:1;min-height:0;}
 .page{display:none;}
 .page.active{display:flex;flex-direction:column;flex:1;min-height:0;overflow:auto;}
-#p-all-requests.active{overflow:hidden;}
-#p-all-requests.active>.card{flex:1;min-height:0;display:flex;flex-direction:column;margin-bottom:0;}
-#p-all-requests.active .tbl-scroll.list-scroll{flex:1;min-height:0;overflow:auto;}
+#p-all-requests.active,
+#p-my-requests.active{overflow:hidden;}
+#p-all-requests.active>.card,
+#p-my-requests.active #support-list{flex:1;min-height:0;display:flex;flex-direction:column;margin-bottom:0;}
+#p-my-requests.active #support-list>.card{flex:1;min-height:0;display:flex;flex-direction:column;margin-bottom:0;}
+#p-all-requests.active .tbl-scroll.list-scroll,
+#p-my-requests.active .tbl-scroll.list-scroll{flex:1;min-height:0;overflow:auto;}
 #p-request-detail.active{display:flex;flex-direction:column;padding:0;overflow:hidden;}
 
 /* ── cards ── */
