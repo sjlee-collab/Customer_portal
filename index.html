@@ -2074,7 +2074,7 @@ function enterApp(email, acct) {
 
   // URL ?ticket=TK-xxx 파라미터로 직접 접근 시 해당 티켓 상세 표시 (내부 직원 전용)
   const ticketParam = new URLSearchParams(window.location.search).get('ticket');
-  if (ticketParam && sb && ADMIN_ROLES.has(acct.role)) {
+  if (ticketParam && sb && acct.role !== 'customer') {
     sb.from('tickets').select('*').eq('ticket_number', ticketParam).single().then(({ data }) => {
       if (data) showDetail(data);
     });
