@@ -533,14 +533,11 @@ textarea{resize:vertical;min-height:100px;}
               <div class="dash-notice-list" style="flex:1;min-height:0;overflow:hidden;"></div>
             </div>
             <div class="card" style="display:flex;flex-direction:column;overflow:hidden;">
-              <div class="card-title" style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-                처리 대기 요청 (우선순위)
-                <span style="font-size:11px;color:var(--muted);font-weight:400;">● 빨강 = 지연(3일+)</span>
-              </div>
+              <div class="card-title" style="margin-bottom:0;flex-shrink:0;padding-bottom:12px;">최근 요청</div>
               <div class="tbl-scroll list-scroll" style="flex:1;min-height:0;overflow:hidden;"><table class="tbl">
-                <thead><tr><th>번호</th><th>고객사</th><th>제목</th><th>카테고리</th><th>접수일</th><th>경과</th><th>완료예정일</th><th>지연</th><th>상태</th></tr></thead>
+                <thead><tr><th>요청 번호</th><th>고객사</th><th>제목</th><th>카테고리</th><th>상태</th><th>접수일</th></tr></thead>
                 <tbody id="dash-admin-pending-tbody">
-                  <tr><td colspan="7" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>
+                  <tr><td colspan="6" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>
                 </tbody>
               </table></div>
             </div>
@@ -3071,40 +3068,31 @@ async function loadDashboard() {
     if (doneEl) doneEl.textContent = doneToday ?? '—';
     if (coEl) coEl.textContent = companiesCount ?? '—';
 
-    // 대기 요청 테이블 — 역할별 카테고리 필터
+    // 최근 요청 테이블 — 역할별 카테고리 필터
     const DASH_ALLOWED_CATS = { tech_support: ['tech_support', 'other'], sales: ['contract', 'license', 'education', 'other'] };
     const dashAllowedCats = DASH_ALLOWED_CATS[role] || null;
-    let pendingQ = sb.from('tickets')
-      .select('id, ticket_number, title, category, status, created_at, due_date, company:company_id(name)')
-      .in('status', ACTIVE).order('created_at', { ascending: true }).limit(10);
-    if (dashAllowedCats) pendingQ = pendingQ.in('category', dashAllowedCats);
-    const { data: pendingTickets } = await pendingQ;
+    let recentQ = sb.from('tickets')
+      .select('id, ticket_number, title, category, status, created_at, company:company_id(name)')
+      .order('created_at', { ascending: false }).limit(20);
+    if (dashAllowedCats) recentQ = recentQ.in('category', dashAllowedCats);
+    const { data: recentTickets } = await recentQ;
     const ptbody = document.getElementById('dash-admin-pending-tbody');
-    if (ptbody && pendingTickets) {
-      if (!pendingTickets.length) {
-        ptbody.innerHTML = '<tr><td colspan="9" style="padding:16px;text-align:center;color:var(--faint);">대기 요청 없음</td></tr>';
+    if (ptbody && recentTickets) {
+      if (!recentTickets.length) {
+        ptbody.innerHTML = '<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--faint);">요청 없음</td></tr>';
       } else {
-        ptbody.innerHTML = pendingTickets.map(t => {
-          const daysOld = Math.floor((Date.now() - new Date(t.created_at)) / 86400000);
-          const isDelayed = t.due_date && t.due_date < todayStr;
-          const dayLabel = daysOld === 0 ? '오늘' : `D+${daysOld}`;
-          const dayCls = isDelayed ? 'color:#e53e3e;font-weight:700;' : daysOld >= 1 ? 'color:var(--amber);font-weight:600;' : 'color:var(--faint);';
+        ptbody.innerHTML = recentTickets.map(t => {
           const catL = CATEGORY_LABELS[t.category] || t.category || '—';
           const catC = CATEGORY_BADGE[t.category] || 'b-gray';
           const statL = STATUS_LABELS[t.status] || t.status;
           const statB = STATUS_BADGE[t.status] || 'b-gray';
-          const rowBg = isDelayed ? 'background:rgba(229,62,62,0.04);' : '';
-          const delayBadge = isDelayed ? '<span style="font-size:10px;background:#fed7d7;color:#c53030;padding:1px 5px;border-radius:3px;margin-left:4px;">지연</span>' : '';
-          return `<tr style="cursor:pointer;${rowBg}" onclick="goToManageTicket('${t.id}')">` +
-            `<td style="color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;font-size:12px;">${escHtml(t.ticket_number||'')}${delayBadge}</td>` +
+          return `<tr style="cursor:pointer;" onclick="goToManageTicket('${t.id}')">` +
+            `<td style="color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;font-size:12px;">${escHtml(t.ticket_number||'')}</td>` +
             `<td style="font-size:12px;">${escHtml(t.company?.name||'—')}</td>` +
-            `<td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(t.title||'')}</td>` +
+            `<td style="font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(t.title||'')}</td>` +
             `<td><span class="badge ${catC}">${catL}</span></td>` +
-            `<td style="font-size:12px;color:var(--faint);">${(t.created_at||'').slice(0,10)}</td>` +
-            `<td style="${dayCls}font-size:12px;">${dayLabel}</td>` +
-            `<td style="font-size:12px;color:var(--muted);">${t.due_date ? t.due_date.slice(0,10) : '<span style="color:var(--faint);">—</span>'}</td>` +
-            `<td>${isDelayed ? '<span style="font-size:11px;background:#fed7d7;color:#c53030;padding:2px 7px;border-radius:4px;font-weight:700;">지연</span>' : '<span style="color:var(--faint);font-size:12px;">—</span>'}</td>` +
-            `<td><span class="badge ${statB}" style="font-size:11px;">${statL}</span></td></tr>`;
+            `<td><span class="badge ${statB}" style="font-size:11px;">${statL}</span></td>` +
+            `<td style="font-size:12px;color:var(--faint);">${(t.created_at||'').slice(0,10)}</td></tr>`;
         }).join('');
       }
     }
