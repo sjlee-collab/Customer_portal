@@ -5355,7 +5355,7 @@ function switchLibDisplayTab(tab) {
   const OFF = 'color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;';
   tFiles.style.cssText = tFiles.style.cssText.replace(/color:[^;]+;border-bottom:[^;]+;margin-bottom:[^;]+;/, '') + (isFiles ? ON : OFF);
   tFaq.style.cssText   = tFaq.style.cssText.replace(/color:[^;]+;border-bottom:[^;]+;margin-bottom:[^;]+;/, '')   + (isFiles ? OFF : ON);
-  const isAdmin = currentUser && ['tech_support','admin'].includes(currentUser.role);
+  const isAdmin = currentUser?.role === 'admin';
   const btnDoc = document.getElementById('lib-btn-doc');
   const btnFaq = document.getElementById('lib-btn-faq');
   if (btnDoc) btnDoc.style.display = (isAdmin && isFiles) ? '' : 'none';
@@ -5393,7 +5393,7 @@ function libRowActions(d, isAdmin, isPublic, fileUrl) {
 function renderLibFiles() {
   const tbody = document.getElementById('lib-files-tbody');
   if (!tbody) return;
-  const isAdmin = currentUser && ['tech_support','admin'].includes(currentUser.role);
+  const isAdmin = currentUser?.role === 'admin';
   const q = (document.getElementById('lib-search')?.value || '').toLowerCase();
   const list = allLibDocs.filter(d => {
     if (d.product === 'faq') return false;
@@ -5446,7 +5446,7 @@ function libFaqActions(d, isAdmin, isPublic) {
 function renderLibFaq() {
   const tbody = document.getElementById('lib-faq-tbody');
   if (!tbody) return;
-  const isAdmin = currentUser && ['tech_support','admin'].includes(currentUser.role);
+  const isAdmin = currentUser?.role === 'admin';
   const colCount = isAdmin ? 5 : 4;
 
   const colgroup = document.getElementById('lib-faq-colgroup');
