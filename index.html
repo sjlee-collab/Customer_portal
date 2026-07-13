@@ -2139,13 +2139,17 @@ function toggleDrawer(forceClose) {
 
 // 통합 페이지 전환 (탭 클릭)
 function fitListHeight() {
-  ['p-my-requests', 'p-all-requests'].forEach(id => {
+  const LIST_PAGES = ['p-my-requests','p-all-requests','p-downloads','p-customers','p-users','p-notify-log','p-documents'];
+  LIST_PAGES.forEach(id => {
     const page = document.getElementById(id);
     if (!page || !page.classList.contains('active')) return;
-    const scroll = page.querySelector('.tbl-scroll.list-scroll');
-    if (!scroll) return;
-    const top = scroll.getBoundingClientRect().top;
-    scroll.style.height = Math.max(200, window.innerHeight - top - 24) + 'px';
+    page.querySelectorAll('.tbl-scroll.list-scroll').forEach(scroll => {
+      if (scroll.offsetParent === null) return; // 숨겨진 패널 제외
+      const top = scroll.getBoundingClientRect().top;
+      if (top > 0 && top < window.innerHeight) {
+        scroll.style.height = Math.max(200, window.innerHeight - top - 24) + 'px';
+      }
+    });
   });
 }
 window.addEventListener('resize', fitListHeight);
@@ -2160,9 +2164,9 @@ function showPage(tabEl, pageId) {
 
   // 페이지별 데이터 로드
   if (pageId === 'p-dashboard')   loadDashboard();
-  if (pageId === 'p-my-requests') { loadTickets().then(fitListHeight); }
-  if (pageId === 'p-all-requests') { loadAllTickets().then(fitListHeight); }
-  if (pageId === 'p-my-requests' || pageId === 'p-all-requests') setTimeout(fitListHeight, 50);
+  if (pageId === 'p-my-requests')  loadTickets().then(fitListHeight);
+  if (pageId === 'p-all-requests') loadAllTickets().then(fitListHeight);
+  setTimeout(fitListHeight, 50);
   if (pageId === 'p-customers')   loadCompanies();
   if (pageId === 'p-users')       loadUsers();
   if (pageId === 'p-documents')   loadDocuments();
@@ -5359,6 +5363,7 @@ function switchLibDisplayTab(tab) {
   const btnFaq = document.getElementById('lib-btn-faq');
   if (btnDoc) btnDoc.style.display = (isAdmin && isFiles) ? '' : 'none';
   if (btnFaq) btnFaq.style.display = (isAdmin && !isFiles) ? '' : 'none';
+  setTimeout(fitListHeight, 0);
 }
 
 function setLibCategory(cat, el) {
