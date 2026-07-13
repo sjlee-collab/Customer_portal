@@ -797,7 +797,7 @@ textarea{resize:vertical;min-height:100px;}
       <!-- ══ 요청 목록 (운영) ══ -->
       <div id="p-all-requests" class="page u-page">
         <div class="section-header">
-          <div><div class="section-title">요청 관리</div><div class="section-sub">접수된 요청에 담당자를 지정하고 상태를 변경합니다.</div></div>
+          <div><div class="section-title">요청 관리</div><div class="section-sub">접수된 요청에 담당자를 지정하고 상태를 변경합니다. <span id="ar-count" style="color:var(--muted);font-weight:600;"></span></div></div>
         </div>
         <div class="filter-bar">
           <input class="search-box" id="ar-search" placeholder="요청 번호, 제목 검색..." oninput="renderAllTickets()">
@@ -4766,6 +4766,14 @@ function renderAllTickets() {
     }
     return true;
   });
+
+  const countEl = document.getElementById('ar-count');
+  if (countEl) {
+    countEl.textContent = list.length === allMgTickets.length
+      ? `· 총 ${allMgTickets.length}건`
+      : `· 총 ${allMgTickets.length}건 중 ${list.length}건`;
+  }
+
   if (!list.length) {
     tbody.innerHTML = '<tr><td colspan="11" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">조건에 맞는 요청이 없습니다.</td></tr>';
     return;
