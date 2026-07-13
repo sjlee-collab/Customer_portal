@@ -3072,7 +3072,7 @@ async function loadDashboard() {
     // 최근 요청 테이블
     const { data: recent } = await applyFilter(sb.from('tickets')
       .select('id, ticket_number, title, category, status, created_at'))
-      .order('created_at', { ascending: false }).limit(5);
+      .order('created_at', { ascending: false }).limit(200);
     dashRecentTickets = recent || [];
     const tbody = document.getElementById('dash-recent-tbody');
     if (tbody) {
