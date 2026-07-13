@@ -4851,48 +4851,35 @@ function rdBackToList() {
 async function selectRdTicket(idx, directTicket) {
   rdTicket = directTicket || allMgTickets[idx];
   if (!rdTicket) return;
-  renderRdList(); // 선택 하이라이트 갱신 (고객/관리자 화면 공통)
-  document.querySelector('.rd-grid')?.classList.add('showing-detail'); // 모바일: 상세 화면으로 전환
+  const selectedId = rdTicket.id;
 
-  // DB에서 전체 필드 재조회
-  if (sb) {
-    const { data } = await sb.from('tickets')
-      .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, created_by, assigned_to, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
-      .eq('id', rdTicket.id).single();
-    if (data) rdTicket = data;
-  }
+  renderRdList();
+  document.querySelector('.rd-grid')?.classList.add('showing-detail');
 
-  // 빈 안내 숨기고 상세 표시
+  // ── 즉시 렌더: 캐시된 데이터로 패널 바로 열기 ──
   const emptyHint = document.getElementById('rd-empty-hint');
   const detailContent = document.getElementById('rd-detail-content');
   if (emptyHint) emptyHint.style.display = 'none';
-  if (detailContent) { detailContent.style.display = 'flex'; }
+  if (detailContent) detailContent.style.display = 'flex';
 
-  // 헤더
   document.getElementById('rd-ticket-num').textContent = rdTicket.ticket_number || '—';
-
-  // 본문
   document.getElementById('rd-title').textContent = rdTicket.title || '—';
-  document.getElementById('rd-description').textContent = rdTicket.description || '(내용 없음)';
+  const descEl = document.getElementById('rd-description');
+  if (descEl) descEl.textContent = rdTicket.description ?? '불러오는 중...';
 
-  // 완료예정일 (고객 계정에는 미노출)
   const isCustomerRole = currentUser?.role === 'customer';
+  const isAdminUser = currentUser && ADMIN_ROLES.has(currentUser.role);
   const dueDateRow = document.getElementById('rd-due-date-row');
   const dueDateValue = document.getElementById('rd-due-date-value');
   if (dueDateRow) dueDateRow.style.display = isCustomerRole ? 'none' : '';
   if (dueDateValue) dueDateValue.textContent = rdTicket.due_date ? rdTicket.due_date.slice(0, 10) : '—';
 
-  // admin-only 컨트롤 표시/숨김
-  const isAdminUser = currentUser && ADMIN_ROLES.has(currentUser.role);
-  const memoCard  = document.getElementById('rd-memo-card');
-  if (memoCard)  memoCard.style.display  = isAdminUser ? ''     : 'none';
+  const memoCard = document.getElementById('rd-memo-card');
+  if (memoCard) memoCard.style.display = isAdminUser ? '' : 'none';
 
-  // 요청 작성자 본인 수정 버튼
   const ownerEditBtn = document.getElementById('rd-owner-edit-btn');
-  const isOwner = currentUser && rdTicket.created_by === currentUser.id;
-  if (ownerEditBtn) ownerEditBtn.style.display = isOwner ? '' : 'none';
+  if (ownerEditBtn) ownerEditBtn.style.display = 'none'; // DB 확인 후 갱신
 
-  // 처리 이력 + 고객 대화 + 내부 메모 + 첨부파일
   const historyBox = document.getElementById('rd-history');
   if (historyBox) historyBox.style.display = 'none';
   const memoBody = document.getElementById('rd-memo-body');
@@ -4901,10 +4888,26 @@ async function selectRdTicket(idx, directTicket) {
   if (memoBody) memoBody.style.display = 'none';
   if (memoArrow) memoArrow.textContent = '펼치기 ▾';
   if (memoLatest) memoLatest.style.display = '';
+
+  // 서브 데이터 병렬 로드 (즉시 시작)
   loadRdHistory();
   loadRdMessages();
   loadRdAttachments();
   if (isAdminUser) loadRdMemos();
+
+  // ── 백그라운드: description·created_by 등 전체 필드 재조회 ──
+  if (sb) {
+    const { data } = await sb.from('tickets')
+      .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, created_by, assigned_to, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
+      .eq('id', selectedId).single();
+    if (data && rdTicket.id === selectedId) {
+      rdTicket = data;
+      if (descEl) descEl.textContent = rdTicket.description || '(내용 없음)';
+      if (dueDateValue) dueDateValue.textContent = rdTicket.due_date ? rdTicket.due_date.slice(0, 10) : '—';
+      const isOwner = currentUser && rdTicket.created_by === currentUser.id;
+      if (ownerEditBtn) ownerEditBtn.style.display = isOwner ? '' : 'none';
+    }
+  }
 }
 
 async function loadRdAttachments() {
