@@ -2671,6 +2671,14 @@ async function showDetail(ticket) {
     return;
   }
 
+  // p-all-requests 화면으로 이동
+  document.querySelectorAll('.u-page,.c-tab').forEach(p => p.classList.remove('active'));
+  const allReqPage = document.getElementById('p-all-requests');
+  if (allReqPage) allReqPage.classList.add('active');
+  const allReqTab = document.querySelector('#main-navtabs .nt[onclick*="p-all-requests"]');
+  document.querySelectorAll('#main-navtabs .nt').forEach(s => s.classList.remove('active'));
+  if (allReqTab) allReqTab.classList.add('active');
+
   document.getElementById('support-list').style.display = 'none';
   document.getElementById('support-detail').style.display = 'block';
   const btnNew = document.getElementById('btn-new-request');
