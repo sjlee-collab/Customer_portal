@@ -3058,7 +3058,11 @@ async function loadDashboard() {
       let totalDays = 0, cnt = 0;
       for (const t of compTickets) {
         const { data: h } = await sb.from('ticket_history')
-          .select('created_at').eq('ticket_id', t.id).order('created_at', { ascending: false }).limit(1);
+          .select('created_at')
+          .eq('ticket_id', t.id)
+          .eq('action', 'status_changed')
+          .ilike('note', '%완료%')
+          .order('created_at', { ascending: false }).limit(1);
         if (h && h.length) {
           const diff = (new Date(h[0].created_at) - new Date(t.created_at)) / 86400000;
           if (diff >= 0) { totalDays += diff; cnt++; }
