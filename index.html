@@ -54,18 +54,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Ne
 .nt:hover:not(.active){color:var(--text);}
 
 /* ── body area ── */
-.body{flex:1;overflow:hidden;padding:24px;display:flex;flex-direction:column;}
+.body{flex:1;overflow:auto;padding:24px;display:flex;flex-direction:column;}
 .body>#p-request-detail.active{flex:1;min-height:0;}
 .page{display:none;}
-.page.active{display:flex;flex-direction:column;flex:1;min-height:0;overflow:auto;}
-#p-all-requests.active,
-#p-my-requests.active{overflow:hidden;}
-#p-all-requests.active>.card,
-#p-my-requests.active #support-list{flex:1;min-height:0;display:flex;flex-direction:column;margin-bottom:0;}
-#p-my-requests.active #support-list>.card{flex:1;min-height:0;display:flex;flex-direction:column;margin-bottom:0;}
+.page.active{display:block;}
+#p-request-detail.active{display:flex;flex-direction:column;padding:0;}
 #p-all-requests.active .tbl-scroll.list-scroll,
-#p-my-requests.active .tbl-scroll.list-scroll{flex:1;min-height:0;overflow:auto;}
-#p-request-detail.active{display:flex;flex-direction:column;padding:0;overflow:hidden;}
+#p-my-requests.active .tbl-scroll.list-scroll{overflow-y:auto;}
 
 /* ── cards ── */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px 24px;margin-bottom:16px;}
@@ -2143,6 +2138,18 @@ function toggleDrawer(forceClose) {
 }
 
 // 통합 페이지 전환 (탭 클릭)
+function fitListHeight() {
+  ['p-my-requests', 'p-all-requests'].forEach(id => {
+    const page = document.getElementById(id);
+    if (!page || !page.classList.contains('active')) return;
+    const scroll = page.querySelector('.tbl-scroll.list-scroll');
+    if (!scroll) return;
+    const top = scroll.getBoundingClientRect().top;
+    scroll.style.height = Math.max(200, window.innerHeight - top - 24) + 'px';
+  });
+}
+window.addEventListener('resize', fitListHeight);
+
 function showPage(tabEl, pageId) {
   document.querySelectorAll('.u-page,.c-tab').forEach(p => p.classList.remove('active'));
   const page = document.getElementById(pageId);
@@ -2153,8 +2160,9 @@ function showPage(tabEl, pageId) {
 
   // 페이지별 데이터 로드
   if (pageId === 'p-dashboard')   loadDashboard();
-  if (pageId === 'p-my-requests') { loadTickets(); }
-  if (pageId === 'p-all-requests') { loadAllTickets(); }
+  if (pageId === 'p-my-requests') { loadTickets().then(fitListHeight); }
+  if (pageId === 'p-all-requests') { loadAllTickets().then(fitListHeight); }
+  if (pageId === 'p-my-requests' || pageId === 'p-all-requests') setTimeout(fitListHeight, 50);
   if (pageId === 'p-customers')   loadCompanies();
   if (pageId === 'p-users')       loadUsers();
   if (pageId === 'p-documents')   loadDocuments();
