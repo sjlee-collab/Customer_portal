@@ -2144,7 +2144,7 @@ function fitListHeight() {
       page.querySelectorAll('.tbl-scroll.list-scroll').forEach(scroll => {
         if (scroll.offsetParent === null) return;
         const top = scroll.getBoundingClientRect().top;
-        if (top > 0) scroll.style.height = Math.max(200, window.innerHeight - top - 24) + 'px';
+        if (top > 0) { scroll.style.maxHeight = 'none'; scroll.style.height = Math.max(200, window.innerHeight - top - 24) + 'px'; }
       });
     });
   });
