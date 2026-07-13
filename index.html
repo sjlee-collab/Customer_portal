@@ -2806,7 +2806,7 @@ async function loadNotices() {
   const cards = document.querySelectorAll('.dash-notice-card');
   const lists = document.querySelectorAll('.dash-notice-list');
   if (!cards.length || !sb) return;
-  const { data, error } = await sb.from('content_notices').select('*').order('created_at', { ascending: false }).limit(3);
+  const { data, error } = await sb.from('content_notices').select('*').order('created_at', { ascending: false });
   if (error || !data || !data.length) { cards.forEach(c => c.style.display = 'none'); return; }
   const html = data.map((n, i) => `
     <div style="padding:8px 0;${i < data.length - 1 ? 'border-bottom:1px solid var(--border);' : ''}">
