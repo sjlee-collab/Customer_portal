@@ -2799,7 +2799,7 @@ let dashRecentTickets = [];
 const NOTICE_BADGE = { 점검:'b-amber', 안내:'b-gray', 완료:'b-green' };
 
 function isNoticeAdmin() {
-  return currentUser && ['tech_support','admin'].includes(currentUser.role);
+  return currentUser?.role === 'admin';
 }
 
 async function loadNotices() {
