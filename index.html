@@ -4182,7 +4182,7 @@ async function loadNotifyLog() {
   }
 
   let q = sb.from('log_notification')
-    .select(`id, ticket_id, channel, notification_type, recipient, status, error_message, sent_at, created_at, retry_count,
+    .select(`id, ticket_id, channel, event_type, recipient, status, error_message, sent_at, created_at, retry_count,
              tickets(ticket_number, title, category, priority, created_at,
                companies(name), users!tickets_created_by_fkey(name), assignee:users!tickets_assigned_to_fkey(name))`)
     .order('created_at', { ascending: false })
@@ -4270,7 +4270,7 @@ async function loadNotifyLog() {
       <td style="font-size:11px;font-variant-numeric:tabular-nums;color:var(--faint);">${escHtml(n.id.slice(0,8))}…</td>
       <td style="font-size:12px;font-weight:600;">${escHtml(ticketNum)}</td>
       <td><span class="badge ${n.channel === 'slack' ? 'b-accent' : 'b-red'}" style="font-size:11px;">${n.channel === 'email' ? 'Gmail' : escHtml(n.channel || '—')}</span></td>
-      <td style="font-size:12px;">${escHtml(EVENT_TYPE_KO[n.notification_type] || n.notification_type || '—')}</td>
+      <td style="font-size:12px;">${escHtml(EVENT_TYPE_KO[n.event_type] || n.event_type || '—')}</td>
       <td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(n.recipient || '—')}</td>
       <td>${statusBadge}</td>
       <td style="font-size:11px;color:var(--red);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(n.error_message || '')}">${escHtml(n.error_message || '—')}</td>
