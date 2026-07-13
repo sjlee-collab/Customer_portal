@@ -2318,7 +2318,7 @@ async function loadIntegrationLogFor(system, tbodyId) {
   const { data, error } = await sb.from('log_integration')
     .select('action, status, duration_ms, created_at, error_message')
     .eq('system', system)
-    .order('created_at', { ascending: false }).limit(5);
+    .order('created_at', { ascending: false }).limit(1);
   if (error || !data?.length) {
     tbody.innerHTML = `<tr><td colspan="4" style="padding:10px;text-align:center;color:var(--faint);">이력 없음</td></tr>`;
     return;
