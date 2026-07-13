@@ -2070,7 +2070,6 @@ function enterApp(email, acct) {
   if (firstVisible) firstVisible.click();
 
   // 기본 데이터 로드
-  if (acct.role === 'customer' || acct.role === 'internal') loadTickets();
   loadDashboard();
 
   // URL ?ticket=TK-xxx 파라미터로 직접 접근 시 해당 티켓 상세 표시
@@ -2079,6 +2078,8 @@ function enterApp(email, acct) {
     sb.from('tickets').select('*').eq('ticket_number', ticketParam).single().then(({ data }) => {
       if (data) showDetail(data);
     });
+  } else if (acct.role === 'customer' || acct.role === 'internal') {
+    loadTickets();
   }
 }
 
