@@ -1592,9 +1592,13 @@ textarea{resize:vertical;min-height:100px;}
       <input type="hidden" id="ct-id">
       <input type="hidden" id="ct-company-id">
       <div class="form-grid" style="gap:16px;">
-        <div class="form-group span2">
+        <div class="form-group">
           <label>계약명 <span class="req">*</span></label>
           <input type="text" id="ct-name" placeholder="예: 2026년 Tableau Enterprise 계약">
+        </div>
+        <div class="form-group">
+          <label>Salesforce ID</label>
+          <input type="text" id="ct-salesforce-id" placeholder="001XXXXXXXXXXXXXXX">
         </div>
         <div class="form-group">
           <label>계약시작일자</label>
@@ -3929,7 +3933,7 @@ function openContractModal() {
   document.getElementById('btn-submit-contract').textContent  = '등록';
   document.getElementById('ct-id').value = '';
   document.getElementById('ct-company-id').value = selectedCompanyId;
-  ['ct-name','ct-start','ct-end','ct-customer-contact','ct-bixs-contact','ct-amount','ct-note'].forEach(id => {
+  ['ct-name','ct-salesforce-id','ct-start','ct-end','ct-customer-contact','ct-bixs-contact','ct-amount','ct-note'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   document.getElementById('ct-type').value   = '';
@@ -3944,6 +3948,7 @@ function openEditContractModal(ct) {
   document.getElementById('ct-id').value              = ct.id;
   document.getElementById('ct-company-id').value      = ct.company_id;
   document.getElementById('ct-name').value            = ct.contract_name  || '';
+  document.getElementById('ct-salesforce-id').value   = ct.salesforce_id  || '';
   document.getElementById('ct-start').value           = ct.start_date     ? ct.start_date.slice(0,10) : '';
   document.getElementById('ct-end').value             = ct.end_date       ? ct.end_date.slice(0,10)   : '';
   document.getElementById('ct-type').value            = ct.contract_type  || '';
@@ -3990,6 +3995,7 @@ async function submitContract() {
   const payload = {
     company_id:       companyId,
     contract_name:    name,
+    salesforce_id:    document.getElementById('ct-salesforce-id').value.trim() || null,
     start_date:       document.getElementById('ct-start').value   || null,
     end_date:         document.getElementById('ct-end').value     || null,
     contract_type:    document.getElementById('ct-type').value    || null,
