@@ -429,6 +429,7 @@ textarea{resize:vertical;min-height:100px;}
       <div class="user-dropdown" id="user-dropdown">
         <div class="user-chip" onclick="toggleUserMenu()">
           <div class="avatar" id="topbar-avatar">?</div>
+          <span id="topbar-role" style="font-size:11px;padding:2px 7px;border-radius:99px;background:var(--accent-l);color:var(--accent-d);font-weight:600;display:none;"></span>
           <span id="topbar-name">사용자</span>
           <span style="font-size:10px;color:var(--muted);margin-left:2px;">▾</span>
         </div>
@@ -2065,6 +2066,8 @@ function applyRoleUI(role) {
     const ch = currentUser.name.charAt(0);
     ['topbar-name','user-menu-name'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=currentUser.name; });
     ['topbar-avatar','user-menu-avatar'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=ch; });
+    const roleEl = document.getElementById('topbar-role');
+    if (roleEl) { roleEl.textContent = ROLE_LABELS[currentUser.role] || currentUser.role; roleEl.style.display = ''; }
     const emailEl = document.getElementById('user-menu-email');
     if (emailEl) emailEl.textContent = currentUser.email;
   }
