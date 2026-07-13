@@ -2139,16 +2139,16 @@ function toggleDrawer(forceClose) {
 
 // 통합 페이지 전환 (탭 클릭)
 function fitListHeight() {
+  const body = document.getElementById('main-body');
   const LIST_PAGES = ['p-my-requests','p-all-requests','p-downloads','p-customers','p-users','p-notify-log','p-documents'];
   LIST_PAGES.forEach(id => {
     const page = document.getElementById(id);
     if (!page || !page.classList.contains('active')) return;
+    if (body) body.scrollTop = 0;
     page.querySelectorAll('.tbl-scroll.list-scroll').forEach(scroll => {
-      if (scroll.offsetParent === null) return; // 숨겨진 패널 제외
+      if (scroll.offsetParent === null) return;
       const top = scroll.getBoundingClientRect().top;
-      if (top > 0 && top < window.innerHeight) {
-        scroll.style.height = Math.max(200, window.innerHeight - top - 24) + 'px';
-      }
+      scroll.style.height = Math.max(200, window.innerHeight - top - 24) + 'px';
     });
   });
 }
