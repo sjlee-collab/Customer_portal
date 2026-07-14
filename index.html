@@ -3871,7 +3871,8 @@ async function openNewCompanyModal() {
   document.getElementById('co-contact-name').value = '';
   document.getElementById('co-contact-phone').value = '';
   document.getElementById('co-notification-emails').value = '';
-  document.getElementById('co-email-notify').checked = true;
+  const emailNotifyChk = document.getElementById('co-email-notify');
+  if (emailNotifyChk) emailNotifyChk.checked = true;
   document.querySelectorAll('.co-product-chk').forEach(chk => { chk.checked = false; });
   await populateCompanyUserSelects();
   openModal('modal-company');
@@ -3891,7 +3892,8 @@ async function openEditCompany(c) {
   document.getElementById('co-contact-phone').value = c.main_contact_phone || '';
   const emails = Array.isArray(c.notification_emails) ? c.notification_emails : [];
   document.getElementById('co-notification-emails').value = emails.join('\n');
-  document.getElementById('co-email-notify').checked = c.email_notification_enabled !== false;
+  const emailNotifyChkEdit = document.getElementById('co-email-notify');
+  if (emailNotifyChkEdit) emailNotifyChkEdit.checked = c.email_notification_enabled !== false;
   const selected = Array.isArray(c.products) ? c.products : [];
   document.querySelectorAll('.co-product-chk').forEach(chk => {
     chk.checked = selected.includes(chk.value);
