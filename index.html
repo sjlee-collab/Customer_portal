@@ -1355,9 +1355,10 @@ textarea{resize:vertical;min-height:100px;}
       <div style="border-top:1px solid var(--border);padding-top:16px;">
         <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--muted);">비밀번호 변경</div>
         <div style="display:flex;flex-direction:column;gap:10px;">
-          <div class="form-group"><label>현재 비밀번호</label><input type="password" placeholder="현재 비밀번호 입력"></div>
-          <div class="form-group"><label>새 비밀번호</label><input type="password" placeholder="8자 이상 입력"></div>
-          <div class="form-group"><label>비밀번호 확인</label><input type="password" placeholder="새 비밀번호 재입력"></div>
+          <div class="form-group"><label>현재 비밀번호</label><input type="password" id="mp-pw-current" placeholder="현재 비밀번호 입력"></div>
+          <div class="form-group"><label>새 비밀번호</label><input type="password" id="mp-pw-new" placeholder="8자 이상 입력"></div>
+          <div class="form-group"><label>비밀번호 확인</label><input type="password" id="mp-pw-confirm" placeholder="새 비밀번호 재입력"></div>
+          <div id="mp-pw-error" style="display:none;color:var(--red);font-size:12px;margin-top:-4px;"></div>
         </div>
       </div>
     </div>
@@ -2036,7 +2037,7 @@ function doLogin() {
   if (btn) { btn.disabled = true; btn.textContent = '로그인 중...'; }
   errEl.style.display = 'none';
 
-  sb.from('users').select('id, name, role, company_id, phone, is_active, companies(name)').eq('email', email).single().then(({ data: u, error: ue }) => {
+  sb.from('users').select('id, name, role, company_id, phone, is_active, password, companies(name)').eq('email', email).single().then(({ data: u, error: ue }) => {
     if (btn) { btn.disabled = false; btn.textContent = '로그인'; }
     if (ue || !u) {
       // DB에 없으면 ACCOUNTS 로컬 폴백
@@ -2060,9 +2061,11 @@ function doLogin() {
       errEl.style.display = '';
       return;
     }
-    // 비밀번호 검증 (ACCOUNTS 폴백 또는 Supabase Auth)
+    // 비밀번호 검증: DB password 우선, 없으면 ACCOUNTS 폴백
+    const dbPw = u.password;
     const localAcct = ACCOUNTS[email];
-    if (localAcct?.pw && pw !== localAcct.pw) {
+    const expectedPw = dbPw || localAcct?.pw;
+    if (expectedPw && pw !== expectedPw) {
       errEl.textContent = '비밀번호가 올바르지 않습니다.';
       errEl.style.display = '';
       return;
@@ -2185,31 +2188,58 @@ function openMyPage() {
   if (roleDisp) roleDisp.textContent = (ROLE_KO[currentUser.role] || currentUser.role) + (currentUser.company ? ' · ' + currentUser.company : '');
 }
 
-function saveMyPage() {
-  const name  = document.getElementById('mp-name').value.trim();
-  const phone = document.getElementById('mp-phone').value.trim();
-  const dept  = document.getElementById('mp-dept').value.trim();
+async function saveMyPage() {
+  const name      = document.getElementById('mp-name').value.trim();
+  const phone     = document.getElementById('mp-phone').value.trim();
+  const dept      = document.getElementById('mp-dept').value.trim();
+  const pwCurrent = document.getElementById('mp-pw-current').value;
+  const pwNew     = document.getElementById('mp-pw-new').value;
+  const pwConfirm = document.getElementById('mp-pw-confirm').value;
+  const pwErr     = document.getElementById('mp-pw-error');
+
   if (!name) { alert('이름을 입력하세요.'); return; }
+
+  // 비밀번호 변경 요청 여부
+  const changePw = pwCurrent || pwNew || pwConfirm;
+  if (changePw) {
+    if (!pwCurrent) { pwErr.textContent = '현재 비밀번호를 입력하세요.'; pwErr.style.display = ''; return; }
+    if (!pwNew)     { pwErr.textContent = '새 비밀번호를 입력하세요.'; pwErr.style.display = ''; return; }
+    if (pwNew.length < 8) { pwErr.textContent = '새 비밀번호는 8자 이상이어야 합니다.'; pwErr.style.display = ''; return; }
+    if (pwNew !== pwConfirm) { pwErr.textContent = '새 비밀번호가 일치하지 않습니다.'; pwErr.style.display = ''; return; }
+
+    // 현재 비밀번호 DB 검증
+    if (sb && currentUser?.id) {
+      const { data: u } = await sb.from('users').select('password').eq('id', currentUser.id).single();
+      const stored = u?.password || ACCOUNTS[currentUser.email]?.pw;
+      if (stored && pwCurrent !== stored) {
+        pwErr.textContent = '현재 비밀번호가 올바르지 않습니다.';
+        pwErr.style.display = '';
+        return;
+      }
+    }
+    pwErr.style.display = 'none';
+  }
+
   if (currentUser) {
     currentUser.name  = name;
     currentUser.phone = phone;
-    // topbar 반영
     ['topbar-name','user-menu-name','mp-name-display'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=name; });
     ['topbar-avatar','user-menu-avatar','mp-avatar-big'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=name.charAt(0); });
-    // localStorage 세션 갱신
     try { localStorage.setItem('cs_session', JSON.stringify(currentUser)); } catch(_) {}
-    // Supabase DB 저장
     if (sb && currentUser.id) {
       const payload = { name };
       if (phone) payload.phone = phone;
       if (dept)  payload.department = dept;
-      sb.from('users').update(payload).eq('id', currentUser.id).then(({ error }) => {
-        if (error) console.error('마이페이지 저장 오류:', error);
-      });
+      if (changePw) payload.password = pwNew;
+      const { error } = await sb.from('users').update(payload).eq('id', currentUser.id);
+      if (error) { alert('저장 중 오류가 발생했습니다: ' + error.message); return; }
     }
   }
+
+  // 입력 초기화
+  ['mp-pw-current','mp-pw-new','mp-pw-confirm'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
   document.getElementById('modal-mypage').style.display = 'none';
-  showToast('프로필이 저장되었습니다.');
+  showToast(changePw ? '비밀번호가 변경되었습니다.' : '프로필이 저장되었습니다.');
 }
 
 function doLogout() {
