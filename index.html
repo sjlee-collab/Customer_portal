@@ -905,7 +905,7 @@ textarea{resize:vertical;min-height:100px;}
             <div id="rd-detail-content" style="display:none;flex-direction:column;gap:12px;">
 
               <!-- 상단: 기본 정보 카드 (담당자·상태 우측 상단 인라인) -->
-              <div class="card" style="padding:10px 14px;">
+              <div class="card" style="padding:10px 14px;box-shadow:0 2px 10px rgba(0,0,0,.08);">
                 <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;">
                   <!-- 좌측: 본문 -->
                   <div style="min-width:0;">
@@ -3480,7 +3480,7 @@ function renderTickets(tickets) {
       <td style="color:var(--faint);font-size:12px;">${date}</td>
     </tr>
     <tr class="ticket-detail-row" style="display:none;">
-      <td colspan="9" style="padding:0;background:var(--surface2);"></td>
+      <td colspan="9" style="padding:10px 10px 0;background:var(--bg);"></td>
     </tr>`;
   }).join('');
 }
@@ -5034,7 +5034,7 @@ function renderAllTickets() {
       <td><button class="btn btn-primary btn-sm" style="font-size:11px;" onclick="event.stopPropagation();openManage(${idx})">처리</button></td>
     </tr>
     <tr class="ticket-detail-row" style="display:none;">
-      <td colspan="11" style="padding:0;background:var(--surface2);"></td>
+      <td colspan="11" style="padding:10px 10px 0;background:var(--bg);"></td>
     </tr>`;
   }).join('');
 }
