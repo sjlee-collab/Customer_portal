@@ -1153,9 +1153,9 @@ textarea{resize:vertical;min-height:100px;}
         </div>
         <div class="card" style="padding:0;overflow:hidden;">
           <div class="tbl-scroll list-scroll"><table class="tbl">
-            <thead><tr><th>알림 ID</th><th>요청번호</th><th>알림 유형</th><th>이벤트</th><th>수신자</th><th>발송 상태</th><th>실패 사유</th><th>발송일시</th><th>재시도</th></tr></thead>
+            <thead><tr><th>알림 ID</th><th>요청번호</th><th>알림 유형</th><th>이벤트</th><th>계정유형</th><th>수신자</th><th>발송 상태</th><th>실패 사유</th><th>발송일시</th><th>재시도</th></tr></thead>
             <tbody id="notify-tbody">
-              <tr><td colspan="9" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
+              <tr><td colspan="10" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
             </tbody>
           </table></div>
         </div>
@@ -4222,11 +4222,11 @@ async function loadNotifyLog() {
   const { data, error } = await q;
 
   if (error) {
-    tbody.innerHTML = `<tr><td colspan="9" style="padding:20px;text-align:center;color:var(--red);font-size:13px;">오류: ${escHtml(error.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" style="padding:20px;text-align:center;color:var(--red);font-size:13px;">오류: ${escHtml(error.message)}</td></tr>`;
     return;
   }
   if (!data || !data.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">알림 로그가 없습니다.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">알림 로그가 없습니다.</td></tr>';
     document.getElementById('notify-count').textContent = '총 0건';
     return;
   }
@@ -4294,6 +4294,11 @@ async function loadNotifyLog() {
       : '';
     const detailRows = ticketDetailRows + failReasonBlock;
 
+    const recipientDomain = (n.recipient || '').split('@')[1] || '';
+    const isInternal = recipientDomain === 'bigxdata.io' || n.channel === 'slack';
+    const accountTypeBadge = isInternal
+      ? '<span class="badge" style="font-size:11px;background:#ede9fe;color:#5b21b6;">내부직원</span>'
+      : '<span class="badge" style="font-size:11px;background:#dbeafe;color:#1e40af;">고객</span>';
     return `<tr style="cursor:pointer;" onclick="toggleNotifyDetail(this)">
       <td style="font-size:11px;font-variant-numeric:tabular-nums;color:var(--faint);">${escHtml(n.id.slice(0,8))}…</td>
       <td style="font-size:12px;font-weight:600;">${escHtml(ticketNum)}</td>
@@ -4304,6 +4309,7 @@ async function loadNotifyLog() {
           : `<span class="badge b-gray" style="font-size:11px;">${escHtml(n.channel||'—')}</span>`
       }</td>
       <td style="font-size:12px;">${escHtml(EVENT_TYPE_KO[n.event_type] || n.event_type || '—')}</td>
+      <td>${accountTypeBadge}</td>
       <td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(n.recipient || '—')}</td>
       <td>${statusBadge}</td>
       <td style="font-size:11px;color:var(--red);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(n.error_message || '')}">${escHtml(n.error_message || '—')}</td>
@@ -4311,7 +4317,7 @@ async function loadNotifyLog() {
       <td style="text-align:center;">${retryBtn}</td>
     </tr>
     <tr class="notify-detail-row" style="display:none;">
-      <td colspan="9" style="padding:0;">
+      <td colspan="10" style="padding:0;">
         <div style="padding:14px 20px 14px 32px;background:var(--surface2);border-top:1px solid var(--border);">
           ${detailRows}
         </div>
