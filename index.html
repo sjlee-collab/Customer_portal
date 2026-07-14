@@ -3769,9 +3769,22 @@ function renderCompanies(companies) {
   tbody.innerHTML = companies.map(c => {
     const stLabel = STATUS_CO_LABELS[c.status] || c.status || '—';
     const stBadge = STATUS_CO_BADGE[c.status]  || 'b-gray';
-    const products = Array.isArray(c.products) && c.products.length
-      ? c.products.map(p => `<span class="badge b-gray" style="font-size:10px;margin:1px;">${escHtml(p)}</span>`).join('')
-      : '<span style="color:var(--faint);">—</span>';
+    const ALL_PRODUCTS = ['Tableau Server','Tableau Cloud','Tableau Desktop','Dataworks','AgentWorks'];
+    const PRODUCT_COLOR = {
+      'Tableau Server':  'background:#E6F1FB;color:#185FA5;border-color:#85B7EB;',
+      'Tableau Cloud':   'background:#E6F1FB;color:#185FA5;border-color:#85B7EB;',
+      'Tableau Desktop': 'background:#EAF3DE;color:#3B6D11;border-color:#97C459;',
+      'Dataworks':       'background:#FAEEDA;color:#854F0B;border-color:#EF9F27;',
+      'AgentWorks':      'background:#EEEDFE;color:#3C3489;border-color:#AFA9EC;',
+    };
+    const usedSet = new Set(Array.isArray(c.products) ? c.products : []);
+    const products = ALL_PRODUCTS.map(p => {
+      const active = usedSet.has(p);
+      const style = active
+        ? `font-size:10px;margin:1px;padding:2px 8px;border-radius:4px;border:0.5px solid;display:inline-block;${PRODUCT_COLOR[p]}`
+        : 'font-size:10px;margin:1px;padding:2px 8px;border-radius:4px;border:0.5px solid var(--border);display:inline-block;background:var(--surface-1);color:var(--faint);';
+      return `<span style="${style}">${escHtml(p)}</span>`;
+    }).join('');
     const ctLabel = CUSTOMER_TYPE_KO[c.customer_type] || (c.customer_type ? escHtml(c.customer_type) : '—');
     const notifyEmails = Array.isArray(c.notification_emails) && c.notification_emails.length
       ? `<span style="font-size:11px;">${escHtml(c.notification_emails[0])}${c.notification_emails.length > 1 ? `<br><span style="color:var(--faint);">외 ${c.notification_emails.length-1}개</span>` : ''}</span>`
