@@ -1138,33 +1138,36 @@ textarea{resize:vertical;min-height:100px;}
       <div id="p-notify-log" class="page u-page">
         <div class="section-header">
           <div><div class="section-title">알림 로그</div><div class="section-sub" id="notify-count"></div></div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <select id="notify-filter-type" onchange="loadNotifyLog()" style="padding:7px 10px;border:1px solid var(--border-md);border-radius:var(--r-md);font-size:12px;">
-              <option value="">전체 유형</option>
-              <option value="slack">Slack</option>
-              <option value="email">Gmail</option>
-            </select>
-            <select id="notify-filter-event" onchange="loadNotifyLog()" style="padding:7px 10px;border:1px solid var(--border-md);border-radius:var(--r-md);font-size:12px;">
-              <option value="">전체 이벤트</option>
-              <option value="new_ticket">신규 요청</option>
-              <option value="status_change">상태 변경</option>
-              <option value="internal_new">내부 신규 알림</option>
-              <option value="internal_sales">내부 영업 알림</option>
-              <option value="urgent">긴급 요청</option>
-              <option value="assigned">담당자 변경</option>
-              <option value="overdue">지연 요청</option>
-            </select>
-            <select id="notify-filter-account" onchange="loadNotifyLog()" style="padding:7px 10px;border:1px solid var(--border-md);border-radius:var(--r-md);font-size:12px;">
-              <option value="">전체 계정유형</option>
-              <option value="internal">내부직원</option>
-              <option value="customer">고객</option>
-            </select>
-            <select id="notify-filter-status" onchange="loadNotifyLog()" style="padding:7px 10px;border:1px solid var(--border-md);border-radius:var(--r-md);font-size:12px;">
-              <option value="">전체 상태</option>
-              <option value="sent">성공</option>
-              <option value="failed">실패</option>
-            </select>
-          </div>
+          <div></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">
+          <span style="font-size:12px;color:var(--muted);font-weight:600;">필터:</span>
+          <select id="notify-filter-type" onchange="loadNotifyLog()" style="padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--r-md);font-size:12px;background:var(--surface);">
+            <option value="">전체 유형</option>
+            <option value="slack">Slack</option>
+            <option value="email">Gmail</option>
+          </select>
+          <select id="notify-filter-event" onchange="loadNotifyLog()" style="padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--r-md);font-size:12px;background:var(--surface);">
+            <option value="">전체 이벤트</option>
+            <option value="new_ticket">신규 요청</option>
+            <option value="status_change">상태 변경</option>
+            <option value="internal_new">내부 신규 알림</option>
+            <option value="internal_sales">내부 영업 알림</option>
+            <option value="urgent">긴급 요청</option>
+            <option value="assigned">담당자 변경</option>
+            <option value="overdue">지연 요청</option>
+          </select>
+          <select id="notify-filter-account" onchange="loadNotifyLog()" style="padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--r-md);font-size:12px;background:var(--surface);">
+            <option value="">전체 계정유형</option>
+            <option value="internal">내부직원</option>
+            <option value="customer">고객</option>
+          </select>
+          <select id="notify-filter-status" onchange="loadNotifyLog()" style="padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--r-md);font-size:12px;background:var(--surface);">
+            <option value="">전체 상태</option>
+            <option value="sent">성공</option>
+            <option value="failed">실패</option>
+          </select>
+          <button onclick="document.querySelectorAll('[id^=notify-filter-]').forEach(s=>s.value='');loadNotifyLog();" style="padding:6px 12px;border:1px solid var(--border-md);border-radius:var(--r-md);font-size:12px;background:var(--surface);cursor:pointer;color:var(--muted);">초기화</button>
         </div>
         <div class="card" style="padding:0;overflow:hidden;">
           <div class="tbl-scroll list-scroll"><table class="tbl">
