@@ -3250,7 +3250,7 @@ function renderDashAdminTable(f) {
     const statL = STATUS_LABELS[t.status] || t.status;
     const statB = STATUS_BADGE[t.status] || 'b-gray';
     const isDelayed = PENDING_STATUSES.includes(t.status) && t.due_date && t.due_date < todayStr;
-    const rowStyle = isDelayed ? 'cursor:pointer;border-left:3px solid var(--red);' : 'cursor:pointer;';
+    const rowStyle = 'cursor:pointer;';
     const overdueDays = isDelayed ? Math.floor((new Date(todayStr) - new Date(t.due_date)) / (24*60*60*1000)) : 0;
     const dueDateDisplay = t.due_date
       ? `<span style="font-size:12px;${isDelayed ? 'color:var(--red);font-weight:600;' : 'color:var(--faint);'}">${t.due_date}${isDelayed ? ` <span style="font-size:10px;background:#fee2e2;color:#b91c1c;padding:1px 5px;border-radius:3px;">+${overdueDays}일</span>` : ''}</span>`
