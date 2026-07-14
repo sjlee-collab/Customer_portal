@@ -5472,10 +5472,12 @@ async function loadRdMessages() {
     const isMe    = meId && m.changed_by === meId;
     const canEdit = isMe || isAdmin;
     const editBtn = canEdit
-      ? `<button onclick='editMessage(${JSON.stringify(m.id)}, ${JSON.stringify(m.note || '').replace(/'/g, "&#39;")})'
-           style="font-size:10.5px;color:var(--muted);background:none;border:none;cursor:pointer;padding:0 2px;line-height:1;">수정</button>
-         <button onclick='deleteMessage(${JSON.stringify(m.id)})'
-           style="font-size:10.5px;color:var(--red,#e53e3e);background:none;border:none;cursor:pointer;padding:0 2px;line-height:1;">삭제</button>`
+      ? `<div style="display:flex;gap:8px;flex-shrink:0;">
+           <button onclick='editMessage(${JSON.stringify(m.id)}, ${JSON.stringify(m.note || '').replace(/'/g, "&#39;")})'
+             style="font-size:10.5px;color:var(--muted);background:none;border:none;cursor:pointer;padding:0 2px;line-height:1;">수정</button>
+           <button onclick='deleteMessage(${JSON.stringify(m.id)})'
+             style="font-size:10.5px;color:var(--red,#e53e3e);background:none;border:none;cursor:pointer;padding:0 2px;line-height:1;">삭제</button>
+         </div>`
       : '';
     const borderStyle = i < data.length - 1 ? 'border-bottom:1px solid var(--border);' : '';
     return `
