@@ -3001,15 +3001,41 @@ async function loadNotices() {
   const { data, error } = await sb.from('content_notices').select('*').order('created_at', { ascending: false });
   if (error || !data || !data.length) { cards.forEach(c => c.style.display = 'none'); return; }
   const html = data.map((n, i) => `
-    <div style="padding:8px 0;${i < data.length - 1 ? 'border-bottom:1px solid var(--border);' : ''}">
+    <div class="dash-notice-item" style="padding:8px 0;${i < data.length - 1 ? 'border-bottom:1px solid var(--border);' : ''}">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:3px;">
         <span class="badge ${NOTICE_BADGE[n.category] || 'b-gray'}">${escHtml(n.category || '안내')}</span>
         <span style="font-size:10px;color:var(--faint);white-space:nowrap;">${(n.created_at || '').slice(0,10)}</span>
       </div>
-      <div style="font-size:11px;line-height:1.4;overflow-wrap:break-word;">${escHtml(n.title)}</div>
+      <div style="display:flex;align-items:center;gap:6px;cursor:pointer;" onclick="toggleDashNotice(this.parentElement)">
+        <span style="font-size:11px;line-height:1.4;overflow-wrap:break-word;flex:1;min-width:0;">${escHtml(n.title)}</span>
+        <span class="dash-notice-arrow" style="font-size:9px;color:var(--faint);flex-shrink:0;transition:transform .15s;">▾</span>
+      </div>
+      <div class="dash-notice-body" style="max-height:0;overflow:hidden;transition:max-height .2s ease;">
+        <div style="font-size:11px;color:var(--muted);line-height:1.5;padding-top:6px;overflow-wrap:break-word;white-space:pre-wrap;">${n.body ? escHtml(n.body) : '<span style="color:var(--faint);">내용 없음</span>'}</div>
+      </div>
     </div>`).join('');
   cards.forEach(c => c.style.display = 'flex');
   lists.forEach(l => l.innerHTML = html);
+}
+
+function toggleDashNotice(item) {
+  const list = item.closest('.dash-notice-list');
+  if (!list) return;
+  const wasOpen = item.classList.contains('open');
+  list.querySelectorAll('.dash-notice-item.open').forEach(el => {
+    el.classList.remove('open');
+    const arrow = el.querySelector('.dash-notice-arrow');
+    if (arrow) arrow.style.transform = '';
+    const body = el.querySelector('.dash-notice-body');
+    if (body) body.style.maxHeight = '0px';
+  });
+  if (!wasOpen) {
+    item.classList.add('open');
+    const arrow = item.querySelector('.dash-notice-arrow');
+    if (arrow) arrow.style.transform = 'rotate(180deg)';
+    const body = item.querySelector('.dash-notice-body');
+    if (body) body.style.maxHeight = body.scrollHeight + 'px';
+  }
 }
 
 async function openAllNoticesModal() {
