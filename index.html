@@ -4297,7 +4297,12 @@ async function loadNotifyLog() {
     return `<tr style="cursor:pointer;" onclick="toggleNotifyDetail(this)">
       <td style="font-size:11px;font-variant-numeric:tabular-nums;color:var(--faint);">${escHtml(n.id.slice(0,8))}…</td>
       <td style="font-size:12px;font-weight:600;">${escHtml(ticketNum)}</td>
-      <td><span class="badge ${n.channel === 'slack' ? 'b-green' : 'b-accent'}" style="font-size:11px;">${n.channel === 'email' ? 'Gmail' : n.channel === 'slack' ? 'Slack' : escHtml(n.channel || '—')}</span></td>
+      <td>${n.channel === 'slack'
+        ? '<span class="badge" style="font-size:11px;background:#d1fae5;color:#065f46;">Slack</span>'
+        : n.channel === 'email'
+          ? '<span class="badge" style="font-size:11px;background:#fce7f3;color:#9d174d;">Gmail</span>'
+          : `<span class="badge b-gray" style="font-size:11px;">${escHtml(n.channel||'—')}</span>`
+      }</td>
       <td style="font-size:12px;">${escHtml(EVENT_TYPE_KO[n.event_type] || n.event_type || '—')}</td>
       <td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(n.recipient || '—')}</td>
       <td>${statusBadge}</td>
