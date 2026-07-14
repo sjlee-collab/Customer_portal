@@ -2006,6 +2006,13 @@ const ACCOUNTS = {
   'swlee@bigxdata.io':     { role: 'sales',        pw: 'bigxdata1234!', name: '이승우',  company: '빅스데이터' },
 };
 
+async function hashPassword(pw) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function isHashed(pw) { return typeof pw === 'string' && /^[0-9a-f]{64}$/.test(pw); }
+
 let currentUser = null;
 
 function fillLogin(email, pw) {
@@ -2014,7 +2021,7 @@ function fillLogin(email, pw) {
   document.getElementById('login-error').style.display = 'none';
 }
 
-function doLogin() {
+async function doLogin() {
   const email = document.getElementById('login-email').value.trim();
   const pw    = document.getElementById('login-pw').value;
   const errEl = document.getElementById('login-error');
@@ -2022,7 +2029,7 @@ function doLogin() {
   if (!email) { errEl.textContent = '이메일을 입력하세요.'; errEl.style.display = ''; return; }
   if (!pw)    { errEl.textContent = '비밀번호를 입력하세요.'; errEl.style.display = ''; return; }
 
-  // Supabase 미연결 시 로컬 ACCOUNTS 폴백
+  // Supabase 미연결 시 로컬 ACCOUNTS 폴백 (평문 비교만)
   if (!sb) {
     const acct = ACCOUNTS[email];
     if (!acct) { errEl.textContent = '등록되지 않은 계정입니다.'; errEl.style.display = ''; return; }
@@ -2032,48 +2039,50 @@ function doLogin() {
     return;
   }
 
-  // Supabase 연결 시: users 테이블에서 프로필 조회 + 로컬 비밀번호 검증
   const btn = document.querySelector('#screen-login .btn-primary');
   if (btn) { btn.disabled = true; btn.textContent = '로그인 중...'; }
   errEl.style.display = 'none';
 
-  sb.from('users').select('id, name, role, company_id, phone, is_active, password, companies(name)').eq('email', email).single().then(({ data: u, error: ue }) => {
-    if (btn) { btn.disabled = false; btn.textContent = '로그인'; }
-    if (ue || !u) {
-      // DB에 없으면 ACCOUNTS 로컬 폴백
-      const localAcct = ACCOUNTS[email];
-      if (localAcct) {
-        if (localAcct.pw && pw !== localAcct.pw) {
-          errEl.textContent = '비밀번호가 올바르지 않습니다.';
-          errEl.style.display = '';
-          return;
-        }
-        errEl.style.display = 'none';
-        enterApp(email, localAcct);
-        return;
-      }
-      errEl.textContent = '등록되지 않은 계정입니다. 담당자에게 문의하세요.';
-      errEl.style.display = '';
-      return;
-    }
-    if (u.is_active === false) {
-      errEl.textContent = '비활성화된 계정입니다. 담당자에게 문의하세요.';
-      errEl.style.display = '';
-      return;
-    }
-    // 비밀번호 검증: DB password 우선, 없으면 ACCOUNTS 폴백
-    const dbPw = u.password;
+  const { data: u, error: ue } = await sb.from('users').select('id, name, role, company_id, phone, is_active, password, companies(name)').eq('email', email).single();
+  if (btn) { btn.disabled = false; btn.textContent = '로그인'; }
+
+  if (ue || !u) {
     const localAcct = ACCOUNTS[email];
-    const expectedPw = dbPw || localAcct?.pw;
-    if (expectedPw && pw !== expectedPw) {
-      errEl.textContent = '비밀번호가 올바르지 않습니다.';
-      errEl.style.display = '';
+    if (localAcct) {
+      if (localAcct.pw && pw !== localAcct.pw) { errEl.textContent = '비밀번호가 올바르지 않습니다.'; errEl.style.display = ''; return; }
+      errEl.style.display = 'none';
+      enterApp(email, localAcct);
       return;
     }
-    errEl.style.display = 'none';
-    const companyName = u.companies?.name || '';
-    enterApp(email, { id: u.id, role: u.role, name: u.name, company_id: u.company_id || null, company: companyName, phone: u.phone || '' });
-  });
+    errEl.textContent = '등록되지 않은 계정입니다. 담당자에게 문의하세요.';
+    errEl.style.display = '';
+    return;
+  }
+  if (u.is_active === false) {
+    errEl.textContent = '비활성화된 계정입니다. 담당자에게 문의하세요.';
+    errEl.style.display = '';
+    return;
+  }
+
+  const dbPw = u.password;
+  const localAcct = ACCOUNTS[email];
+  const expectedPw = dbPw || localAcct?.pw;
+
+  if (expectedPw) {
+    const pwHash = await hashPassword(pw);
+    if (isHashed(expectedPw)) {
+      // DB에 해시 저장된 경우 → 해시 비교
+      if (pwHash !== expectedPw) { errEl.textContent = '비밀번호가 올바르지 않습니다.'; errEl.style.display = ''; return; }
+    } else {
+      // DB에 평문 저장된 경우 → 평문 비교 후 자동 해시 업그레이드
+      if (pw !== expectedPw) { errEl.textContent = '비밀번호가 올바르지 않습니다.'; errEl.style.display = ''; return; }
+      if (u.id) sb.from('users').update({ password: pwHash }).eq('id', u.id).then(() => {});
+    }
+  }
+
+  errEl.style.display = 'none';
+  const companyName = u.companies?.name || '';
+  enterApp(email, { id: u.id, role: u.role, name: u.name, company_id: u.company_id || null, company: companyName, phone: u.phone || '' });
 }
 
 function enterApp(email, acct) {
@@ -2207,14 +2216,15 @@ async function saveMyPage() {
     if (pwNew.length < 8) { pwErr.textContent = '새 비밀번호는 8자 이상이어야 합니다.'; pwErr.style.display = ''; return; }
     if (pwNew !== pwConfirm) { pwErr.textContent = '새 비밀번호가 일치하지 않습니다.'; pwErr.style.display = ''; return; }
 
-    // 현재 비밀번호 DB 검증
+    // 현재 비밀번호 DB 검증 (해시 지원)
     if (sb && currentUser?.id) {
       const { data: u } = await sb.from('users').select('password').eq('id', currentUser.id).single();
       const stored = u?.password || ACCOUNTS[currentUser.email]?.pw;
-      if (stored && pwCurrent !== stored) {
-        pwErr.textContent = '현재 비밀번호가 올바르지 않습니다.';
-        pwErr.style.display = '';
-        return;
+      if (stored) {
+        const match = isHashed(stored)
+          ? (await hashPassword(pwCurrent)) === stored
+          : pwCurrent === stored;
+        if (!match) { pwErr.textContent = '현재 비밀번호가 올바르지 않습니다.'; pwErr.style.display = ''; return; }
       }
     }
     pwErr.style.display = 'none';
@@ -2230,7 +2240,7 @@ async function saveMyPage() {
       const payload = { name };
       if (phone) payload.phone = phone;
       if (dept)  payload.department = dept;
-      if (changePw) payload.password = pwNew;
+      if (changePw) payload.password = await hashPassword(pwNew);
       const { error } = await sb.from('users').update(payload).eq('id', currentUser.id);
       if (error) { alert('저장 중 오류가 발생했습니다: ' + error.message); return; }
     }
