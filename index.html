@@ -3513,21 +3513,8 @@ async function submitRequest() {
     }
   }
 
-  // 접수 확인 메일 직접 발송 (currentUser.email 우선 사용)
-  if (ticketId && currentUser?.email) {
-    sb.functions.invoke('send-email', {
-      body: {
-        type: 'INSERT',
-        record: data,
-        old_record: null,
-        requester_email: currentUser.email,
-        requester_name:  currentUser.name || '고객'
-      }
-    }).catch(e => console.error('[send-email 직접 발송 실패]', e));
-  }
-
   closeModal('modal-new');
-  showToast('✅ ' + (ticketNum || '티켓') + ' 접수 완료 — 확인 메일이 발송됩니다.');
+  showToast('✅ ' + (ticketNum || '티켓') + ' 접수 완료.');
   await loadTickets();
   loadDashboard();
 }
