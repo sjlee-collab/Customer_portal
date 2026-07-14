@@ -2163,16 +2163,30 @@ function openMyPage() {
 }
 
 function saveMyPage() {
-  const name = document.getElementById('mp-name').value.trim();
+  const name  = document.getElementById('mp-name').value.trim();
+  const phone = document.getElementById('mp-phone').value.trim();
+  const dept  = document.getElementById('mp-dept').value.trim();
   if (!name) { alert('이름을 입력하세요.'); return; }
   if (currentUser) {
-    currentUser.name = name;
+    currentUser.name  = name;
+    currentUser.phone = phone;
     // topbar 반영
     ['topbar-name','user-menu-name','mp-name-display'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=name; });
     ['topbar-avatar','user-menu-avatar','mp-avatar-big'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=name.charAt(0); });
+    // localStorage 세션 갱신
+    try { localStorage.setItem('cs_session', JSON.stringify(currentUser)); } catch(_) {}
+    // Supabase DB 저장
+    if (sb && currentUser.id) {
+      const payload = { name };
+      if (phone) payload.phone = phone;
+      if (dept)  payload.department = dept;
+      sb.from('users').update(payload).eq('id', currentUser.id).then(({ error }) => {
+        if (error) console.error('마이페이지 저장 오류:', error);
+      });
+    }
   }
   document.getElementById('modal-mypage').style.display = 'none';
-  // 실제 구현 시 Supabase users 테이블 UPDATE 연결
+  showToast('프로필이 저장되었습니다.');
 }
 
 function doLogout() {
