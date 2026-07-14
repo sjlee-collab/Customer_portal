@@ -6061,16 +6061,22 @@ initSupabase();
     if (!saved) { goScreen('screen-login'); return; }
     const acct = JSON.parse(saved);
     if (!acct?.email || !acct?.role) { goScreen('screen-login'); return; }
-    // DB에서 계정 상태 재확인 (비활성화 여부 등)
-    if (sb && acct.id) {
-      sb.from('users').select('is_active').eq('id', acct.id).single().then(({ data }) => {
-        if (data?.is_active === false) {
-          localStorage.removeItem('cs_session');
-          goScreen('screen-login');
-        } else {
+    // DB에서 계정 정보를 이메일 기준으로 다시 조회 (캐시된 세션에 id가 없거나 오래된 경우 대비)
+    if (sb) {
+      sb.from('users').select('id, name, role, company_id, phone, is_active, companies(name)').eq('email', acct.email).single().then(({ data: u, error }) => {
+        if (error || !u) {
+          // DB 조회 실패 시 저장된 세션으로 그냥 진입
           const { email, ...rest } = acct;
           enterApp(email, rest);
+          return;
         }
+        if (u.is_active === false) {
+          localStorage.removeItem('cs_session');
+          goScreen('screen-login');
+          return;
+        }
+        const companyName = u.companies?.name || '';
+        enterApp(acct.email, { id: u.id, role: u.role, name: u.name, company_id: u.company_id || null, company: companyName, phone: u.phone || '' });
       }).catch(() => {
         // DB 조회 실패 시 저장된 세션으로 그냥 진입
         const { email, ...rest } = acct;
