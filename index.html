@@ -533,7 +533,14 @@ textarea{resize:vertical;min-height:100px;}
               <div class="dash-notice-list" style="flex:1;min-height:0;overflow:hidden;"></div>
             </div>
             <div class="card" style="display:flex;flex-direction:column;overflow:hidden;">
-              <div class="card-title" style="margin-bottom:0;flex-shrink:0;padding-bottom:12px;">최근 요청</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;padding-bottom:10px;">
+                <div class="card-title" style="margin-bottom:0;">최근 요청</div>
+                <div style="display:flex;gap:6px;">
+                  <button id="dash-filter-all" onclick="setDashFilter('all')" style="font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid var(--border-strong);background:var(--accent);color:#fff;cursor:pointer;">전체</button>
+                  <button id="dash-filter-pending" onclick="setDashFilter('pending')" style="font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid var(--border-strong);background:transparent;color:var(--muted);cursor:pointer;">미처리</button>
+                  <button id="dash-filter-delayed" onclick="setDashFilter('delayed')" style="font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid var(--border-strong);background:transparent;color:var(--muted);cursor:pointer;">지연 (3일+)</button>
+                </div>
+              </div>
               <div class="tbl-scroll list-scroll" style="flex:1;min-height:0;overflow:hidden;"><table class="tbl">
                 <thead><tr><th>요청 번호</th><th>고객사</th><th>제목</th><th>카테고리</th><th>상태</th><th>접수일</th></tr></thead>
                 <tbody id="dash-admin-pending-tbody">
@@ -3190,31 +3197,73 @@ async function loadDashboard() {
     const DASH_ALLOWED_CATS = { tech_support: ['tech_support', 'other'], sales: ['contract', 'license', 'education', 'other'] };
     const dashAllowedCats = DASH_ALLOWED_CATS[role] || null;
     let recentQ = sb.from('tickets')
-      .select('id, ticket_number, title, category, status, created_at, company:company_id(name)')
-      .order('created_at', { ascending: false }).limit(20);
+      .select('id, ticket_number, title, category, status, priority, created_at, company:company_id(name)')
+      .order('created_at', { ascending: false }).limit(200);
     if (dashAllowedCats) recentQ = recentQ.in('category', dashAllowedCats);
     const { data: recentTickets } = await recentQ;
-    const ptbody = document.getElementById('dash-admin-pending-tbody');
-    if (ptbody && recentTickets) {
-      if (!recentTickets.length) {
-        ptbody.innerHTML = '<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--faint);">요청 없음</td></tr>';
-      } else {
-        ptbody.innerHTML = recentTickets.map(t => {
-          const catL = CATEGORY_LABELS[t.category] || t.category || '—';
-          const catC = CATEGORY_BADGE[t.category] || 'b-gray';
-          const statL = STATUS_LABELS[t.status] || t.status;
-          const statB = STATUS_BADGE[t.status] || 'b-gray';
-          return `<tr style="cursor:pointer;" onclick="goToManageTicket('${t.id}')">` +
-            `<td style="color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;font-size:12px;">${escHtml(t.ticket_number||'')}</td>` +
-            `<td style="font-size:12px;">${escHtml(t.company?.name||'—')}</td>` +
-            `<td style="font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(t.title||'')}</td>` +
-            `<td><span class="badge ${catC}">${catL}</span></td>` +
-            `<td><span class="badge ${statB}" style="font-size:11px;">${statL}</span></td>` +
-            `<td style="font-size:12px;color:var(--faint);">${(t.created_at||'').slice(0,10)}</td></tr>`;
-        }).join('');
-      }
-    }
+    window._dashAdminTickets = recentTickets || [];
+    renderDashAdminTable(window._dashAdminFilter || 'all');
   }
+}
+
+let _dashAdminFilter = 'all';
+window._dashAdminFilter = 'all';
+
+function setDashFilter(f) {
+  window._dashAdminFilter = f;
+  ['all','pending','delayed'].forEach(k => {
+    const btn = document.getElementById('dash-filter-' + k);
+    if (!btn) return;
+    if (k === f) {
+      btn.style.background = 'var(--accent)';
+      btn.style.color = '#fff';
+      btn.style.borderColor = 'var(--accent)';
+    } else {
+      btn.style.background = 'transparent';
+      btn.style.color = 'var(--muted)';
+      btn.style.borderColor = 'var(--border-strong)';
+    }
+  });
+  renderDashAdminTable(f);
+}
+
+function renderDashAdminTable(f) {
+  const ptbody = document.getElementById('dash-admin-pending-tbody');
+  if (!ptbody) return;
+  const all = window._dashAdminTickets || [];
+  const PENDING_STATUSES = ['open', 'in_progress', 'pending'];
+  const now = Date.now();
+  let tickets = all;
+  if (f === 'pending') {
+    tickets = all.filter(t => PENDING_STATUSES.includes(t.status));
+  } else if (f === 'delayed') {
+    tickets = all.filter(t => {
+      if (!PENDING_STATUSES.includes(t.status)) return false;
+      const created = new Date(t.created_at).getTime();
+      return (now - created) > 3 * 24 * 60 * 60 * 1000;
+    });
+  }
+  if (!tickets.length) {
+    ptbody.innerHTML = `<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--faint);">${f === 'delayed' ? '지연 요청 없음' : f === 'pending' ? '미처리 요청 없음' : '요청 없음'}</td></tr>`;
+    return;
+  }
+  ptbody.innerHTML = tickets.slice(0, 50).map(t => {
+    const catL = CATEGORY_LABELS[t.category] || t.category || '—';
+    const catC = CATEGORY_BADGE[t.category] || 'b-gray';
+    const statL = STATUS_LABELS[t.status] || t.status;
+    const statB = STATUS_BADGE[t.status] || 'b-gray';
+    const created = new Date(t.created_at).getTime();
+    const days = Math.floor((now - created) / (24 * 60 * 60 * 1000));
+    const isDelayed = PENDING_STATUSES.includes(t.status) && days >= 3;
+    const rowStyle = isDelayed ? 'cursor:pointer;border-left:3px solid var(--red);' : 'cursor:pointer;';
+    return `<tr style="${rowStyle}" onclick="goToManageTicket('${t.id}')">` +
+      `<td style="color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;font-size:12px;">${escHtml(t.ticket_number||'')}</td>` +
+      `<td style="font-size:12px;">${escHtml(t.company?.name||'—')}</td>` +
+      `<td style="font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(t.title||'')}</td>` +
+      `<td><span class="badge ${catC}">${catL}</span></td>` +
+      `<td><span class="badge ${statB}" style="font-size:11px;">${statL}</span></td>` +
+      `<td style="font-size:12px;color:var(--faint);">${(t.created_at||'').slice(0,10)}${isDelayed ? ` <span style="color:var(--red);font-size:10px;">+${days}일</span>` : ''}</td></tr>`;
+  }).join('');
 }
 
 // ══════════════════════════════════════════
