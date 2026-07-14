@@ -1155,7 +1155,7 @@ textarea{resize:vertical;min-height:100px;}
               <th><select id="notify-filter-type" onchange="loadNotifyLog()" class="th-filter">
                 <option value="">알림 유형</option>
                 <option value="slack">Slack</option>
-                <option value="email">Gmail</option>
+                <option value="email">Microsoft</option>
               </select></th>
               <th><select id="notify-filter-event" onchange="loadNotifyLog()" class="th-filter">
                 <option value="">이벤트</option>
@@ -1221,16 +1221,16 @@ textarea{resize:vertical;min-height:100px;}
             </div>
           </div>
 
-          <!-- Gmail API -->
+          <!-- Microsoft Graph API -->
           <div class="card">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
-              <div style="width:36px;height:36px;background:#EA4335;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700;">G</div>
-              <div><div style="font-weight:700;">Gmail (이메일 알림)</div><div style="font-size:11px;color:var(--faint);">고객 및 내부 이메일 발송</div></div>
+              <div style="width:36px;height:36px;background:#0078D4;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700;">M</div>
+              <div><div style="font-weight:700;">Microsoft (이메일 알림)</div><div style="font-size:11px;color:var(--faint);">고객 및 내부 이메일 발송</div></div>
               <span class="badge b-green" style="margin-left:auto;">연결됨</span>
             </div>
-            <div class="info-row"><span class="info-label">발신 주소</span><span class="info-val">bigxdatacp@gmail.com</span></div>
-            <div class="info-row"><span class="info-label">발송 방식</span><span class="info-val">Gmail API (OAuth2)</span></div>
-            <div class="info-row"><span class="info-label">인증 방식</span><span class="info-val">Refresh Token · Supabase Secret 등록</span></div>
+            <div class="info-row"><span class="info-label">발신 주소</span><span class="info-val">hr@bigxdata.io</span></div>
+            <div class="info-row"><span class="info-label">발송 방식</span><span class="info-val">Microsoft Graph API</span></div>
+            <div class="info-row"><span class="info-label">인증 방식</span><span class="info-val">Azure AD · Client Credentials</span></div>
             <div class="info-row"><span class="info-label">발송 조건 (고객)</span><span class="info-val">상태 변경 (담당자가 수동 발송)</span></div>
             <div class="info-row"><span class="info-label">발송 조건 (내부)</span><span class="info-val">신규 요청 · 계약/라이선스 · 긴급</span></div>
             <div style="margin-top:12px;padding:10px 12px;background:var(--surface-alt,#f8f9fa);border-radius:6px;font-size:11px;color:var(--muted);line-height:1.7;">
