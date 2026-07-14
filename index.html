@@ -2331,7 +2331,7 @@ async function loadTicketHistory(ticketId) {
   tl.innerHTML = data.map(h => {
     const act = TICKET_ACTION_LABELS[h.action] || { label: h.action, color: 'var(--faint)' };
     const who = h.changed_by?.name || '';
-    const when = (h.created_at || '').slice(0,16).replace('T',' ');
+    const when = fmtTime(h.created_at);
     const detail = h.field_name
       ? `<div style="font-size:12px;color:var(--muted);margin:3px 0;">${h.field_name}: ${h.old_value || '?'} → ${h.new_value || '?'}</div>`
       : h.note ? `<div style="font-size:12px;color:var(--muted);margin:3px 0;">${escHtml(h.note)}</div>` : '';
@@ -2374,7 +2374,7 @@ async function loadIntegrationLogFor(system, tbodyId) {
   tbody.innerHTML = data.map(r => {
     const stBadge = INTEG_STATUS_BADGE[r.status] || 'b-gray';
     const stLabel = INTEG_STATUS_LABEL[r.status] || r.status;
-    const when    = (r.created_at || '').slice(0,16).replace('T',' ');
+    const when    = fmtTime(r.created_at);
     const dur     = r.duration_ms != null ? r.duration_ms : '—';
     return `<tr>
       <td style="font-size:11px;">${escHtml(r.action)}</td>
@@ -3631,9 +3631,15 @@ function showToast(msg, isError) {
 // ══════════════════════════════════════════
 //  유틸
 // ══════════════════════════════════════════
+function _parseUTC(iso) {
+  if (!iso) return null;
+  // Z나 +가 없으면 UTC로 강제 처리
+  if (!/[Z+]/.test(iso.slice(10))) return new Date(iso + 'Z');
+  return new Date(iso);
+}
 function fmtTime(iso) {
   if (!iso) return '';
-  const d = new Date(iso);
+  const d = _parseUTC(iso);
   const yy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
@@ -3643,7 +3649,7 @@ function fmtTime(iso) {
 }
 function fmtTimeSec(iso) {
   if (!iso) return '';
-  const d = new Date(iso);
+  const d = _parseUTC(iso);
   const ss = String(d.getSeconds()).padStart(2, '0');
   return `${fmtTime(iso)}:${ss}`;
 }
