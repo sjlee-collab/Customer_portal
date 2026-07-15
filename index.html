@@ -3131,7 +3131,8 @@ async function deleteNotice(id, title) {
   if (error) { showToast('삭제 실패: ' + error.message, true); return; }
   showToast('삭제됐습니다.');
   loadNotices();
-  openAllNoticesModal();
+  const noticeModal = document.getElementById('modal-notices');
+  if (noticeModal && noticeModal.style.display !== 'none') openAllNoticesModal();
 }
 
 async function loadDashboard() {
