@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -1008,9 +1008,9 @@ textarea{resize:vertical;min-height:100px;}
         </div>
         <div class="card" style="padding:0;overflow:hidden;">
           <div class="tbl-scroll list-scroll"><table class="tbl">
-            <thead><tr><th>고객사명</th><th>상태</th><th>고객유형</th><th>사용제품</th><th>담당영업</th><th>담당기술지원</th><th>대표담당자</th><th>연락처</th><th>알림이메일</th><th>이메일알림</th><th>액션</th></tr></thead>
+            <thead><tr><th>고객사명</th><th>상태</th><th>고객유형</th><th>사용제품</th><th>담당영업</th><th>담당기술지원</th><th>대표담당자</th><th>연락처</th><th>액션</th></tr></thead>
             <tbody id="companies-tbody">
-              <tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
+              <tr><td colspan="9" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
             </tbody>
           </table></div>
         </div>
@@ -1042,7 +1042,7 @@ textarea{resize:vertical;min-height:100px;}
             </div>
             <div class="tbl-scroll"><table class="tbl">
               <thead><tr><th>제품정보</th><th>라이선스종류</th><th>라이선스상태</th><th>수량</th><th>시작일자</th><th>만료일자</th><th>갱신예정일자</th><th>라이선스키</th><th>비고</th><th>첨부파일</th><th>액션</th></tr></thead>
-              <tbody id="licenses-tbody"><tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);">라이선스 정보를 불러오는 중...</td></tr></tbody>
+              <tbody id="licenses-tbody"><tr><td colspan="9" style="padding:20px;text-align:center;color:var(--faint);">라이선스 정보를 불러오는 중...</td></tr></tbody>
             </table></div>
           </div>
         </div>
@@ -3825,7 +3825,7 @@ function renderCompanies(companies) {
   if (!tbody) return;
   detachCompanyDetailPanel(tbody);
   if (!companies.length) {
-    tbody.innerHTML = '<tr><td colspan="11" style="padding:40px;text-align:center;color:var(--faint);">등록된 고객사가 없습니다.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="padding:40px;text-align:center;color:var(--faint);">등록된 고객사가 없습니다.</td></tr>';
     return;
   }
   const isAdmin = currentUser && ['tech_support','admin','sales'].includes(currentUser.role);
@@ -3850,12 +3850,7 @@ function renderCompanies(companies) {
       return `<span style="${style}">${escHtml(p)}</span>`;
     }).join('');
     const ctLabel = CUSTOMER_TYPE_KO[c.customer_type] || (c.customer_type ? escHtml(c.customer_type) : '—');
-    const notifyEmails = Array.isArray(c.notification_emails) && c.notification_emails.length
-      ? `<span style="font-size:11px;">${escHtml(c.notification_emails[0])}${c.notification_emails.length > 1 ? `<br><span style="color:var(--faint);">외 ${c.notification_emails.length-1}개</span>` : ''}</span>`
-      : '<span style="color:var(--faint);">—</span>';
-    const emailNotify = c.email_notification_enabled === false
-      ? '<span class="badge b-gray" style="font-size:10px;">끔</span>'
-      : '<span class="badge b-green" style="font-size:10px;">켜짐</span>';
+
     return `
       <tr class="company-row" style="cursor:pointer;" onclick="selectCompany(this,'${c.id}','${escHtml(c.name)}','${stLabel}')">
         <td style="font-weight:600;">${escHtml(c.name)}</td>
@@ -3866,15 +3861,13 @@ function renderCompanies(companies) {
         <td style="font-size:12px;">${escHtml(c.tech_support_manager || '—')}</td>
         <td style="font-size:12px;">${escHtml(c.main_contact_name || '—')}</td>
         <td style="font-size:12px;">${escHtml(c.main_contact_phone || '—')}</td>
-        <td style="font-size:12px;">${notifyEmails}</td>
-        <td>${emailNotify}</td>
         <td style="white-space:nowrap;" onclick="event.stopPropagation()">
           ${isAdmin ? `<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick='openEditCompany(${escHtml(JSON.stringify(c).replace(/'/g,"&#39;"))})'>수정</button>` : ''}
           <button class="btn btn-ghost btn-sm" style="font-size:11px;color:#e53e3e;" onclick="deleteCompany('${c.id}','${escHtml(c.name)}')">삭제</button>
         </td>
       </tr>
       <tr class="company-detail-row" style="display:none;">
-        <td colspan="11" style="padding:16px;background:var(--surface2);"></td>
+        <td colspan="9" style="padding:16px;background:var(--surface2);"></td>
       </tr>`;
   }).join('');
 }
@@ -4114,11 +4107,11 @@ async function loadCompanyContracts() {
 async function loadCompanyLicenses() {
   const tbody = document.getElementById('licenses-tbody');
   if (!tbody || !selectedCompanyId) return;
-  tbody.innerHTML = '<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>';
-  if (!sb) { tbody.innerHTML = '<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);">DB 미연결</td></tr>'; return; }
+  tbody.innerHTML = '<tr><td colspan="9" style="padding:20px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>';
+  if (!sb) { tbody.innerHTML = '<tr><td colspan="9" style="padding:20px;text-align:center;color:var(--faint);">DB 미연결</td></tr>'; return; }
   const { data, error } = await sb.from('company_licenses').select('*').eq('company_id', selectedCompanyId).order('created_at', { ascending: false });
   if (error || !data || !data.length) {
-    tbody.innerHTML = '<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);">등록된 라이선스 정보가 없습니다.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="padding:20px;text-align:center;color:var(--faint);">등록된 라이선스 정보가 없습니다.</td></tr>';
     return;
   }
   const LIC_STATUS_BADGE = { 활성:'b-green', 만료:'b-red', 일시중단:'b-amber', 대기:'b-gray' };
@@ -5004,7 +4997,7 @@ function renderAllTickets() {
   }
 
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="11" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">조건에 맞는 요청이 없습니다.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">조건에 맞는 요청이 없습니다.</td></tr>';
     return;
   }
   tbody.innerHTML = list.map((t) => {
@@ -5034,7 +5027,7 @@ function renderAllTickets() {
       <td><button class="btn btn-primary btn-sm" style="font-size:11px;" onclick="event.stopPropagation();openManage(${idx})">처리</button></td>
     </tr>
     <tr class="ticket-detail-row" style="display:none;">
-      <td colspan="11" style="padding:10px 10px 0;background:var(--bg);"></td>
+      <td colspan="9" style="padding:10px 10px 0;background:var(--bg);"></td>
     </tr>`;
   }).join('');
 }
