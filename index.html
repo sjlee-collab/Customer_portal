@@ -503,6 +503,12 @@ textarea{resize:vertical;min-height:100px;}
           <span id="dlc-start" style="display:none;"></span>
           <span id="dlc-end" style="display:none;"></span>
         </div>
+        <!-- 내부 전용 오늘 신규요청 카드 -->
+        <div id="dash-today-stat" class="stat" style="display:none;">
+          <div class="stat-label">오늘 신규요청</div>
+          <div class="stat-val" id="dash-today-val">—</div>
+          <div class="stat-sub" id="dash-today-sub">불러오는 중...</div>
+        </div>
         <div class="stat">
           <div class="stat-label">처리 중 요청</div>
           <div class="stat-val" id="dash-inprogress-val">—</div>
@@ -3240,10 +3246,12 @@ async function loadDashboard() {
 
     // 처리 중 / 이번 달 접수
     const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
-    const [{ count: inProg }, { count: thisMonth }, { count: completed }] = await Promise.all([
+    const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+    const [{ count: inProg }, { count: thisMonth }, { count: completed }, { count: todayNew }] = await Promise.all([
       applyFilter(sb.from('tickets').select('id',{count:'exact',head:true})).in('status', ACTIVE),
       applyFilter(sb.from('tickets').select('id',{count:'exact',head:true})).gte('created_at', monthStart.toISOString()),
       applyFilter(sb.from('tickets').select('id',{count:'exact',head:true})).eq('status', 'completed'),
+      sb.from('tickets').select('id',{count:'exact',head:true}).gte('created_at', todayStart.toISOString()),
     ]);
     const ipVal = document.getElementById('dash-inprogress-val');
     const ipSub = document.getElementById('dash-inprogress-sub');
@@ -3251,6 +3259,16 @@ async function loadDashboard() {
     if (ipVal) ipVal.textContent = inProg ?? '—';
     if (ipSub) ipSub.textContent = '이번 달 접수 ' + (thisMonth ?? 0) + '건';
     if (cpVal) cpVal.textContent = completed ?? '—';
+
+    // 내부: 오늘 신규요청 카드 표시
+    if (role === 'internal') {
+      const todayStat = document.getElementById('dash-today-stat');
+      if (todayStat) todayStat.style.display = '';
+      const tvVal = document.getElementById('dash-today-val');
+      const tvSub = document.getElementById('dash-today-sub');
+      if (tvVal) tvVal.textContent = todayNew ?? 0;
+      if (tvSub) tvSub.textContent = '전체 고객사 기준';
+    }
 
     // 평균 처리 시간 (최근 30일 완료 티켓)
     const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
