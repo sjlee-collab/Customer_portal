@@ -3661,7 +3661,11 @@ async function submitRequest() {
   if (sb && ticketId) {
     sb.from('tickets').select('*, companies(name), users!tickets_created_by_fkey(name,email)').eq('id', ticketId).single().then(({ data: td }) => {
       if (td) sb.functions.invoke('send-email', {
-        body: { type: 'INSERT', record: td }
+        body: {
+          type: 'INSERT', record: td,
+          requester_email: currentUser?.email || null,
+          requester_name:  currentUser?.name  || null,
+        }
       }).catch(e => console.error('[send-email 신규등록 실패]', e));
     });
   }
