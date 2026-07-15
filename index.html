@@ -3268,8 +3268,6 @@ async function loadDashboard() {
       const tvSub = document.getElementById('dash-today-sub');
       if (tvVal) tvVal.textContent = todayNew ?? 0;
       if (tvSub) tvSub.textContent = '전체 고객사 기준';
-      const avgtimeCard = document.getElementById('dash-avgtime-card');
-      if (avgtimeCard) avgtimeCard.style.display = 'none';
     }
 
     // 평균 처리 시간 (최근 30일 완료 티켓)
