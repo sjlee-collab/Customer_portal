@@ -905,7 +905,7 @@ textarea{resize:vertical;min-height:100px;}
             <div id="rd-detail-content" style="display:none;flex-direction:column;gap:0;">
 
               <!-- 본문 + 사이드바 분리 레이아웃 -->
-              <div id="rd-inner-grid" style="display:grid;grid-template-columns:1fr 320px;gap:0;align-items:start;">
+              <div id="rd-inner-grid" style="display:grid;grid-template-columns:1fr 320px;gap:0;align-items:stretch;background:#fff;">
                 <!-- 좌측: 본문 카드 -->
                 <div class="card" style="padding:16px 20px;border-radius:0;border-left:none;border-right:none;border-top:none;border-bottom:none;margin-bottom:0;min-width:0;">
                     <!-- 제목 + 수정 (같은 줄) -->
@@ -942,7 +942,7 @@ textarea{resize:vertical;min-height:100px;}
                     </div>
                 </div>
                 <!-- 우측: 메타 사이드바 -->
-                <div id="rd-meta-sidebar" style="border-left:1px solid var(--border);padding:16px 16px;background:var(--surface);position:sticky;top:0;">
+                <div id="rd-meta-sidebar" style="border-left:1px solid var(--border);padding:16px 16px;background:#fff;position:sticky;top:0;min-height:100%;box-sizing:border-box;">
                     <!-- 완료예정일 (고객 계정에는 미노출) -->
                     <div id="rd-due-date-row" style="display:none;padding-bottom:9px;margin-bottom:9px;border-bottom:1px solid var(--border);">
                       <div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">완료예정일</div>
