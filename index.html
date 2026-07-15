@@ -3127,7 +3127,6 @@ async function submitNotice() {
 }
 
 async function deleteNotice(id, title) {
-  if (!confirm(`"${title}" 공지를 삭제하시겠습니까?`)) return;
   const { error } = await sb.from('content_notices').delete().eq('id', id);
   if (error) { showToast('삭제 실패: ' + error.message, true); return; }
   showToast('삭제됐습니다.');
