@@ -3178,6 +3178,10 @@ async function loadDashboard() {
   const role = currentUser.role;
   const ACTIVE = ['received','classifying','in_progress','assigned','pending_customer','on_hold'];
 
+  // 역할에 따라 라이선스 카드 초기 상태 설정 (SPA 재로그인 시 이전 DOM 상태 초기화)
+  const _licDetail = document.getElementById('dash-license-detail');
+  if (_licDetail) _licDetail.style.display = role === 'customer' ? '' : 'none';
+
   if (role === 'customer' || role === 'internal') {
     const companyId = currentUser.company_id;
     const userId    = currentUser.id;
