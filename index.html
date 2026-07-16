@@ -3941,7 +3941,7 @@ async function populateCompanyUserSelects() {
   const curTech  = techSel.value;
 
   const makeOpts = (users) => users.map(u =>
-    `<option value="${escHtml(u.name)}">${escHtml(u.name)}${u.division ? ' (' + escHtml(u.division) + ')' : ''}</option>`
+    `<option value="${escHtml(u.name)}">${escHtml(u.name)}${u.division ? ' (' + escHtml(u.division) + ')' : u.department ? ' (' + escHtml(u.department) + ')' : ''}</option>`
   ).join('');
 
   salesSel.innerHTML = '<option value="">선택 안 함</option>' + makeOpts(data.filter(u => u.role === 'sales'));
