@@ -1352,7 +1352,7 @@ textarea{resize:vertical;min-height:100px;}
         <div class="form-group"><label>이름</label><input id="mp-name" type="text" placeholder="이름"></div>
         <div class="form-group"><label>이메일</label><input id="mp-email" type="email" placeholder="이메일" readonly style="background:var(--surface2);color:var(--muted);"></div>
         <div class="form-group"><label>소속</label><input id="mp-company" type="text" placeholder="회사명" readonly style="background:var(--surface2);color:var(--muted);"></div>
-        <div class="form-group"><label>연락처</label><input id="mp-phone" type="tel" placeholder="010-0000-0000"></div>
+        <div class="form-group"><label>연락처</label><input id="mp-phone" type="tel" placeholder="010-0000-0000" oninput="this.value=this.value.replace(/[^0-9-]/g,'')"></div>
         <div class="form-group"><label>부서</label><input id="mp-dept" type="text" placeholder="부서명"></div>
       </div>
       <!-- 비밀번호 변경 -->
