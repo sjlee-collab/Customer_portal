@@ -423,6 +423,7 @@ textarea{resize:vertical;min-height:100px;}
     <span class="nt"        data-roles="admin"                     onclick="showPage(this,'p-users')">사용자 관리</span>
     <span class="nt"        data-roles="admin"                     onclick="showPage(this,'p-integration')">연동 관리</span>
     <span class="nt"        data-roles="admin"                     onclick="showPage(this,'p-notify-log')">알림 로그</span>
+    <span class="nt"        data-roles="admin"                     onclick="showPage(this,'p-permission')">권한 관리</span>
   </nav>
   <div class="nav-backdrop" id="nav-backdrop" onclick="toggleDrawer()"></div>
   <!-- ── 콘텐츠 영역 ── -->
@@ -1194,6 +1195,47 @@ textarea{resize:vertical;min-height:100px;}
             </tbody>
           </table></div>
         </div>
+      </div>
+
+      <!-- ══ 권한 관리 ══ -->
+      <div id="p-permission" class="page u-page">
+        <div class="section-header">
+          <div><div class="section-title">권한 관리</div><div class="section-sub">역할별 메뉴 접근 권한을 설정합니다</div></div>
+          <button class="btn btn-primary btn-sm" onclick="savePermissions()">저장</button>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div style="overflow-x:auto;">
+            <table class="tbl" style="table-layout:fixed;min-width:780px;">
+              <thead>
+                <tr>
+                  <th rowspan="2" style="width:110px;border-right:1.5px solid var(--border-strong);text-align:left;padding-left:14px;">역할</th>
+                  <th colspan="4" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">요청 관리</th>
+                  <th colspan="2" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">자료실</th>
+                  <th colspan="2" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">고객사</th>
+                  <th colspan="2" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">사용자</th>
+                  <th colspan="3" style="border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">시스템</th>
+                </tr>
+                <tr>
+                  <th style="border-left:1.5px solid var(--border-strong);font-size:10px;font-weight:400;color:var(--muted);">조회</th>
+                  <th style="font-size:10px;font-weight:400;color:var(--muted);">생성</th>
+                  <th style="font-size:10px;font-weight:400;color:var(--muted);">담당배정</th>
+                  <th style="border-right:1.5px solid var(--border-strong);font-size:10px;font-weight:400;color:var(--muted);">상태변경</th>
+                  <th style="font-size:10px;font-weight:400;color:var(--muted);">조회</th>
+                  <th style="border-right:1.5px solid var(--border-strong);font-size:10px;font-weight:400;color:var(--muted);">관리</th>
+                  <th style="font-size:10px;font-weight:400;color:var(--muted);">조회</th>
+                  <th style="border-right:1.5px solid var(--border-strong);font-size:10px;font-weight:400;color:var(--muted);">관리</th>
+                  <th style="font-size:10px;font-weight:400;color:var(--muted);">조회</th>
+                  <th style="border-right:1.5px solid var(--border-strong);font-size:10px;font-weight:400;color:var(--muted);">관리</th>
+                  <th style="font-size:10px;font-weight:400;color:var(--muted);">연동</th>
+                  <th style="font-size:10px;font-weight:400;color:var(--muted);">알림로그</th>
+                  <th style="font-size:10px;font-weight:400;color:var(--muted);">권한</th>
+                </tr>
+              </thead>
+              <tbody id="perm-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div style="margin-top:10px;font-size:11px;color:var(--muted);">* 관리자 권한은 고정값으로 변경할 수 없습니다.</div>
       </div>
 
       <!-- ══ 연동 관리 ══ -->
@@ -2330,6 +2372,7 @@ function showPage(tabEl, pageId) {
   if (pageId === 'p-downloads') { switchLibTab(); setTimeout(fitListHeight, 100); }
   if (pageId === 'p-integration') loadIntegrationLogs();
   if (pageId === 'p-notify-log')  loadNotifyLog().then(fitListHeight);
+  if (pageId === 'p-permission')  renderPermissions();
   if (pageId === 'p-request-detail') {
     const isCustomerUser = currentUser && !ADMIN_ROLES.has(currentUser.role);
     if (isCustomerUser) {
@@ -4442,6 +4485,83 @@ async function deleteLicense(id, filePath) {
   if (error) { showToast('삭제 실패: ' + error.message, true); return; }
   showToast('삭제되었습니다.');
   loadCompanyLicenses();
+}
+
+// ── 권한 관리 ──────────────────────────────────────────────────
+const PERM_ROLES = [
+  { key:'admin',        label:'관리자',   color:'#3B82F6', locked:true },
+  { key:'internal',     label:'내부 일반', color:'#8B5CF6', locked:false },
+  { key:'sales',        label:'영업',     color:'#10B981', locked:false },
+  { key:'tech_support', label:'기술지원', color:'#F59E0B', locked:false },
+  { key:'customer',     label:'고객',     color:'#6B7280', locked:false },
+];
+const PERM_COLS = [
+  'ticket_view','ticket_create','ticket_assign','ticket_status',
+  'library_view','library_manage',
+  'company_view','company_manage',
+  'user_view','user_manage',
+  'integration','notify_log','permission'
+];
+const PERM_DEFAULT = {
+  admin:        { ticket_view:1,ticket_create:1,ticket_assign:1,ticket_status:1,library_view:1,library_manage:1,company_view:1,company_manage:1,user_view:1,user_manage:1,integration:1,notify_log:1,permission:1 },
+  internal:     { ticket_view:1,ticket_create:0,ticket_assign:0,ticket_status:0,library_view:1,library_manage:0,company_view:1,company_manage:0,user_view:0,user_manage:0,integration:0,notify_log:0,permission:0 },
+  sales:        { ticket_view:1,ticket_create:1,ticket_assign:0,ticket_status:0,library_view:1,library_manage:0,company_view:1,company_manage:1,user_view:1,user_manage:0,integration:0,notify_log:0,permission:0 },
+  tech_support: { ticket_view:1,ticket_create:1,ticket_assign:1,ticket_status:1,library_view:1,library_manage:1,company_view:1,company_manage:0,user_view:1,user_manage:0,integration:0,notify_log:1,permission:0 },
+  customer:     { ticket_view:1,ticket_create:1,ticket_assign:0,ticket_status:0,library_view:1,library_manage:0,company_view:0,company_manage:0,user_view:0,user_manage:0,integration:0,notify_log:0,permission:0 },
+};
+let permState = JSON.parse(JSON.stringify(PERM_DEFAULT));
+
+function renderPermissions() {
+  const tbody = document.getElementById('perm-tbody');
+  if (!tbody) return;
+  const sepCols = [3,5,7,9]; // border-right after these indices (0-based)
+  tbody.innerHTML = PERM_ROLES.map(role => {
+    const cells = PERM_COLS.map((col, i) => {
+      const on = permState[role.key][col];
+      const sepStyle = sepCols.includes(i) ? 'border-right:1.5px solid var(--border-strong);' : '';
+      const leftStyle = i === 0 ? 'border-left:1.5px solid var(--border-strong);' : '';
+      if (role.locked) {
+        const chip = on
+          ? `<span style="display:inline-block;width:20px;height:20px;border-radius:50%;line-height:20px;font-size:11px;background:var(--bg-success);color:var(--text-success);">✓</span>`
+          : `<span style="display:inline-block;width:20px;height:20px;border-radius:50%;line-height:20px;font-size:11px;background:var(--surface-alt,#f4f4f4);color:var(--muted);border:1px solid var(--border);">—</span>`;
+        return `<td style="text-align:center;${sepStyle}${leftStyle}">${chip}</td>`;
+      }
+      const chip = on
+        ? `<span onclick="togglePerm('${role.key}','${col}',this)" style="display:inline-block;width:20px;height:20px;border-radius:50%;line-height:20px;font-size:11px;background:var(--bg-success);color:var(--text-success);cursor:pointer;" title="클릭해서 끄기">✓</span>`
+        : `<span onclick="togglePerm('${role.key}','${col}',this)" style="display:inline-block;width:20px;height:20px;border-radius:50%;line-height:20px;font-size:11px;background:var(--surface-alt,#f4f4f4);color:var(--muted);border:1px solid var(--border);cursor:pointer;" title="클릭해서 켜기">—</span>`;
+      return `<td style="text-align:center;${sepStyle}${leftStyle}">${chip}</td>`;
+    }).join('');
+    const lockIcon = role.locked ? ' <span style="font-size:10px;color:var(--muted);">🔒</span>' : '';
+    return `<tr>
+      <td style="text-align:left;padding-left:14px;border-right:1.5px solid var(--border-strong);">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="width:8px;height:8px;border-radius:50%;background:${role.color};flex-shrink:0;display:inline-block;"></span>
+          <span style="font-size:12px;font-weight:500;">${role.label}</span>${lockIcon}
+        </div>
+      </td>${cells}</tr>`;
+  }).join('');
+}
+
+function togglePerm(role, col, el) {
+  permState[role][col] = permState[role][col] ? 0 : 1;
+  const on = permState[role][col];
+  if (on) {
+    el.textContent = '✓';
+    el.style.background = 'var(--bg-success)';
+    el.style.color = 'var(--text-success)';
+    el.style.border = 'none';
+    el.title = '클릭해서 끄기';
+  } else {
+    el.textContent = '—';
+    el.style.background = 'var(--surface-alt,#f4f4f4)';
+    el.style.color = 'var(--muted)';
+    el.style.border = '1px solid var(--border)';
+    el.title = '클릭해서 켜기';
+  }
+}
+
+function savePermissions() {
+  showToast('권한 설정이 저장됐습니다.');
 }
 
 // ── 알림 로그 ──────────────────────────────────────────────────
