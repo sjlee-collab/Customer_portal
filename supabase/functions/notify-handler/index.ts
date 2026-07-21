@@ -142,6 +142,37 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
+  // ── 지연 요청 배치 알림 (pg_cron 호출) ──
+  if (type === 'OVERDUE_BATCH') {
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: overdueTickets } = await supabase
+      .from('tickets')
+      .select('*')
+      .lt('due_date', today)
+      .not('status', 'in', '("completed","cancelled")')
+      .not('due_date', 'is', null);
+
+    if (overdueTickets && overdueTickets.length > 0) {
+      for (const ticket of overdueTickets) {
+        const names = await getNames(supabase, ticket);
+        const dueDateStr = new Date(ticket.due_date).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' });
+        const overdueDays = Math.floor((new Date().getTime() - new Date(ticket.due_date).getTime()) / (24 * 60 * 60 * 1000));
+        await sendSlack(
+          supabase, ticket.id, 'overdue',
+          `⏰ *완료예정일 초과 (+${overdueDays}일)*`,
+          buildBaseMessage(ticket, names) +
+          `\n• *완료예정일:* ${dueDateStr}` +
+          `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`
+        );
+      }
+    }
+
+    return new Response(JSON.stringify({ processed: overdueTickets?.length ?? 0 }), {
+      status: 200,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+    });
+  }
+
   // ── 신규 요청 등록 알림 ──
   if (table === 'tickets' && type === 'INSERT') {
     const names = await getNames(supabase, record);
