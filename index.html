@@ -3467,7 +3467,7 @@ function setTicketFilter(filter, el) {
 function applyTicketFilter() {
   const q = (document.getElementById('ticket-search')?.value || '').trim().toLowerCase();
   const filtered = allTickets.filter(t => {
-    if (q && !(t.ticket_number + ' ' + t.title).toLowerCase().includes(q)) return false;
+    if (q && !(t.ticket_number + ' ' + t.title + ' ' + (t.requester_name||'') + ' ' + (t.created_at||'').slice(0,10)).toLowerCase().includes(q)) return false;
     if (ticketFilter === 'active' && !['received','classifying','assigned','in_progress','pending_customer','on_hold'].includes(t.status)) return false;
     if (ticketFilter === 'completed' && t.status !== 'completed') return false;
     if (ticketFilter !== 'all' && ticketFilter !== 'active' && ticketFilter !== 'completed' && t.category !== ticketFilter) return false;
@@ -5037,7 +5037,7 @@ function renderAllTickets() {
   const q = (document.getElementById('ar-search')?.value || '').toLowerCase();
   const list = allMgTickets.filter(t => {
     if (renderAllowedCats && !renderAllowedCats.includes(t.category)) return false;
-    if (q && !((t.ticket_number||'').toLowerCase().includes(q) || (t.title||'').toLowerCase().includes(q))) return false;
+    if (q && !(t.ticket_number + ' ' + (t.title||'') + ' ' + (t.requester_name||'') + ' ' + (t.created_at||'').slice(0,10)).toLowerCase().includes(q)) return false;
     if (arFilters.category.length && !arFilters.category.includes(t.category)) return false;
     if (arFilters.priority.length && !arFilters.priority.includes(t.priority || 'normal')) return false;
     if (arFilters.status.length && !arFilters.status.includes(t.status)) return false;
