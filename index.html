@@ -384,8 +384,8 @@ textarea{resize:vertical;min-height:100px;}
   <!-- ── 통합 상단바 ── -->
   <div class="topbar">
     <button class="nav-toggle" id="nav-toggle" onclick="toggleDrawer()" aria-label="메뉴">☰</button>
-    <div class="logo" onclick="showPage('home')" style="cursor:pointer;">B</div>
-    <span class="site-name" onclick="showPage('home')" style="cursor:pointer;">고객지원 포탈</span>
+    <div class="logo" onclick="showPage(document.querySelector('.nt[data-roles=\'all\']'),'p-dashboard')" style="cursor:pointer;">B</div>
+    <span class="site-name" onclick="showPage(document.querySelector('.nt[data-roles=\'all\']'),'p-dashboard')" style="cursor:pointer;">고객지원 포탈</span>
     <div style="margin-left:auto;display:flex;align-items:center;gap:12px;">
       <!-- 사용자 드롭다운 -->
       <div class="user-dropdown" id="user-dropdown">
