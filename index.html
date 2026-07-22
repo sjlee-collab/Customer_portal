@@ -2829,6 +2829,15 @@ async function showDetail(ticket) {
     const mainBody = document.getElementById('main-body');
     if (mainBody) mainBody.scrollTop = 0;
 
+    // 이전에 걸려있던 필터 때문에 클릭한 항목이 목록에서 안 보이는 일이 없도록 전체 보기로 초기화
+    ticketFilter = 'all';
+    document.querySelectorAll('#p-my-requests .filter-bar .filter-chip').forEach(c => c.classList.remove('active'));
+    document.querySelector('#p-my-requests .filter-bar .filter-chip')?.classList.add('active');
+    tkFilters = { category: [], priority: [], status: [] };
+    document.querySelectorAll('#p-my-requests .th-filter-pop input[type=checkbox]').forEach(el => el.checked = false);
+    const searchBox = document.getElementById('ticket-search');
+    if (searchBox) searchBox.value = '';
+
     await loadTickets();
     openRequestRowById(ticket.id);
     return;
