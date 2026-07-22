@@ -2445,7 +2445,7 @@ async function loadTicketHistory(ticketId) {
   if (error || !data?.length) return; // 오류 시 기존 목업 유지
   tl.innerHTML = data.map(h => {
     const act = TICKET_ACTION_LABELS[h.action] || { label: h.action, color: 'var(--faint)' };
-    const who = h.changed_by?.name || '';
+    const who = h.changed_by?.name || h.changed_by_name || '';
     const when = fmtTime(h.created_at);
     const detail = h.field_name
       ? `<div style="font-size:12px;color:var(--muted);margin:3px 0;">${h.field_name}: ${h.old_value || '?'} → ${h.new_value || '?'}</div>`
@@ -2831,7 +2831,7 @@ async function showDetail(ticket) {
   const priL    = PRIORITY_LABELS[ticket.priority]   || '일반';
   const priB    = PRIORITY_BADGE[ticket.priority]    || 'b-gray';
   const date    = ticket.created_at ? ticket.created_at.slice(0,10) : '—';
-  const assignee = ticket.assignee?.name || ticket.assignee || '미배정';
+  const assignee = ticket.assignee?.name || ticket.assignee || ticket.assigned_to_name || '미배정';
 
   document.getElementById('d-ticket-number').textContent = num;
   document.getElementById('d-title').textContent         = ticket.title || '—';
@@ -2905,7 +2905,7 @@ async function loadCustomerTimeline(ticketId) {
 
   const [histRes, replyRes] = await Promise.all([
     sb.from('ticket_history')
-      .select('action, note, created_at, changed_by:changed_by(name)')
+      .select('action, note, created_at, changed_by_name, changed_by:changed_by(name)')
       .eq('ticket_id', ticketId)
       .order('created_at', { ascending: true }),
     sb.from('ticket_replies')
@@ -2938,7 +2938,7 @@ async function loadCustomerTimeline(ticketId) {
     _ts: h.created_at,
     action: h.action,
     note: h.note,
-    who: h.changed_by?.name || '',
+    who: h.changed_by?.name || h.changed_by_name || '',
     time: fmtTime(h.created_at),
   }));
 
@@ -3495,7 +3495,7 @@ async function loadTickets() {
 
   let query = sb
     .from('tickets')
-    .select('id, ticket_number, title, description, category, product, priority, status, created_at, assignee:assigned_to(name), company:company_id(name), requester:created_by(name)')
+    .select('id, ticket_number, title, description, category, product, priority, status, created_at, assigned_to_name, assignee:assigned_to(name), company:company_id(name), requester:created_by(name)')
     .order('created_at', { ascending: false });
 
   if (DEMO_COMPANY_ID) query = query.eq('company_id', DEMO_COMPANY_ID);
@@ -3580,7 +3580,9 @@ function renderTickets(tickets) {
     const priBadge  = PRIORITY_BADGE[t.priority]   || 'b-gray';
     const company   = t.company?.name   ? escHtml(t.company.name)   : '<span style="color:var(--faint);">—</span>';
     const requester = t.requester?.name ? escHtml(t.requester.name) : '<span style="color:var(--faint);">—</span>';
-    const asgn      = t.assignee?.name  ? escHtml(t.assignee.name)  : '<span style="color:var(--faint);">미배정</span>';
+    const asgn      = t.assignee?.name ? escHtml(t.assignee.name)
+                      : t.assigned_to_name ? escHtml(t.assigned_to_name) + ' <span style="color:var(--faint);font-size:10px;">(탈퇴)</span>'
+                      : '<span style="color:var(--faint);">미배정</span>';
     const date      = t.created_at ? t.created_at.slice(0, 10) : '—';
     const num       = t.ticket_number || t.id?.slice(0, 8);
     const idx = allTickets.indexOf(t);
@@ -4601,7 +4603,7 @@ async function loadNotifyLog() {
 
   let q = sb.from('log_notification')
     .select(`id, ticket_id, channel, event_type, recipient, status, error_message, sent_at, created_at, retry_count,
-             tickets(ticket_number, title, category, priority, created_at,
+             tickets(ticket_number, title, category, priority, created_at, assigned_to_name,
                companies(name), users!tickets_created_by_fkey(name), assignee:users!tickets_assigned_to_fkey(name))`)
     .order('created_at', { ascending: false })
     .limit(200);
@@ -4666,7 +4668,7 @@ async function loadNotifyLog() {
       const regAt = t.created_at ? new Date(t.created_at).toLocaleString('ko-KR') : '—';
       const companyName  = t.companies?.name || '—';
       const requester    = t.users?.name || '—';
-      const assigneeName = t.assignee?.name || '미배정';
+      const assigneeName = t.assignee?.name || t.assigned_to_name || '미배정';
       return [
         ['요청번호', escHtml(t.ticket_number || ticketNum)],
         ['고객사',   escHtml(companyName)],
@@ -5074,9 +5076,9 @@ function populateArDynamicFilters() {
 
   const assigneePop = document.getElementById('ar-pop-assignee');
   if (assigneePop) {
-    const assignees = [...new Set(allMgTickets.map(t => t.assignee?.name).filter(Boolean))]
+    const assignees = [...new Set(allMgTickets.map(t => t.assignee?.name || t.assigned_to_name).filter(Boolean))]
       .sort((a, b) => a.localeCompare(b, 'ko'));
-    const hasUnassigned = allMgTickets.some(t => !t.assignee?.name);
+    const hasUnassigned = allMgTickets.some(t => !(t.assignee?.name || t.assigned_to_name));
     const checked = new Set(arFilters.assignee);
     let opts = assignees.map(a => `<label class="th-filter-opt"><input type="checkbox" value="${escHtml(a)}"${checked.has(a) ? ' checked' : ''}> ${escHtml(a)}</label>`).join('');
     if (hasUnassigned) opts += `<label class="th-filter-opt"><input type="checkbox" value="__unassigned"${checked.has('__unassigned') ? ' checked' : ''}> 미배정</label>`;
@@ -5158,7 +5160,7 @@ async function loadAllTickets() {
   }
 
   let q = sb.from('tickets')
-    .select('id, ticket_number, title, category, priority, status, created_at, due_date, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
+    .select('id, ticket_number, title, category, priority, status, created_at, due_date, assigned_to_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
     .order('created_at', { ascending: false });
 
   // 역할 기반 강제 필터
@@ -5191,7 +5193,7 @@ function renderAllTickets() {
     if (arFilters.company.length && !arFilters.company.includes(t.company?.name)) return false;
     if (arFilters.requester.length && !arFilters.requester.includes(t.requester?.name)) return false;
     if (arFilters.assignee.length) {
-      const assigneeName = t.assignee?.name;
+      const assigneeName = t.assignee?.name || t.assigned_to_name;
       const matchesUnassigned = arFilters.assignee.includes('__unassigned') && !assigneeName;
       const matchesNamed = assigneeName && arFilters.assignee.includes(assigneeName);
       if (!matchesUnassigned && !matchesNamed) return false;
@@ -5220,7 +5222,9 @@ function renderAllTickets() {
     const priB      = PRIORITY_BADGE[t.priority]   || 'b-gray';
     const company   = t.company?.name   ? escHtml(t.company.name)   : '<span style="color:var(--faint);">—</span>';
     const requester = t.requester?.name ? escHtml(t.requester.name) : '<span style="color:var(--faint);">—</span>';
-    const asgn      = t.assignee?.name  ? escHtml(t.assignee.name)  : '<span style="color:var(--faint);">미배정</span>';
+    const asgn      = t.assignee?.name ? escHtml(t.assignee.name)
+                      : t.assigned_to_name ? escHtml(t.assigned_to_name) + ' <span style="color:var(--faint);font-size:10px;">(탈퇴)</span>'
+                      : '<span style="color:var(--faint);">미배정</span>';
     const date    = (t.created_at||'').slice(0,10);
     const dueDate = t.due_date ? t.due_date.slice(0,10) : '<span style="color:var(--faint);">—</span>';
     return `<tr class="ticket-row" style="cursor:pointer;" data-id="${t.id}" onclick="toggleAllTicketRow(this, allMgTickets[${idx}])">
@@ -5443,7 +5447,7 @@ async function selectRdTicket(idx, directTicket) {
   // ── 백그라운드: description·created_by 등 전체 필드 재조회 ──
   if (sb) {
     const { data } = await sb.from('tickets')
-      .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, created_by, assigned_to, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
+      .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, created_by, assigned_to, assigned_to_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
       .eq('id', selectedId).single();
     if (data && rdTicket.id === selectedId) {
       rdTicket = data;
@@ -5601,7 +5605,7 @@ async function loadRdHistory() {
   if (!container || !rdTicket) return;
   if (!sb) { container.innerHTML = '<div style="color:var(--faint);font-size:13px;">이력 없음</div>'; return; }
   const { data, error: hErr } = await sb.from('ticket_history')
-    .select('action, note, created_at, changed_by:changed_by(name)')
+    .select('action, note, created_at, changed_by_name, changed_by:changed_by(name)')
     .eq('ticket_id', rdTicket.id)
     .order('created_at', { ascending: false });
   const ACTION_LABELS = {
@@ -5633,7 +5637,7 @@ async function loadRdHistory() {
   if (arrowEl) arrowEl.textContent = `전체 ${data.length}건 보기 ▾`;
   container.innerHTML = data.map((h, i) => {
     const color  = ACTION_COLORS[h.action] || 'var(--faint)';
-    const who    = h.changed_by?.name || '';
+    const who    = h.changed_by?.name || h.changed_by_name || '';
     const time   = fmtTime(h.created_at);
     const detail = [who, h.note].filter(Boolean).join(' · ');
     const borderStyle = i < data.length - 1 ? 'border-bottom:1px solid var(--border);' : '';
@@ -5917,34 +5921,39 @@ async function saveManage() {
   const dueDate    = document.getElementById('mg-due-date').value || null;
   const memo       = document.getElementById('mg-memo').value.trim();
   // 선점: 변경 전 값 캡처 후 즉시 업데이트
-  const prevStatus     = mgTicket.status;
-  const prevAssigneeId = mgTicket.assigned_to || mgTicket.assignee?.id || null;
-  const prevDueDate    = mgTicket.due_date || null;
+  const prevStatus       = mgTicket.status;
+  const prevAssigneeId   = mgTicket.assigned_to || mgTicket.assignee?.id || null;
+  const prevAssigneeName = mgTicket.assigned_to_name || null;
+  const prevDueDate      = mgTicket.due_date || null;
   mgTicket.status      = status;
   mgTicket.assigned_to = assigneeId;
   mgTicket.due_date    = dueDate;
 
+  const mgSel = document.getElementById('mg-assignee');
+  const assigneeName = assigneeId ? (mgSel.options[mgSel.selectedIndex]?.text?.replace(/ \(.*\)$/, '') || null) : null;
+  mgTicket.assigned_to_name = assigneeName;
+
   if (sb) {
     const payload = { status, due_date: dueDate };
-    if (assigneeId !== undefined) payload.assigned_to = assigneeId || null;
+    if (assigneeId !== undefined) { payload.assigned_to = assigneeId || null; payload.assigned_to_name = assigneeName; }
     const { error } = await sb.from('tickets').update(payload).eq('id', mgTicket.id);
-    if (error) { mgTicket.status = prevStatus; mgTicket.assigned_to = prevAssigneeId; mgTicket.due_date = prevDueDate; _savingManage = false; showToast('저장 실패: ' + error.message, true); return; }
+    if (error) { mgTicket.status = prevStatus; mgTicket.assigned_to = prevAssigneeId; mgTicket.assigned_to_name = prevAssigneeName; mgTicket.due_date = prevDueDate; _savingManage = false; showToast('저장 실패: ' + error.message, true); return; }
 
     const cb = currentUser?.id || null;
+    const cbName = currentUser?.name || null;
     const historyRows = [];
     // 상태 변경 이력
     if (status !== prevStatus) {
       const prevLabel = STATUS_LABELS[prevStatus] || prevStatus;
       const nextLabel = STATUS_LABELS[status] || status;
-      historyRows.push({ ticket_id: mgTicket.id, action: 'status_changed', note: `${prevLabel} → ${nextLabel}`, changed_by: cb });
+      historyRows.push({ ticket_id: mgTicket.id, action: 'status_changed', note: `${prevLabel} → ${nextLabel}`, changed_by: cb, changed_by_name: cbName });
     }
     // 담당자 변경 이력
     if (assigneeId !== prevAssigneeId) {
-      const mgSel = document.getElementById('mg-assignee');
-      const newName  = assigneeId ? (mgSel.options[mgSel.selectedIndex]?.text?.replace(/ \(.*\)$/, '') || '미배정') : '미배정';
-      const prevName = mgTicket.assignee?.name || '미배정';
+      const newName  = assigneeName || '미배정';
+      const prevName = mgTicket.assignee?.name || mgTicket.assigned_to_name || '미배정';
       const action   = prevAssigneeId ? 'reassigned' : 'assigned';
-      historyRows.push({ ticket_id: mgTicket.id, action, note: `${prevName} → ${newName}`, changed_by: cb });
+      historyRows.push({ ticket_id: mgTicket.id, action, note: `${prevName} → ${newName}`, changed_by: cb, changed_by_name: cbName });
     }
     if (historyRows.length) {
       await sb.from('ticket_history').insert(historyRows);
