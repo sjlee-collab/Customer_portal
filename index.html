@@ -1048,7 +1048,7 @@ textarea{resize:vertical;min-height:100px;}
       <div id="p-users" class="page u-page">
         <div class="section-header">
           <div><div class="section-title">사용자 관리</div><div class="section-sub" id="users-count"></div></div>
-          <button class="btn btn-primary btn-sm" onclick="openModal('modal-user')">+ 사용자 추가</button>
+          <button class="btn btn-primary btn-sm" onclick="openNewUser()">+ 사용자 추가</button>
         </div>
 
         <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:14px;">
@@ -1903,7 +1903,7 @@ textarea{resize:vertical;min-height:100px;}
         <div class="form-group">
           <label>고객사</label>
           <select id="u-company">
-            <option value="">없음 (내부 직원)</option>
+            <option value="">빅스데이터</option>
           </select>
         </div>
         <div class="form-group">
@@ -4875,6 +4875,14 @@ function renderUsers(users, tbodyId) {
   }).join('');
 }
 
+function openNewUser() {
+  document.getElementById('modal-user-title').textContent = '사용자 추가';
+  document.querySelector('#modal-user .btn-primary').textContent = '추가';
+  document.getElementById('u-id').value = '';
+  document.getElementById('u-company').dataset.pending = '';
+  openModal('modal-user');
+}
+
 function openEditUser(u) {
   document.getElementById('modal-user-title').textContent = '사용자 수정';
   document.querySelector('#modal-user .btn-primary').textContent = '저장';
@@ -4943,7 +4951,7 @@ async function populateCompanySelect(selectedId) {
   if (!sel || !sb) return;
   const { data } = await sb.from('companies').select('id, name').order('name');
   if (!data) return;
-  sel.innerHTML = '<option value="">없음 (내부 직원)</option>' +
+  sel.innerHTML = '<option value="">빅스데이터</option>' +
     data.map(c => `<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
   if (selectedId) sel.value = selectedId;
 }
