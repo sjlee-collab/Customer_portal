@@ -4853,7 +4853,7 @@ function renderUsers(users, tbodyId) {
   tbody.innerHTML = users.map(u => {
     const roleLabel = ROLE_LABELS[u.role] || u.role;
     const roleBadge = ROLE_BADGE[u.role]  || 'b-gray';
-    const companyName = u.company?.name || '—';
+    const companyName = u.company?.name || '빅스데이터';
     const lastLogin = u.last_login ? new Date(u.last_login).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—';
     const activeHtml = u.is_active
       ? '<span class="badge b-green">활성</span>'
