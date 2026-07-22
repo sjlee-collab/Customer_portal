@@ -2361,13 +2361,14 @@ function fitListHeight() {
 }
 window.addEventListener('resize', fitListHeight);
 
-function showPage(tabEl, pageId) {
+function showPage(tabEl, pageId, fromHistory) {
   document.querySelectorAll('.u-page,.c-tab').forEach(p => p.classList.remove('active'));
   const page = document.getElementById(pageId);
   if (page) page.classList.add('active');
   document.querySelectorAll('#main-navtabs .nt').forEach(s => s.classList.remove('active'));
   if (tabEl) tabEl.classList.add('active');
   toggleDrawer(true); // 모바일 드로어에서 항목 선택 시 자동 닫기 (데스크탑은 영향 없음)
+  if (!fromHistory) history.pushState({ pageId }, '', '#' + pageId);
 
   // 페이지별 데이터 로드
   if (pageId === 'p-dashboard')   loadDashboard();
@@ -2412,6 +2413,14 @@ function showAdminPage(sbEl, pageId) {
 function showTab(tabEl, group, pageId) {
   showPage(tabEl, pageId);
 }
+
+// 브라우저 뒤로/앞으로 가기 시 포탈 내부 탭으로 복원 (히스토리가 없으면 사이트를 벗어남)
+window.addEventListener('popstate', (e) => {
+  if (!currentUser || !e.state?.pageId) return;
+  const pageId = e.state.pageId;
+  const tabEl = document.querySelector(`#main-navtabs .nt[onclick*="'${pageId}'"]`);
+  showPage(tabEl, pageId, true);
+});
 
 // ─── ticket_history 처리 이력 ────────────────────────────
 const TICKET_ACTION_LABELS = {
