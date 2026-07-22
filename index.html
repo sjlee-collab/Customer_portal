@@ -2243,19 +2243,34 @@ document.addEventListener('click', function(e) {
 
 const ROLE_KO = { customer:'고객 사용자', internal:'내부 사용자', tech_support:'기술지원 담당자', sales:'영업 담당자', admin:'시스템 관리자' };
 
-function openMyPage() {
+async function openMyPage() {
   document.getElementById('modal-mypage').style.display = 'flex';
   if (!currentUser) return;
   const ch = currentUser.name.charAt(0);
   document.getElementById('mp-name').value    = currentUser.name    || '';
   document.getElementById('mp-email').value   = currentUser.email   || '';
   document.getElementById('mp-company').value = currentUser.company || '';
+  document.getElementById('mp-phone').value   = currentUser.phone   || '';
+  document.getElementById('mp-dept').value    = '';
+  // 계정 전환 후 이전 사용자가 남겨둔 입력값이 그대로 제출되지 않도록 매번 초기화
+  ['mp-pw-current','mp-pw-new','mp-pw-confirm'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const pwErr = document.getElementById('mp-pw-error');
+  if (pwErr) pwErr.style.display = 'none';
   const avatarBig = document.getElementById('mp-avatar-big');
   if (avatarBig) avatarBig.textContent = ch;
   const nameDisp = document.getElementById('mp-name-display');
   if (nameDisp) nameDisp.textContent = currentUser.name;
   const roleDisp = document.getElementById('mp-role-display');
   if (roleDisp) roleDisp.textContent = (ROLE_KO[currentUser.role] || currentUser.role) + (currentUser.company ? ' · ' + currentUser.company : '');
+
+  // 연락처/부서는 currentUser에 없을 수 있어 DB에서 최신값을 다시 조회해 채움
+  if (sb && currentUser.id) {
+    const { data: u } = await sb.from('users').select('phone, department').eq('id', currentUser.id).single();
+    if (u) {
+      document.getElementById('mp-phone').value = u.phone || '';
+      document.getElementById('mp-dept').value  = u.department || '';
+    }
+  }
 }
 
 async function saveMyPage() {
