@@ -4962,6 +4962,11 @@ async function submitUser() {
   const role  = document.getElementById('u-role')?.value;
   if (!name || !email || !role) { showToast('이름, 이메일, 역할은 필수입니다.', true); return; }
 
+  let dupQuery = sb.from('users').select('id').eq('email', email);
+  if (id) dupQuery = dupQuery.neq('id', id);
+  const { data: dup } = await dupQuery.limit(1);
+  if (dup && dup.length) { showToast('이미 등록된 이메일입니다.', true); return; }
+
   const btn = document.querySelector('#modal-user .btn-primary');
   if (btn) { btn.disabled = true; btn.textContent = id ? '저장 중...' : '추가 중...'; }
 
@@ -4980,7 +4985,11 @@ async function submitUser() {
     ({ error } = await sb.from('users').insert(payload));
   }
   if (btn) { btn.disabled = false; btn.textContent = id ? '저장' : '추가'; }
-  if (error) { showToast((id ? '수정' : '추가') + ' 실패: ' + error.message, true); return; }
+  if (error) {
+    const msg = error.code === '23505' ? '이미 등록된 이메일입니다.' : (id ? '수정' : '추가') + ' 실패: ' + error.message;
+    showToast(msg, true);
+    return;
+  }
 
   document.getElementById('modal-user-title').textContent = '사용자 추가';
   document.querySelector('#modal-user .btn-primary').textContent = '추가';
