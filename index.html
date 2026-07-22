@@ -1388,6 +1388,11 @@ textarea{resize:vertical;min-height:100px;}
         <label>내부 메모 <span style="font-size:11px;color:var(--faint);">(고객에게 노출되지 않음)</span></label>
         <textarea id="mg-memo" placeholder="처리 내용, 참고 사항 등을 기록하세요." style="min-height:80px;"></textarea>
       </div>
+      <div class="form-group">
+        <label>참조 수신자</label>
+        <input type="text" id="mg-cc-emails" placeholder="추가로 메일을 받을 주소 (쉼표로 구분)">
+        <div style="font-size:11px;color:var(--faint);">비워두면 요청자에게만 발송됩니다. 여러 명은 쉼표(,)로 구분해서 입력하세요.</div>
+      </div>
       <div style="display:flex;align-items:center;gap:8px;padding:10px 0 2px;">
         <input type="checkbox" id="mg-send-email" checked style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent);">
         <label for="mg-send-email" style="font-size:13px;color:var(--fg);cursor:pointer;margin:0;font-weight:500;">고객에게 상태 변경 메일 발송</label>
@@ -5942,6 +5947,7 @@ async function openManage(idx) {
   document.getElementById('mg-status').value = mgTicket.status || 'received';
   document.getElementById('mg-due-date').value = mgTicket.due_date || '';
   document.getElementById('mg-memo').value   = '';
+  document.getElementById('mg-cc-emails').value = '';
 
   // 카테고리별 담당자 역할 매핑
   const CAT_ROLES = {
@@ -6025,6 +6031,8 @@ async function saveManage() {
 
   // 체크박스 선택 시에만 고객에게 상태 변경 메일 발송
   const sendEmailChecked = document.getElementById('mg-send-email')?.checked;
+  const ccEmails = (document.getElementById('mg-cc-emails')?.value || '')
+    .split(',').map(s => s.trim()).filter(s => s.includes('@'));
   if (sb && sendEmailChecked && status !== prevStatus) {
     const { data: ticketData } = await sb.from('tickets').select('*, companies(name), users!tickets_created_by_fkey(name,email)').eq('id', mgTicket.id).single();
     if (ticketData) {
@@ -6032,7 +6040,8 @@ async function saveManage() {
         body: {
           type: 'UPDATE',
           record: ticketData,
-          old_record: { ...ticketData, status: prevStatus }
+          old_record: { ...ticketData, status: prevStatus },
+          cc_emails: ccEmails
         }
       }).catch(e => console.error('[send-email 상태변경 발송 실패]', e));
     }
