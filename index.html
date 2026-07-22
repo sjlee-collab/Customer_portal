@@ -2002,6 +2002,15 @@ const SUPABASE_ANON_KEY = 'sb_publishable_mpvPFk1CW88MrC7SoZk5wg_myFsn4a7';
 // 데모용 고객사 ID (DB의 companies.id로 교체 / null이면 전체 조회)
 const DEMO_COMPANY_ID = null;
 
+// 날짜 문자열(YYYY-MM-DD)과 오늘 사이의 남은 일수 계산 (로컬 자정 기준, 시간대 오차 없음)
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const [y, m, d] = dateStr.slice(0, 10).split('-').map(Number);
+  const target = new Date(y, m - 1, d);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return Math.round((target - today) / 86400000);
+}
+
 // ══════════════════════════════════════════
 //  매핑 상수
 // ══════════════════════════════════════════
@@ -3215,8 +3224,7 @@ async function loadDashboard() {
             const { data: mu } = await sb.from('users').select('email').eq('name', coRow.account_manager).eq('is_active', true).single();
             mgrEmail = mu?.email || '';
           }
-          const today = new Date(); today.setHours(0,0,0,0);
-          const daysLeft = lic.expire_date ? Math.ceil((new Date(lic.expire_date) - today) / 86400000) : null;
+          const daysLeft = daysUntil(lic.expire_date);
           const daysColor = daysLeft === null ? 'var(--faint)' : daysLeft <= 30 ? '#dc2626' : daysLeft <= 60 ? '#d97706' : '#059669';
           document.getElementById('dlc-product').textContent = lic.product_info || '—';
           const sc = document.getElementById('dlc-status');
@@ -3246,8 +3254,7 @@ async function loadDashboard() {
         const licVal = document.getElementById('dash-license-val');
         const licSub = document.getElementById('dash-license-sub');
         if (co?.end_date) {
-          const today = new Date(); today.setHours(0,0,0,0);
-          const daysLeft = Math.ceil((new Date(co.end_date) - today) / 86400000);
+          const daysLeft = daysUntil(co.end_date);
           if (licVal) licVal.textContent = daysLeft;
           if (licSub) licSub.textContent = co.end_date.slice(0,10) + ' 만료' + (co.contract_name ? ' · ' + co.contract_name : '');
         } else {
@@ -4219,9 +4226,8 @@ async function loadCompanyLicenses() {
     return;
   }
   const LIC_STATUS_BADGE = { 활성:'b-green', 만료:'b-red', 일시중단:'b-amber', 대기:'b-gray' };
-  const today = new Date();
   tbody.innerHTML = data.map(l => {
-    const daysLeft = l.expire_date ? Math.ceil((new Date(l.expire_date) - today) / 86400000) : null;
+    const daysLeft = daysUntil(l.expire_date);
     const expireDisplay = l.expire_date
       ? `${l.expire_date.slice(0,10)}${daysLeft !== null && daysLeft <= 30 && daysLeft >= 0 ? ` <span style="color:var(--red);font-size:10px;font-weight:600;">${daysLeft}일</span>` : daysLeft < 0 ? ` <span style="color:var(--red);font-size:10px;font-weight:600;">만료</span>` : ''}`
       : '—';
