@@ -4910,7 +4910,7 @@ async function submitUser() {
   const company_id = document.getElementById('u-company')?.value;
   const phone = document.getElementById('u-phone')?.value?.trim();
   const dept  = document.getElementById('u-dept')?.value?.trim();
-  if (company_id) payload.company_id = company_id;
+  payload.company_id = company_id || null;
   if (phone) payload.phone = phone;
   if (dept)  payload.department = dept;
 
