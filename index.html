@@ -4058,6 +4058,11 @@ async function submitCompany() {
   const name = document.getElementById('co-name')?.value?.trim();
   if (!name) { showToast('고객사명은 필수입니다.', true); return; }
 
+  let dupQuery = sb.from('companies').select('id').eq('name', name);
+  if (id) dupQuery = dupQuery.neq('id', id);
+  const { data: dup } = await dupQuery.limit(1);
+  if (dup && dup.length) { showToast('이미 등록된 고객사명입니다.', true); return; }
+
   const btn = document.querySelector('#modal-company .btn-primary');
   if (btn) { btn.disabled = true; btn.textContent = '등록 중...'; }
 
