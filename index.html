@@ -5122,10 +5122,15 @@ async function populateContractSelect(companyId, selectedId) {
     return;
   }
   const { data } = await sb.from('company_contracts').select('id, contract_name').eq('company_id', companyId).order('contract_name');
+  const contracts = data || [];
+  if (!contracts.length) {
+    sel.innerHTML = '<option value="">전체 (계약 미지정)</option>';
+    sel.disabled = true;
+    return;
+  }
   sel.disabled = false;
-  sel.innerHTML = '<option value="">전체 (계약 미지정)</option>' +
-    (data || []).map(c => `<option value="${c.id}">${escHtml(c.contract_name)}</option>`).join('');
-  if (selectedId) sel.value = selectedId;
+  sel.innerHTML = contracts.map(c => `<option value="${c.id}">${escHtml(c.contract_name)}</option>`).join('');
+  sel.value = selectedId || contracts[0].id;
 }
 
 function getSampleTickets() {
