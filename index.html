@@ -3786,8 +3786,13 @@ async function submitRequest() {
   }
 
   const DEFAULT_ASSIGNEE_BY_CATEGORY = {
-    tech_support: { id: 'f3637639-2574-41e7-83dd-2f7891c79688', name: '강원이' }, // wykang@bigxdata.io
-    education:    { id: '5eef584d-8612-4396-bb39-3da4ee021028', name: '강승일' }, // sikang@bigxdata.io
+    education: { id: '5eef584d-8612-4396-bb39-3da4ee021028', name: '강승일' }, // sikang@bigxdata.io
+  };
+  // 계약/라이선스/기술지원 문의는 고객사마다 담당자가 다르므로, 소속 고객사에 등록된 담당자 이름을 조회해 배정
+  const COMPANY_MANAGER_FIELD_BY_CATEGORY = {
+    contract:     'account_manager',
+    license:      'account_manager',
+    tech_support: 'tech_support_manager',
   };
 
   const payload = { title, category, description, status: 'received', priority };
@@ -3800,14 +3805,17 @@ async function submitRequest() {
   if (defaultAssignee) {
     payload.assigned_to      = defaultAssignee.id;
     payload.assigned_to_name = defaultAssignee.name;
-  } else if (['contract', 'license'].includes(category) && currentUser?.company_id) {
-    // 계약/라이선스 문의는 고객사마다 담당 영업이 다르므로, 소속 고객사의 대표영업(account_manager)을 조회해 배정
-    const { data: co } = await sb.from('companies').select('account_manager').eq('id', currentUser.company_id).single();
-    if (co?.account_manager) {
-      const { data: mgr } = await sb.from('users').select('id, name').eq('name', co.account_manager).eq('is_active', true).single();
-      if (mgr) {
-        payload.assigned_to      = mgr.id;
-        payload.assigned_to_name = mgr.name;
+  } else {
+    const managerField = COMPANY_MANAGER_FIELD_BY_CATEGORY[category];
+    if (managerField && currentUser?.company_id) {
+      const { data: co } = await sb.from('companies').select(managerField).eq('id', currentUser.company_id).single();
+      const managerName = co?.[managerField];
+      if (managerName) {
+        const { data: mgr } = await sb.from('users').select('id, name').eq('name', managerName).eq('is_active', true).single();
+        if (mgr) {
+          payload.assigned_to      = mgr.id;
+          payload.assigned_to_name = mgr.name;
+        }
       }
     }
   }
