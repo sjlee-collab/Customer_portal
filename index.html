@@ -443,8 +443,8 @@ textarea{resize:vertical;min-height:100px;}
     <span class="nt"        data-roles="__none__"                  onclick="showPage(this,'p-license')">라이선스 / 계약</span>
     <span class="nt"        data-roles="customer,internal,tech_support,sales,education" data-perm="library_view" onclick="showPage(this,'p-downloads')">자료실</span>
     <span class="nt"        data-roles="all"                       data-perm="library_view"    onclick="showPage(this,'p-downloads')">자료실 관리</span>
-    <span class="nt"        data-roles="all"                       data-perm="company_view"    onclick="showPage(this,'p-customers')">고객사 관리</span>
-    <span class="nt"        data-roles="all"                       data-perm="user_view"       onclick="showPage(this,'p-users')">사용자 관리</span>
+    <span class="nt"        data-roles="all"                       data-perm="company_manage"  onclick="showPage(this,'p-customers')">고객사 관리</span>
+    <span class="nt"        data-roles="all"                       data-perm="user_manage"     onclick="showPage(this,'p-users')">사용자 관리</span>
     <span class="nt"        data-roles="all"                       data-perm="integration"     onclick="showPage(this,'p-integration')">연동 관리</span>
     <span class="nt"        data-roles="all"                       data-perm="notify_log"      onclick="showPage(this,'p-notify-log')">알림 로그</span>
     <span class="nt"        data-roles="all"                       data-perm="permission"      onclick="showPage(this,'p-permission')">권한 관리</span>
@@ -1230,8 +1230,8 @@ textarea{resize:vertical;min-height:100px;}
                   <th rowspan="2" style="width:110px;border-right:1.5px solid var(--border-strong);text-align:left;padding-left:14px;">역할</th>
                   <th colspan="3" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">요청 관리</th>
                   <th colspan="2" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">자료실</th>
-                  <th colspan="2" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">고객사</th>
-                  <th colspan="2" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">사용자</th>
+                  <th colspan="1" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">고객사</th>
+                  <th colspan="1" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">사용자</th>
                   <th colspan="3" style="border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">시스템</th>
                 </tr>
                 <tr>
@@ -1240,9 +1240,7 @@ textarea{resize:vertical;min-height:100px;}
                   <th style="border-right:1.5px solid var(--border-strong);font-size:10px;font-weight:400;color:var(--muted);">관리</th>
                   <th style="font-size:10px;font-weight:400;color:var(--muted);">조회</th>
                   <th style="border-right:1.5px solid var(--border-strong);font-size:10px;font-weight:400;color:var(--muted);">관리</th>
-                  <th style="font-size:10px;font-weight:400;color:var(--muted);">조회</th>
                   <th style="border-right:1.5px solid var(--border-strong);font-size:10px;font-weight:400;color:var(--muted);">관리</th>
-                  <th style="font-size:10px;font-weight:400;color:var(--muted);">조회</th>
                   <th style="border-right:1.5px solid var(--border-strong);font-size:10px;font-weight:400;color:var(--muted);">관리</th>
                   <th style="border-right:1px solid var(--border);font-size:10px;font-weight:400;color:var(--muted);">연동</th>
                   <th style="border-right:1px solid var(--border);font-size:10px;font-weight:400;color:var(--muted);">알림로그</th>
@@ -4685,18 +4683,18 @@ const PERM_ROLES = [
 const PERM_COLS = [
   'ticket_view','ticket_create','ticket_manage',
   'library_view','library_manage',
-  'company_view','company_manage',
-  'user_view','user_manage',
+  'company_manage',
+  'user_manage',
   'integration','notify_log','permission'
 ];
 // data-roles/data-show-roles/ADMIN_ROLES 등 실제 코드 동작 기준으로 산정한 기본값 (DB 조회 실패 시 폴백)
 const PERM_DEFAULT = {
-  admin:        { ticket_view:1,ticket_create:1,ticket_manage:1,library_view:1,library_manage:1,company_view:1,company_manage:1,user_view:1,user_manage:1,integration:1,notify_log:1,permission:1 },
-  internal:     { ticket_view:1,ticket_create:1,ticket_manage:0,library_view:1,library_manage:0,company_view:0,company_manage:0,user_view:0,user_manage:0,integration:0,notify_log:0,permission:0 },
-  sales:        { ticket_view:1,ticket_create:0,ticket_manage:1,library_view:1,library_manage:0,company_view:0,company_manage:0,user_view:0,user_manage:0,integration:0,notify_log:0,permission:0 },
-  tech_support: { ticket_view:1,ticket_create:0,ticket_manage:1,library_view:1,library_manage:1,company_view:0,company_manage:0,user_view:0,user_manage:0,integration:0,notify_log:0,permission:0 },
-  education:    { ticket_view:1,ticket_create:0,ticket_manage:1,library_view:1,library_manage:0,company_view:0,company_manage:0,user_view:0,user_manage:0,integration:0,notify_log:0,permission:0 },
-  customer:     { ticket_view:1,ticket_create:1,ticket_manage:0,library_view:1,library_manage:0,company_view:0,company_manage:0,user_view:0,user_manage:0,integration:0,notify_log:0,permission:0 },
+  admin:        { ticket_view:1,ticket_create:1,ticket_manage:1,library_view:1,library_manage:1,company_manage:1,user_manage:1,integration:1,notify_log:1,permission:1 },
+  internal:     { ticket_view:1,ticket_create:1,ticket_manage:0,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
+  sales:        { ticket_view:1,ticket_create:0,ticket_manage:1,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
+  tech_support: { ticket_view:1,ticket_create:0,ticket_manage:1,library_view:1,library_manage:1,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
+  education:    { ticket_view:1,ticket_create:0,ticket_manage:1,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
+  customer:     { ticket_view:1,ticket_create:1,ticket_manage:0,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
 };
 let permState = JSON.parse(JSON.stringify(PERM_DEFAULT));
 
@@ -4723,7 +4721,7 @@ function resetPermissionsToDefault() {
 function renderPermissions() {
   const tbody = document.getElementById('perm-tbody');
   if (!tbody) return;
-  const sepCols = [2,4,6,8]; // border-right after these indices (0-based)
+  const sepCols = [2,4,5,6]; // border-right after these indices (0-based)
   tbody.innerHTML = PERM_ROLES.map(role => {
     const cells = PERM_COLS.map((col, i) => {
       const on = permState[role.key][col];
