@@ -441,8 +441,7 @@ textarea{resize:vertical;min-height:100px;}
     <span class="nt"        data-roles="customer,internal"         data-perm="ticket_view"     onclick="showPage(this,'p-my-requests')">요청</span>
     <span class="nt"        data-roles="all"                       data-perm="ticket_manage"   onclick="showPage(this,'p-all-requests')">요청 관리</span>
     <span class="nt"        data-roles="__none__"                  onclick="showPage(this,'p-license')">라이선스 / 계약</span>
-    <span class="nt"        data-roles="customer,internal,tech_support,sales,education" data-perm="library_view" onclick="showPage(this,'p-downloads')">자료실</span>
-    <span class="nt"        data-roles="all"                       data-perm="library_view"    onclick="showPage(this,'p-downloads')">자료실 관리</span>
+    <span class="nt"        id="nt-library" data-roles="all"        data-perm="library_view,library_manage" onclick="showPage(this,'p-downloads')">자료실</span>
     <span class="nt"        data-roles="all"                       data-perm="company_manage"  onclick="showPage(this,'p-customers')">고객사 관리</span>
     <span class="nt"        data-roles="all"                       data-perm="user_manage"     onclick="showPage(this,'p-users')">사용자 관리</span>
     <span class="nt"        data-roles="all"                       data-perm="integration"     onclick="showPage(this,'p-integration')">연동 관리</span>
@@ -2220,7 +2219,12 @@ async function enterApp(email, acct) {
 
 function applyRoleUI(role) {
   // data-perm이 있는 요소는 permState(role_permissions 기준)도 함께 만족해야 함
-  const permOk = (el) => !el.dataset.perm || !!(permState[role] && permState[role][el.dataset.perm]);
+  // data-perm에 콤마로 여러 권한을 나열하면 "그 중 하나라도 있으면 통과"로 판단
+  const permOk = (el) => {
+    if (!el.dataset.perm) return true;
+    const keys = el.dataset.perm.split(',').map(k => k.trim());
+    return keys.some(k => !!(permState[role] && permState[role][k]));
+  };
 
   // 탭 항목: data-roles + data-perm 기준으로 show/hide
   document.querySelectorAll('#main-navtabs .nt[data-roles]').forEach(el => {
@@ -2228,6 +2232,10 @@ function applyRoleUI(role) {
     const roleOk = roles.includes('all') || roles.includes(role);
     el.style.display = (roleOk && permOk(el)) ? '' : 'none';
   });
+
+  // 자료실 탭: 관리 권한이 있으면 "자료실 관리"로 라벨 전환
+  const libTab = document.getElementById('nt-library');
+  if (libTab) libTab.textContent = (permState[role] && permState[role].library_manage) ? '자료실 관리' : '자료실';
 
   // 인페이지 요소: data-show-roles + data-perm 기준으로 show/hide
   document.querySelectorAll('[data-show-roles]').forEach(el => {
@@ -4061,7 +4069,7 @@ function renderCompanies(companies) {
     tbody.innerHTML = '<tr><td colspan="9" style="padding:40px;text-align:center;color:var(--faint);">등록된 고객사가 없습니다.</td></tr>';
     return;
   }
-  const isAdmin = currentUser && ['tech_support','admin','sales','education'].includes(currentUser.role);
+  const isAdmin = currentUser && !!permState[currentUser.role]?.company_manage;
   const today = new Date();
   tbody.innerHTML = companies.map(c => {
     const stLabel = STATUS_CO_LABELS[c.status] || c.status || '—';
