@@ -3495,7 +3495,7 @@ function renderDashAdminTable(f) {
   const ptbody = document.getElementById('dash-admin-pending-tbody');
   if (!ptbody) return;
   const all = window._dashAdminTickets || [];
-  const PENDING_STATUSES = ['open', 'in_progress', 'pending'];
+  const PENDING_STATUSES = ['received', 'classifying', 'in_progress', 'pending_customer', 'on_hold'];
   const todayStr = new Date().toISOString().slice(0, 10);
   let tickets = all;
   if (f === 'pending') {
