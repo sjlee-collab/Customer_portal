@@ -1930,8 +1930,14 @@ textarea{resize:vertical;min-height:100px;}
         </div>
         <div class="form-group">
           <label>고객사</label>
-          <select id="u-company">
+          <select id="u-company" onchange="populateContractSelect(this.value)">
             <option value="">빅스데이터</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>계약 <span style="font-size:11px;color:var(--faint);">(사업부 등으로 계약이 나뉜 경우에만)</span></label>
+          <select id="u-contract" disabled>
+            <option value="">전체 (계약 미지정)</option>
           </select>
         </div>
         <div class="form-group">
@@ -2132,7 +2138,7 @@ async function doLogin() {
   if (btn) { btn.disabled = true; btn.textContent = '로그인 중...'; }
   errEl.style.display = 'none';
 
-  const { data: u, error: ue } = await sb.from('users').select('id, name, role, company_id, phone, is_active, password, companies(name)').eq('email', email).single();
+  const { data: u, error: ue } = await sb.from('users').select('id, name, role, company_id, contract_id, phone, is_active, password, companies(name)').eq('email', email).single();
   if (btn) { btn.disabled = false; btn.textContent = '로그인'; }
 
   if (ue || !u) {
@@ -2171,7 +2177,7 @@ async function doLogin() {
 
   errEl.style.display = 'none';
   const companyName = u.companies?.name || '';
-  enterApp(email, { id: u.id, role: u.role, name: u.name, company_id: u.company_id || null, company: companyName, phone: u.phone || '' });
+  enterApp(email, { id: u.id, role: u.role, name: u.name, company_id: u.company_id || null, contract_id: u.contract_id || null, company: companyName, phone: u.phone || '' });
 }
 
 function enterApp(email, acct) {
@@ -3263,12 +3269,13 @@ async function loadDashboard() {
   if (_licDetail) _licDetail.style.display = role === 'customer' ? '' : 'none';
 
   if (role === 'customer' || role === 'internal') {
-    const companyId = currentUser.company_id;
-    const userId    = currentUser.id;
-    // internal: 본인이 올린 것만 / customer: 소속 고객사 전체
+    const companyId  = currentUser.company_id;
+    const contractId = currentUser.contract_id;
+    const userId     = currentUser.id;
+    // internal: 본인이 올린 것만 / customer: 계약 단위(지정 시) 또는 소속 고객사 전체
     const applyFilter = (q) => role === 'internal'
       ? (userId ? q.eq('created_by', userId) : q)
-      : (companyId ? q.eq('company_id', companyId) : userId ? q.eq('created_by', userId) : q);
+      : (contractId ? q.eq('contract_id', contractId) : companyId ? q.eq('company_id', companyId) : userId ? q.eq('created_by', userId) : q);
 
     // 라이선스
     if (companyId) {
@@ -3554,6 +3561,8 @@ async function loadTickets() {
   if (DEMO_COMPANY_ID) query = query.eq('company_id', DEMO_COMPANY_ID);
   else if (currentUser?.role === 'internal' && currentUser?.id) {
     query = query.eq('created_by', currentUser.id);
+  } else if (currentUser?.role === 'customer' && currentUser?.contract_id) {
+    query = query.eq('contract_id', currentUser.contract_id);
   } else if (currentUser?.role === 'customer' && currentUser?.company_id) {
     query = query.eq('company_id', currentUser.company_id);
   }
@@ -3790,6 +3799,7 @@ async function submitRequest() {
   if (currentUser?.id)          payload.created_by = currentUser.id;
   if (currentUser?.company_id)  payload.company_id = currentUser.company_id;
   else if (DEMO_COMPANY_ID)     payload.company_id = DEMO_COMPANY_ID;
+  if (currentUser?.contract_id) payload.contract_id = currentUser.contract_id;
   const defaultAssignee = DEFAULT_ASSIGNEE_BY_CATEGORY[category];
   if (defaultAssignee) {
     payload.assigned_to      = defaultAssignee.id;
@@ -4954,6 +4964,7 @@ function openNewUser() {
   document.querySelector('#modal-user .btn-primary').textContent = '추가';
   document.getElementById('u-id').value = '';
   document.getElementById('u-company').dataset.pending = '';
+  document.getElementById('u-contract').dataset.pending = '';
   openModal('modal-user');
 }
 
@@ -4965,6 +4976,7 @@ function openEditUser(u) {
   document.getElementById('u-email').value = u.email || '';
   document.getElementById('u-role').value = u.role || 'customer';
   document.getElementById('u-company').dataset.pending = u.company_id || '';
+  document.getElementById('u-contract').dataset.pending = u.contract_id || '';
   document.getElementById('u-phone').value = u.phone || '';
   document.getElementById('u-dept').value = u.department || '';
   openModal('modal-user');
@@ -4986,10 +4998,12 @@ async function submitUser() {
   if (btn) { btn.disabled = true; btn.textContent = id ? '저장 중...' : '추가 중...'; }
 
   const payload = { name, email, role };
-  const company_id = document.getElementById('u-company')?.value;
+  const company_id  = document.getElementById('u-company')?.value;
+  const contract_id = document.getElementById('u-contract')?.value;
   const phone = document.getElementById('u-phone')?.value?.trim();
   const dept  = document.getElementById('u-dept')?.value?.trim();
-  payload.company_id = company_id || null;
+  payload.company_id  = company_id || null;
+  payload.contract_id = contract_id || null;
   if (phone) payload.phone = phone;
   if (dept)  payload.department = dept;
 
@@ -5036,6 +5050,23 @@ async function populateCompanySelect(selectedId) {
   if (!data) return;
   sel.innerHTML = '<option value="">빅스데이터</option>' +
     data.map(c => `<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
+  if (selectedId) sel.value = selectedId;
+  const contractSel = document.getElementById('u-contract');
+  await populateContractSelect(sel.value, contractSel?.dataset.pending);
+}
+
+async function populateContractSelect(companyId, selectedId) {
+  const sel = document.getElementById('u-contract');
+  if (!sel) return;
+  if (!companyId || !sb) {
+    sel.innerHTML = '<option value="">전체 (계약 미지정)</option>';
+    sel.disabled = true;
+    return;
+  }
+  const { data } = await sb.from('company_contracts').select('id, contract_name').eq('company_id', companyId).order('contract_name');
+  sel.disabled = false;
+  sel.innerHTML = '<option value="">전체 (계약 미지정)</option>' +
+    (data || []).map(c => `<option value="${c.id}">${escHtml(c.contract_name)}</option>`).join('');
   if (selectedId) sel.value = selectedId;
 }
 
@@ -6393,7 +6424,7 @@ initSupabase();
     if (!acct?.email || !acct?.role) { goScreen('screen-login'); return; }
     // DB에서 계정 정보를 이메일 기준으로 다시 조회 (캐시된 세션에 id가 없거나 오래된 경우 대비)
     if (sb) {
-      sb.from('users').select('id, name, role, company_id, phone, is_active, companies(name)').eq('email', acct.email).single().then(({ data: u, error }) => {
+      sb.from('users').select('id, name, role, company_id, contract_id, phone, is_active, companies(name)').eq('email', acct.email).single().then(({ data: u, error }) => {
         if (error || !u) {
           // DB 조회 실패 시 저장된 세션으로 그냥 진입
           const { email, ...rest } = acct;
@@ -6406,7 +6437,7 @@ initSupabase();
           return;
         }
         const companyName = u.companies?.name || '';
-        enterApp(acct.email, { id: u.id, role: u.role, name: u.name, company_id: u.company_id || null, company: companyName, phone: u.phone || '' });
+        enterApp(acct.email, { id: u.id, role: u.role, name: u.name, company_id: u.company_id || null, contract_id: u.contract_id || null, company: companyName, phone: u.phone || '' });
       }).catch(() => {
         // DB 조회 실패 시 저장된 세션으로 그냥 진입
         const { email, ...rest } = acct;
