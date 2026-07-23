@@ -3800,6 +3800,16 @@ async function submitRequest() {
   if (defaultAssignee) {
     payload.assigned_to      = defaultAssignee.id;
     payload.assigned_to_name = defaultAssignee.name;
+  } else if (['contract', 'license'].includes(category) && currentUser?.company_id) {
+    // 계약/라이선스 문의는 고객사마다 담당 영업이 다르므로, 소속 고객사의 대표영업(account_manager)을 조회해 배정
+    const { data: co } = await sb.from('companies').select('account_manager').eq('id', currentUser.company_id).single();
+    if (co?.account_manager) {
+      const { data: mgr } = await sb.from('users').select('id, name').eq('name', co.account_manager).eq('is_active', true).single();
+      if (mgr) {
+        payload.assigned_to      = mgr.id;
+        payload.assigned_to_name = mgr.name;
+      }
+    }
   }
 
   const { data, error } = await sb.from('tickets').insert(payload).select('id, ticket_number, title, category, priority, created_at, company_id').single();
