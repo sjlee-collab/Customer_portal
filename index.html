@@ -53,7 +53,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Ne
 .nt{padding:10px 16px;font-size:13px;font-weight:500;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;transition:.12s;}
 .nt.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:700;}
 .nt:hover:not(.active){color:var(--text);}
-.nt-sep{width:1px;height:18px;margin:auto 6px;background:var(--border-strong);flex-shrink:0;}
 
 /* ── body area ── */
 .body{flex:1;overflow:hidden;padding:24px;display:flex;flex-direction:column;}
@@ -446,7 +445,6 @@ textarea{resize:vertical;min-height:100px;}
     <span class="nt"        data-roles="admin"                     data-perm="library_view"    onclick="showPage(this,'p-downloads')">자료실 관리</span>
     <span class="nt"        data-roles="admin"                     data-perm="company_view"    onclick="showPage(this,'p-customers')">고객사 관리</span>
     <span class="nt"        data-roles="admin"                     data-perm="user_view"       onclick="showPage(this,'p-users')">사용자 관리</span>
-    <span class="nt-sep"    data-roles="admin"></span>
     <span class="nt"        data-roles="admin"                     data-perm="integration"     onclick="showPage(this,'p-integration')">연동 관리</span>
     <span class="nt"        data-roles="admin"                     data-perm="notify_log"      onclick="showPage(this,'p-notify-log')">알림 로그</span>
     <span class="nt"        data-roles="admin"                     data-perm="permission"      onclick="showPage(this,'p-permission')">권한 관리</span>
@@ -673,6 +671,7 @@ textarea{resize:vertical;min-height:100px;}
                 </div>
               </th>
               <th>고객사</th><th>요청자</th><th>담당자</th><th>접수일</th>
+              <th data-show-roles="internal">완료예정일</th>
             </tr></thead>
             <tbody id="ticket-tbody">
               <tr><td colspan="10" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
@@ -2226,7 +2225,7 @@ function applyRoleUI(role) {
   const permOk = (el) => !el.dataset.perm || !!(permState[role] && permState[role][el.dataset.perm]);
 
   // 탭 항목: data-roles + data-perm 기준으로 show/hide
-  document.querySelectorAll('#main-navtabs .nt[data-roles], #main-navtabs .nt-sep[data-roles]').forEach(el => {
+  document.querySelectorAll('#main-navtabs .nt[data-roles]').forEach(el => {
     const roles = el.dataset.roles.split(',').map(r => r.trim());
     const roleOk = roles.includes('all') || roles.includes(role);
     el.style.display = (roleOk && permOk(el)) ? '' : 'none';
@@ -3569,7 +3568,7 @@ async function loadTickets() {
 
   let query = sb
     .from('tickets')
-    .select('id, ticket_number, title, description, category, product, priority, status, created_at, assigned_to_name, assignee:assigned_to(name), company:company_id(name), requester:created_by(name)')
+    .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, assigned_to_name, assignee:assigned_to(name), company:company_id(name), requester:created_by(name)')
     .order('created_at', { ascending: false });
 
   if (DEMO_COMPANY_ID) query = query.eq('company_id', DEMO_COMPANY_ID);
@@ -3643,10 +3642,15 @@ function renderTickets(tickets) {
   if (!tbody) return;
   detachSharedRequestDetail(tbody);
 
+  const isCustomerRole = currentUser?.role === 'customer';
+  const colCount = isCustomerRole ? 9 : 10;
+
   if (!tickets.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="padding:40px;text-align:center;color:var(--faint);">등록된 요청이 없습니다.</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="${colCount}" style="padding:40px;text-align:center;color:var(--faint);">등록된 요청이 없습니다.</td></tr>`;
     return;
   }
+  const PENDING_STATUSES = ['received', 'classifying', 'in_progress', 'pending_customer', 'on_hold'];
+  const todayStr = new Date().toISOString().slice(0, 10);
   tbody.innerHTML = tickets.map(t => {
     const catLabel  = CATEGORY_LABELS[t.category] || t.category || '—';
     const catBadge  = CATEGORY_BADGE[t.category]  || 'b-gray';
@@ -3661,6 +3665,9 @@ function renderTickets(tickets) {
                       : '<span style="color:var(--faint);">미배정</span>';
     const date      = t.created_at ? t.created_at.slice(0, 10) : '—';
     const num       = t.ticket_number || t.id?.slice(0, 8);
+    const isDelayed = PENDING_STATUSES.includes(t.status) && t.due_date && t.due_date < todayStr;
+    const overdueDays = isDelayed ? Math.floor((new Date(todayStr) - new Date(t.due_date)) / (24*60*60*1000)) : 0;
+    const dueDateCell = isCustomerRole ? '' : `<td style="font-size:12px;${isDelayed ? 'color:var(--red);font-weight:600;' : 'color:var(--faint);'}">${t.due_date ? t.due_date + (isDelayed ? ` <span style="font-size:10px;background:#fee2e2;color:#b91c1c;padding:1px 5px;border-radius:3px;">+${overdueDays}일</span>` : '') : '—'}</td>`;
     const idx = allTickets.indexOf(t);
     return `<tr class="ticket-row" style="cursor:pointer;" data-id="${t.id}" onclick="toggleTicketRow(this, allTickets[${idx}])">
       <td style="color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;font-size:12px;">${escHtml(num)}</td>
@@ -3672,9 +3679,10 @@ function renderTickets(tickets) {
       <td style="font-size:12px;">${requester}</td>
       <td style="font-size:12px;">${asgn}</td>
       <td style="color:var(--faint);font-size:12px;">${date}</td>
+      ${dueDateCell}
     </tr>
     <tr class="ticket-detail-row" style="display:none;">
-      <td colspan="9" style="padding:6px 0 0;background:var(--bg);"></td>
+      <td colspan="${colCount}" style="padding:6px 0 0;background:var(--bg);"></td>
     </tr>`;
   }).join('');
 }
