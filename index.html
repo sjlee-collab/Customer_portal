@@ -1042,27 +1042,18 @@ textarea{resize:vertical;min-height:100px;}
               <span class="badge b-accent" id="company-detail-status"></span>
             </div>
 
-            <!-- 계약 정보 -->
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-              <div style="font-size:13px;font-weight:700;">계약 정보</div>
-              <button class="btn btn-outline btn-sm" onclick="openContractModal()">+ 계약정보 입력</button>
+            <!-- 계약 및 라이선스 (계약별로 매핑된 라이선스를 함께 표시) -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+              <div>
+                <div style="font-size:13px;font-weight:700;">계약 및 라이선스</div>
+                <div style="font-size:11px;color:var(--faint);margin-top:2px;">계약(사업부)별로 매핑된 라이선스를 함께 확인합니다</div>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button class="btn btn-outline btn-sm" onclick="openLicenseModal()">+ 공통 라이선스 입력</button>
+                <button class="btn btn-outline btn-sm" onclick="openContractModal()">+ 계약정보 입력</button>
+              </div>
             </div>
-            <div class="tbl-scroll"><table class="tbl">
-              <thead><tr><th>계약명</th><th>Salesforce ID</th><th>계약종류</th><th>계약상태</th><th>계약시작일</th><th>계약종료일</th><th>고객계약담당자</th><th>빅스계약담당자</th><th>계약금액</th><th>비고</th><th>계약문서</th><th>액션</th></tr></thead>
-              <tbody id="contracts-tbody"><tr><td colspan="12" style="padding:20px;text-align:center;color:var(--faint);">계약 정보를 불러오는 중...</td></tr></tbody>
-            </table></div>
-
-            <hr style="border:none;border-top:1px solid var(--border-md);margin:26px 0 22px;">
-
-            <!-- 라이선스 정보 -->
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-              <div style="font-size:13px;font-weight:700;">라이선스 정보</div>
-              <button class="btn btn-outline btn-sm" onclick="openLicenseModal()">+ 라이선스정보 입력</button>
-            </div>
-            <div class="tbl-scroll"><table class="tbl">
-              <thead><tr><th>제품정보</th><th>라이선스종류</th><th>라이선스상태</th><th>수량</th><th>시작일자</th><th>만료일자</th><th>갱신예정일자</th><th>라이선스키</th><th>비고</th><th>첨부파일</th><th>액션</th></tr></thead>
-              <tbody id="licenses-tbody"><tr><td colspan="9" style="padding:20px;text-align:center;color:var(--faint);">라이선스 정보를 불러오는 중...</td></tr></tbody>
-            </table></div>
+            <div id="contract-license-groups" style="margin-top:14px;">불러오는 중...</div>
           </div>
         </div>
       </div>
@@ -1782,6 +1773,12 @@ textarea{resize:vertical;min-height:100px;}
             <option value="Dataworks">Dataworks</option>
             <option value="AgentWorks">AgentWorks</option>
             <option value="기타">기타</option>
+          </select>
+        </div>
+        <div class="form-group span2">
+          <label>계약 <span style="font-size:11px;color:var(--faint);">(사업부 등으로 계약이 나뉜 경우에만)</span></label>
+          <select id="lic-contract">
+            <option value="">공통 (계약 미지정)</option>
           </select>
         </div>
         <div class="form-group">
@@ -4228,6 +4225,8 @@ function selectCompany(rowEl, id, name, statusLabel) {
   targetRow.style.display = '';
   rowEl.classList.add('open');
   pinRowToTop(rowEl);
+  const groupsEl = document.getElementById('contract-license-groups');
+  if (groupsEl) groupsEl.innerHTML = '불러오는 중...';
   loadCompanyContracts();
   loadCompanyLicenses();
 }
@@ -4273,70 +4272,109 @@ function handleLicenseFileDrop(files) {
   document.getElementById('lic-dropzone').style.borderColor = 'var(--accent)';
 }
 
+let _selectedCompanyContracts = [];
+let _selectedCompanyLicenses  = [];
+
 async function loadCompanyContracts() {
-  const tbody = document.getElementById('contracts-tbody');
-  if (!tbody || !selectedCompanyId) return;
-  tbody.innerHTML = '<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>';
-  if (!sb) { tbody.innerHTML = '<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--faint);">DB 미연결</td></tr>'; return; }
-  const { data, error } = await sb.from('company_contracts').select('*').eq('company_id', selectedCompanyId).order('created_at', { ascending: false });
-  if (error || !data || !data.length) {
-    tbody.innerHTML = '<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--faint);">등록된 계약 정보가 없습니다.</td></tr>';
-    return;
-  }
-  const CONTRACT_STATUS_BADGE = { 진행중:'b-accent', 완료:'b-green', 협의중:'b-amber', 해지:'b-red', 만료:'b-gray' };
-  tbody.innerHTML = data.map(ct => `
-    <tr>
-      <td style="font-weight:600;">${escHtml(ct.contract_name || '—')}</td>
-      <td style="font-size:12px;font-family:monospace;">${escHtml(ct.salesforce_id || '—')}</td>
-      <td style="font-size:12px;">${escHtml(ct.contract_type || '—')}</td>
-      <td><span class="badge ${CONTRACT_STATUS_BADGE[ct.status] || 'b-gray'}">${escHtml(ct.status || '—')}</span></td>
-      <td style="font-size:12px;">${ct.start_date ? ct.start_date.slice(0,10) : '—'}</td>
-      <td style="font-size:12px;">${ct.end_date   ? ct.end_date.slice(0,10)   : '—'}</td>
-      <td style="font-size:12px;">${escHtml(ct.customer_contact || '—')}</td>
-      <td style="font-size:12px;">${escHtml(ct.bixs_contact    || '—')}</td>
-      <td style="font-size:12px;font-family:monospace;color:var(--faint);letter-spacing:2px;">${ct.amount ? '••••••••••' : '—'}</td>
-      <td style="font-size:12px;max-width:120px;white-space:normal;">${escHtml(ct.note || '—')}</td>
-      <td style="font-size:12px;">${ct.file_path ? `<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="downloadPrivateFile('contract-attachments','${escHtml(ct.file_path)}','${escHtml(ct.file_name||'')}')">📎 ${escHtml(ct.file_name || '다운로드')}</button>` : '—'}</td>
-      <td style="white-space:nowrap;">
-        <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick='openEditContractModal(${escHtml(JSON.stringify(ct).replace(/'/g,"&#39;"))})'>수정</button>
-        <button class="btn btn-ghost btn-sm" style="font-size:11px;color:#e53e3e;" onclick="deleteContract('${ct.id}','${escHtml(ct.file_path||'')}')">삭제</button>
-      </td>
-    </tr>`).join('');
+  if (!selectedCompanyId) return;
+  if (!sb) { _selectedCompanyContracts = []; renderContractLicenseGroups(); return; }
+  const { data } = await sb.from('company_contracts').select('*').eq('company_id', selectedCompanyId).order('created_at', { ascending: false });
+  _selectedCompanyContracts = data || [];
+  renderContractLicenseGroups();
 }
 
 async function loadCompanyLicenses() {
-  const tbody = document.getElementById('licenses-tbody');
-  if (!tbody || !selectedCompanyId) return;
-  tbody.innerHTML = '<tr><td colspan="9" style="padding:20px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>';
-  if (!sb) { tbody.innerHTML = '<tr><td colspan="9" style="padding:20px;text-align:center;color:var(--faint);">DB 미연결</td></tr>'; return; }
-  const { data, error } = await sb.from('company_licenses').select('*').eq('company_id', selectedCompanyId).order('created_at', { ascending: false });
-  if (error || !data || !data.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="padding:20px;text-align:center;color:var(--faint);">등록된 라이선스 정보가 없습니다.</td></tr>';
+  if (!selectedCompanyId) return;
+  if (!sb) { _selectedCompanyLicenses = []; renderContractLicenseGroups(); return; }
+  const { data } = await sb.from('company_licenses').select('*').eq('company_id', selectedCompanyId).order('created_at', { ascending: false });
+  _selectedCompanyLicenses = data || [];
+  renderContractLicenseGroups();
+}
+
+function renderLicenseTable(licenses) {
+  const LIC_STATUS_BADGE = { 활성:'b-green', 만료:'b-red', 일시중단:'b-amber', 대기:'b-gray' };
+  return `<div class="tbl-scroll"><table class="tbl">
+    <thead><tr><th>제품정보</th><th>라이선스종류</th><th>라이선스상태</th><th>수량</th><th>시작일자</th><th>만료일자</th><th>갱신예정일자</th><th>라이선스키</th><th>비고</th><th>첨부파일</th><th>액션</th></tr></thead>
+    <tbody>${licenses.map(l => {
+      const daysLeft = daysUntil(l.expire_date);
+      const expireDisplay = l.expire_date
+        ? `${l.expire_date.slice(0,10)}${daysLeft !== null && daysLeft <= 30 && daysLeft >= 0 ? ` <span style="color:var(--red);font-size:10px;font-weight:600;">${daysLeft}일</span>` : daysLeft < 0 ? ` <span style="color:var(--red);font-size:10px;font-weight:600;">만료</span>` : ''}`
+        : '—';
+      return `
+      <tr>
+        <td style="font-weight:600;">${escHtml(l.product_info || '—')}</td>
+        <td style="font-size:12px;">${escHtml(l.license_type || '—')}</td>
+        <td><span class="badge ${LIC_STATUS_BADGE[l.status] || 'b-gray'}">${escHtml(l.status || '—')}</span></td>
+        <td style="font-size:12px;">${l.quantity != null ? l.quantity : '—'}</td>
+        <td style="font-size:12px;">${l.start_date  ? l.start_date.slice(0,10)  : '—'}</td>
+        <td style="font-size:12px;">${expireDisplay}</td>
+        <td style="font-size:12px;">${l.renewal_date ? l.renewal_date.slice(0,10) : '—'}</td>
+        <td style="font-size:12px;font-family:monospace;color:var(--faint);letter-spacing:2px;">${l.license_key ? 'XXXX-XXXX-XXXX-XXXX' : '—'}</td>
+        <td style="font-size:12px;max-width:100px;white-space:normal;">${escHtml(l.note || '—')}</td>
+        <td style="font-size:12px;">${l.file_path ? `<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="downloadPrivateFile('contract-attachments','${escHtml(l.file_path)}','${escHtml(l.file_name||'')}')">📎 ${escHtml(l.file_name || '다운로드')}</button>` : '—'}</td>
+        <td style="white-space:nowrap;">
+          <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick='openEditLicenseModal(${escHtml(JSON.stringify(l).replace(/'/g,"&#39;"))})'>수정</button>
+          <button class="btn btn-ghost btn-sm" style="font-size:11px;color:#e53e3e;" onclick="deleteLicense('${l.id}','${escHtml(l.file_path||'')}')">삭제</button>
+        </td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
+}
+
+function renderContractLicenseGroups() {
+  const container = document.getElementById('contract-license-groups');
+  if (!container) return;
+  const contracts = _selectedCompanyContracts;
+  const licenses  = _selectedCompanyLicenses;
+
+  if (!contracts.length && !licenses.length) {
+    container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--faint);">등록된 계약/라이선스 정보가 없습니다.</div>';
     return;
   }
-  const LIC_STATUS_BADGE = { 활성:'b-green', 만료:'b-red', 일시중단:'b-amber', 대기:'b-gray' };
-  tbody.innerHTML = data.map(l => {
-    const daysLeft = daysUntil(l.expire_date);
-    const expireDisplay = l.expire_date
-      ? `${l.expire_date.slice(0,10)}${daysLeft !== null && daysLeft <= 30 && daysLeft >= 0 ? ` <span style="color:var(--red);font-size:10px;font-weight:600;">${daysLeft}일</span>` : daysLeft < 0 ? ` <span style="color:var(--red);font-size:10px;font-weight:600;">만료</span>` : ''}`
-      : '—';
+
+  const CONTRACT_STATUS_BADGE = { 진행중:'b-accent', 완료:'b-green', 협의중:'b-amber', 해지:'b-red', 만료:'b-gray' };
+  const contractIds = new Set(contracts.map(ct => ct.id));
+  const unassigned = licenses.filter(l => !l.contract_id || !contractIds.has(l.contract_id));
+
+  const contractHtml = contracts.map(ct => {
+    const contractLicenses = licenses.filter(l => l.contract_id === ct.id);
     return `
-    <tr>
-      <td style="font-weight:600;">${escHtml(l.product_info || '—')}</td>
-      <td style="font-size:12px;">${escHtml(l.license_type || '—')}</td>
-      <td><span class="badge ${LIC_STATUS_BADGE[l.status] || 'b-gray'}">${escHtml(l.status || '—')}</span></td>
-      <td style="font-size:12px;">${l.quantity != null ? l.quantity : '—'}</td>
-      <td style="font-size:12px;">${l.start_date  ? l.start_date.slice(0,10)  : '—'}</td>
-      <td style="font-size:12px;">${expireDisplay}</td>
-      <td style="font-size:12px;">${l.renewal_date ? l.renewal_date.slice(0,10) : '—'}</td>
-      <td style="font-size:12px;font-family:monospace;color:var(--faint);letter-spacing:2px;">${l.license_key ? 'XXXX-XXXX-XXXX-XXXX' : '—'}</td>
-      <td style="font-size:12px;max-width:100px;white-space:normal;">${escHtml(l.note || '—')}</td>
-      <td style="font-size:12px;">${l.file_path ? `<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="downloadPrivateFile('contract-attachments','${escHtml(l.file_path)}','${escHtml(l.file_name||'')}')">📎 ${escHtml(l.file_name || '다운로드')}</button>` : '—'}</td>
-      <td style="white-space:nowrap;">
-        <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick='openEditLicenseModal(${escHtml(JSON.stringify(l).replace(/'/g,"&#39;"))})'>수정</button>
-        <button class="btn btn-ghost btn-sm" style="font-size:11px;color:#e53e3e;" onclick="deleteLicense('${l.id}','${escHtml(l.file_path||'')}')">삭제</button>
-      </td>
-    </tr>`; }).join('');
+    <div style="border:1px solid var(--border);border-radius:var(--r-md);margin-bottom:14px;overflow:hidden;">
+      <div style="display:grid;grid-template-columns:1.4fr .8fr .7fr 1fr 1fr 1fr auto;gap:14px;align-items:center;padding:12px 16px;background:var(--surface2);">
+        <div><div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;">계약명</div><div style="font-size:13px;font-weight:700;">${escHtml(ct.contract_name || '—')}</div></div>
+        <div><div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;">계약종류</div><div style="font-size:12px;">${escHtml(ct.contract_type || '—')}</div></div>
+        <div><div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;">계약상태</div><span class="badge ${CONTRACT_STATUS_BADGE[ct.status] || 'b-gray'}">${escHtml(ct.status || '—')}</span></div>
+        <div><div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;">계약기간</div><div style="font-size:12px;">${ct.start_date ? ct.start_date.slice(0,10) : '—'} ~ ${ct.end_date ? ct.end_date.slice(0,10) : '—'}</div></div>
+        <div><div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;">고객계약담당자</div><div style="font-size:12px;">${escHtml(ct.customer_contact || '—')}</div></div>
+        <div><div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;">빅스계약담당자</div><div style="font-size:12px;">${escHtml(ct.bixs_contact || '—')}</div></div>
+        <div style="display:flex;gap:6px;justify-self:end;">
+          <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick='openEditContractModal(${escHtml(JSON.stringify(ct).replace(/'/g,"&#39;"))})'>수정</button>
+          <button class="btn btn-ghost btn-sm" style="font-size:11px;color:#e53e3e;" onclick="deleteContract('${ct.id}','${escHtml(ct.file_path||'')}')">삭제</button>
+        </div>
+      </div>
+      <div style="padding:12px 16px 16px 16px;border-top:1px dashed var(--border-md);">
+        <div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;margin-bottom:8px;">
+          ${contractLicenses.length ? `이 계약에 매핑된 라이선스 ${contractLicenses.length}건` : '이 계약에 매핑된 라이선스 없음'}
+        </div>
+        ${contractLicenses.length ? renderLicenseTable(contractLicenses) : `
+          <div style="padding:12px 14px;background:var(--surface2);border-radius:6px;font-size:12px;color:var(--faint);">
+            아직 이 계약에 연결된 라이선스가 없습니다.
+          </div>`}
+        <div style="margin-top:10px;">
+          <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="openLicenseModal('${ct.id}')">+ 이 계약에 라이선스 추가</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const unassignedHtml = unassigned.length ? `
+    <div style="border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px;${contracts.length ? 'margin-top:18px;' : ''}">
+      <div style="font-size:13px;font-weight:700;margin-bottom:2px;">공통 라이선스 <span style="font-size:11px;color:var(--faint);font-weight:500;">(계약 미지정)</span></div>
+      <div style="font-size:11px;color:var(--faint);margin-bottom:10px;">특정 계약에 속하지 않고 고객사 전체에 적용되는 라이선스입니다.</div>
+      ${renderLicenseTable(unassigned)}
+    </div>` : '';
+
+  container.innerHTML = contractHtml + unassignedHtml;
 }
 
 function toggleMaskedVal(btn, realVal, maskedVal) {
@@ -4476,7 +4514,15 @@ function resetLicenseDropzone() {
   _licenseFile = null;
 }
 
-function openLicenseModal() {
+function populateLicenseContractSelect(selectedId) {
+  const sel = document.getElementById('lic-contract');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">공통 (계약 미지정)</option>' +
+    _selectedCompanyContracts.map(ct => `<option value="${ct.id}">${escHtml(ct.contract_name)}</option>`).join('');
+  sel.value = selectedId || '';
+}
+
+function openLicenseModal(contractId) {
   if (!selectedCompanyId) { showToast('고객사를 먼저 선택해주세요.', true); return; }
   document.getElementById('modal-license-title').textContent = '라이선스정보 입력';
   document.getElementById('btn-submit-license').textContent  = '등록';
@@ -4490,6 +4536,7 @@ function openLicenseModal() {
   document.getElementById('lic-start').value    = '';
   document.getElementById('lic-expire').value   = '';
   document.getElementById('lic-renewal').value  = '';
+  populateLicenseContractSelect(contractId || '');
   resetLicenseDropzone();
   openModal('modal-license');
 }
@@ -4508,6 +4555,7 @@ function openEditLicenseModal(l) {
   document.getElementById('lic-expire').value     = l.expire_date    ? l.expire_date.slice(0,10)   : '';
   document.getElementById('lic-renewal').value    = l.renewal_date   ? l.renewal_date.slice(0,10)  : '';
   document.getElementById('lic-note').value       = l.note           || '';
+  populateLicenseContractSelect(l.contract_id || '');
   resetLicenseDropzone();
   document.getElementById('lic-file-path').value = l.file_path || '';
   document.getElementById('lic-filename').value  = l.file_name || '';
@@ -4546,6 +4594,7 @@ async function submitLicense() {
   const qtyRaw = document.getElementById('lic-quantity').value;
   const payload = {
     company_id:   companyId,
+    contract_id:  document.getElementById('lic-contract')?.value || null,
     product_info: product,
     license_type: document.getElementById('lic-type').value    || null,
     status:       document.getElementById('lic-status').value  || '활성',
