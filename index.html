@@ -3415,7 +3415,7 @@ async function loadDashboard() {
     // 역할별 카테고리 제한
     const STAT_ALLOWED_CATS = {
       tech_support: ['tech_support'],
-      sales:        ['contract', 'license', 'education'],
+      sales:        ['contract', 'license'],
       education:    ['education'],
     };
     const statCats = STAT_ALLOWED_CATS[role] || null;
@@ -3458,7 +3458,7 @@ async function loadDashboard() {
     if (coEl) coEl.textContent = companiesCount ?? '—';
 
     // 최근 요청 테이블 — 역할별 카테고리 필터
-    const DASH_ALLOWED_CATS = { tech_support: ['tech_support', 'other'], sales: ['contract', 'license', 'education', 'other'], education: ['education'] };
+    const DASH_ALLOWED_CATS = { tech_support: ['tech_support', 'other'], sales: ['contract', 'license', 'other'], education: ['education'] };
     const dashAllowedCats = DASH_ALLOWED_CATS[role] || null;
     let recentQ = sb.from('tickets')
       .select('id, ticket_number, title, category, status, priority, created_at, due_date, company:company_id(name)')
@@ -5325,7 +5325,7 @@ async function loadAllTickets() {
   // 역할별 허용 카테고리
   const ROLE_ALLOWED_CATS = {
     tech_support: ['tech_support', 'other'],
-    sales:        ['contract', 'license', 'education', 'other'],
+    sales:        ['contract', 'license', 'other'],
     education:    ['education'],
   };
   const role = currentUser?.role;
@@ -5362,7 +5362,7 @@ function renderAllTickets() {
   if (!tbody) return;
   detachSharedRequestDetail(tbody);
 
-  const ROLE_ALLOWED_CATS_RENDER = { tech_support: ['tech_support', 'other'], sales: ['contract', 'license', 'education', 'other'], education: ['education'] };
+  const ROLE_ALLOWED_CATS_RENDER = { tech_support: ['tech_support', 'other'], sales: ['contract', 'license', 'other'], education: ['education'] };
   const renderAllowedCats = ROLE_ALLOWED_CATS_RENDER[currentUser?.role] || null;
   const q = (document.getElementById('ar-search')?.value || '').toLowerCase();
   const list = allMgTickets.filter(t => {
