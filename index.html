@@ -9,8 +9,9 @@
   --bg:        #f1efe8;
   --surface:   #ffffff;
   --surface2:  #f8f7f4;
-  --border:    rgba(0,0,0,.09);
-  --border-md: rgba(0,0,0,.16);
+  --border:        rgba(0,0,0,.09);
+  --border-md:     rgba(0,0,0,.16);
+  --border-strong: rgba(0,0,0,.28);
   --text:      #1a1a18;
   --muted:     #6b6a65;
   --faint:     #9b9a96;
@@ -437,15 +438,15 @@ textarea{resize:vertical;min-height:100px;}
   <!-- ── 상단 탭 내비게이션 ── -->
   <nav class="navtabs" id="main-navtabs">
     <span class="nt active" data-roles="all"                       onclick="showPage(this,'p-dashboard')">홈</span>
-    <span class="nt"        data-roles="customer,internal"         onclick="showPage(this,'p-my-requests')">요청</span>
-    <span class="nt"        data-roles="tech_support,sales,education,admin"  onclick="showPage(this,'p-all-requests')">요청 관리</span>
+    <span class="nt"        data-roles="customer,internal"         data-perm="ticket_view"     onclick="showPage(this,'p-my-requests')">요청</span>
+    <span class="nt"        data-roles="all"                       data-perm="ticket_manage"   onclick="showPage(this,'p-all-requests')">요청 관리</span>
     <span class="nt"        data-roles="__none__"                  onclick="showPage(this,'p-license')">라이선스 / 계약</span>
-    <span class="nt"        data-roles="customer,internal,tech_support,sales,education" onclick="showPage(this,'p-downloads')">자료실</span>
-    <span class="nt"        data-roles="admin"                     onclick="showPage(this,'p-downloads')">자료실 관리</span>
-    <span class="nt"        data-roles="admin"                     onclick="showPage(this,'p-customers')">고객사 관리</span>
-    <span class="nt"        data-roles="admin"                     onclick="showPage(this,'p-users')">사용자 관리</span>
-    <span class="nt"        data-roles="admin"                     onclick="showPage(this,'p-integration')">연동 관리</span>
-    <span class="nt"        data-roles="admin"                     onclick="showPage(this,'p-notify-log')">알림 로그</span>
+    <span class="nt"        id="nt-library" data-roles="all"        data-perm="library_view,library_manage" onclick="showPage(this,'p-downloads')">자료실</span>
+    <span class="nt"        data-roles="all"                       data-perm="company_manage"  onclick="showPage(this,'p-customers')">고객사 관리</span>
+    <span class="nt"        data-roles="all"                       data-perm="user_manage"     onclick="showPage(this,'p-users')">사용자 관리</span>
+    <span class="nt"        data-roles="all"                       data-perm="integration"     onclick="showPage(this,'p-integration')">연동 관리</span>
+    <span class="nt"        data-roles="all"                       data-perm="notify_log"      onclick="showPage(this,'p-notify-log')">알림 로그</span>
+    <span class="nt"        data-roles="all"                       data-perm="permission"      onclick="showPage(this,'p-permission')">권한 관리</span>
   </nav>
   <div class="nav-backdrop" id="nav-backdrop" onclick="toggleDrawer()"></div>
   <!-- ── 콘텐츠 영역 ── -->
@@ -522,7 +523,7 @@ textarea{resize:vertical;min-height:100px;}
         <div class="card" style="display:flex;flex-direction:column;overflow:hidden;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-shrink:0;">
             <div class="card-title" style="margin-bottom:0;">최근 요청건</div>
-            <button class="btn btn-primary btn-sm" onclick="openModal('modal-new')">+ 빠른 요청 생성</button>
+            <button class="btn btn-primary btn-sm" data-show-roles="customer,internal" data-perm="ticket_create" onclick="openModal('modal-new')">+ 빠른 요청 생성</button>
           </div>
           <div class="tbl-scroll list-scroll" style="flex:1;min-height:0;overflow:hidden;"><table class="tbl">
             <thead><tr>
@@ -608,7 +609,7 @@ textarea{resize:vertical;min-height:100px;}
       <div id="p-my-requests" class="page u-page">
       <div class="section-header">
         <div><div class="section-title">기술 지원</div><div class="section-sub">요청을 등록하고 처리 이력을 확인합니다.</div></div>
-        <button class="btn btn-primary" id="btn-new-request" onclick="openModal('modal-new')">+ 새 요청 등록</button>
+        <button class="btn btn-primary" id="btn-new-request" data-show-roles="customer,internal" data-perm="ticket_create" onclick="openModal('modal-new')">+ 새 요청 등록</button>
       </div>
       <div class="filter-bar">
         <input class="search-box" id="ticket-search" placeholder="요청 번호, 제목 검색..." oninput="applyTicketFilter()">
@@ -669,6 +670,7 @@ textarea{resize:vertical;min-height:100px;}
                 </div>
               </th>
               <th>고객사</th><th>요청자</th><th>담당자</th><th>접수일</th>
+              <th data-show-roles="internal">완료예정일</th>
             </tr></thead>
             <tbody id="ticket-tbody">
               <tr><td colspan="10" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
@@ -728,8 +730,8 @@ textarea{resize:vertical;min-height:100px;}
       <div class="section-header">
         <div><div class="section-title">자료실</div><div class="section-sub">제품 관련 자료와 자주 묻는 질문을 확인합니다.</div></div>
         <div style="display:flex;gap:8px;">
-          <button class="btn btn-outline btn-sm" id="lib-btn-doc" data-show-roles="tech_support,admin" onclick="openNewDocModal('')" style="display:none;">+ 자료 등록</button>
-          <button class="btn btn-outline btn-sm" id="lib-btn-faq" data-show-roles="tech_support,admin" onclick="openNewDocModal('faq')" style="display:none;">+ FAQ 등록</button>
+          <button class="btn btn-outline btn-sm" id="lib-btn-doc" data-show-roles="all" data-perm="library_manage" onclick="openNewDocModal('')" style="display:none;">+ 자료 등록</button>
+          <button class="btn btn-outline btn-sm" id="lib-btn-faq" data-show-roles="all" data-perm="library_manage" onclick="openNewDocModal('faq')" style="display:none;">+ FAQ 등록</button>
         </div>
       </div>
 
@@ -1214,7 +1216,10 @@ textarea{resize:vertical;min-height:100px;}
       <div id="p-permission" class="page u-page">
         <div class="section-header">
           <div><div class="section-title">권한 관리</div><div class="section-sub">역할별 메뉴 접근 권한을 설정합니다</div></div>
-          <button class="btn btn-primary btn-sm" onclick="savePermissions()">저장</button>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-outline btn-sm" onclick="resetPermissionsToDefault()">기본권한</button>
+            <button class="btn btn-primary btn-sm" onclick="savePermissions()">저장</button>
+          </div>
         </div>
         <div class="card" style="padding:0;overflow:hidden;">
           <div style="overflow-x:auto;">
@@ -1222,26 +1227,23 @@ textarea{resize:vertical;min-height:100px;}
               <thead>
                 <tr>
                   <th rowspan="2" style="width:110px;border-right:1.5px solid var(--border-strong);text-align:left;padding-left:14px;">역할</th>
-                  <th colspan="4" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">요청 관리</th>
+                  <th colspan="3" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">요청</th>
                   <th colspan="2" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">자료실</th>
-                  <th colspan="2" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">고객사</th>
-                  <th colspan="2" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">사용자</th>
+                  <th colspan="1" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">고객사</th>
+                  <th colspan="1" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">사용자</th>
                   <th colspan="3" style="border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">시스템</th>
                 </tr>
                 <tr>
-                  <th style="border-left:1.5px solid var(--border-strong);font-size:10px;font-weight:400;color:var(--muted);">조회</th>
-                  <th style="font-size:10px;font-weight:400;color:var(--muted);">생성</th>
-                  <th style="font-size:10px;font-weight:400;color:var(--muted);">담당배정</th>
-                  <th style="border-right:1.5px solid var(--border-strong);font-size:10px;font-weight:400;color:var(--muted);">상태변경</th>
-                  <th style="font-size:10px;font-weight:400;color:var(--muted);">조회</th>
-                  <th style="border-right:1.5px solid var(--border-strong);font-size:10px;font-weight:400;color:var(--muted);">관리</th>
-                  <th style="font-size:10px;font-weight:400;color:var(--muted);">조회</th>
-                  <th style="border-right:1.5px solid var(--border-strong);font-size:10px;font-weight:400;color:var(--muted);">관리</th>
-                  <th style="font-size:10px;font-weight:400;color:var(--muted);">조회</th>
-                  <th style="border-right:1.5px solid var(--border-strong);font-size:10px;font-weight:400;color:var(--muted);">관리</th>
-                  <th style="font-size:10px;font-weight:400;color:var(--muted);">연동</th>
-                  <th style="font-size:10px;font-weight:400;color:var(--muted);">알림로그</th>
-                  <th style="font-size:10px;font-weight:400;color:var(--muted);">권한</th>
+                  <th style="border-left:1.5px solid var(--border-strong);border-right:1px solid var(--border);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">조회</th>
+                  <th style="border-right:1px solid var(--border);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">생성</th>
+                  <th style="border-right:1.5px solid var(--border-strong);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">관리</th>
+                  <th style="border-right:1px solid var(--border);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">조회</th>
+                  <th style="border-right:1.5px solid var(--border-strong);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">관리</th>
+                  <th style="border-right:1.5px solid var(--border-strong);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">관리</th>
+                  <th style="border-right:1.5px solid var(--border-strong);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">관리</th>
+                  <th style="border-right:1px solid var(--border);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">연동</th>
+                  <th style="border-right:1px solid var(--border);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">알림로그</th>
+                  <th style="text-align:center;font-size:10px;font-weight:400;color:var(--muted);">권한</th>
                 </tr>
               </thead>
               <tbody id="perm-tbody"></tbody>
@@ -1512,7 +1514,7 @@ textarea{resize:vertical;min-height:100px;}
         </div>
       </div>
       <div style="background:var(--surface2);border-radius:var(--r-md);padding:12px;margin-top:16px;font-size:12px;color:var(--muted);">
-        📧 요청 등록 시 접수 확인 메일이 자동 발송되며, 담당자 배정 후 Slack으로 알림이 전송됩니다.
+        📧 요청 등록 시 접수 확인 메일이 자동 발송됩니다.
       </div>
     </div>
     <div style="padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;">
@@ -2180,7 +2182,7 @@ async function doLogin() {
   enterApp(email, { id: u.id, role: u.role, name: u.name, company_id: u.company_id || null, contract_id: u.contract_id || null, company: companyName, phone: u.phone || '' });
 }
 
-function enterApp(email, acct) {
+async function enterApp(email, acct) {
   currentUser = { email, ...acct };
 
   // 세션 localStorage 저장 (새 탭/새로고침 시 자동 복구용)
@@ -2191,8 +2193,9 @@ function enterApp(email, acct) {
     sb.from('users').update({ last_login: new Date().toISOString() }).eq('id', acct.id).then(() => {});
   }
 
-  // 통합 셸로 이동 후 역할 UI 적용
+  // 통합 셸로 이동 후 역할별 권한 로드 + UI 적용
   goScreen('screen-main');
+  await loadPermissions();
   applyRoleUI(acct.role);
 
   // 역할별 첫 번째 탭 클릭 (초기 페이지)
@@ -2215,16 +2218,30 @@ function enterApp(email, acct) {
 }
 
 function applyRoleUI(role) {
-  // 탭 항목: data-roles 기준으로 show/hide
+  // data-perm이 있는 요소는 permState(role_permissions 기준)도 함께 만족해야 함
+  // data-perm에 콤마로 여러 권한을 나열하면 "그 중 하나라도 있으면 통과"로 판단
+  const permOk = (el) => {
+    if (!el.dataset.perm) return true;
+    const keys = el.dataset.perm.split(',').map(k => k.trim());
+    return keys.some(k => !!(permState[role] && permState[role][k]));
+  };
+
+  // 탭 항목: data-roles + data-perm 기준으로 show/hide
   document.querySelectorAll('#main-navtabs .nt[data-roles]').forEach(el => {
     const roles = el.dataset.roles.split(',').map(r => r.trim());
-    el.style.display = (roles.includes('all') || roles.includes(role)) ? '' : 'none';
+    const roleOk = roles.includes('all') || roles.includes(role);
+    el.style.display = (roleOk && permOk(el)) ? '' : 'none';
   });
 
-  // 인페이지 요소: data-show-roles 기준으로 show/hide
+  // 자료실 탭: 관리 권한이 있으면 "자료실 관리"로 라벨 전환
+  const libTab = document.getElementById('nt-library');
+  if (libTab) libTab.textContent = (permState[role] && permState[role].library_manage) ? '자료실 관리' : '자료실';
+
+  // 인페이지 요소: data-show-roles + data-perm 기준으로 show/hide
   document.querySelectorAll('[data-show-roles]').forEach(el => {
     const roles = el.dataset.showRoles.split(',').map(r => r.trim());
-    el.style.display = (roles.includes('all') || roles.includes(role)) ? '' : 'none';
+    const roleOk = roles.includes('all') || roles.includes(role);
+    el.style.display = (roleOk && permOk(el)) ? '' : 'none';
   });
 
   // 상단 역할 뱃지 업데이트
@@ -3060,7 +3077,7 @@ function hideDetail() {
   document.getElementById('support-list').style.display = '';
   document.getElementById('support-detail').style.display = 'none';
   const btnNew = document.getElementById('btn-new-request');
-  if (btnNew) btnNew.style.display = '';
+  if (btnNew) btnNew.style.display = (currentUser && permState[currentUser.role]?.ticket_create) ? '' : 'none';
 }
 
 function sendExtraMsg() {
@@ -3557,7 +3574,7 @@ async function loadTickets() {
 
   let query = sb
     .from('tickets')
-    .select('id, ticket_number, title, description, category, product, priority, status, created_at, assigned_to_name, assignee:assigned_to(name), company:company_id(name), requester:created_by(name)')
+    .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, assigned_to_name, assignee:assigned_to(name), company:company_id(name), requester:created_by(name)')
     .order('created_at', { ascending: false });
 
   if (DEMO_COMPANY_ID) query = query.eq('company_id', DEMO_COMPANY_ID);
@@ -3631,10 +3648,15 @@ function renderTickets(tickets) {
   if (!tbody) return;
   detachSharedRequestDetail(tbody);
 
+  const isCustomerRole = currentUser?.role === 'customer';
+  const colCount = isCustomerRole ? 9 : 10;
+
   if (!tickets.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="padding:40px;text-align:center;color:var(--faint);">등록된 요청이 없습니다.</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="${colCount}" style="padding:40px;text-align:center;color:var(--faint);">등록된 요청이 없습니다.</td></tr>`;
     return;
   }
+  const PENDING_STATUSES = ['received', 'classifying', 'in_progress', 'pending_customer', 'on_hold'];
+  const todayStr = new Date().toISOString().slice(0, 10);
   tbody.innerHTML = tickets.map(t => {
     const catLabel  = CATEGORY_LABELS[t.category] || t.category || '—';
     const catBadge  = CATEGORY_BADGE[t.category]  || 'b-gray';
@@ -3649,6 +3671,9 @@ function renderTickets(tickets) {
                       : '<span style="color:var(--faint);">미배정</span>';
     const date      = t.created_at ? t.created_at.slice(0, 10) : '—';
     const num       = t.ticket_number || t.id?.slice(0, 8);
+    const isDelayed = PENDING_STATUSES.includes(t.status) && t.due_date && t.due_date < todayStr;
+    const overdueDays = isDelayed ? Math.floor((new Date(todayStr) - new Date(t.due_date)) / (24*60*60*1000)) : 0;
+    const dueDateCell = isCustomerRole ? '' : `<td style="font-size:12px;${isDelayed ? 'color:var(--red);font-weight:600;' : 'color:var(--faint);'}">${t.due_date ? t.due_date + (isDelayed ? ` <span style="font-size:10px;background:#fee2e2;color:#b91c1c;padding:1px 5px;border-radius:3px;">+${overdueDays}일</span>` : '') : '—'}</td>`;
     const idx = allTickets.indexOf(t);
     return `<tr class="ticket-row" style="cursor:pointer;" data-id="${t.id}" onclick="toggleTicketRow(this, allTickets[${idx}])">
       <td style="color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;font-size:12px;">${escHtml(num)}</td>
@@ -3660,9 +3685,10 @@ function renderTickets(tickets) {
       <td style="font-size:12px;">${requester}</td>
       <td style="font-size:12px;">${asgn}</td>
       <td style="color:var(--faint);font-size:12px;">${date}</td>
+      ${dueDateCell}
     </tr>
     <tr class="ticket-detail-row" style="display:none;">
-      <td colspan="9" style="padding:6px 0 0;background:var(--bg);"></td>
+      <td colspan="${colCount}" style="padding:6px 0 0;background:var(--bg);"></td>
     </tr>`;
   }).join('');
 }
@@ -4043,7 +4069,7 @@ function renderCompanies(companies) {
     tbody.innerHTML = '<tr><td colspan="9" style="padding:40px;text-align:center;color:var(--faint);">등록된 고객사가 없습니다.</td></tr>';
     return;
   }
-  const isAdmin = currentUser && ['tech_support','admin','sales','education'].includes(currentUser.role);
+  const isAdmin = currentUser && !!permState[currentUser.role]?.company_manage;
   const today = new Date();
   tbody.innerHTML = companies.map(c => {
     const stLabel = STATUS_CO_LABELS[c.status] || c.status || '—';
@@ -4664,26 +4690,47 @@ const PERM_ROLES = [
   { key:'customer',     label:'고객',     color:'#6B7280', locked:false },
 ];
 const PERM_COLS = [
-  'ticket_view','ticket_create','ticket_assign','ticket_status',
+  'ticket_view','ticket_create','ticket_manage',
   'library_view','library_manage',
-  'company_view','company_manage',
-  'user_view','user_manage',
+  'company_manage',
+  'user_manage',
   'integration','notify_log','permission'
 ];
+// data-roles/data-show-roles/ADMIN_ROLES 등 실제 코드 동작 기준으로 산정한 기본값 (DB 조회 실패 시 폴백)
 const PERM_DEFAULT = {
-  admin:        { ticket_view:1,ticket_create:1,ticket_assign:1,ticket_status:1,library_view:1,library_manage:1,company_view:1,company_manage:1,user_view:1,user_manage:1,integration:1,notify_log:1,permission:1 },
-  internal:     { ticket_view:1,ticket_create:0,ticket_assign:0,ticket_status:0,library_view:1,library_manage:0,company_view:1,company_manage:0,user_view:0,user_manage:0,integration:0,notify_log:0,permission:0 },
-  sales:        { ticket_view:1,ticket_create:1,ticket_assign:0,ticket_status:0,library_view:1,library_manage:0,company_view:1,company_manage:1,user_view:1,user_manage:0,integration:0,notify_log:0,permission:0 },
-  tech_support: { ticket_view:1,ticket_create:1,ticket_assign:1,ticket_status:1,library_view:1,library_manage:1,company_view:1,company_manage:0,user_view:1,user_manage:0,integration:0,notify_log:1,permission:0 },
-  education:    { ticket_view:1,ticket_create:1,ticket_assign:1,ticket_status:1,library_view:1,library_manage:0,company_view:1,company_manage:0,user_view:1,user_manage:0,integration:0,notify_log:0,permission:0 },
-  customer:     { ticket_view:1,ticket_create:1,ticket_assign:0,ticket_status:0,library_view:1,library_manage:0,company_view:0,company_manage:0,user_view:0,user_manage:0,integration:0,notify_log:0,permission:0 },
+  admin:        { ticket_view:1,ticket_create:1,ticket_manage:1,library_view:1,library_manage:1,company_manage:1,user_manage:1,integration:1,notify_log:1,permission:1 },
+  internal:     { ticket_view:1,ticket_create:1,ticket_manage:0,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
+  sales:        { ticket_view:1,ticket_create:0,ticket_manage:1,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
+  tech_support: { ticket_view:1,ticket_create:0,ticket_manage:1,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
+  education:    { ticket_view:1,ticket_create:0,ticket_manage:1,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
+  customer:     { ticket_view:1,ticket_create:1,ticket_manage:0,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
 };
 let permState = JSON.parse(JSON.stringify(PERM_DEFAULT));
+
+// role_permissions 테이블에서 실제 권한 설정을 읽어와 permState에 반영 (로그인 시 1회 호출)
+async function loadPermissions() {
+  permState = JSON.parse(JSON.stringify(PERM_DEFAULT));
+  if (!sb) return;
+  const { data, error } = await sb.from('role_permissions').select('role, feature_key, enabled');
+  if (error || !data) return;
+  data.forEach(row => {
+    if (permState[row.role] && row.feature_key in permState[row.role]) {
+      permState[row.role][row.feature_key] = row.enabled ? 1 : 0;
+    }
+  });
+}
+
+// "기본권한" 버튼: 화면 표시만 PERM_DEFAULT(현재 실제 기준)로 되돌림 — 저장을 눌러야 DB에 반영됨
+function resetPermissionsToDefault() {
+  permState = JSON.parse(JSON.stringify(PERM_DEFAULT));
+  renderPermissions();
+  showToast('기본 권한으로 초기화됐습니다. 저장을 눌러야 반영됩니다.');
+}
 
 function renderPermissions() {
   const tbody = document.getElementById('perm-tbody');
   if (!tbody) return;
-  const sepCols = [3,5,7,9]; // border-right after these indices (0-based)
+  const sepCols = [2,4,5,6]; // border-right after these indices (0-based)
   tbody.innerHTML = PERM_ROLES.map(role => {
     const cells = PERM_COLS.map((col, i) => {
       const on = permState[role.key][col];
@@ -4691,12 +4738,12 @@ function renderPermissions() {
       const leftStyle = i === 0 ? 'border-left:1.5px solid var(--border-strong);' : '';
       if (role.locked) {
         const chip = on
-          ? `<span style="display:inline-block;width:20px;height:20px;border-radius:50%;line-height:20px;font-size:11px;background:var(--bg-success);color:var(--text-success);">✓</span>`
+          ? `<span style="display:inline-block;width:20px;height:20px;border-radius:50%;line-height:20px;font-size:11px;background:var(--green-l);color:var(--green-d);">✓</span>`
           : `<span style="display:inline-block;width:20px;height:20px;border-radius:50%;line-height:20px;font-size:11px;background:var(--surface-alt,#f4f4f4);color:var(--muted);border:1px solid var(--border);">—</span>`;
         return `<td style="text-align:center;${sepStyle}${leftStyle}">${chip}</td>`;
       }
       const chip = on
-        ? `<span onclick="togglePerm('${role.key}','${col}',this)" style="display:inline-block;width:20px;height:20px;border-radius:50%;line-height:20px;font-size:11px;background:var(--bg-success);color:var(--text-success);cursor:pointer;" title="클릭해서 끄기">✓</span>`
+        ? `<span onclick="togglePerm('${role.key}','${col}',this)" style="display:inline-block;width:20px;height:20px;border-radius:50%;line-height:20px;font-size:11px;background:var(--green-l);color:var(--green-d);cursor:pointer;" title="클릭해서 끄기">✓</span>`
         : `<span onclick="togglePerm('${role.key}','${col}',this)" style="display:inline-block;width:20px;height:20px;border-radius:50%;line-height:20px;font-size:11px;background:var(--surface-alt,#f4f4f4);color:var(--muted);border:1px solid var(--border);cursor:pointer;" title="클릭해서 켜기">—</span>`;
       return `<td style="text-align:center;${sepStyle}${leftStyle}">${chip}</td>`;
     }).join('');
@@ -4716,8 +4763,8 @@ function togglePerm(role, col, el) {
   const on = permState[role][col];
   if (on) {
     el.textContent = '✓';
-    el.style.background = 'var(--bg-success)';
-    el.style.color = 'var(--text-success)';
+    el.style.background = 'var(--green-l)';
+    el.style.color = 'var(--green-d)';
     el.style.border = 'none';
     el.title = '클릭해서 끄기';
   } else {
@@ -4729,7 +4776,15 @@ function togglePerm(role, col, el) {
   }
 }
 
-function savePermissions() {
+async function savePermissions() {
+  if (!sb) { showToast('DB 연결 없음', true); return; }
+  const rows = [];
+  for (const role of PERM_ROLES.map(r => r.key)) {
+    for (const col of PERM_COLS) rows.push({ role, feature_key: col, enabled: !!permState[role][col], updated_by: currentUser?.id || null });
+  }
+  const { error } = await sb.from('role_permissions').upsert(rows, { onConflict: 'role,feature_key' });
+  if (error) { showToast('저장 실패: ' + error.message, true); return; }
+  applyRoleUI(currentUser.role); // 저장 즉시 현재 로그인 세션에도 반영
   showToast('권한 설정이 저장됐습니다.');
 }
 
@@ -6217,11 +6272,11 @@ function switchLibDisplayTab(tab) {
   const OFF = 'color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;';
   tFiles.style.cssText = tFiles.style.cssText.replace(/color:[^;]+;border-bottom:[^;]+;margin-bottom:[^;]+;/, '') + (isFiles ? ON : OFF);
   tFaq.style.cssText   = tFaq.style.cssText.replace(/color:[^;]+;border-bottom:[^;]+;margin-bottom:[^;]+;/, '')   + (isFiles ? OFF : ON);
-  const isAdmin = currentUser?.role === 'admin';
+  const canManageLib = !!(currentUser && permState[currentUser.role]?.library_manage);
   const btnDoc = document.getElementById('lib-btn-doc');
   const btnFaq = document.getElementById('lib-btn-faq');
-  if (btnDoc) btnDoc.style.display = (isAdmin && isFiles) ? '' : 'none';
-  if (btnFaq) btnFaq.style.display = (isAdmin && !isFiles) ? '' : 'none';
+  if (btnDoc) btnDoc.style.display = (canManageLib && isFiles) ? '' : 'none';
+  if (btnFaq) btnFaq.style.display = (canManageLib && !isFiles) ? '' : 'none';
   setTimeout(fitListHeight, 0);
 }
 
@@ -6255,7 +6310,7 @@ function libRowActions(d, isAdmin, isPublic, fileUrl) {
 function renderLibFiles() {
   const tbody = document.getElementById('lib-files-tbody');
   if (!tbody) return;
-  const isAdmin = currentUser?.role === 'admin';
+  const isAdmin = !!(currentUser && permState[currentUser.role]?.library_manage);
   const q = (document.getElementById('lib-search')?.value || '').toLowerCase();
   const list = allLibDocs.filter(d => {
     if (d.product === 'faq') return false;
@@ -6308,7 +6363,7 @@ function libFaqActions(d, isAdmin, isPublic) {
 function renderLibFaq() {
   const tbody = document.getElementById('lib-faq-tbody');
   if (!tbody) return;
-  const isAdmin = currentUser?.role === 'admin';
+  const isAdmin = !!(currentUser && permState[currentUser.role]?.library_manage);
   const colCount = isAdmin ? 5 : 4;
 
   const colgroup = document.getElementById('lib-faq-colgroup');
