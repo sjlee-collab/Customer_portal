@@ -4363,13 +4363,14 @@ function renderContractLicenseGroups() {
     const contractLicenses = licenses.filter(l => l.contract_id === ct.id);
     return `
     <div style="border:1px solid var(--border);border-radius:var(--r-md);margin-bottom:14px;overflow:hidden;">
-      <div style="display:grid;grid-template-columns:1.4fr .8fr .7fr 1fr 1fr 1fr auto;gap:14px;align-items:center;padding:12px 16px;background:var(--surface2);">
+      <div style="display:grid;grid-template-columns:1.4fr .8fr .7fr 1fr 1fr 1fr .9fr auto;gap:14px;align-items:center;padding:12px 16px;background:var(--surface2);">
         <div><div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;">계약명</div><div style="font-size:13px;font-weight:700;">${escHtml(ct.contract_name || '—')}</div></div>
         <div><div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;">계약종류</div><div style="font-size:12px;">${escHtml(ct.contract_type || '—')}</div></div>
         <div><div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;">계약상태</div><span class="badge ${CONTRACT_STATUS_BADGE[ct.status] || 'b-gray'}">${escHtml(ct.status || '—')}</span></div>
         <div><div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;">계약기간</div><div style="font-size:12px;">${ct.start_date ? ct.start_date.slice(0,10) : '—'} ~ ${ct.end_date ? ct.end_date.slice(0,10) : '—'}</div></div>
         <div><div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;">고객계약담당자</div><div style="font-size:12px;">${escHtml(ct.customer_contact || '—')}</div></div>
         <div><div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;">빅스계약담당자</div><div style="font-size:12px;">${escHtml(ct.bixs_contact || '—')}</div></div>
+        <div><div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;">첨부문서</div><div style="font-size:12px;">${ct.file_path ? `<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="downloadPrivateFile('contract-attachments','${escHtml(ct.file_path)}','${escHtml(ct.file_name||'')}')">📎 ${escHtml(ct.file_name || '다운로드')}</button>` : '—'}</div></div>
         <div style="display:flex;gap:6px;justify-self:end;">
           <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick='openEditContractModal(${escHtml(JSON.stringify(ct).replace(/'/g,"&#39;"))})'>수정</button>
           <button class="btn btn-ghost btn-sm" style="font-size:11px;color:#e53e3e;" onclick="deleteContract('${ct.id}','${escHtml(ct.file_path||'')}')">삭제</button>
