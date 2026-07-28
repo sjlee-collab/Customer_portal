@@ -745,7 +745,7 @@ textarea{resize:vertical;min-height:100px;}
       <div class="filter-bar">
         <input class="search-box" id="lib-search" placeholder="자료명 검색..." oninput="renderLibFiles()">
         <span class="filter-chip active" onclick="setLibCategory('',this)">전체</span>
-        <span class="filter-chip" onclick="setLibCategory('tableau',this)">Tableau</span>
+        <span class="filter-chip" onclick="setLibCategory('tableau',this)">Tableau Desktop</span>
         <span class="filter-chip" onclick="setLibCategory('tableau-server',this)">Tableau Server</span>
         <span class="filter-chip" onclick="setLibCategory('tableau-cloud',this)">Tableau Cloud</span>
         <span class="filter-chip" onclick="setLibCategory('edu',this)">교육</span>
@@ -766,7 +766,7 @@ textarea{resize:vertical;min-height:100px;}
       <div class="filter-bar">
         <input class="search-box" id="lib-faq-search" placeholder="질문 검색..." oninput="renderLibFaq()">
         <span class="filter-chip active" onclick="setLibFaqCategory('',this)">전체</span>
-        <span class="filter-chip" onclick="setLibFaqCategory('tableau',this)">Tableau</span>
+        <span class="filter-chip" onclick="setLibFaqCategory('tableau',this)">Tableau Desktop</span>
         <span class="filter-chip" onclick="setLibFaqCategory('tableau-server',this)">Tableau Server</span>
         <span class="filter-chip" onclick="setLibFaqCategory('tableau-cloud',this)">Tableau Cloud</span>
         <span class="filter-chip" onclick="setLibFaqCategory('edu',this)">교육</span>
@@ -1127,7 +1127,7 @@ textarea{resize:vertical;min-height:100px;}
           <div class="filter-bar">
             <input class="search-box" id="docs-search-files" placeholder="제목 검색..." oninput="renderDocsFiles()">
             <span class="filter-chip active" onclick="setDocsCategory('',this)">전체</span>
-            <span class="filter-chip" onclick="setDocsCategory('tableau',this)">Tableau</span>
+            <span class="filter-chip" onclick="setDocsCategory('tableau',this)">Tableau Desktop</span>
             <span class="filter-chip" onclick="setDocsCategory('tableau-server',this)">Tableau Server</span>
             <span class="filter-chip" onclick="setDocsCategory('tableau-cloud',this)">Tableau Cloud</span>
             <span class="filter-chip" onclick="setDocsCategory('edu',this)">교육</span>
@@ -1147,7 +1147,7 @@ textarea{resize:vertical;min-height:100px;}
           <div class="filter-bar">
             <input class="search-box" id="docs-search-faq" placeholder="질문 검색..." oninput="renderDocsFaq()">
             <span class="filter-chip active" onclick="setDocsFaqCategory('',this)">전체</span>
-            <span class="filter-chip" onclick="setDocsFaqCategory('tableau',this)">Tableau</span>
+            <span class="filter-chip" onclick="setDocsFaqCategory('tableau',this)">Tableau Desktop</span>
             <span class="filter-chip" onclick="setDocsFaqCategory('tableau-server',this)">Tableau Server</span>
             <span class="filter-chip" onclick="setDocsFaqCategory('tableau-cloud',this)">Tableau Cloud</span>
             <span class="filter-chip" onclick="setDocsFaqCategory('edu',this)">교육</span>
@@ -1985,7 +1985,7 @@ textarea{resize:vertical;min-height:100px;}
         <div class="form-group">
           <label>카테고리 <span class="req">*</span></label>
           <select id="d-category">
-            <option value="tableau">Tableau</option>
+            <option value="tableau">Tableau Desktop</option>
             <option value="tableau-server">Tableau Server</option>
             <option value="tableau-cloud">Tableau Cloud</option>
             <option value="edu">교육</option>
@@ -2615,7 +2615,7 @@ async function testIntegration(type) {
 }
 
 // ─── 자료실 관리 ────────────────────────────────────────
-const DOC_CATEGORY_LABEL = { tableau:'Tableau', 'tableau-server':'Tableau Server', 'tableau-cloud':'Tableau Cloud', edu:'교육', faq:'FAQ' };
+const DOC_CATEGORY_LABEL = { tableau:'Tableau Desktop', 'tableau-server':'Tableau Server', 'tableau-cloud':'Tableau Cloud', edu:'교육', faq:'FAQ' };
 
 let allDocsAdmin = [];
 let docsCatFilter = '';
@@ -6245,7 +6245,7 @@ let libProductFilter = '';
 let libFaqCatFilter = '';
 
 const DOC_CAT_ICON = { tableau:'📊', 'tableau-server':'🖥️', 'tableau-cloud':'☁️', edu:'🎓', faq:'❓' };
-const DOC_CAT_LABEL_KO = { tableau:'Tableau', 'tableau-server':'Tableau Server', 'tableau-cloud':'Tableau Cloud', edu:'교육', faq:'FAQ' };
+const DOC_CAT_LABEL_KO = { tableau:'Tableau Desktop', 'tableau-server':'Tableau Server', 'tableau-cloud':'Tableau Cloud', edu:'교육', faq:'FAQ' };
 
 async function loadLibFiles() {
   const tbody = document.getElementById('lib-files-tbody');
