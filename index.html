@@ -4075,21 +4075,20 @@ function renderCompanies(companies) {
     const stLabel = STATUS_CO_LABELS[c.status] || c.status || '—';
     const stBadge = STATUS_CO_BADGE[c.status]  || 'b-gray';
     const ALL_PRODUCTS = ['Tableau Server','Tableau Cloud','Tableau Desktop','Dataworks','AgentWorks'];
-    const PRODUCT_COLOR = {
-      'Tableau Server':  'background:#E6F1FB;color:#185FA5;border-color:#85B7EB;',
-      'Tableau Cloud':   'background:#E6F1FB;color:#185FA5;border-color:#85B7EB;',
-      'Tableau Desktop': 'background:#EAF3DE;color:#3B6D11;border-color:#97C459;',
-      'Dataworks':       'background:#FAEEDA;color:#854F0B;border-color:#EF9F27;',
-      'AgentWorks':      'background:#EEEDFE;color:#3C3489;border-color:#AFA9EC;',
+    const PRODUCT_MONO = {
+      'Tableau Server':  { text: 'TS', bg: '#4A90D9' },
+      'Tableau Cloud':   { text: 'TC', bg: '#185FA5' },
+      'Tableau Desktop': { text: 'TD', bg: '#5B9B33' },
+      'Dataworks':       { text: 'DW', bg: '#C77800' },
+      'AgentWorks':      { text: 'AW', bg: '#6C5CE7' },
     };
-    const usedSet = new Set(Array.isArray(c.products) ? c.products : []);
-    const products = ALL_PRODUCTS.map(p => {
-      const active = usedSet.has(p);
-      const style = active
-        ? `font-size:10px;margin:1px;padding:2px 8px;border-radius:4px;border:0.5px solid;display:inline-block;${PRODUCT_COLOR[p]}`
-        : 'font-size:10px;margin:1px;padding:2px 8px;border-radius:4px;border:0.5px solid var(--border);display:inline-block;background:var(--surface-1);color:var(--faint);';
-      return `<span style="${style}">${escHtml(p)}</span>`;
-    }).join('');
+    const usedProducts = ALL_PRODUCTS.filter(p => Array.isArray(c.products) && c.products.includes(p));
+    const products = usedProducts.length
+      ? `<div style="display:flex;gap:4px;">${usedProducts.map(p => {
+          const m = PRODUCT_MONO[p];
+          return `<div title="${escHtml(p)}" style="width:22px;height:22px;border-radius:6px;font-size:9.5px;font-weight:800;display:flex;align-items:center;justify-content:center;color:#fff;letter-spacing:-.02em;background:${m.bg};">${m.text}</div>`;
+        }).join('')}</div>`
+      : '<span style="font-size:12px;color:var(--faint);">미등록</span>';
     const ctLabel = CUSTOMER_TYPE_KO[c.customer_type] || (c.customer_type ? escHtml(c.customer_type) : '—');
 
     return `
@@ -4097,7 +4096,7 @@ function renderCompanies(companies) {
         <td style="font-weight:600;">${escHtml(c.name)}</td>
         <td><span class="badge ${stBadge}">${stLabel}</span></td>
         <td style="font-size:12px;">${ctLabel}</td>
-        <td style="font-size:12px;max-width:150px;white-space:normal;">${products}</td>
+        <td style="font-size:12px;">${products}</td>
         <td style="font-size:12px;">${escHtml(c.account_manager || '—')}</td>
         <td style="font-size:12px;">${escHtml(c.tech_support_manager || '—')}</td>
         <td style="font-size:12px;">${escHtml(c.main_contact_name || '—')}</td>
