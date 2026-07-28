@@ -4082,13 +4082,15 @@ function renderCompanies(companies) {
       'Dataworks':       { text: 'DW', bg: '#C77800' },
       'AgentWorks':      { text: 'AW', bg: '#6C5CE7' },
     };
-    const usedProducts = ALL_PRODUCTS.filter(p => Array.isArray(c.products) && c.products.includes(p));
-    const products = usedProducts.length
-      ? `<div style="display:flex;gap:4px;">${usedProducts.map(p => {
-          const m = PRODUCT_MONO[p];
-          return `<div title="${escHtml(p)}" style="width:22px;height:22px;border-radius:6px;font-size:9.5px;font-weight:800;display:flex;align-items:center;justify-content:center;color:#fff;letter-spacing:-.02em;background:${m.bg};">${m.text}</div>`;
-        }).join('')}</div>`
-      : '<span style="font-size:12px;color:var(--faint);">미등록</span>';
+    const usedSet = new Set(Array.isArray(c.products) ? c.products : []);
+    const products = `<div style="display:flex;gap:4px;">${ALL_PRODUCTS.map(p => {
+      const m = PRODUCT_MONO[p];
+      const active = usedSet.has(p);
+      const style = active
+        ? `background:${m.bg};color:#fff;`
+        : 'background:var(--surface-1);color:var(--faint);border:1px solid var(--border);';
+      return `<div title="${escHtml(p)}${active ? '' : ' (미사용)'}" style="width:22px;height:22px;border-radius:6px;font-size:9.5px;font-weight:800;display:flex;align-items:center;justify-content:center;letter-spacing:-.02em;${style}">${m.text}</div>`;
+    }).join('')}</div>`;
     const ctLabel = CUSTOMER_TYPE_KO[c.customer_type] || (c.customer_type ? escHtml(c.customer_type) : '—');
 
     return `
