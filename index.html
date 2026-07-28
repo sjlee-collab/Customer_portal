@@ -773,8 +773,8 @@ textarea{resize:vertical;min-height:100px;}
       </div>
       <div class="card" style="padding:0;overflow:hidden;">
         <div class="tbl-scroll list-scroll"><table class="tbl tbl-fit">
-          <colgroup id="lib-faq-colgroup"><col style="width:40%"><col style="width:12%"><col style="width:10%"><col style="width:12%"><col style="width:26%"></colgroup>
-          <thead id="lib-faq-thead"><tr><th>질문</th><th>카테고리</th><th>조회수</th><th>등록일</th><th>액션</th></tr></thead>
+          <colgroup id="lib-faq-colgroup"><col style="width:12%"><col style="width:40%"><col style="width:10%"><col style="width:12%"><col style="width:26%"></colgroup>
+          <thead id="lib-faq-thead"><tr><th>카테고리</th><th>질문</th><th>조회수</th><th>등록일</th><th>액션</th></tr></thead>
           <tbody id="lib-faq-tbody">
             <tr><td colspan="5" style="padding:40px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
           </tbody>
@@ -1154,8 +1154,8 @@ textarea{resize:vertical;min-height:100px;}
           </div>
           <div class="card" style="padding:0;overflow:hidden;">
             <div class="tbl-scroll list-scroll"><table class="tbl tbl-fit">
-              <colgroup><col style="width:30%"><col style="width:10%"><col style="width:8%"><col style="width:10%"><col style="width:12%"><col style="width:30%"></colgroup>
-              <thead><tr><th>질문</th><th>카테고리</th><th>조회수</th><th>공개</th><th>등록일</th><th>작업</th></tr></thead>
+              <colgroup><col style="width:10%"><col style="width:30%"><col style="width:8%"><col style="width:10%"><col style="width:12%"><col style="width:30%"></colgroup>
+              <thead><tr><th>카테고리</th><th>질문</th><th>조회수</th><th>공개</th><th>등록일</th><th>작업</th></tr></thead>
               <tbody id="docs-faq-tbody">
                 <tr><td colspan="6" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
               </tbody>
@@ -2732,8 +2732,8 @@ function renderDocsFaq() {
   if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">등록된 FAQ가 없습니다.</td></tr>'; return; }
   tbody.innerHTML = list.map(d => `
     <tr class="faq-row" onclick="toggleFaqRow(this)" style="cursor:pointer;" data-doc-id="${d.id}">
-      <td class="tbl-ellipsis" style="font-weight:600;font-size:13px;">${escHtml(d.title)}</td>
       <td class="tbl-ellipsis">${DOC_CATEGORY_LABEL[d.category] || d.category}</td>
+      <td class="tbl-ellipsis" style="font-weight:600;font-size:13px;">${escHtml(d.title)}</td>
       <td style="font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;" id="vc-count-docs-${d.id}">${(d.download_count || 0).toLocaleString()}</td>
       <td class="tbl-ellipsis"><span class="badge ${d.is_public ? 'b-green' : 'b-gray'}">${d.is_public ? '공개' : '비공개'}</span></td>
       <td style="font-size:12px;color:var(--faint);white-space:nowrap;">${(d.created_at || '').slice(0,10)}</td>
@@ -6370,14 +6370,14 @@ function renderLibFaq() {
   const colgroup = document.getElementById('lib-faq-colgroup');
   if (colgroup) {
     colgroup.innerHTML = isAdmin
-      ? '<col style="width:40%"><col style="width:12%"><col style="width:10%"><col style="width:12%"><col style="width:26%">'
-      : '<col style="width:46%"><col style="width:16%"><col style="width:14%"><col style="width:24%">';
+      ? '<col style="width:12%"><col style="width:40%"><col style="width:10%"><col style="width:12%"><col style="width:26%">'
+      : '<col style="width:16%"><col style="width:46%"><col style="width:14%"><col style="width:24%">';
   }
   const thead = document.getElementById('lib-faq-thead');
   if (thead) {
     thead.innerHTML = isAdmin
-      ? '<tr><th>질문</th><th>카테고리</th><th>조회수</th><th>등록일</th><th>액션</th></tr>'
-      : '<tr><th>질문</th><th>카테고리</th><th>조회수</th><th>등록일</th></tr>';
+      ? '<tr><th>카테고리</th><th>질문</th><th>조회수</th><th>등록일</th><th>액션</th></tr>'
+      : '<tr><th>카테고리</th><th>질문</th><th>조회수</th><th>등록일</th></tr>';
   }
 
   const q = (document.getElementById('lib-faq-search')?.value || '').toLowerCase();
@@ -6397,8 +6397,8 @@ function renderLibFaq() {
     const isPublic = d.is_public !== false;
     const privateBadge = isAdmin && !isPublic ? '<span class="badge b-red" style="font-size:10px;margin-left:6px;">비공개</span>' : '';
     return `<tr class="faq-row" onclick="toggleFaqRow(this)" style="cursor:pointer;${isAdmin && !isPublic ? 'background:rgba(220,38,38,.05);' : ''}" data-doc-id="${d.id}">
-      <td class="tbl-ellipsis" style="font-weight:600;">Q. ${escHtml(d.title)}${privateBadge}</td>
       <td class="tbl-ellipsis">${DOC_CAT_LABEL_KO[d.category] || d.category || '-'}</td>
+      <td class="tbl-ellipsis" style="font-weight:600;">Q. ${escHtml(d.title)}${privateBadge}</td>
       <td style="font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;" id="vc-count-lib-${d.id}">${(d.download_count || 0).toLocaleString()}</td>
       <td style="white-space:nowrap;color:var(--faint);">${(d.created_at || '').slice(0,10)}</td>
       ${isAdmin ? `<td style="overflow:hidden;" onclick="event.stopPropagation();">${libFaqActions(d, isAdmin, isPublic)}</td>` : ''}
