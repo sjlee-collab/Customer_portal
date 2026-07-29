@@ -1028,7 +1028,12 @@ textarea{resize:vertical;min-height:100px;}
           <span class="filter-chip" onclick="setCompanyFilter('기타',this)">기타</span>
         </div>
         <div class="card" style="padding:0;overflow:hidden;">
-          <div class="tbl-scroll list-scroll"><table class="tbl">
+          <div class="tbl-scroll list-scroll"><table class="tbl" style="table-layout:fixed;">
+            <colgroup>
+              <col style="width:13%;"><col style="width:8%;"><col style="width:10%;">
+              <col style="width:17%;"><col style="width:10%;"><col style="width:11%;">
+              <col style="width:10%;"><col style="width:13%;"><col style="width:8%;">
+            </colgroup>
             <thead><tr><th>고객사명</th><th>상태</th><th>고객유형</th><th>사용제품</th><th>담당영업</th><th>담당기술지원</th><th>대표담당자</th><th>연락처</th><th>액션</th></tr></thead>
             <tbody id="companies-tbody">
               <tr><td colspan="9" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
