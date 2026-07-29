@@ -137,6 +137,17 @@ textarea{resize:vertical;min-height:100px;}
 .ticket-detail-row td{white-space:normal;}
 .ticket-detail-row td>div{width:100%;box-sizing:border-box;}
 .tbl-fit{table-layout:fixed;}
+
+/* ── 대시보드 라이선스 카드: 라이선스형태 배지 / 역할별 수량 알약 ── */
+.dlc-type-badge{display:inline-flex;align-items:center;padding:1px 7px;border-radius:99px;font-size:9.5px;font-weight:700;background:var(--accent-l);color:var(--accent);white-space:nowrap;}
+.dlc-pills{display:inline-flex;gap:3px;flex-wrap:wrap;justify-content:flex-end;}
+.dlc-pill{display:inline-flex;align-items:center;padding:1px 5px;border-radius:99px;font-size:9px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.dlc-pill-core{background:var(--surface2);color:var(--muted);}
+.dlc-pill-creator{background:#EEEDFE;color:#4C3FC7;}
+.dlc-pill-explorer{background:#E6F4EA;color:#1E7A3C;}
+.dlc-pill-viewer{background:#FEF3E2;color:#B5690A;}
+.dlc-pill-dm{background:#FCEBEB;color:#B23B3B;}
+.dlc-pill-am{background:#E8F0FE;color:#2A5DB0;}
 .tbl-fit td{white-space:normal;overflow:hidden;}
 .tbl-ellipsis{overflow:hidden;text-overflow:ellipsis;white-space:nowrap !important;}
 
@@ -3297,38 +3308,71 @@ async function loadDashboard() {
         // 계약 단위로 매핑된 사용자는 그 계약의 라이선스만, 아니면 고객사 전체 라이선스를 대상으로 한다.
         licQuery = contractId ? licQuery.eq('contract_id', contractId) : licQuery.eq('company_id', companyId);
         const { data: lics } = await licQuery;
-        // 만료일자 컬럼이 없어졌으므로, 연결된 계약의 종료일 기준으로 가장 임박한 라이선스를 고른다.
-        const lic = (lics || []).slice().sort((a, b) => {
-          const ea = a.company_contracts?.end_date, eb = b.company_contracts?.end_date;
-          if (!ea && !eb) return 0;
-          if (!ea) return 1;
-          if (!eb) return -1;
-          return ea < eb ? -1 : ea > eb ? 1 : 0;
-        })[0];
+        // 계약별로 라이선스 행을 묶고, 계약 종료일이 가장 임박한 계약을 대표로 삼는다.
+        const licGroups = new Map();
+        (lics || []).forEach(l => {
+          const key = l.contract_id || '__none__';
+          if (!licGroups.has(key)) licGroups.set(key, []);
+          licGroups.get(key).push(l);
+        });
+        let group = null;
+        licGroups.forEach(g => {
+          if (!group) { group = g; return; }
+          const curEnd = group[0]?.company_contracts?.end_date;
+          const end    = g[0]?.company_contracts?.end_date;
+          if (!curEnd) { group = g; return; }
+          if (end && end < curEnd) group = g;
+        });
         const detail = document.getElementById('dash-license-detail');
-        if (lic && detail) {
+        if (group && group.length && detail) {
           const { data: coRow } = await sb.from('companies').select('account_manager').eq('id', companyId).single();
           let mgrEmail = '';
           if (coRow?.account_manager) {
             const { data: mu } = await sb.from('users').select('email').eq('name', coRow.account_manager).eq('is_active', true).single();
             mgrEmail = mu?.email || '';
           }
-          const contractDates = lic.company_contracts || {};
+          const contractDates = group[0].company_contracts || {};
           const daysLeft = daysUntil(contractDates.end_date);
           const daysColor = daysLeft === null ? 'var(--faint)' : daysLeft <= 30 ? '#dc2626' : daysLeft <= 60 ? '#d97706' : '#059669';
-          document.getElementById('dlc-product').textContent = lic.product_info || '—';
+          document.getElementById('dlc-product').textContent = group[0].product_info || '—';
           const sc = document.getElementById('dlc-status');
-          sc.textContent = lic.status || '—';
-          sc.style.background = lic.status === '활성' ? '#ecfdf5' : 'var(--surface2)';
-          sc.style.color      = lic.status === '활성' ? '#059669' : 'var(--muted)';
+          sc.textContent = '활성';
+          sc.style.background = '#ecfdf5';
+          sc.style.color      = '#059669';
           const dd = document.getElementById('dlc-days');
           dd.textContent = daysLeft ?? '—'; dd.style.color = daysColor;
-          document.getElementById('dlc-type').textContent = lic.license_type || '—';
-          document.getElementById('dlc-qty').textContent = lic.quantity != null ? `${lic.quantity}개` : '—';
+
+          // 라이선스형태: Core면 "Core", Creator/Explorer/Viewer가 있으면 "역할기반" 배지
+          const ROLE_BASED_TYPES = ['Creator', 'Explorer', 'Viewer'];
+          const hasCore = group.some(l => l.license_type === 'Core');
+          const hasRoleBased = group.some(l => ROLE_BASED_TYPES.includes(l.license_type));
+          document.getElementById('dlc-type').innerHTML = hasCore
+            ? `<span class="dlc-type-badge">Core</span>`
+            : hasRoleBased
+              ? `<span class="dlc-type-badge">역할기반</span>`
+              : (group[0].license_type ? escHtml(group[0].license_type) : '—');
+
+          // 라이선스 수량: 역할별 알약 (예: C6 · E6 · V7)
+          const ROLE_PILL = {
+            Core:     { abbr: 'Co', cls: 'dlc-pill-core' },
+            Creator:  { abbr: 'C',  cls: 'dlc-pill-creator' },
+            Explorer: { abbr: 'E',  cls: 'dlc-pill-explorer' },
+            Viewer:   { abbr: 'V',  cls: 'dlc-pill-viewer' },
+            DM:       { abbr: 'DM', cls: 'dlc-pill-dm' },
+            AM:       { abbr: 'AM', cls: 'dlc-pill-am' },
+          };
+          const pillsHtml = group
+            .filter(l => l.quantity != null && ROLE_PILL[l.license_type])
+            .map(l => `<span class="dlc-pill ${ROLE_PILL[l.license_type].cls}">${ROLE_PILL[l.license_type].abbr}${l.quantity}</span>`)
+            .join('');
+          document.getElementById('dlc-qty').innerHTML = pillsHtml
+            ? `<span class="dlc-pills">${pillsHtml}</span>`
+            : '—';
+
           const fmt = d => d ? d.slice(2,10) : '—';
           document.getElementById('dlc-daterange').textContent = `${fmt(contractDates.start_date)} · ${fmt(contractDates.end_date)}`;
           const me = document.getElementById('dlc-manager');
-          me.innerHTML = `<span style="font-weight:700;color:var(--accent);">${coRow?.account_manager || '—'}</span>${mgrEmail ? `<span style="font-size:9px;font-weight:400;color:var(--muted);line-height:1.4;">${mgrEmail}</span>` : ''}`;
+          me.innerHTML = `<span style="font-weight:700;color:var(--accent);white-space:nowrap;">${escHtml(coRow?.account_manager || '—')}</span>${mgrEmail ? `<span style="font-size:9px;font-weight:400;color:var(--muted);white-space:nowrap;">${escHtml(mgrEmail)}</span>` : ''}`;
           detail.style.display = '';
         } else {
           const licVal = document.getElementById('dash-license-val');
