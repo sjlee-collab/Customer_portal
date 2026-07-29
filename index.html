@@ -4408,6 +4408,7 @@ async function loadCompanyContractsAndLicenses() {
   renderContractLicenseGroups();
 }
 
+const LIC_PRODUCT_LABEL = { Server: 'Tableau Server', Cloud: 'Tableau Cloud' };
 function renderLicenseTable(licenses) {
   const LIC_STATUS_BADGE = { 활성:'b-green', 만료:'b-red', 일시중단:'b-amber', 대기:'b-gray' };
   return `<div class="tbl-scroll"><table class="tbl">
@@ -4415,7 +4416,7 @@ function renderLicenseTable(licenses) {
     <tbody>${licenses.map(l => {
       return `
       <tr>
-        <td style="font-weight:600;">${escHtml(l.product_info || '—')}</td>
+        <td style="font-weight:600;">${escHtml(LIC_PRODUCT_LABEL[l.product_info] || l.product_info || '—')}</td>
         <td style="font-size:12px;">${escHtml(l.license_type || '—')}</td>
         <td><span class="badge ${LIC_STATUS_BADGE[l.status] || 'b-gray'}">${escHtml(l.status || '—')}</span></td>
         <td style="font-size:12px;">${l.quantity != null ? l.quantity : '—'}</td>
