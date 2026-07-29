@@ -4280,8 +4280,7 @@ function selectCompany(rowEl, id, name, statusLabel) {
   pinRowToTop(rowEl);
   const groupsEl = document.getElementById('contract-license-groups');
   if (groupsEl) groupsEl.innerHTML = '불러오는 중...';
-  loadCompanyContracts();
-  loadCompanyLicenses();
+  loadCompanyContractsAndLicenses();
 }
 
 async function downloadPrivateFile(bucket, path, filename) {
@@ -4328,19 +4327,34 @@ function handleLicenseFileDrop(files) {
 let _selectedCompanyContracts = [];
 let _selectedCompanyLicenses  = [];
 
-async function loadCompanyContracts() {
+async function fetchCompanyContracts() {
   if (!selectedCompanyId) return;
-  if (!sb) { _selectedCompanyContracts = []; renderContractLicenseGroups(); return; }
+  if (!sb) { _selectedCompanyContracts = []; return; }
   const { data } = await sb.from('company_contracts').select('*').eq('company_id', selectedCompanyId).order('created_at', { ascending: false });
   _selectedCompanyContracts = data || [];
+}
+
+async function fetchCompanyLicenses() {
+  if (!selectedCompanyId) return;
+  if (!sb) { _selectedCompanyLicenses = []; return; }
+  const { data } = await sb.from('company_licenses').select('*').eq('company_id', selectedCompanyId).order('created_at', { ascending: false });
+  _selectedCompanyLicenses = data || [];
+}
+
+async function loadCompanyContracts() {
+  await fetchCompanyContracts();
   renderContractLicenseGroups();
 }
 
 async function loadCompanyLicenses() {
-  if (!selectedCompanyId) return;
-  if (!sb) { _selectedCompanyLicenses = []; renderContractLicenseGroups(); return; }
-  const { data } = await sb.from('company_licenses').select('*').eq('company_id', selectedCompanyId).order('created_at', { ascending: false });
-  _selectedCompanyLicenses = data || [];
+  await fetchCompanyLicenses();
+  renderContractLicenseGroups();
+}
+
+// 고객사 아코디언을 처음 펼칠 때는 계약/라이선스를 동시에 가져와 한 번만 렌더링한다.
+// (따로 로드하면 계약만 먼저 그려졌다가 라이선스 도착 시 전체가 다시 그려져 화면이 튀는 문제가 있었음)
+async function loadCompanyContractsAndLicenses() {
+  await Promise.all([fetchCompanyContracts(), fetchCompanyLicenses()]);
   renderContractLicenseGroups();
 }
 
