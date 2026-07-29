@@ -3575,7 +3575,7 @@ async function loadTickets() {
 
   let query = sb
     .from('tickets')
-    .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, assigned_to_name, company_name, assignee:assigned_to(name), company:company_id(name), requester:created_by(name)')
+    .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, assigned_to_name, company_name, created_by_name, assignee:assigned_to(name), company:company_id(name), requester:created_by(name)')
     .order('created_at', { ascending: false });
 
   if (DEMO_COMPANY_ID) query = query.eq('company_id', DEMO_COMPANY_ID);
@@ -3666,7 +3666,7 @@ function renderTickets(tickets) {
     const priLabel  = PRIORITY_LABELS[t.priority]  || '일반';
     const priBadge  = PRIORITY_BADGE[t.priority]   || 'b-gray';
     const company   = t.company?.name ? escHtml(t.company.name) : t.company_name ? escHtml(t.company_name) : '<span style="color:var(--faint);">—</span>';
-    const requester = t.requester?.name ? escHtml(t.requester.name) : '<span style="color:var(--faint);">—</span>';
+    const requester = t.requester?.name ? escHtml(t.requester.name) : t.created_by_name ? escHtml(t.created_by_name) : '<span style="color:var(--faint);">—</span>';
     const asgn      = t.assignee?.name ? escHtml(t.assignee.name)
                       : t.assigned_to_name ? escHtml(t.assigned_to_name) + ' <span style="color:var(--faint);font-size:10px;">(탈퇴)</span>'
                       : '<span style="color:var(--faint);">미배정</span>';
@@ -3831,6 +3831,7 @@ async function submitRequest() {
   const payload = { title, category, description, status: 'received', priority };
   if (product)                  payload.product    = product;
   if (currentUser?.id)          payload.created_by = currentUser.id;
+  if (currentUser?.name)        payload.created_by_name = currentUser.name;
   if (currentUser?.company_id)  payload.company_id = currentUser.company_id;
   else if (DEMO_COMPANY_ID)     payload.company_id = DEMO_COMPANY_ID;
   if (currentUser?.company)     payload.company_name = currentUser.company;
@@ -4809,7 +4810,7 @@ async function loadNotifyLog() {
 
   let q = sb.from('log_notification')
     .select(`id, ticket_id, channel, event_type, recipient, status, error_message, sent_at, created_at, retry_count,
-             tickets(ticket_number, title, category, priority, created_at, assigned_to_name,
+             tickets(ticket_number, title, category, priority, created_at, assigned_to_name, company_name, created_by_name,
                companies(name), users!tickets_created_by_fkey(name), assignee:users!tickets_assigned_to_fkey(name))`)
     .order('created_at', { ascending: false })
     .limit(200);
@@ -4872,8 +4873,8 @@ async function loadNotifyLog() {
     const isFailed = (n.status === 'failed' || n.status === 'failure');
     const ticketDetailRows = t ? (() => {
       const regAt = t.created_at ? new Date(t.created_at).toLocaleString('ko-KR') : '—';
-      const companyName  = t.companies?.name || '—';
-      const requester    = t.users?.name || '—';
+      const companyName  = t.companies?.name || t.company_name || '—';
+      const requester    = t.users?.name || t.created_by_name || '—';
       const assigneeName = t.assignee?.name || t.assigned_to_name || '미배정';
       return [
         ['요청번호', escHtml(t.ticket_number || ticketNum)],
@@ -5303,7 +5304,7 @@ function populateArDynamicFilters() {
 
   const requesterPop = document.getElementById('ar-pop-requester');
   if (requesterPop) {
-    const requesters = [...new Set(allMgTickets.map(t => t.requester?.name).filter(Boolean))]
+    const requesters = [...new Set(allMgTickets.map(t => t.requester?.name || t.created_by_name).filter(Boolean))]
       .sort((a, b) => a.localeCompare(b, 'ko'));
     const checked = new Set(arFilters.requester);
     requesterPop.innerHTML = (requesters.length
@@ -5402,7 +5403,7 @@ async function loadAllTickets() {
   }
 
   let q = sb.from('tickets')
-    .select('id, ticket_number, title, category, priority, status, created_at, due_date, assigned_to_name, company_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
+    .select('id, ticket_number, title, category, priority, status, created_at, due_date, assigned_to_name, company_name, created_by_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
     .order('created_at', { ascending: false });
 
   // 역할 기반 강제 필터
@@ -5433,7 +5434,7 @@ function renderAllTickets() {
     if (arFilters.priority.length && !arFilters.priority.includes(t.priority || 'normal')) return false;
     if (arFilters.status.length && !arFilters.status.includes(t.status)) return false;
     if (arFilters.company.length && !arFilters.company.includes(t.company?.name || t.company_name)) return false;
-    if (arFilters.requester.length && !arFilters.requester.includes(t.requester?.name)) return false;
+    if (arFilters.requester.length && !arFilters.requester.includes(t.requester?.name || t.created_by_name)) return false;
     if (arFilters.assignee.length) {
       const assigneeName = t.assignee?.name || t.assigned_to_name;
       const matchesUnassigned = arFilters.assignee.includes('__unassigned') && !assigneeName;
@@ -5463,7 +5464,7 @@ function renderAllTickets() {
     const priL      = PRIORITY_LABELS[t.priority]  || '일반';
     const priB      = PRIORITY_BADGE[t.priority]   || 'b-gray';
     const company   = t.company?.name ? escHtml(t.company.name) : t.company_name ? escHtml(t.company_name) : '<span style="color:var(--faint);">—</span>';
-    const requester = t.requester?.name ? escHtml(t.requester.name) : '<span style="color:var(--faint);">—</span>';
+    const requester = t.requester?.name ? escHtml(t.requester.name) : t.created_by_name ? escHtml(t.created_by_name) : '<span style="color:var(--faint);">—</span>';
     const asgn      = t.assignee?.name ? escHtml(t.assignee.name)
                       : t.assigned_to_name ? escHtml(t.assigned_to_name) + ' <span style="color:var(--faint);font-size:10px;">(탈퇴)</span>'
                       : '<span style="color:var(--faint);">미배정</span>';
@@ -5689,7 +5690,7 @@ async function selectRdTicket(idx, directTicket) {
   // ── 백그라운드: description·created_by 등 전체 필드 재조회 ──
   if (sb) {
     const { data } = await sb.from('tickets')
-      .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, created_by, assigned_to, assigned_to_name, company_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
+      .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, created_by, assigned_to, assigned_to_name, company_name, created_by_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
       .eq('id', selectedId).single();
     if (data && rdTicket.id === selectedId) {
       rdTicket = data;
