@@ -125,6 +125,8 @@ textarea{resize:vertical;min-height:100px;}
 .th-filter{font-size:11px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.5px;border:none;background:transparent;cursor:pointer;padding:0;margin:0;width:100%;appearance:auto;-webkit-appearance:auto;}
 .tbl td{padding:11px 12px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;white-space:nowrap;}
 .tbl tr:last-child td{border-bottom:none;}
+.tbl-compact th{padding:6px 14px;font-size:10px;}
+.tbl-compact td{padding:6px 14px;font-size:12.5px;}
 .tbl tr:hover td{background:var(--surface2);cursor:pointer;}
 .company-detail-row:hover td{background:inherit !important;cursor:default !important;}
 .ticket-row.open td{background:var(--accent-l);}
@@ -4373,15 +4375,15 @@ async function loadCompanyContractsAndLicenses() {
 
 const LIC_PRODUCT_LABEL = { Server: 'Tableau Server', Cloud: 'Tableau Cloud' };
 function renderLicenseTable(licenses) {
-  return `<div class="tbl-scroll"><table class="tbl">
+  return `<div class="tbl-scroll"><table class="tbl tbl-compact">
     <thead><tr><th>제품정보</th><th>라이선스종류</th><th>수량</th><th>비고</th><th>액션</th></tr></thead>
     <tbody>${licenses.map(l => {
       return `
       <tr>
         <td style="font-weight:600;">${escHtml(LIC_PRODUCT_LABEL[l.product_info] || l.product_info || '—')}</td>
-        <td style="font-size:12px;">${escHtml(l.license_type || '—')}</td>
-        <td style="font-size:12px;">${l.quantity != null ? l.quantity : '—'}</td>
-        <td style="font-size:12px;max-width:100px;white-space:normal;">${escHtml(l.note || '—')}</td>
+        <td>${escHtml(l.license_type || '—')}</td>
+        <td>${l.quantity != null ? l.quantity : '—'}</td>
+        <td style="max-width:100px;white-space:normal;">${escHtml(l.note || '—')}</td>
         <td style="white-space:nowrap;">
           <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="editLicenseById('${l.id}')">수정</button>
           <button class="btn btn-ghost btn-sm" style="font-size:11px;color:#e53e3e;" onclick="deleteLicense('${l.id}','${escHtml(l.file_path||'')}')">삭제</button>
@@ -4417,29 +4419,29 @@ function renderContractLicenseGroups() {
   const contractHtml = contracts.map(ct => {
     const contractLicenses = licensesByContract.get(ct.id) || [];
     return `
-    <div style="border:1px solid var(--border);border-radius:var(--r-md);margin-bottom:14px;overflow:hidden;">
-      <div style="display:grid;grid-template-columns:1.4fr .8fr .7fr 1fr 1fr 1fr .9fr auto;gap:14px;align-items:center;padding:12px 16px;background:var(--surface2);">
-        <div><div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;">계약명</div><div style="font-size:13px;font-weight:700;">${escHtml(ct.contract_name || '—')}</div></div>
-        <div><div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;">계약종류</div><div style="font-size:12px;">${escHtml(ct.contract_type || '—')}</div></div>
-        <div><div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;">계약상태</div><span class="badge ${CONTRACT_STATUS_BADGE[ct.status] || 'b-gray'}">${escHtml(ct.status || '—')}</span></div>
-        <div><div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;">계약기간</div><div style="font-size:12px;">${ct.start_date ? ct.start_date.slice(0,10) : '—'} ~ ${ct.end_date ? ct.end_date.slice(0,10) : '—'}</div></div>
-        <div><div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;">고객계약담당자</div><div style="font-size:12px;">${escHtml(ct.customer_contact || '—')}</div></div>
-        <div><div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;">빅스계약담당자</div><div style="font-size:12px;">${escHtml(ct.bixs_contact || '—')}</div></div>
-        <div><div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;">첨부문서</div><div style="font-size:12px;">${ct.file_path ? `<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="downloadPrivateFile('contract-attachments','${escHtml(ct.file_path)}','${escHtml(ct.file_name||'')}')">📎 ${escHtml(ct.file_name || '다운로드')}</button>` : '—'}</div></div>
+    <div style="border:1px solid var(--border);border-radius:var(--r-md);margin-bottom:10px;overflow:hidden;">
+      <div style="display:grid;grid-template-columns:1.4fr .8fr .7fr 1fr 1fr 1fr .9fr auto;gap:10px;align-items:center;padding:9px 14px;background:var(--surface2);">
+        <div><div style="font-size:9px;font-weight:700;color:var(--faint);text-transform:uppercase;">계약명</div><div style="font-size:12.5px;font-weight:700;">${escHtml(ct.contract_name || '—')}</div></div>
+        <div><div style="font-size:9px;font-weight:700;color:var(--faint);text-transform:uppercase;">계약종류</div><div style="font-size:11.5px;">${escHtml(ct.contract_type || '—')}</div></div>
+        <div><div style="font-size:9px;font-weight:700;color:var(--faint);text-transform:uppercase;">계약상태</div><span class="badge ${CONTRACT_STATUS_BADGE[ct.status] || 'b-gray'}" style="padding:1px 7px;">${escHtml(ct.status || '—')}</span></div>
+        <div><div style="font-size:9px;font-weight:700;color:var(--faint);text-transform:uppercase;">계약기간</div><div style="font-size:11.5px;">${ct.start_date ? ct.start_date.slice(0,10) : '—'} ~ ${ct.end_date ? ct.end_date.slice(0,10) : '—'}</div></div>
+        <div><div style="font-size:9px;font-weight:700;color:var(--faint);text-transform:uppercase;">고객계약담당자</div><div style="font-size:11.5px;">${escHtml(ct.customer_contact || '—')}</div></div>
+        <div><div style="font-size:9px;font-weight:700;color:var(--faint);text-transform:uppercase;">빅스계약담당자</div><div style="font-size:11.5px;">${escHtml(ct.bixs_contact || '—')}</div></div>
+        <div><div style="font-size:9px;font-weight:700;color:var(--faint);text-transform:uppercase;">첨부문서</div><div style="font-size:11.5px;">${ct.file_path ? `<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="downloadPrivateFile('contract-attachments','${escHtml(ct.file_path)}','${escHtml(ct.file_name||'')}')">📎 ${escHtml(ct.file_name || '다운로드')}</button>` : '—'}</div></div>
         <div style="display:flex;gap:6px;justify-self:end;">
           <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="editContractById('${ct.id}')">수정</button>
           <button class="btn btn-ghost btn-sm" style="font-size:11px;color:#e53e3e;" onclick="deleteContract('${ct.id}','${escHtml(ct.file_path||'')}')">삭제</button>
         </div>
       </div>
-      <div style="padding:12px 16px 16px 16px;border-top:1px dashed var(--border-md);">
-        <div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;margin-bottom:8px;">
+      <div style="padding:8px 14px 10px 14px;border-top:1px dashed var(--border-md);">
+        <div style="font-size:9px;font-weight:700;color:var(--faint);text-transform:uppercase;margin-bottom:6px;">
           ${contractLicenses.length ? `이 계약에 매핑된 라이선스 ${contractLicenses.length}건` : '이 계약에 매핑된 라이선스 없음'}
         </div>
         ${contractLicenses.length ? renderLicenseTable(contractLicenses) : `
-          <div style="padding:12px 14px;background:var(--surface2);border-radius:6px;font-size:12px;color:var(--faint);">
+          <div style="padding:10px 14px;background:var(--surface2);border-radius:6px;font-size:12px;color:var(--faint);">
             아직 이 계약에 연결된 라이선스가 없습니다.
           </div>`}
-        <div style="margin-top:10px;">
+        <div style="margin-top:8px;">
           <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="openLicenseModal('${ct.id}')">+ 이 계약에 라이선스 추가</button>
         </div>
       </div>
@@ -4447,9 +4449,9 @@ function renderContractLicenseGroups() {
   }).join('');
 
   const unassignedHtml = unassigned.length ? `
-    <div style="border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px;${contracts.length ? 'margin-top:18px;' : ''}">
-      <div style="font-size:13px;font-weight:700;margin-bottom:2px;">공통 라이선스 <span style="font-size:11px;color:var(--faint);font-weight:500;">(계약 미지정)</span></div>
-      <div style="font-size:11px;color:var(--faint);margin-bottom:10px;">특정 계약에 속하지 않고 고객사 전체에 적용되는 라이선스입니다.</div>
+    <div style="border:1px solid var(--border);border-radius:var(--r-md);padding:10px 14px;${contracts.length ? 'margin-top:14px;' : ''}">
+      <div style="font-size:12.5px;font-weight:700;margin-bottom:2px;">공통 라이선스 <span style="font-size:11px;color:var(--faint);font-weight:500;">(계약 미지정)</span></div>
+      <div style="font-size:11px;color:var(--faint);margin-bottom:6px;">특정 계약에 속하지 않고 고객사 전체에 적용되는 라이선스입니다.</div>
       ${renderLicenseTable(unassigned)}
     </div>` : '';
 
