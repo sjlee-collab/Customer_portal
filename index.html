@@ -1819,18 +1819,6 @@ textarea{resize:vertical;min-height:100px;}
           <label>라이선스 키</label>
           <input type="text" id="lic-key" placeholder="라이선스 키 입력">
         </div>
-        <div class="form-group">
-          <label>시작일자</label>
-          <input type="date" id="lic-start">
-        </div>
-        <div class="form-group">
-          <label>만료일자</label>
-          <input type="date" id="lic-expire">
-        </div>
-        <div class="form-group span2">
-          <label>갱신예정일자</label>
-          <input type="date" id="lic-renewal">
-        </div>
         <div class="form-group span2">
           <label>첨부파일</label>
           <div id="lic-dropzone" onclick="document.getElementById('lic-file-input').click()"
@@ -3304,10 +3292,16 @@ async function loadDashboard() {
     if (companyId) {
       if (role === 'customer') {
         const { data: lics } = await sb.from('company_licenses')
-          .select('product_info, license_type, quantity, status, start_date, expire_date, contract_id, company_contracts(start_date, end_date)')
-          .eq('company_id', companyId).eq('status', '활성')
-          .order('expire_date', { ascending: true }).limit(1);
-        const lic = lics?.[0];
+          .select('product_info, license_type, quantity, status, contract_id, company_contracts(start_date, end_date)')
+          .eq('company_id', companyId).eq('status', '활성');
+        // 만료일자 컬럼이 없어졌으므로, 연결된 계약의 종료일 기준으로 가장 임박한 라이선스를 고른다.
+        const lic = (lics || []).slice().sort((a, b) => {
+          const ea = a.company_contracts?.end_date, eb = b.company_contracts?.end_date;
+          if (!ea && !eb) return 0;
+          if (!ea) return 1;
+          if (!eb) return -1;
+          return ea < eb ? -1 : ea > eb ? 1 : 0;
+        })[0];
         const detail = document.getElementById('dash-license-detail');
         if (lic && detail) {
           const { data: coRow } = await sb.from('companies').select('account_manager').eq('id', companyId).single();
@@ -4367,21 +4361,14 @@ async function loadCompanyContractsAndLicenses() {
 function renderLicenseTable(licenses) {
   const LIC_STATUS_BADGE = { 활성:'b-green', 만료:'b-red', 일시중단:'b-amber', 대기:'b-gray' };
   return `<div class="tbl-scroll"><table class="tbl">
-    <thead><tr><th>제품정보</th><th>라이선스종류</th><th>라이선스상태</th><th>수량</th><th>시작일자</th><th>만료일자</th><th>갱신예정일자</th><th>라이선스키</th><th>비고</th><th>첨부파일</th><th>액션</th></tr></thead>
+    <thead><tr><th>제품정보</th><th>라이선스종류</th><th>라이선스상태</th><th>수량</th><th>라이선스키</th><th>비고</th><th>첨부파일</th><th>액션</th></tr></thead>
     <tbody>${licenses.map(l => {
-      const daysLeft = daysUntil(l.expire_date);
-      const expireDisplay = l.expire_date
-        ? `${l.expire_date.slice(0,10)}${daysLeft !== null && daysLeft <= 30 && daysLeft >= 0 ? ` <span style="color:var(--red);font-size:10px;font-weight:600;">${daysLeft}일</span>` : daysLeft < 0 ? ` <span style="color:var(--red);font-size:10px;font-weight:600;">만료</span>` : ''}`
-        : '—';
       return `
       <tr>
         <td style="font-weight:600;">${escHtml(l.product_info || '—')}</td>
         <td style="font-size:12px;">${escHtml(l.license_type || '—')}</td>
         <td><span class="badge ${LIC_STATUS_BADGE[l.status] || 'b-gray'}">${escHtml(l.status || '—')}</span></td>
         <td style="font-size:12px;">${l.quantity != null ? l.quantity : '—'}</td>
-        <td style="font-size:12px;">${l.start_date  ? l.start_date.slice(0,10)  : '—'}</td>
-        <td style="font-size:12px;">${expireDisplay}</td>
-        <td style="font-size:12px;">${l.renewal_date ? l.renewal_date.slice(0,10) : '—'}</td>
         <td style="font-size:12px;font-family:monospace;color:var(--faint);letter-spacing:2px;">${l.license_key ? 'XXXX-XXXX-XXXX-XXXX' : '—'}</td>
         <td style="font-size:12px;max-width:100px;white-space:normal;">${escHtml(l.note || '—')}</td>
         <td style="font-size:12px;">${l.file_path ? `<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="downloadPrivateFile('contract-attachments','${escHtml(l.file_path)}','${escHtml(l.file_name||'')}')">📎 ${escHtml(l.file_name || '다운로드')}</button>` : '—'}</td>
@@ -4620,9 +4607,6 @@ function openLicenseModal(contractId) {
   document.getElementById('lic-type').value     = '';
   document.getElementById('lic-status').value   = '활성';
   document.getElementById('lic-quantity').value = '';
-  document.getElementById('lic-start').value    = '';
-  document.getElementById('lic-expire').value   = '';
-  document.getElementById('lic-renewal').value  = '';
   populateLicenseContractSelect(contractId || '');
   resetLicenseDropzone();
   openModal('modal-license');
@@ -4643,9 +4627,6 @@ function openEditLicenseModal(l) {
   document.getElementById('lic-status').value     = l.status         || '활성';
   document.getElementById('lic-quantity').value   = l.quantity       != null ? l.quantity : '';
   document.getElementById('lic-key').value        = l.license_key    || '';
-  document.getElementById('lic-start').value      = l.start_date     ? l.start_date.slice(0,10)   : '';
-  document.getElementById('lic-expire').value     = l.expire_date    ? l.expire_date.slice(0,10)   : '';
-  document.getElementById('lic-renewal').value    = l.renewal_date   ? l.renewal_date.slice(0,10)  : '';
   document.getElementById('lic-note').value       = l.note           || '';
   populateLicenseContractSelect(l.contract_id || '');
   resetLicenseDropzone();
@@ -4692,9 +4673,6 @@ async function submitLicense() {
     status:       document.getElementById('lic-status').value  || '활성',
     quantity:     qtyRaw !== '' ? parseInt(qtyRaw, 10)         : null,
     license_key:  document.getElementById('lic-key').value.trim()     || null,
-    start_date:   document.getElementById('lic-start').value           || null,
-    expire_date:  document.getElementById('lic-expire').value          || null,
-    renewal_date: document.getElementById('lic-renewal').value         || null,
     file_path,
     file_name,
     note:         document.getElementById('lic-note').value.trim()     || null,
