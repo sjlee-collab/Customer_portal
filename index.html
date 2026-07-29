@@ -1796,9 +1796,8 @@ textarea{resize:vertical;min-height:100px;}
           </select>
         </div>
         <div class="form-group span2">
-          <label>계약 <span style="font-size:11px;color:var(--faint);">(사업부 등으로 계약이 나뉜 경우에만)</span></label>
+          <label>계약</label>
           <select id="lic-contract">
-            <option value="">공통 (계약 미지정)</option>
           </select>
         </div>
         <div class="form-group">
@@ -4594,8 +4593,7 @@ async function deleteContract(id, filePath) {
 function populateLicenseContractSelect(selectedId) {
   const sel = document.getElementById('lic-contract');
   if (!sel) return;
-  sel.innerHTML = '<option value="">공통 (계약 미지정)</option>' +
-    _selectedCompanyContracts.map(ct => `<option value="${ct.id}">${escHtml(ct.contract_name)}</option>`).join('');
+  sel.innerHTML = _selectedCompanyContracts.map(ct => `<option value="${ct.id}">${escHtml(ct.contract_name)}</option>`).join('');
   sel.value = selectedId || '';
 }
 
