@@ -4280,7 +4280,8 @@ function selectCompany(rowEl, id, name, statusLabel) {
   pinRowToTop(rowEl);
   const groupsEl = document.getElementById('contract-license-groups');
   if (groupsEl) groupsEl.innerHTML = '불러오는 중...';
-  loadCompanyContractsAndLicenses();
+  // 계약/라이선스가 로드되면 패널 높이가 크게 바뀌므로, 실제 내용 기준으로 스크롤 고정 위치를 다시 계산한다.
+  loadCompanyContractsAndLicenses().then(() => pinRowToTop(rowEl));
 }
 
 async function downloadPrivateFile(bucket, path, filename) {
@@ -4380,7 +4381,7 @@ function renderLicenseTable(licenses) {
         <td style="font-size:12px;max-width:100px;white-space:normal;">${escHtml(l.note || '—')}</td>
         <td style="font-size:12px;">${l.file_path ? `<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="downloadPrivateFile('contract-attachments','${escHtml(l.file_path)}','${escHtml(l.file_name||'')}')">📎 ${escHtml(l.file_name || '다운로드')}</button>` : '—'}</td>
         <td style="white-space:nowrap;">
-          <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick='openEditLicenseModal(${escHtml(JSON.stringify(l).replace(/'/g,"&#39;"))})'>수정</button>
+          <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="editLicenseById('${l.id}')">수정</button>
           <button class="btn btn-ghost btn-sm" style="font-size:11px;color:#e53e3e;" onclick="deleteLicense('${l.id}','${escHtml(l.file_path||'')}')">삭제</button>
         </td>
       </tr>`;
@@ -4403,8 +4404,16 @@ function renderContractLicenseGroups() {
   const contractIds = new Set(contracts.map(ct => ct.id));
   const unassigned = licenses.filter(l => !l.contract_id || !contractIds.has(l.contract_id));
 
+  // 계약별 라이선스를 미리 한 번에 그룹핑 (계약마다 전체 라이선스를 다시 훑는 O(n*m) 방지)
+  const licensesByContract = new Map();
+  licenses.forEach(l => {
+    if (!l.contract_id) return;
+    if (!licensesByContract.has(l.contract_id)) licensesByContract.set(l.contract_id, []);
+    licensesByContract.get(l.contract_id).push(l);
+  });
+
   const contractHtml = contracts.map(ct => {
-    const contractLicenses = licenses.filter(l => l.contract_id === ct.id);
+    const contractLicenses = licensesByContract.get(ct.id) || [];
     return `
     <div style="border:1px solid var(--border);border-radius:var(--r-md);margin-bottom:14px;overflow:hidden;">
       <div style="display:grid;grid-template-columns:1.4fr .8fr .7fr 1fr 1fr 1fr .9fr auto;gap:14px;align-items:center;padding:12px 16px;background:var(--surface2);">
@@ -4416,7 +4425,7 @@ function renderContractLicenseGroups() {
         <div><div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;">빅스계약담당자</div><div style="font-size:12px;">${escHtml(ct.bixs_contact || '—')}</div></div>
         <div><div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;">첨부문서</div><div style="font-size:12px;">${ct.file_path ? `<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="downloadPrivateFile('contract-attachments','${escHtml(ct.file_path)}','${escHtml(ct.file_name||'')}')">📎 ${escHtml(ct.file_name || '다운로드')}</button>` : '—'}</div></div>
         <div style="display:flex;gap:6px;justify-self:end;">
-          <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick='openEditContractModal(${escHtml(JSON.stringify(ct).replace(/'/g,"&#39;"))})'>수정</button>
+          <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="editContractById('${ct.id}')">수정</button>
           <button class="btn btn-ghost btn-sm" style="font-size:11px;color:#e53e3e;" onclick="deleteContract('${ct.id}','${escHtml(ct.file_path||'')}')">삭제</button>
         </div>
       </div>
@@ -4484,6 +4493,11 @@ function openContractModal() {
   document.getElementById('ct-status').value = '진행중';
   resetContractDropzone();
   openModal('modal-contract');
+}
+
+function editContractById(id) {
+  const ct = _selectedCompanyContracts.find(c => c.id === id);
+  if (ct) openEditContractModal(ct);
 }
 
 function openEditContractModal(ct) {
@@ -4607,6 +4621,11 @@ function openLicenseModal(contractId) {
   populateLicenseContractSelect(contractId || '');
   resetLicenseDropzone();
   openModal('modal-license');
+}
+
+function editLicenseById(id) {
+  const l = _selectedCompanyLicenses.find(x => x.id === id);
+  if (l) openEditLicenseModal(l);
 }
 
 function openEditLicenseModal(l) {
