@@ -162,6 +162,15 @@ textarea{resize:vertical;min-height:100px;}
 .clg-bar.open .clg-arrow-icon{transform:rotate(180deg);}
 .clg-body{overflow:hidden;max-height:0;transition:max-height .2s ease;border-top:1px solid transparent;}
 .clg-body.open{max-height:600px;border-top-color:var(--border);}
+
+/* ── 만료된 계약 섹션 접기/펼치기 ── */
+.clg-section-toggle{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface2);border:1px dashed var(--border-md);border-radius:var(--r-md);cursor:pointer;margin-bottom:10px;}
+.clg-section-toggle:hover{background:var(--accent-l);}
+.clg-section-label{font-size:12.5px;font-weight:600;}
+.clg-section-count{background:var(--accent-l);color:var(--accent-d);border-radius:99px;padding:1px 8px;font-size:10.5px;font-weight:700;}
+.clg-section-toggle .clg-arrow{margin-left:auto;}
+.clg-section-body{overflow:hidden;max-height:0;transition:max-height .25s ease;}
+.clg-section-body.open{max-height:5000px;}
 .tbl-fit td{white-space:normal;overflow:hidden;}
 .tbl-ellipsis{overflow:hidden;text-overflow:ellipsis;white-space:nowrap !important;}
 
@@ -4424,6 +4433,13 @@ function toggleContractLicenses(barEl) {
   if (arrow) arrow.firstChild.textContent = open ? '접기 ' : '펼치기 ';
 }
 
+function toggleContractSection(barEl) {
+  const open = barEl.classList.toggle('open');
+  barEl.nextElementSibling.classList.toggle('open');
+  const arrow = barEl.querySelector('.clg-arrow');
+  if (arrow) arrow.firstChild.textContent = open ? '접기 ' : '펼치기 ';
+}
+
 function renderContractLicenseGroups() {
   const container = document.getElementById('contract-license-groups');
   if (!container) return;
@@ -4447,7 +4463,7 @@ function renderContractLicenseGroups() {
     licensesByContract.get(l.contract_id).push(l);
   });
 
-  const contractHtml = contracts.map(ct => {
+  const renderContractCard = (ct) => {
     const contractLicenses = licensesByContract.get(ct.id) || [];
     return `
     <div style="border:1px solid var(--border);border-radius:var(--r-md);margin-bottom:10px;overflow:hidden;">
@@ -4481,7 +4497,21 @@ function renderContractLicenseGroups() {
         </div>
       </div>
     </div>`;
-  }).join('');
+  };
+
+  const activeContracts  = contracts.filter(ct => ct.status !== '만료');
+  const expiredContracts = contracts.filter(ct => ct.status === '만료');
+
+  const activeHtml = activeContracts.map(renderContractCard).join('');
+  const expiredHtml = expiredContracts.length ? `
+    <div class="clg-section-toggle" onclick="toggleContractSection(this)">
+      <span class="badge b-gray">만료</span>
+      <span class="clg-section-label">만료된 계약 <span class="clg-section-count">${expiredContracts.length}건</span> 보기</span>
+      <span class="clg-arrow">펼치기 <span class="clg-arrow-icon">▾</span></span>
+    </div>
+    <div class="clg-section-body">
+      ${expiredContracts.map(renderContractCard).join('')}
+    </div>` : '';
 
   const unassignedHtml = unassigned.length ? `
     <div style="border:1px solid var(--border);border-radius:var(--r-md);padding:10px 14px;${contracts.length ? 'margin-top:14px;' : ''}">
@@ -4490,7 +4520,7 @@ function renderContractLicenseGroups() {
       ${renderLicenseTable(unassigned)}
     </div>` : '';
 
-  container.innerHTML = contractHtml + unassignedHtml;
+  container.innerHTML = activeHtml + expiredHtml + unassignedHtml;
 }
 
 function toggleMaskedVal(btn, realVal, maskedVal) {
