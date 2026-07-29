@@ -3311,7 +3311,7 @@ async function loadDashboard() {
           const contractDates = group[0].company_contracts || {};
           const daysLeft = daysUntil(contractDates.end_date);
           const daysColor = daysLeft === null ? 'var(--faint)' : daysLeft <= 30 ? '#dc2626' : daysLeft <= 60 ? '#d97706' : '#059669';
-          document.getElementById('dlc-product').textContent = group[0].product_info || '—';
+          document.getElementById('dlc-product').textContent = LIC_PRODUCT_LABEL[group[0].product_info] || group[0].product_info || '—';
           const sc = document.getElementById('dlc-status');
           sc.textContent = '활성';
           sc.style.background = '#ecfdf5';
