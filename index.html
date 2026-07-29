@@ -150,6 +150,18 @@ textarea{resize:vertical;min-height:100px;}
 .dlc-pill-viewer{background:#FEF3E2;color:#B5690A;}
 .dlc-pill-dm{background:#FCEBEB;color:#B23B3B;}
 .dlc-pill-am{background:#E8F0FE;color:#2A5DB0;}
+
+/* ── 계약별 라이선스 접기/펼치기 (요약 칩) ── */
+.clg-bar{display:flex;align-items:center;gap:10px;padding:9px 14px;border-top:1px dashed var(--border-md);cursor:pointer;flex-wrap:wrap;}
+.clg-bar:hover{background:var(--surface2);}
+.clg-label{font-size:9px;font-weight:700;color:var(--faint);text-transform:uppercase;flex-shrink:0;}
+.clg-chips{display:flex;gap:5px;flex-wrap:wrap;flex:1;}
+.clg-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600;white-space:nowrap;}
+.clg-arrow{font-size:11px;color:var(--accent);font-weight:600;flex-shrink:0;}
+.clg-arrow-icon{display:inline-block;transition:transform .15s;}
+.clg-bar.open .clg-arrow-icon{transform:rotate(180deg);}
+.clg-body{overflow:hidden;max-height:0;transition:max-height .2s ease;border-top:1px solid transparent;}
+.clg-body.open{max-height:600px;border-top-color:var(--border);}
 .tbl-fit td{white-space:normal;overflow:hidden;}
 .tbl-ellipsis{overflow:hidden;text-overflow:ellipsis;white-space:nowrap !important;}
 
@@ -4396,6 +4408,22 @@ function renderLicenseTable(licenses) {
   </table></div>`;
 }
 
+const CLG_PILL_CLASS = { Core:'dlc-pill-core', Creator:'dlc-pill-creator', Explorer:'dlc-pill-explorer', Viewer:'dlc-pill-viewer', DM:'dlc-pill-dm', AM:'dlc-pill-am' };
+const CLG_TYPE_ORDER = ['Core', 'Creator', 'Explorer', 'Viewer', 'DM', 'AM'];
+function renderLicenseChips(contractLicenses) {
+  return contractLicenses
+    .slice()
+    .sort((a, b) => CLG_TYPE_ORDER.indexOf(a.license_type) - CLG_TYPE_ORDER.indexOf(b.license_type))
+    .map(l => `<span class="clg-chip ${CLG_PILL_CLASS[l.license_type] || ''}">${escHtml(l.license_type || '—')} <b>${l.quantity != null ? l.quantity : '—'}</b></span>`)
+    .join('');
+}
+function toggleContractLicenses(barEl) {
+  const open = barEl.classList.toggle('open');
+  barEl.nextElementSibling.classList.toggle('open');
+  const arrow = barEl.querySelector('.clg-arrow');
+  if (arrow) arrow.firstChild.textContent = open ? '접기 ' : '펼치기 ';
+}
+
 function renderContractLicenseGroups() {
   const container = document.getElementById('contract-license-groups');
   if (!container) return;
@@ -4436,16 +4464,20 @@ function renderContractLicenseGroups() {
           <button class="btn btn-ghost btn-sm" style="font-size:11px;color:#e53e3e;" onclick="deleteContract('${ct.id}','${escHtml(ct.file_path||'')}')">삭제</button>
         </div>
       </div>
-      <div style="padding:8px 14px 10px 14px;border-top:1px dashed var(--border-md);">
-        <div style="font-size:9px;font-weight:700;color:var(--faint);text-transform:uppercase;margin-bottom:6px;">
-          ${contractLicenses.length ? `이 계약에 매핑된 라이선스 ${contractLicenses.length}건` : '이 계약에 매핑된 라이선스 없음'}
-        </div>
-        ${contractLicenses.length ? renderLicenseTable(contractLicenses) : `
-          <div style="padding:10px 14px;background:var(--surface2);border-radius:6px;font-size:12px;color:var(--faint);">
-            아직 이 계약에 연결된 라이선스가 없습니다.
-          </div>`}
-        <div style="margin-top:8px;">
-          <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="openLicenseModal('${ct.id}')">+ 이 계약에 라이선스 추가</button>
+      <div class="clg-bar" onclick="toggleContractLicenses(this)">
+        <span class="clg-label">${contractLicenses.length ? `라이선스 ${contractLicenses.length}건` : '라이선스 없음'}</span>
+        <div class="clg-chips">${renderLicenseChips(contractLicenses)}</div>
+        <span class="clg-arrow">펼치기 <span class="clg-arrow-icon">▾</span></span>
+      </div>
+      <div class="clg-body">
+        <div style="padding:8px 14px 10px 14px;">
+          ${contractLicenses.length ? renderLicenseTable(contractLicenses) : `
+            <div style="padding:10px 14px;background:var(--surface2);border-radius:6px;font-size:12px;color:var(--faint);">
+              아직 이 계약에 연결된 라이선스가 없습니다.
+            </div>`}
+          <div style="margin-top:8px;">
+            <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="openLicenseModal('${ct.id}')">+ 이 계약에 라이선스 추가</button>
+          </div>
         </div>
       </div>
     </div>`;
