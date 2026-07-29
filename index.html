@@ -4378,11 +4378,12 @@ async function loadCompanyContractsAndLicenses() {
 const LIC_PRODUCT_LABEL = { Server: 'Tableau Server', Cloud: 'Tableau Cloud' };
 function renderLicenseTable(licenses) {
   return `<div class="tbl-scroll"><table class="tbl tbl-compact">
-    <thead><tr><th>제품정보</th><th>라이선스종류</th><th>수량</th><th>비고</th><th>액션</th></tr></thead>
+    <thead><tr><th>제품정보</th><th>라이선스 모델</th><th>라이선스종류</th><th>수량</th><th>비고</th><th>액션</th></tr></thead>
     <tbody>${licenses.map(l => {
       return `
       <tr>
         <td style="font-weight:600;">${escHtml(LIC_PRODUCT_LABEL[l.product_info] || l.product_info || '—')}</td>
+        <td>${escHtml(licenseModelForType(l.license_type) || '—')}</td>
         <td>${escHtml(l.license_type || '—')}</td>
         <td>${l.quantity != null ? l.quantity : '—'}</td>
         <td style="max-width:100px;white-space:normal;">${escHtml(l.note || '—')}</td>
