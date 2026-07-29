@@ -1814,30 +1814,8 @@ textarea{resize:vertical;min-height:100px;}
           </select>
         </div>
         <div class="form-group">
-          <label>라이선스상태</label>
-          <select id="lic-status">
-            <option value="활성">활성</option>
-            <option value="만료">만료</option>
-            <option value="일시중단">일시중단</option>
-            <option value="대기">대기</option>
-          </select>
-        </div>
-        <div class="form-group">
           <label>라이선스 수량</label>
           <input type="number" id="lic-quantity" min="0" placeholder="0">
-        </div>
-        <div class="form-group span2">
-          <label>첨부파일</label>
-          <div id="lic-dropzone" onclick="document.getElementById('lic-file-input').click()"
-            style="border:2px dashed var(--border-md);border-radius:var(--r-md);padding:20px;text-align:center;cursor:pointer;transition:border-color .15s;background:var(--surface2);"
-            ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
-            ondragleave="this.style.borderColor='var(--border-md)'"
-            ondrop="event.preventDefault();this.style.borderColor='var(--border-md)';handleLicenseFileDrop(event.dataTransfer.files)">
-            <div id="lic-dropzone-label" style="font-size:13px;color:var(--muted);">클릭하거나 파일을 여기로 드래그하세요</div>
-          </div>
-          <input type="file" id="lic-file-input" style="display:none;" onchange="handleLicenseFileDrop(this.files)">
-          <input type="hidden" id="lic-file-path">
-          <input type="hidden" id="lic-filename">
         </div>
         <div class="form-group span2">
           <label>비고</label>
@@ -4360,16 +4338,6 @@ function handleContractFileDrop(files) {
   document.getElementById('ct-dropzone').style.borderColor = 'var(--accent)';
 }
 
-let _licenseFile = null;
-function handleLicenseFileDrop(files) {
-  if (!files || !files.length) return;
-  const f = files[0];
-  _licenseFile = f;
-  document.getElementById('lic-filename').value = f.name;
-  document.getElementById('lic-dropzone-label').textContent = `${f.name} (${(f.size / 1024).toFixed(1)} KB)`;
-  document.getElementById('lic-dropzone').style.borderColor = 'var(--accent)';
-}
-
 let _selectedCompanyContracts = [];
 let _selectedCompanyLicenses  = [];
 
@@ -4406,15 +4374,13 @@ async function loadCompanyContractsAndLicenses() {
 
 const LIC_PRODUCT_LABEL = { Server: 'Tableau Server', Cloud: 'Tableau Cloud' };
 function renderLicenseTable(licenses) {
-  const LIC_STATUS_BADGE = { 활성:'b-green', 만료:'b-red', 일시중단:'b-amber', 대기:'b-gray' };
   return `<div class="tbl-scroll"><table class="tbl">
-    <thead><tr><th>제품정보</th><th>라이선스종류</th><th>라이선스상태</th><th>수량</th><th>비고</th><th>액션</th></tr></thead>
+    <thead><tr><th>제품정보</th><th>라이선스종류</th><th>수량</th><th>비고</th><th>액션</th></tr></thead>
     <tbody>${licenses.map(l => {
       return `
       <tr>
         <td style="font-weight:600;">${escHtml(LIC_PRODUCT_LABEL[l.product_info] || l.product_info || '—')}</td>
         <td style="font-size:12px;">${escHtml(l.license_type || '—')}</td>
-        <td><span class="badge ${LIC_STATUS_BADGE[l.status] || 'b-gray'}">${escHtml(l.status || '—')}</span></td>
         <td style="font-size:12px;">${l.quantity != null ? l.quantity : '—'}</td>
         <td style="font-size:12px;max-width:100px;white-space:normal;">${escHtml(l.note || '—')}</td>
         <td style="white-space:nowrap;">
@@ -4625,14 +4591,6 @@ async function deleteContract(id, filePath) {
   loadCompanyContracts();
 }
 
-function resetLicenseDropzone() {
-  document.getElementById('lic-file-path').value = '';
-  document.getElementById('lic-filename').value = '';
-  document.getElementById('lic-dropzone-label').textContent = '클릭하거나 파일을 여기로 드래그하세요';
-  document.getElementById('lic-dropzone').style.borderColor = '';
-  _licenseFile = null;
-}
-
 function populateLicenseContractSelect(selectedId) {
   const sel = document.getElementById('lic-contract');
   if (!sel) return;
@@ -4650,10 +4608,8 @@ function openLicenseModal(contractId) {
   ['lic-note'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.getElementById('lic-product').value  = '';
   document.getElementById('lic-type').value     = '';
-  document.getElementById('lic-status').value   = '활성';
   document.getElementById('lic-quantity').value = '';
   populateLicenseContractSelect(contractId || '');
-  resetLicenseDropzone();
   openModal('modal-license');
 }
 
@@ -4669,17 +4625,9 @@ function openEditLicenseModal(l) {
   document.getElementById('lic-company-id').value = l.company_id;
   document.getElementById('lic-product').value    = l.product_info   || '';
   document.getElementById('lic-type').value       = l.license_type   || '';
-  document.getElementById('lic-status').value     = l.status         || '활성';
   document.getElementById('lic-quantity').value   = l.quantity       != null ? l.quantity : '';
   document.getElementById('lic-note').value       = l.note           || '';
   populateLicenseContractSelect(l.contract_id || '');
-  resetLicenseDropzone();
-  document.getElementById('lic-file-path').value = l.file_path || '';
-  document.getElementById('lic-filename').value  = l.file_name || '';
-  if (l.file_name) {
-    document.getElementById('lic-dropzone-label').textContent = '📎 ' + l.file_name;
-    document.getElementById('lic-dropzone').style.borderColor = 'var(--accent)';
-  }
   openModal('modal-license');
 }
 
@@ -4691,33 +4639,14 @@ async function submitLicense() {
   const btn = document.getElementById('btn-submit-license');
   if (btn) { btn.disabled = true; btn.textContent = '처리 중...'; }
 
-  let file_path = document.getElementById('lic-file-path').value || null;
-  let file_name = document.getElementById('lic-filename').value || null;
-  if (_licenseFile) {
-    const ext = _licenseFile.name.includes('.') ? _licenseFile.name.split('.').pop().toLowerCase() : 'bin';
-    const storageName = `${companyId}/${Date.now()}.${ext}`;
-    const { data: upData, error: upErr } = await sb.storage
-      .from('contract-attachments')
-      .upload(storageName, _licenseFile, { upsert: false, contentType: _licenseFile.type || 'application/octet-stream' });
-    if (upErr) {
-      showToast('파일 업로드 실패: ' + upErr.message, true);
-      if (btn) { btn.disabled = false; btn.textContent = id ? '저장' : '등록'; }
-      return;
-    }
-    file_path = upData.path;
-    file_name = _licenseFile.name;
-  }
-
   const qtyRaw = document.getElementById('lic-quantity').value;
   const payload = {
     company_id:   companyId,
     contract_id:  document.getElementById('lic-contract')?.value || null,
     product_info: product,
     license_type: document.getElementById('lic-type').value    || null,
-    status:       document.getElementById('lic-status').value  || '활성',
+    status:       '활성',
     quantity:     qtyRaw !== '' ? parseInt(qtyRaw, 10)         : null,
-    file_path,
-    file_name,
     note:         document.getElementById('lic-note').value.trim()     || null,
   };
   let error;
@@ -4728,7 +4657,6 @@ async function submitLicense() {
   }
   if (btn) { btn.disabled = false; btn.textContent = id ? '저장' : '등록'; }
   if (error) { showToast('저장 실패: ' + error.message, true); return; }
-  _licenseFile = null;
   closeModal('modal-license');
   showToast('✅ 라이선스정보가 ' + (id ? '수정' : '등록') + '되었습니다.');
   loadCompanyLicenses();
