@@ -4408,7 +4408,7 @@ const LIC_PRODUCT_LABEL = { Server: 'Tableau Server', Cloud: 'Tableau Cloud' };
 function renderLicenseTable(licenses) {
   const LIC_STATUS_BADGE = { 활성:'b-green', 만료:'b-red', 일시중단:'b-amber', 대기:'b-gray' };
   return `<div class="tbl-scroll"><table class="tbl">
-    <thead><tr><th>제품정보</th><th>라이선스종류</th><th>라이선스상태</th><th>수량</th><th>비고</th><th>첨부파일</th><th>액션</th></tr></thead>
+    <thead><tr><th>제품정보</th><th>라이선스종류</th><th>라이선스상태</th><th>수량</th><th>비고</th><th>액션</th></tr></thead>
     <tbody>${licenses.map(l => {
       return `
       <tr>
@@ -4417,7 +4417,6 @@ function renderLicenseTable(licenses) {
         <td><span class="badge ${LIC_STATUS_BADGE[l.status] || 'b-gray'}">${escHtml(l.status || '—')}</span></td>
         <td style="font-size:12px;">${l.quantity != null ? l.quantity : '—'}</td>
         <td style="font-size:12px;max-width:100px;white-space:normal;">${escHtml(l.note || '—')}</td>
-        <td style="font-size:12px;">${l.file_path ? `<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="downloadPrivateFile('contract-attachments','${escHtml(l.file_path)}','${escHtml(l.file_name||'')}')">📎 ${escHtml(l.file_name || '다운로드')}</button>` : '—'}</td>
         <td style="white-space:nowrap;">
           <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="editLicenseById('${l.id}')">수정</button>
           <button class="btn btn-ghost btn-sm" style="font-size:11px;color:#e53e3e;" onclick="deleteLicense('${l.id}','${escHtml(l.file_path||'')}')">삭제</button>
