@@ -3311,7 +3311,8 @@ async function loadDashboard() {
             const { data: mu } = await sb.from('users').select('email').eq('name', coRow.account_manager).eq('is_active', true).single();
             mgrEmail = mu?.email || '';
           }
-          const daysLeft = daysUntil(lic.expire_date);
+          const contractDates = lic.company_contracts || {};
+          const daysLeft = daysUntil(contractDates.end_date);
           const daysColor = daysLeft === null ? 'var(--faint)' : daysLeft <= 30 ? '#dc2626' : daysLeft <= 60 ? '#d97706' : '#059669';
           document.getElementById('dlc-product').textContent = lic.product_info || '—';
           const sc = document.getElementById('dlc-status');
@@ -3323,7 +3324,6 @@ async function loadDashboard() {
           document.getElementById('dlc-type').textContent = lic.license_type || '—';
           document.getElementById('dlc-qty').textContent = lic.quantity != null ? `${lic.quantity}개` : '—';
           const fmt = d => d ? d.slice(2,10) : '—';
-          const contractDates = lic.company_contracts || {};
           document.getElementById('dlc-daterange').textContent = `${fmt(contractDates.start_date)} · ${fmt(contractDates.end_date)}`;
           const me = document.getElementById('dlc-manager');
           me.innerHTML = `<span style="font-weight:700;color:var(--accent);">${coRow?.account_manager || '—'}</span>${mgrEmail ? `<span style="font-size:9px;font-weight:400;color:var(--muted);line-height:1.4;">${mgrEmail}</span>` : ''}`;
