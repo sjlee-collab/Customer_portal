@@ -1826,10 +1826,6 @@ textarea{resize:vertical;min-height:100px;}
           <label>라이선스 수량</label>
           <input type="number" id="lic-quantity" min="0" placeholder="0">
         </div>
-        <div class="form-group">
-          <label>라이선스 키</label>
-          <input type="text" id="lic-key" placeholder="라이선스 키 입력">
-        </div>
         <div class="form-group span2">
           <label>첨부파일</label>
           <div id="lic-dropzone" onclick="document.getElementById('lic-file-input').click()"
@@ -4412,7 +4408,7 @@ const LIC_PRODUCT_LABEL = { Server: 'Tableau Server', Cloud: 'Tableau Cloud' };
 function renderLicenseTable(licenses) {
   const LIC_STATUS_BADGE = { 활성:'b-green', 만료:'b-red', 일시중단:'b-amber', 대기:'b-gray' };
   return `<div class="tbl-scroll"><table class="tbl">
-    <thead><tr><th>제품정보</th><th>라이선스종류</th><th>라이선스상태</th><th>수량</th><th>라이선스키</th><th>비고</th><th>첨부파일</th><th>액션</th></tr></thead>
+    <thead><tr><th>제품정보</th><th>라이선스종류</th><th>라이선스상태</th><th>수량</th><th>비고</th><th>첨부파일</th><th>액션</th></tr></thead>
     <tbody>${licenses.map(l => {
       return `
       <tr>
@@ -4420,7 +4416,6 @@ function renderLicenseTable(licenses) {
         <td style="font-size:12px;">${escHtml(l.license_type || '—')}</td>
         <td><span class="badge ${LIC_STATUS_BADGE[l.status] || 'b-gray'}">${escHtml(l.status || '—')}</span></td>
         <td style="font-size:12px;">${l.quantity != null ? l.quantity : '—'}</td>
-        <td style="font-size:12px;font-family:monospace;color:var(--faint);letter-spacing:2px;">${l.license_key ? 'XXXX-XXXX-XXXX-XXXX' : '—'}</td>
         <td style="font-size:12px;max-width:100px;white-space:normal;">${escHtml(l.note || '—')}</td>
         <td style="font-size:12px;">${l.file_path ? `<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="downloadPrivateFile('contract-attachments','${escHtml(l.file_path)}','${escHtml(l.file_name||'')}')">📎 ${escHtml(l.file_name || '다운로드')}</button>` : '—'}</td>
         <td style="white-space:nowrap;">
@@ -4653,7 +4648,7 @@ function openLicenseModal(contractId) {
   document.getElementById('btn-submit-license').textContent  = '등록';
   document.getElementById('lic-id').value = '';
   document.getElementById('lic-company-id').value = selectedCompanyId;
-  ['lic-key','lic-note'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['lic-note'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.getElementById('lic-product').value  = '';
   document.getElementById('lic-type').value     = '';
   document.getElementById('lic-status').value   = '활성';
@@ -4677,7 +4672,6 @@ function openEditLicenseModal(l) {
   document.getElementById('lic-type').value       = l.license_type   || '';
   document.getElementById('lic-status').value     = l.status         || '활성';
   document.getElementById('lic-quantity').value   = l.quantity       != null ? l.quantity : '';
-  document.getElementById('lic-key').value        = l.license_key    || '';
   document.getElementById('lic-note').value       = l.note           || '';
   populateLicenseContractSelect(l.contract_id || '');
   resetLicenseDropzone();
@@ -4723,7 +4717,6 @@ async function submitLicense() {
     license_type: document.getElementById('lic-type').value    || null,
     status:       document.getElementById('lic-status').value  || '활성',
     quantity:     qtyRaw !== '' ? parseInt(qtyRaw, 10)         : null,
-    license_key:  document.getElementById('lic-key').value.trim()     || null,
     file_path,
     file_name,
     note:         document.getElementById('lic-note').value.trim()     || null,
