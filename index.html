@@ -3291,9 +3291,12 @@ async function loadDashboard() {
     // 라이선스
     if (companyId) {
       if (role === 'customer') {
-        const { data: lics } = await sb.from('company_licenses')
+        let licQuery = sb.from('company_licenses')
           .select('product_info, license_type, quantity, status, contract_id, company_contracts(start_date, end_date)')
-          .eq('company_id', companyId).eq('status', '활성');
+          .eq('status', '활성');
+        // 계약 단위로 매핑된 사용자는 그 계약의 라이선스만, 아니면 고객사 전체 라이선스를 대상으로 한다.
+        licQuery = contractId ? licQuery.eq('contract_id', contractId) : licQuery.eq('company_id', companyId);
+        const { data: lics } = await licQuery;
         // 만료일자 컬럼이 없어졌으므로, 연결된 계약의 종료일 기준으로 가장 임박한 라이선스를 고른다.
         const lic = (lics || []).slice().sort((a, b) => {
           const ea = a.company_contracts?.end_date, eb = b.company_contracts?.end_date;
