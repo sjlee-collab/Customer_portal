@@ -3299,7 +3299,7 @@ async function loadDashboard() {
     if (companyId) {
       if (role === 'customer') {
         const { data: lics } = await sb.from('company_licenses')
-          .select('product_info, license_type, quantity, status, start_date, expire_date')
+          .select('product_info, license_type, quantity, status, start_date, expire_date, contract_id, company_contracts(start_date, end_date)')
           .eq('company_id', companyId).eq('status', '활성')
           .order('expire_date', { ascending: true }).limit(1);
         const lic = lics?.[0];
@@ -3323,7 +3323,8 @@ async function loadDashboard() {
           document.getElementById('dlc-type').textContent = lic.license_type || '—';
           document.getElementById('dlc-qty').textContent = lic.quantity != null ? `${lic.quantity}개` : '—';
           const fmt = d => d ? d.slice(2,10) : '—';
-          document.getElementById('dlc-daterange').textContent = `${fmt(lic.start_date)} · ${fmt(lic.expire_date)}`;
+          const contractDates = lic.company_contracts || {};
+          document.getElementById('dlc-daterange').textContent = `${fmt(contractDates.start_date)} · ${fmt(contractDates.end_date)}`;
           const me = document.getElementById('dlc-manager');
           me.innerHTML = `<span style="font-weight:700;color:var(--accent);">${coRow?.account_manager || '—'}</span>${mgrEmail ? `<span style="font-size:9px;font-weight:400;color:var(--muted);line-height:1.4;">${mgrEmail}</span>` : ''}`;
           detail.style.display = '';
