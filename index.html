@@ -3481,7 +3481,7 @@ async function loadDashboard() {
     const DASH_ALLOWED_CATS = { tech_support: ['tech_support', 'other'], sales: ['contract', 'license', 'other'], education: ['education'] };
     const dashAllowedCats = DASH_ALLOWED_CATS[role] || null;
     let recentQ = sb.from('tickets')
-      .select('id, ticket_number, title, category, status, priority, created_at, due_date, company:company_id(name)')
+      .select('id, ticket_number, title, category, status, priority, created_at, due_date, company_name, company:company_id(name)')
       .order('created_at', { ascending: false }).limit(200);
     if (dashAllowedCats) recentQ = recentQ.in('category', dashAllowedCats);
     const { data: recentTickets } = await recentQ;
@@ -3548,7 +3548,7 @@ function renderDashAdminTable(f) {
       : '<span style="font-size:12px;color:var(--faint);">—</span>';
     return `<tr style="${rowStyle}" onclick="goToManageTicket('${t.id}')">` +
       `<td style="color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;font-size:12px;">${escHtml(t.ticket_number||'')}</td>` +
-      `<td style="font-size:12px;">${escHtml(t.company?.name||'—')}</td>` +
+      `<td style="font-size:12px;">${escHtml(t.company?.name || t.company_name || '—')}</td>` +
       `<td style="font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(t.title||'')}</td>` +
       `<td><span class="badge ${catC}">${catL}</span></td>` +
       `<td><span class="badge ${statB}" style="font-size:11px;">${statL}</span></td>` +
@@ -3575,7 +3575,7 @@ async function loadTickets() {
 
   let query = sb
     .from('tickets')
-    .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, assigned_to_name, assignee:assigned_to(name), company:company_id(name), requester:created_by(name)')
+    .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, assigned_to_name, company_name, assignee:assigned_to(name), company:company_id(name), requester:created_by(name)')
     .order('created_at', { ascending: false });
 
   if (DEMO_COMPANY_ID) query = query.eq('company_id', DEMO_COMPANY_ID);
@@ -3665,7 +3665,7 @@ function renderTickets(tickets) {
     const statBadge = STATUS_BADGE[t.status]       || 'b-gray';
     const priLabel  = PRIORITY_LABELS[t.priority]  || '일반';
     const priBadge  = PRIORITY_BADGE[t.priority]   || 'b-gray';
-    const company   = t.company?.name   ? escHtml(t.company.name)   : '<span style="color:var(--faint);">—</span>';
+    const company   = t.company?.name ? escHtml(t.company.name) : t.company_name ? escHtml(t.company_name) : '<span style="color:var(--faint);">—</span>';
     const requester = t.requester?.name ? escHtml(t.requester.name) : '<span style="color:var(--faint);">—</span>';
     const asgn      = t.assignee?.name ? escHtml(t.assignee.name)
                       : t.assigned_to_name ? escHtml(t.assigned_to_name) + ' <span style="color:var(--faint);font-size:10px;">(탈퇴)</span>'
@@ -3833,6 +3833,7 @@ async function submitRequest() {
   if (currentUser?.id)          payload.created_by = currentUser.id;
   if (currentUser?.company_id)  payload.company_id = currentUser.company_id;
   else if (DEMO_COMPANY_ID)     payload.company_id = DEMO_COMPANY_ID;
+  if (currentUser?.company)     payload.company_name = currentUser.company;
   if (currentUser?.contract_id) payload.contract_id = currentUser.contract_id;
   const defaultAssignee = DEFAULT_ASSIGNEE_BY_CATEGORY[category];
   if (defaultAssignee) {
@@ -5288,7 +5289,7 @@ function clearArFilter(key) {
 function populateArDynamicFilters() {
   const companyPop = document.getElementById('ar-pop-company');
   if (companyPop) {
-    const companies = [...new Set(allMgTickets.map(t => t.company?.name).filter(Boolean))]
+    const companies = [...new Set(allMgTickets.map(t => t.company?.name || t.company_name).filter(Boolean))]
       .sort((a, b) => a.localeCompare(b, 'ko'));
     const checked = new Set(arFilters.company);
     companyPop.innerHTML = (companies.length
@@ -5401,7 +5402,7 @@ async function loadAllTickets() {
   }
 
   let q = sb.from('tickets')
-    .select('id, ticket_number, title, category, priority, status, created_at, due_date, assigned_to_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
+    .select('id, ticket_number, title, category, priority, status, created_at, due_date, assigned_to_name, company_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
     .order('created_at', { ascending: false });
 
   // 역할 기반 강제 필터
@@ -5431,7 +5432,7 @@ function renderAllTickets() {
     if (arFilters.category.length && !arFilters.category.includes(t.category)) return false;
     if (arFilters.priority.length && !arFilters.priority.includes(t.priority || 'normal')) return false;
     if (arFilters.status.length && !arFilters.status.includes(t.status)) return false;
-    if (arFilters.company.length && !arFilters.company.includes(t.company?.name)) return false;
+    if (arFilters.company.length && !arFilters.company.includes(t.company?.name || t.company_name)) return false;
     if (arFilters.requester.length && !arFilters.requester.includes(t.requester?.name)) return false;
     if (arFilters.assignee.length) {
       const assigneeName = t.assignee?.name || t.assigned_to_name;
@@ -5461,7 +5462,7 @@ function renderAllTickets() {
     const statB     = STATUS_BADGE[t.status]        || 'b-gray';
     const priL      = PRIORITY_LABELS[t.priority]  || '일반';
     const priB      = PRIORITY_BADGE[t.priority]   || 'b-gray';
-    const company   = t.company?.name   ? escHtml(t.company.name)   : '<span style="color:var(--faint);">—</span>';
+    const company   = t.company?.name ? escHtml(t.company.name) : t.company_name ? escHtml(t.company_name) : '<span style="color:var(--faint);">—</span>';
     const requester = t.requester?.name ? escHtml(t.requester.name) : '<span style="color:var(--faint);">—</span>';
     const asgn      = t.assignee?.name ? escHtml(t.assignee.name)
                       : t.assigned_to_name ? escHtml(t.assigned_to_name) + ' <span style="color:var(--faint);font-size:10px;">(탈퇴)</span>'
@@ -5688,7 +5689,7 @@ async function selectRdTicket(idx, directTicket) {
   // ── 백그라운드: description·created_by 등 전체 필드 재조회 ──
   if (sb) {
     const { data } = await sb.from('tickets')
-      .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, created_by, assigned_to, assigned_to_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
+      .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, created_by, assigned_to, assigned_to_name, company_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
       .eq('id', selectedId).single();
     if (data && rdTicket.id === selectedId) {
       rdTicket = data;
