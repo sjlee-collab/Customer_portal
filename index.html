@@ -1803,15 +1803,17 @@ textarea{resize:vertical;min-height:100px;}
           </select>
         </div>
         <div class="form-group">
+          <label>라이선스 모델</label>
+          <select id="lic-model" onchange="populateLicenseTypeOptions(this.value)">
+            <option value="">선택</option>
+            <option value="역할기반">역할기반</option>
+            <option value="코어">코어</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label>라이선스종류</label>
           <select id="lic-type">
             <option value="">선택</option>
-            <option value="Creator">Creator</option>
-            <option value="Explorer">Explorer</option>
-            <option value="Viewer">Viewer</option>
-            <option value="Enterprise">Enterprise</option>
-            <option value="Developer">Developer</option>
-            <option value="기타">기타</option>
           </select>
         </div>
         <div class="form-group">
@@ -4599,6 +4601,23 @@ function populateLicenseContractSelect(selectedId) {
   sel.value = selectedId || '';
 }
 
+const LIC_TYPE_OPTIONS_BY_MODEL = {
+  '역할기반': ['Creator', 'Explorer', 'Viewer', 'DM', 'AM'],
+  '코어':     ['Core', 'DM', 'AM'],
+};
+function populateLicenseTypeOptions(model, selectedValue) {
+  const sel = document.getElementById('lic-type');
+  if (!sel) return;
+  const options = LIC_TYPE_OPTIONS_BY_MODEL[model] || [];
+  sel.innerHTML = '<option value="">선택</option>' + options.map(v => `<option value="${v}">${v}</option>`).join('');
+  sel.value = (selectedValue && options.includes(selectedValue)) ? selectedValue : '';
+}
+function licenseModelForType(type) {
+  if (type === 'Core') return '코어';
+  if (['Creator', 'Explorer', 'Viewer', 'DM', 'AM'].includes(type)) return '역할기반';
+  return '';
+}
+
 function openLicenseModal(contractId) {
   if (!selectedCompanyId) { showToast('고객사를 먼저 선택해주세요.', true); return; }
   document.getElementById('modal-license-title').textContent = '라이선스정보 입력';
@@ -4607,7 +4626,8 @@ function openLicenseModal(contractId) {
   document.getElementById('lic-company-id').value = selectedCompanyId;
   ['lic-note'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.getElementById('lic-product').value  = '';
-  document.getElementById('lic-type').value     = '';
+  document.getElementById('lic-model').value    = '';
+  populateLicenseTypeOptions('');
   document.getElementById('lic-quantity').value = '';
   populateLicenseContractSelect(contractId || '');
   openModal('modal-license');
@@ -4624,7 +4644,9 @@ function openEditLicenseModal(l) {
   document.getElementById('lic-id').value         = l.id;
   document.getElementById('lic-company-id').value = l.company_id;
   document.getElementById('lic-product').value    = l.product_info   || '';
-  document.getElementById('lic-type').value       = l.license_type   || '';
+  const model = licenseModelForType(l.license_type);
+  document.getElementById('lic-model').value      = model;
+  populateLicenseTypeOptions(model, l.license_type || '');
   document.getElementById('lic-quantity').value   = l.quantity       != null ? l.quantity : '';
   document.getElementById('lic-note').value       = l.note           || '';
   populateLicenseContractSelect(l.contract_id || '');
