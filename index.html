@@ -3361,8 +3361,11 @@ async function loadDashboard() {
             DM:       { abbr: 'DM', cls: 'dlc-pill-dm' },
             AM:       { abbr: 'AM', cls: 'dlc-pill-am' },
           };
+          const ROLE_ORDER = ['Core', 'Creator', 'Explorer', 'Viewer', 'DM', 'AM'];
           const pillsHtml = group
             .filter(l => l.quantity != null && ROLE_PILL[l.license_type])
+            .slice()
+            .sort((a, b) => ROLE_ORDER.indexOf(a.license_type) - ROLE_ORDER.indexOf(b.license_type))
             .map(l => `<span class="dlc-pill ${ROLE_PILL[l.license_type].cls}">${ROLE_PILL[l.license_type].abbr}${l.quantity}</span>`)
             .join('');
           document.getElementById('dlc-qty').innerHTML = pillsHtml
