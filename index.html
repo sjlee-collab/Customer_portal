@@ -1811,7 +1811,7 @@ textarea{resize:vertical;min-height:100px;}
           </select>
         </div>
         <div class="form-group">
-          <label>라이선스종류</label>
+          <label>라이선스 유형</label>
           <select id="lic-type">
             <option value="">선택</option>
           </select>
@@ -4378,7 +4378,7 @@ async function loadCompanyContractsAndLicenses() {
 const LIC_PRODUCT_LABEL = { Server: 'Tableau Server', Cloud: 'Tableau Cloud' };
 function renderLicenseTable(licenses) {
   return `<div class="tbl-scroll"><table class="tbl tbl-compact">
-    <thead><tr><th>제품정보</th><th>라이선스 모델</th><th>라이선스종류</th><th>수량</th><th>비고</th><th>액션</th></tr></thead>
+    <thead><tr><th>제품정보</th><th>라이선스 모델</th><th>라이선스 유형</th><th>수량</th><th>비고</th><th>액션</th></tr></thead>
     <tbody>${licenses.map(l => {
       return `
       <tr>
