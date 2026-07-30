@@ -4132,11 +4132,10 @@ function renderCompanies(companies) {
   tbody.innerHTML = companies.map(c => {
     const stLabel = STATUS_CO_LABELS[c.status] || c.status || '—';
     const stBadge = STATUS_CO_BADGE[c.status]  || 'b-gray';
-    const ALL_PRODUCTS = ['Tableau Server','Tableau Cloud','Tableau Desktop','Dataworks','AgentWorks'];
+    const ALL_PRODUCTS = ['Tableau Server','Tableau Cloud','Dataworks','AgentWorks'];
     const PRODUCT_MONO = {
       'Tableau Server':  { text: 'TS', bg: '#4A90D9' },
       'Tableau Cloud':   { text: 'TC', bg: '#185FA5' },
-      'Tableau Desktop': { text: 'TD', bg: '#5B9B33' },
       'Dataworks':       { text: 'DW', bg: '#C77800' },
       'AgentWorks':      { text: 'AW', bg: '#6C5CE7' },
     };
