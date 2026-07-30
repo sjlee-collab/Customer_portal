@@ -171,6 +171,13 @@ textarea{resize:vertical;min-height:100px;}
 .clg-section-toggle .clg-arrow{margin-left:auto;}
 .clg-section-body{overflow:hidden;max-height:0;transition:max-height .25s ease;}
 .clg-section-body.open{max-height:5000px;}
+
+/* ── 고객사 검색 콤보박스 ── */
+.combo-panel{position:absolute;top:100%;left:0;right:0;margin-top:4px;background:var(--surface);border:1px solid var(--border-md);border-radius:var(--r-md);box-shadow:0 8px 24px rgba(0,0,0,.14);max-height:220px;overflow-y:auto;z-index:50;display:none;}
+.combo-panel.open{display:block;}
+.combo-item{padding:8px 12px;font-size:13px;cursor:pointer;}
+.combo-item:hover{background:var(--surface2);}
+.combo-empty{padding:10px 12px;font-size:12px;color:var(--faint);}
 .tbl-fit td{white-space:normal;overflow:hidden;}
 .tbl-ellipsis{overflow:hidden;text-overflow:ellipsis;white-space:nowrap !important;}
 
@@ -1932,11 +1939,12 @@ textarea{resize:vertical;min-height:100px;}
             <option value="admin">관리자 (admin)</option>
           </select>
         </div>
-        <div class="form-group">
+        <div class="form-group" style="position:relative;">
           <label>고객사</label>
-          <select id="u-company" onchange="populateContractSelect(this.value)">
-            <option value="">빅스데이터</option>
-          </select>
+          <input type="text" id="u-company-search" placeholder="고객사명 검색..." autocomplete="off"
+            oninput="renderCompanyCombo(this.value)" onfocus="renderCompanyCombo(this.value)">
+          <input type="hidden" id="u-company">
+          <div class="combo-panel" id="u-company-panel"></div>
         </div>
         <div class="form-group">
           <label>계약 <span style="font-size:11px;color:var(--faint);">(사업부 등으로 계약이 나뉜 경우에만)</span></label>
@@ -5249,17 +5257,47 @@ async function deleteUser(id, name) {
 }
 
 
+let _userCompanyOptions = [];
 async function populateCompanySelect(selectedId) {
-  const sel = document.getElementById('u-company');
-  if (!sel || !sb) return;
+  const hidden = document.getElementById('u-company');
+  if (!hidden || !sb) return;
   const { data } = await sb.from('companies').select('id, name').order('name');
   if (!data) return;
-  sel.innerHTML = '<option value="">빅스데이터</option>' +
-    data.map(c => `<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
-  if (selectedId) sel.value = selectedId;
+  _userCompanyOptions = [{ id: '', name: '빅스데이터' }, ...data];
+  const selected = _userCompanyOptions.find(c => c.id === (selectedId || '')) || _userCompanyOptions[0];
+  hidden.value = selected.id;
+  const searchEl = document.getElementById('u-company-search');
+  if (searchEl) searchEl.value = selected.name;
   const contractSel = document.getElementById('u-contract');
-  await populateContractSelect(sel.value, contractSel?.dataset.pending);
+  await populateContractSelect(hidden.value, contractSel?.dataset.pending);
 }
+
+function renderCompanyCombo(query) {
+  const panel = document.getElementById('u-company-panel');
+  if (!panel) return;
+  const q = (query || '').trim().toLowerCase();
+  const list = q ? _userCompanyOptions.filter(c => c.name.toLowerCase().includes(q)) : _userCompanyOptions;
+  panel.innerHTML = list.length
+    ? list.slice(0, 30).map(c => `<div class="combo-item" onmousedown="selectUserCompany('${c.id}')">${escHtml(c.name)}</div>`).join('')
+    : '<div class="combo-empty">일치하는 고객사가 없습니다.</div>';
+  panel.classList.add('open');
+}
+
+function selectUserCompany(id) {
+  const company = _userCompanyOptions.find(c => c.id === id);
+  if (!company) return;
+  document.getElementById('u-company').value = company.id;
+  document.getElementById('u-company-search').value = company.name;
+  document.getElementById('u-company-panel').classList.remove('open');
+  populateContractSelect(company.id);
+}
+
+document.addEventListener('click', (e) => {
+  const panel = document.getElementById('u-company-panel');
+  if (panel && !e.target.closest('#u-company-search') && !e.target.closest('#u-company-panel')) {
+    panel.classList.remove('open');
+  }
+});
 
 async function populateContractSelect(companyId, selectedId) {
   const sel = document.getElementById('u-contract');
