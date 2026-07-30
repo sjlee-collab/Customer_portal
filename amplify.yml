@@ -1,30 +1,13 @@
 version: 1
-applications:
-  - frontend:
-      phases:
-        preBuild:
-          commands: []
-        build:
-          commands:
-            # ── main 브랜치: Supabase 운영 환경 ──────────────────────────
-            - |
-              if [ "$AWS_BRANCH" = "main" ]; then
-                sed -i "s|__API_MODE__|supabase|g"                                         index.html
-                sed -i "s|__API_URL__|https://ozmuxppuyuyhojmdiism.supabase.co|g"          index.html
-                sed -i "s|__API_KEY__|sb_publishable_mpvPFk1CW88MrC7SoZk5wg_myFsn4a7|g"  index.html
-                echo "✅ main: Supabase 설정 주입 완료"
-              fi
-            # ── dev 브랜치: AWS API Gateway 마이그레이션 환경 ─────────────
-            - |
-              if [ "$AWS_BRANCH" = "dev" ]; then
-                sed -i "s|__API_MODE__|aws|g"            index.html
-                sed -i "s|__API_URL__|$AWS_API_URL|g"    index.html
-                sed -i "s|__API_KEY__|$AWS_API_KEY|g"    index.html
-                echo "✅ dev: AWS API Gateway 설정 주입 완료"
-              fi
-      artifacts:
-        baseDirectory: /
-        files:
-          - index.html
-      cache:
-        paths: []
+frontend:
+  phases:
+    preBuild:
+      commands: []
+    build:
+      commands: []
+  artifacts:
+    baseDirectory: /
+    files:
+      - index.html
+  cache:
+    paths: []

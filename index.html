@@ -2040,14 +2040,10 @@ textarea{resize:vertical;min-height:100px;}
 
 <script>
 // ══════════════════════════════════════════
-//  ⚙️  환경 설정 (amplify.yml 빌드 시 자동 주입)
-//  __API_MODE__  : 'supabase' | 'aws'
-//  __API_URL__   : Supabase URL 또는 AWS API Gateway URL
-//  __API_KEY__   : Supabase anon key 또는 AWS API Key
+//  ⚙️  Supabase 설정 — 여기만 수정하세요
 // ══════════════════════════════════════════
-const API_MODE          = '__API_MODE__';
-const SUPABASE_URL      = '__API_URL__';
-const SUPABASE_ANON_KEY = '__API_KEY__';
+const SUPABASE_URL      = 'https://ozmuxppuyuyhojmdiism.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_mpvPFk1CW88MrC7SoZk5wg_myFsn4a7';
 
 // 데모용 고객사 ID (DB의 companies.id로 교체 / null이면 전체 조회)
 const DEMO_COMPANY_ID = null;
@@ -3136,36 +3132,12 @@ function closeModal(id) {
 }
 
 // ══════════════════════════════════════════
-//  DB 클라이언트 초기화 (브랜치별 자동 분기)
-//  - main  브랜치: Supabase SDK
-//  - dev   브랜치: AWS API Gateway (fetch 기반)
+//  Supabase 초기화
 // ══════════════════════════════════════════
-let sb  = null;   // Supabase client (main 브랜치)
-let api = null;   // AWS API wrapper (dev 브랜치)
-
+let sb = null;
 function initSupabase() {
-  if (API_MODE === 'aws') {
-    // ── AWS API Gateway 모드 ──────────────────
-    // sb 대신 api 객체를 사용 (인터페이스 동일하게 유지)
-    api = {
-      _url: SUPABASE_URL,  // AWS_API_URL
-      _key: SUPABASE_ANON_KEY,  // AWS_API_KEY
-      async fetch(path, options = {}) {
-        const res = await fetch(`${this._url}${path}`, {
-          ...options,
-          headers: { 'Content-Type': 'application/json', 'x-api-key': this._key, ...options.headers }
-        });
-        const data = await res.json();
-        return { data, error: res.ok ? null : data };
-      }
-    };
-    console.log('🟠 AWS API Gateway 모드로 실행 중 (dev 브랜치)');
-    return;
-  }
-  // ── Supabase 모드 (main 브랜치) ─────────────
-  if (SUPABASE_URL.includes('__API_URL__') || SUPABASE_ANON_KEY.includes('__API_KEY__')) return;
+  if (SUPABASE_URL.includes('YOUR_PROJECT_ID') || SUPABASE_ANON_KEY.includes('YOUR_ANON_KEY')) return;
   sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  console.log('🔵 Supabase 모드로 실행 중 (main 브랜치)');
 }
 
 // ══════════════════════════════════════════
