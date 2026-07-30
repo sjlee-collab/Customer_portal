@@ -5278,7 +5278,7 @@ function renderCompanyCombo(query) {
   const q = (query || '').trim().toLowerCase();
   const list = q ? _userCompanyOptions.filter(c => c.name.toLowerCase().includes(q)) : _userCompanyOptions;
   panel.innerHTML = list.length
-    ? list.slice(0, 30).map(c => `<div class="combo-item" onmousedown="selectUserCompany('${c.id}')">${escHtml(c.name)}</div>`).join('')
+    ? list.map(c => `<div class="combo-item" onmousedown="selectUserCompany('${c.id}')">${escHtml(c.name)}</div>`).join('')
     : '<div class="combo-empty">일치하는 고객사가 없습니다.</div>';
   panel.classList.add('open');
 }
