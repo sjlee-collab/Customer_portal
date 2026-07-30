@@ -1,0 +1,6 @@
+{
+  "name": "notify-handler",
+  "version": "2.0.0",
+  "type": "module",
+  "main": "index.mjs"
+}
