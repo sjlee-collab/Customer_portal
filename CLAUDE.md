@@ -8,16 +8,17 @@
 
 ---
 
-## GitHub / Vercel 구성
+## GitHub / 배포 구성
 
-| 구분 | GitHub repo | 브랜치 | Vercel URL |
+배포는 Vercel에서 AWS Amplify Hosting으로 전환됨 (`amplify.yml` 참고).
+
+| 구분 | GitHub repo | 브랜치 | 배포 URL |
 |------|-------------|--------|------------|
-| 운영 | sjlee-collab/Customer_portal | main | support-one-blue.vercel.app |
-| 개발 | sjlee-collab/Customer_portal | dev | develope-five.vercel.app |
+| 운영 | sjlee-collab/Customer_portal | main | https://support.bigxdata.io/ |
+| 개발 | sjlee-collab/Customer_portal | dev | https://dev.dlayoierdftk6.amplifyapp.com/ |
 
 - 로컬 git remote: `origin` → `sjlee-collab/Customer_portal`
-- 메인 소스 파일: `개발/2.설계/index.html` (6000+ 라인, 단일 HTML SPA)
-- 루트 `index.html`은 위 파일의 복사본 — 항상 동기화 필요
+- 메인 소스 파일: 루트 `index.html` (6000+ 라인, 단일 HTML SPA)
 
 ---
 
