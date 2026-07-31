@@ -178,7 +178,37 @@ async function assignTicket(ticketId, body) {
   return json(200, { ticket });
 }
 
+// ── EventBridge Scheduler가 매일 09:00 KST에 {"task":"overdue_batch"} 페이로드로 직접 호출 ──
+async function runOverdueBatch() {
+  const today = new Date().toISOString().slice(0, 10);
+  const overdueTickets = await query(
+    `select * from tickets where due_date < $1 and status not in ('completed','cancelled') and due_date is not null`,
+    [today]
+  );
+
+  const items = [];
+  for (const ticket of overdueTickets) {
+    const companyName = await getCompanyName(ticket.company_id);
+    const requester = await getUser(ticket.created_by);
+    const assignee = await getUser(ticket.assigned_to);
+    const overdueDays = Math.floor((Date.now() - new Date(ticket.due_date).getTime()) / (24 * 60 * 60 * 1000));
+    items.push({ ticket, companyName, requesterName: requester?.name, assigneeName: assignee?.name ?? '미배정', overdueDays });
+  }
+
+  if (items.length) await notifySlack({ type: 'OVERDUE_BATCH', tickets: items });
+  return json(200, { processed: items.length });
+}
+
 export const handler = async (event) => {
+  if (event.task === 'overdue_batch') {
+    try {
+      return await runOverdueBatch();
+    } catch (err) {
+      console.error('[overdue_batch 오류]', err);
+      return json(500, { error: String(err) });
+    }
+  }
+
   const method = event.requestContext?.http?.method ?? event.httpMethod;
   const path = event.rawPath ?? event.path ?? '';
 
