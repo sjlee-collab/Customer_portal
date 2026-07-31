@@ -103,7 +103,7 @@ const OPS = {
 
 function buildWhere(table, queryParams, params) {
   const clauses = [];
-  const reserved = new Set(['select', 'order', 'limit', 'single']);
+  const reserved = new Set(['select', 'order', 'limit', 'single', 'count', 'head', 'on_conflict']);
   for (const [col, rawVal] of Object.entries(queryParams || {})) {
     if (reserved.has(col)) continue;
     assertIdent(col, '필터 컬럼');
@@ -146,9 +146,18 @@ async function resolveEmbeds(rows, embeds) {
 }
 
 async function handleGet(table, qs) {
-  const { plainCols, embeds } = parseSelect(qs.select);
   const params = [];
   const whereClauses = buildWhere(table, qs, params);
+
+  // count=1 (Supabase의 {count:'exact', head:true} 대응) — 실제 행 대신 개수만 반환
+  if (qs.count) {
+    let sql = `select count(*) as count from "${table}"`;
+    if (whereClauses.length) sql += ` where ${whereClauses.join(' and ')}`;
+    const rows = await query(sql, params);
+    return json(200, { count: parseInt(rows[0].count, 10) });
+  }
+
+  const { plainCols, embeds } = parseSelect(qs.select);
 
   // 임베드에 필요한 fk 컬럼이 select에 명시되지 않았으면 조회용으로만 슬쩍 추가하고,
   // 나중에 결과에서 다시 빼준다 (호출자가 요청한 컬럼만 응답에 남도록).
@@ -183,19 +192,28 @@ async function handleGet(table, qs) {
   return json(200, rows);
 }
 
-async function handlePost(table, body) {
+async function handlePost(table, body, onConflict) {
   const records = Array.isArray(body) ? body : [body];
   if (!records.length) throw new HttpError(400, '등록할 데이터가 없습니다');
   const cols = Object.keys(records[0]);
   cols.forEach(c => assertIdent(c, 'insert 컬럼'));
   const colsSql = cols.map(c => `"${c}"`).join(',');
 
+  let conflictCols = null;
+  let conflictSql = '';
+  if (onConflict) {
+    conflictCols = onConflict.split(',').map(c => c.trim());
+    conflictCols.forEach(c => assertIdent(c, 'on_conflict 컬럼'));
+    const updateSql = cols.filter(c => !conflictCols.includes(c)).map(c => `"${c}" = excluded."${c}"`).join(',');
+    conflictSql = ` on conflict (${conflictCols.map(c => `"${c}"`).join(',')}) do update set ${updateSql}`;
+  }
+
   const results = [];
   for (const rec of records) {
     const params = cols.map(c => rec[c] ?? null);
     const placeholders = cols.map((_, i) => `$${i + 1}`).join(',');
     const inserted = await query(
-      `insert into "${table}" (${colsSql}) values (${placeholders}) returning *`,
+      `insert into "${table}" (${colsSql}) values (${placeholders})${conflictSql} returning *`,
       params
     );
     results.push(inserted[0]);
@@ -241,7 +259,7 @@ export const handler = async (event) => {
     const body = event.body ? JSON.parse(event.body) : undefined;
 
     if (method === 'GET' && noId) return await handleGet(table, qs);
-    if (method === 'POST' && noId) return await handlePost(table, body);
+    if (method === 'POST' && noId) return await handlePost(table, body, qs.on_conflict);
     if (method === 'PATCH' && withId) return await handlePatch(table, withId[2], body);
     if (method === 'DELETE' && withId) return await handleDelete(table, withId[2]);
 

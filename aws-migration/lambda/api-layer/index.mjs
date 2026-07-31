@@ -19,6 +19,10 @@ const COMPANY_MANAGER_FIELD_BY_CATEGORY = {
   license: 'account_manager',
   tech_support: 'tech_support_manager',
 };
+const STATUS_KO = {
+  received: '접수', classifying: '분류 중', assigned: '담당자 배정', in_progress: '처리 중',
+  pending_customer: '고객 확인 필요', on_hold: '보류', completed: '완료', cancelled: '취소',
+};
 
 function json(statusCode, body) {
   return { statusCode, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
@@ -178,6 +182,77 @@ async function assignTicket(ticketId, body) {
   return json(200, { ticket });
 }
 
+// ── PATCH /tickets/{id}/manage ──
+// index.html의 "관리" 모달(saveManage) 전용: 상태/담당자/마감일을 한 번에 저장하고,
+// 이력(ticket_history)·메모(ticket_memos) 기록, Slack 알림, (체크박스 선택 시) 이메일까지 처리한다.
+async function manageTicket(ticketId, body) {
+  const { status, assigned_to, due_date, memo, send_email, cc_emails, changed_by, changed_by_name } = body;
+
+  const before = await query('select * from tickets where id=$1', [ticketId]);
+  if (!before[0]) return json(404, { error: '티켓을 찾을 수 없습니다' });
+  const prev = before[0];
+  const prevStatus = prev.status;
+  const prevAssigneeId = prev.assigned_to;
+
+  let assignedToName = null;
+  if (assigned_to) {
+    const assignee = await getUser(assigned_to);
+    if (!assignee) return json(400, { error: '존재하지 않는 담당자입니다' });
+    assignedToName = assignee.name;
+  }
+
+  const nextStatus = status ?? prevStatus;
+  const updated = await query(
+    `update tickets set status=$1, assigned_to=$2, assigned_to_name=$3, due_date=$4, updated_at=now() where id=$5 returning *`,
+    [nextStatus, assigned_to ?? null, assignedToName, due_date ?? null, ticketId]
+  );
+  const ticket = updated[0];
+
+  const statusChanged = nextStatus !== prevStatus;
+  const assigneeChanged = (assigned_to ?? null) !== (prevAssigneeId ?? null);
+  const prevAssignee = assigneeChanged ? await getUser(prevAssigneeId) : null;
+
+  if (statusChanged) {
+    await query(
+      `insert into ticket_history (ticket_id, action, note, changed_by, changed_by_name) values ($1,'status_changed',$2,$3,$4)`,
+      [ticketId, `${STATUS_KO[prevStatus] ?? prevStatus} → ${STATUS_KO[nextStatus] ?? nextStatus}`, changed_by ?? null, changed_by_name ?? null]
+    );
+  }
+  if (assigneeChanged) {
+    await query(
+      `insert into ticket_history (ticket_id, action, note, changed_by, changed_by_name) values ($1,$2,$3,$4,$5)`,
+      [ticketId, prevAssigneeId ? 'reassigned' : 'assigned', `${prevAssignee?.name ?? '미배정'} → ${assignedToName ?? '미배정'}`, changed_by ?? null, changed_by_name ?? null]
+    );
+  }
+  if (memo) {
+    await query(`insert into ticket_memos (ticket_id, note, changed_by) values ($1,$2,$3)`, [ticketId, memo, changed_by ?? null]);
+  }
+
+  const companyName = await getCompanyName(ticket.company_id);
+  const requester = await getUser(ticket.created_by);
+  const assigneeNow = await getUser(ticket.assigned_to);
+  const notifyBase = { companyName, requesterName: requester?.name, assigneeName: assigneeNow?.name ?? '미배정' };
+
+  if (assigneeChanged) {
+    await notifySlack({ type: 'TICKET_ASSIGNED', ticket, ...notifyBase, prevAssigneeName: prevAssignee?.name ?? '미배정' });
+  }
+  if (statusChanged && ['pending_customer', 'completed'].includes(nextStatus)) {
+    await notifySlack({ type: 'TICKET_STATUS', ticket, ...notifyBase, prevStatus });
+  }
+  if (statusChanged && !['completed', 'cancelled'].includes(nextStatus) && ticket.due_date && new Date(ticket.due_date) < new Date()) {
+    await notifySlack({ type: 'TICKET_OVERDUE', ticket, ...notifyBase });
+  }
+  if (statusChanged && send_email && requester?.email) {
+    await notifyEmail({
+      type: 'STATUS_CHANGE', ticket, companyName,
+      requesterEmail: requester.email, requesterName: requester.name,
+      prevStatus, ccEmails: cc_emails,
+    });
+  }
+
+  return json(200, { ticket });
+}
+
 // ── EventBridge Scheduler가 매일 09:00 KST에 {"task":"overdue_batch"} 페이로드로 직접 호출 ──
 async function runOverdueBatch() {
   const today = new Date().toISOString().slice(0, 10);
@@ -227,6 +302,10 @@ export const handler = async (event) => {
     const assignMatch = path.match(/^\/tickets\/([^/]+)\/assign$/);
     if (method === 'PATCH' && assignMatch) {
       return await assignTicket(assignMatch[1], body);
+    }
+    const manageMatch = path.match(/^\/tickets\/([^/]+)\/manage$/);
+    if (method === 'PATCH' && manageMatch) {
+      return await manageTicket(manageMatch[1], body);
     }
     return json(404, { error: 'not found' });
   } catch (err) {

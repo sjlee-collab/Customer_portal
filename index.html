@@ -391,7 +391,6 @@ textarea{resize:vertical;min-height:100px;}
   #user-menu-email{word-break:break-all;}
 }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -2040,10 +2039,191 @@ textarea{resize:vertical;min-height:100px;}
 
 <script>
 // ══════════════════════════════════════════
-//  ⚙️  Supabase 설정 — 여기만 수정하세요
+//  ⚙️  백엔드 설정 — 여기만 수정하세요
 // ══════════════════════════════════════════
-const SUPABASE_URL      = 'https://ozmuxppuyuyhojmdiism.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_mpvPFk1CW88MrC7SoZk5wg_myFsn4a7';
+const API_BASE = 'https://8xbmazu4ij.execute-api.ap-northeast-2.amazonaws.com';
+const S3_BUCKET_URLS = {
+  'documents':           'https://bigxdata-portal-documents.s3.ap-northeast-2.amazonaws.com',
+  'ticket-attachments':  'https://bigxdata-portal-ticket-attachments.s3.ap-northeast-2.amazonaws.com',
+};
+
+class ApiQuery {
+  constructor(table) {
+    this.table = table;
+    this.params = new URLSearchParams();
+    this._method = 'GET';
+    this._body = null;
+    this._single = false;
+    this._maybeSingle = false;
+    this._onConflict = null;
+  }
+  select(cols, opts) {
+    if (cols) this.params.set('select', cols);
+    if (opts?.count) this.params.set('count', '1');
+    return this;
+  }
+  eq(col, val)   { this.params.set(col, `eq.${val}`);   return this; }
+  neq(col, val)  { this.params.set(col, `neq.${val}`);  return this; }
+  gt(col, val)   { this.params.set(col, `gt.${val}`);   return this; }
+  gte(col, val)  { this.params.set(col, `gte.${val}`);  return this; }
+  lt(col, val)   { this.params.set(col, `lt.${val}`);   return this; }
+  lte(col, val)  { this.params.set(col, `lte.${val}`);  return this; }
+  ilike(col, val) { this.params.set(col, `ilike.${val}`); return this; }
+  in(col, arr)   { this.params.set(col, `in.${arr.join(',')}`); return this; }
+  is(col, val)   { this.params.set(col, val === null ? 'is.null' : 'is.not.null'); return this; }
+  not(col, op, val) {
+    if (op === 'is' && val === null) this.params.set(col, 'is.not.null');
+    return this;
+  }
+  order(col, opts) {
+    const dir = opts?.ascending === false ? 'desc' : 'asc';
+    this.params.set('order', `${col}.${dir}`);
+    return this;
+  }
+  limit(n) { this.params.set('limit', String(n)); return this; }
+  single() { this._single = true; this.params.set('single', '1'); return this; }
+  maybeSingle() { this._single = true; this._maybeSingle = true; this.params.set('single', '1'); return this; }
+
+  insert(payload) { this._method = 'POST'; this._body = payload; return this; }
+  update(payload) { this._method = 'PATCH'; this._body = payload; return this; }
+  delete() { this._method = 'DELETE'; return this; }
+  upsert(rows, opts) {
+    this._method = 'POST';
+    this._body = rows;
+    if (opts?.onConflict) this._onConflict = opts.onConflict;
+    return this;
+  }
+
+  async _exec() {
+    try {
+      let url, opts = { method: this._method, headers: {} };
+      if (this._method === 'GET') {
+        url = `${API_BASE}/data/${this.table}?${this.params.toString()}`;
+      } else if (this._method === 'POST') {
+        const qp = this._onConflict ? `?on_conflict=${encodeURIComponent(this._onConflict)}` : '';
+        url = `${API_BASE}/data/${this.table}${qp}`;
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(this._body);
+      } else {
+        const idFilter = this.params.get('id');
+        const id = idFilter ? idFilter.replace(/^eq\./, '') : null;
+        if (!id) throw new Error(`${this._method}에는 .eq('id', ...) 필터가 필요합니다`);
+        url = `${API_BASE}/data/${this.table}/${id}`;
+        if (this._method === 'PATCH') {
+          opts.headers['Content-Type'] = 'application/json';
+          opts.body = JSON.stringify(this._body);
+        }
+      }
+      const res = await fetch(url, opts);
+      const responseJson = await res.json().catch(() => null);
+      if (!res.ok) {
+        if (this._maybeSingle && res.status === 404) return { data: null, error: null, count: null };
+        return { data: null, error: { message: responseJson?.error || res.statusText }, count: null };
+      }
+      if (this.params.get('count')) return { data: null, error: null, count: responseJson?.count ?? 0 };
+      return { data: responseJson, error: null, count: null };
+    } catch (e) {
+      return { data: null, error: { message: e.message }, count: null };
+    }
+  }
+  then(resolve, reject) { return this._exec().then(resolve, reject); }
+  catch(onRejected) { return this._exec().catch(onRejected); }
+}
+
+function apiStorageFrom(bucket) {
+  return {
+    async upload(path, file, opts) {
+      try {
+        const contentType = opts?.contentType || file.type || 'application/octet-stream';
+        const presignRes = await fetch(`${API_BASE}/storage/upload-url`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bucket, path, contentType }),
+        });
+        const presignJson = await presignRes.json().catch(() => null);
+        if (!presignRes.ok) return { data: null, error: { message: presignJson?.error || presignRes.statusText } };
+        const putRes = await fetch(presignJson.uploadUrl, { method: 'PUT', headers: { 'Content-Type': contentType }, body: file });
+        if (!putRes.ok) return { data: null, error: { message: 'S3 업로드 실패: ' + putRes.statusText } };
+        return { data: { path: presignJson.path }, error: null };
+      } catch (e) {
+        return { data: null, error: { message: e.message } };
+      }
+    },
+    async remove(paths) {
+      try {
+        const res = await fetch(`${API_BASE}/storage/remove`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bucket, paths }),
+        });
+        const j = await res.json().catch(() => null);
+        if (!res.ok) return { data: null, error: { message: j?.error || res.statusText } };
+        return { data: j, error: null };
+      } catch (e) {
+        return { data: null, error: { message: e.message } };
+      }
+    },
+    getPublicUrl(path) {
+      const base = S3_BUCKET_URLS[bucket] || '';
+      const encoded = String(path).split('/').map(encodeURIComponent).join('/');
+      return { data: { publicUrl: `${base}/${encoded}` } };
+    },
+    async createSignedUrl(path, expiresIn) {
+      try {
+        const res = await fetch(`${API_BASE}/storage/signed-url`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bucket, path, expiresIn }),
+        });
+        const j = await res.json().catch(() => null);
+        if (!res.ok) return { data: null, error: { message: j?.error || res.statusText } };
+        return { data: { signedUrl: j.signedUrl }, error: null };
+      } catch (e) {
+        return { data: null, error: { message: e.message } };
+      }
+    },
+  };
+}
+
+async function apiFunctionsInvoke(fnName, { body } = {}) {
+  try {
+    const res = await fetch(`${API_BASE}/functions/${fnName}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body || {}),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) return { data: null, error: { message: data?.error || res.statusText } };
+    return { data, error: null };
+  } catch (e) {
+    return { data: null, error: { message: e.message } };
+  }
+}
+
+// ── 알림이 걸리는 티켓 쓰기(생성/관리)는 api-layer로 직접 라우팅 ──
+async function apiCreateTicket(payload) {
+  try {
+    const res = await fetch(`${API_BASE}/tickets`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const j = await res.json().catch(() => null);
+    if (!res.ok) return { data: null, error: { message: j?.error || res.statusText } };
+    return { data: j.ticket, error: null };
+  } catch (e) {
+    return { data: null, error: { message: e.message } };
+  }
+}
+
+async function apiManageTicket(ticketId, body) {
+  try {
+    const res = await fetch(`${API_BASE}/tickets/${ticketId}/manage`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const j = await res.json().catch(() => null);
+    if (!res.ok) return { data: null, error: { message: j?.error || res.statusText } };
+    return { data: j.ticket, error: null };
+  } catch (e) {
+    return { data: null, error: { message: e.message } };
+  }
+}
 
 // 데모용 고객사 ID (DB의 companies.id로 교체 / null이면 전체 조회)
 const DEMO_COMPANY_ID = null;
@@ -2150,7 +2330,7 @@ async function doLogin() {
   if (btn) { btn.disabled = true; btn.textContent = '로그인 중...'; }
   errEl.style.display = 'none';
 
-  const { data: u, error: ue } = await sb.from('users').select('id, name, role, company_id, contract_id, phone, is_active, password, companies(name)').eq('email', email).single();
+  const { data: u, error: ue } = await sb.from('users').select('id, name, role, company_id, contract_id, phone, is_active, password, company:company_id(name)').eq('email', email).single();
   if (btn) { btn.disabled = false; btn.textContent = '로그인'; }
 
   if (ue || !u) {
@@ -2188,7 +2368,7 @@ async function doLogin() {
   }
 
   errEl.style.display = 'none';
-  const companyName = u.companies?.name || '';
+  const companyName = u.company?.name || '';
   enterApp(email, { id: u.id, role: u.role, name: u.name, company_id: u.company_id || null, contract_id: u.contract_id || null, company: companyName, phone: u.phone || '' });
 }
 
@@ -3136,8 +3316,11 @@ function closeModal(id) {
 // ══════════════════════════════════════════
 let sb = null;
 function initSupabase() {
-  if (SUPABASE_URL.includes('YOUR_PROJECT_ID') || SUPABASE_ANON_KEY.includes('YOUR_ANON_KEY')) return;
-  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  sb = {
+    from(table) { return new ApiQuery(table); },
+    storage: { from: apiStorageFrom },
+    functions: { invoke: apiFunctionsInvoke },
+  };
 }
 
 // ══════════════════════════════════════════
@@ -3873,44 +4056,15 @@ async function submitRequest() {
     return;
   }
 
-  const DEFAULT_ASSIGNEE_BY_CATEGORY = {
-    education: { id: '53d240b2-b950-4c94-9289-17feb229aa69', name: '김서연' }, // syeonkim@bigxdata.io
-  };
-  // 계약/라이선스/기술지원 문의는 고객사마다 담당자가 다르므로, 소속 고객사에 등록된 담당자 이름을 조회해 배정
-  const COMPANY_MANAGER_FIELD_BY_CATEGORY = {
-    contract:     'account_manager',
-    license:      'account_manager',
-    tech_support: 'tech_support_manager',
-  };
-
-  const payload = { title, category, description, status: 'received', priority };
+  // 담당자 자동 배정, 신규등록 알림(Slack/이메일)은 서버(api-layer)가 처리한다.
+  const payload = { title, category, description, priority };
   if (product)                  payload.product    = product;
   if (currentUser?.id)          payload.created_by = currentUser.id;
-  if (currentUser?.name)        payload.created_by_name = currentUser.name;
   if (currentUser?.company_id)  payload.company_id = currentUser.company_id;
   else if (DEMO_COMPANY_ID)     payload.company_id = DEMO_COMPANY_ID;
-  if (currentUser?.company)     payload.company_name = currentUser.company;
   if (currentUser?.contract_id) payload.contract_id = currentUser.contract_id;
-  const defaultAssignee = DEFAULT_ASSIGNEE_BY_CATEGORY[category];
-  if (defaultAssignee) {
-    payload.assigned_to      = defaultAssignee.id;
-    payload.assigned_to_name = defaultAssignee.name;
-  } else {
-    const managerField = COMPANY_MANAGER_FIELD_BY_CATEGORY[category];
-    if (managerField && currentUser?.company_id) {
-      const { data: co } = await sb.from('companies').select(managerField).eq('id', currentUser.company_id).single();
-      const managerName = co?.[managerField];
-      if (managerName) {
-        const { data: mgr } = await sb.from('users').select('id, name').eq('name', managerName).eq('is_active', true).single();
-        if (mgr) {
-          payload.assigned_to      = mgr.id;
-          payload.assigned_to_name = mgr.name;
-        }
-      }
-    }
-  }
 
-  const { data, error } = await sb.from('tickets').insert(payload).select('id, ticket_number, title, category, priority, created_at, company_id').single();
+  const { data, error } = await apiCreateTicket(payload);
 
   if (btn) { btn.disabled = false; btn.textContent = '요청 접수'; }
 
@@ -3923,7 +4077,7 @@ async function submitRequest() {
   const ticketNum = data?.ticket_number;
   const ticketId  = data?.id;
 
-  // 첨부 파일 Supabase Storage 업로드
+  // 첨부 파일 S3 업로드
   if (ticketId && attachInput?.files?.length) {
     const uploadRows = [];
     const baseTs = Date.now();
@@ -3953,19 +4107,6 @@ async function submitRequest() {
         showToast('첨부파일 정보 저장 실패: ' + insErr.message, true);
       }
     }
-  }
-
-  // 이메일 알림 발송 (신규 요청)
-  if (sb && ticketId) {
-    sb.from('tickets').select('*, companies(name), users!tickets_created_by_fkey(name,email)').eq('id', ticketId).single().then(({ data: td }) => {
-      if (td) sb.functions.invoke('send-email', {
-        body: {
-          type: 'INSERT', record: td,
-          requester_email: currentUser?.email || null,
-          requester_name:  currentUser?.name  || null,
-        }
-      }).catch(e => console.error('[send-email 신규등록 실패]', e));
-    });
   }
 
   closeModal('modal-new');
@@ -4889,8 +5030,7 @@ async function loadNotifyLog() {
 
   let q = sb.from('log_notification')
     .select(`id, ticket_id, channel, event_type, recipient, status, error_message, sent_at, created_at, retry_count,
-             tickets(ticket_number, title, category, priority, created_at, assigned_to_name, company_name, created_by_name,
-               companies(name), users!tickets_created_by_fkey(name), assignee:users!tickets_assigned_to_fkey(name))`)
+             ticket:ticket_id(ticket_number, title, category, priority, created_at, assigned_to_name, company_name, created_by_name)`)
     .order('created_at', { ascending: false })
     .limit(200);
 
@@ -4936,7 +5076,7 @@ async function loadNotifyLog() {
 
   document.getElementById('notify-count').textContent = `총 ${filteredData.length}건`;
   tbody.innerHTML = filteredData.map(n => {
-    const ticketNum = n.tickets?.ticket_number || (n.ticket_id ? n.ticket_id.slice(0,8) : '—');
+    const ticketNum = n.ticket?.ticket_number || (n.ticket_id ? n.ticket_id.slice(0,8) : '—');
     const sentAtRaw = n.sent_at || n.created_at;
     const sentAt = sentAtRaw ? new Date(sentAtRaw).toLocaleString('ko-KR', { hour12: false }) : '—';
     const statusBadge = (n.status === 'success' || n.status === 'sent')
@@ -4948,13 +5088,13 @@ async function loadNotifyLog() {
       ? `<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="event.stopPropagation();retryNotify('${n.id}')">재시도</button>`
       : `<span style="color:var(--faint);">—</span>`;
 
-    const t = n.tickets;
+    const t = n.ticket;
     const isFailed = (n.status === 'failed' || n.status === 'failure');
     const ticketDetailRows = t ? (() => {
       const regAt = t.created_at ? new Date(t.created_at).toLocaleString('ko-KR') : '—';
-      const companyName  = t.companies?.name || t.company_name || '—';
-      const requester    = t.users?.name || t.created_by_name || '—';
-      const assigneeName = t.assignee?.name || t.assigned_to_name || '미배정';
+      const companyName  = t.company_name || '—';
+      const requester    = t.created_by_name || '—';
+      const assigneeName = t.assigned_to_name || '미배정';
       return [
         ['요청번호', escHtml(t.ticket_number || ticketNum)],
         ['고객사',   escHtml(companyName)],
@@ -5249,7 +5389,7 @@ async function toggleUserActive(id, current) {
 
 async function deleteUser(id, name) {
   if (!confirm(name + ' 사용자를 삭제하시겠습니까?')) return;
-  const { error } = await sb.rpc('delete_user_safely', { user_id: id });
+  const { error } = await sb.from('users').delete().eq('id', id);
   if (error) { showToast('삭제 실패: ' + error.message, true); return; }
   showToast('✅ ' + name + ' 삭제 완료');
   await loadUsers();
@@ -6286,55 +6426,19 @@ async function saveManage() {
   const assigneeName = assigneeId ? (mgSel.options[mgSel.selectedIndex]?.text?.replace(/ \(.*\)$/, '') || null) : null;
   mgTicket.assigned_to_name = assigneeName;
 
-  if (sb) {
-    const payload = { status, due_date: dueDate };
-    if (assigneeId !== undefined) { payload.assigned_to = assigneeId || null; payload.assigned_to_name = assigneeName; }
-    const { error } = await sb.from('tickets').update(payload).eq('id', mgTicket.id);
-    if (error) { mgTicket.status = prevStatus; mgTicket.assigned_to = prevAssigneeId; mgTicket.assigned_to_name = prevAssigneeName; mgTicket.due_date = prevDueDate; _savingManage = false; showToast('저장 실패: ' + error.message, true); return; }
-
-    const cb = currentUser?.id || null;
-    const cbName = currentUser?.name || null;
-    const historyRows = [];
-    // 상태 변경 이력
-    if (status !== prevStatus) {
-      const prevLabel = STATUS_LABELS[prevStatus] || prevStatus;
-      const nextLabel = STATUS_LABELS[status] || status;
-      historyRows.push({ ticket_id: mgTicket.id, action: 'status_changed', note: `${prevLabel} → ${nextLabel}`, changed_by: cb, changed_by_name: cbName });
-    }
-    // 담당자 변경 이력
-    if (assigneeId !== prevAssigneeId) {
-      const newName  = assigneeName || '미배정';
-      const prevName = mgTicket.assignee?.name || mgTicket.assigned_to_name || '미배정';
-      const action   = prevAssigneeId ? 'reassigned' : 'assigned';
-      historyRows.push({ ticket_id: mgTicket.id, action, note: `${prevName} → ${newName}`, changed_by: cb, changed_by_name: cbName });
-    }
-    if (historyRows.length) {
-      await sb.from('ticket_history').insert(historyRows);
-    }
-    // 내부 메모는 ticket_memos 테이블에 별도 저장
-    if (memo) {
-      await sb.from('ticket_memos').insert({
-        ticket_id: mgTicket.id, note: memo, changed_by: cb
-      });
-    }
-  }
-
   // 체크박스 선택 시에만 고객에게 상태 변경 메일 발송
   const sendEmailChecked = document.getElementById('mg-send-email')?.checked;
   const ccEmails = (document.getElementById('mg-cc-emails')?.value || '')
     .split(',').map(s => s.trim()).filter(s => s.includes('@'));
-  if (sb && sendEmailChecked && status !== prevStatus) {
-    const { data: ticketData } = await sb.from('tickets').select('*, companies(name), users!tickets_created_by_fkey(name,email)').eq('id', mgTicket.id).single();
-    if (ticketData) {
-      sb.functions.invoke('send-email', {
-        body: {
-          type: 'UPDATE',
-          record: ticketData,
-          old_record: { ...ticketData, status: prevStatus },
-          cc_emails: ccEmails
-        }
-      }).catch(e => console.error('[send-email 상태변경 발송 실패]', e));
-    }
+
+  if (sb) {
+    // 이력 기록·메모 저장·Slack/이메일 알림까지 서버(api-layer)가 한 번에 처리한다.
+    const { error } = await apiManageTicket(mgTicket.id, {
+      status, assigned_to: assigneeId, due_date: dueDate, memo,
+      send_email: !!sendEmailChecked, cc_emails: ccEmails,
+      changed_by: currentUser?.id || null, changed_by_name: currentUser?.name || null,
+    });
+    if (error) { mgTicket.status = prevStatus; mgTicket.assigned_to = prevAssigneeId; mgTicket.assigned_to_name = prevAssigneeName; mgTicket.due_date = prevDueDate; _savingManage = false; showToast('저장 실패: ' + error.message, true); return; }
   }
 
   _savingManage = false;
@@ -6673,7 +6777,7 @@ initSupabase();
     if (!acct?.email || !acct?.role) { goScreen('screen-login'); return; }
     // DB에서 계정 정보를 이메일 기준으로 다시 조회 (캐시된 세션에 id가 없거나 오래된 경우 대비)
     if (sb) {
-      sb.from('users').select('id, name, role, company_id, contract_id, phone, is_active, companies(name)').eq('email', acct.email).single().then(({ data: u, error }) => {
+      sb.from('users').select('id, name, role, company_id, contract_id, phone, is_active, company:company_id(name)').eq('email', acct.email).single().then(({ data: u, error }) => {
         if (error || !u) {
           // DB 조회 실패 시 저장된 세션으로 그냥 진입
           const { email, ...rest } = acct;
@@ -6685,7 +6789,7 @@ initSupabase();
           goScreen('screen-login');
           return;
         }
-        const companyName = u.companies?.name || '';
+        const companyName = u.company?.name || '';
         enterApp(acct.email, { id: u.id, role: u.role, name: u.name, company_id: u.company_id || null, contract_id: u.contract_id || null, company: companyName, phone: u.phone || '' });
       }).catch(() => {
         // DB 조회 실패 시 저장된 세션으로 그냥 진입
