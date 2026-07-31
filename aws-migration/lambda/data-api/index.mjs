@@ -150,7 +150,14 @@ async function handleGet(table, qs) {
   const params = [];
   const whereClauses = buildWhere(table, qs, params);
 
-  const colsSql = plainCols.includes('*') ? '*' : plainCols.map(c => `"${c}"`).join(',');
+  // 임베드에 필요한 fk 컬럼이 select에 명시되지 않았으면 조회용으로만 슬쩍 추가하고,
+  // 나중에 결과에서 다시 빼준다 (호출자가 요청한 컬럼만 응답에 남도록).
+  const fetchAllCols = plainCols.includes('*');
+  const requestedSet = new Set(plainCols);
+  const extraFkCols = fetchAllCols ? [] : embeds.map(e => e.fkCol).filter(fk => !requestedSet.has(fk));
+  const fetchCols = fetchAllCols ? ['*'] : [...plainCols, ...new Set(extraFkCols)];
+
+  const colsSql = fetchAllCols ? '*' : fetchCols.map(c => `"${c}"`).join(',');
   let sql = `select ${colsSql} from "${table}"`;
   if (whereClauses.length) sql += ` where ${whereClauses.join(' and ')}`;
 
@@ -165,6 +172,9 @@ async function handleGet(table, qs) {
 
   const rows = await query(sql, params);
   if (embeds.length) await resolveEmbeds(rows, embeds);
+  if (!fetchAllCols && extraFkCols.length) {
+    for (const row of rows) for (const fk of extraFkCols) delete row[fk];
+  }
 
   if (qs.single) {
     if (!rows.length) throw new HttpError(404, '결과 없음');
