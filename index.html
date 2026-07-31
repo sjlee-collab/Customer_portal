@@ -5786,7 +5786,7 @@ async function goToManageTicket(ticketId) {
   document.querySelectorAll('.u-page,.c-tab').forEach(p => p.classList.remove('active'));
   const listPage = document.getElementById('p-all-requests');
   if (listPage) listPage.classList.add('active');
-  const reqTab = document.querySelector('#main-navtabs .nt[data-roles="tech_support,sales,education,admin"][onclick*="p-all-requests"]');
+  const reqTab = document.querySelector('#main-navtabs .nt[onclick*="p-all-requests"]');
   document.querySelectorAll('#main-navtabs .nt').forEach(s => s.classList.remove('active'));
   if (reqTab) reqTab.classList.add('active');
   const mainBody = document.getElementById('main-body');
