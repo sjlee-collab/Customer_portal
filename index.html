@@ -133,8 +133,11 @@ textarea{resize:vertical;min-height:100px;}
 .ticket-row.open{position:sticky;z-index:2;box-shadow:0 1px 0 var(--border-md);will-change:transform;backface-visibility:hidden;}
 .ticket-row .row-arrow{display:inline-block;font-size:11px;color:var(--faint);margin-left:6px;transition:transform .15s;}
 .ticket-row.open .row-arrow{transform:rotate(180deg);color:var(--accent);}
+.ticket-row.open td{border-top:1px solid var(--accent-m);}
 .ticket-row.open td:first-child{border-left:3px solid var(--accent);border-top-left-radius:var(--r-lg);}
-.ticket-detail-row.detail-open td{border-left:3px solid var(--accent);border-bottom-left-radius:var(--r-lg);background:var(--surface);}
+.ticket-row.open td:last-child{border-right:3px solid var(--accent);border-top-right-radius:var(--r-lg);}
+.ticket-detail-row.detail-open td{padding:0;background:var(--surface);border-left:3px solid var(--accent);border-right:3px solid var(--accent);border-bottom:1px solid var(--accent-m);border-bottom-left-radius:var(--r-lg);border-bottom-right-radius:var(--r-lg);}
+.ticket-detail-row.detail-open .card{border:none;border-radius:0;margin-bottom:0;}
 .company-row.open td{background:var(--accent-l);}
 .company-row.open{position:sticky;z-index:2;box-shadow:0 1px 0 var(--border-md);will-change:transform;backface-visibility:hidden;}
 .ticket-detail-row:hover td{background:inherit !important;cursor:default !important;}
@@ -5735,7 +5738,7 @@ function renderAllTickets() {
       <td><button class="btn btn-primary btn-sm" style="font-size:11px;" onclick="event.stopPropagation();openManage(${idx})">처리</button></td>
     </tr>
     <tr class="ticket-detail-row" style="display:none;">
-      <td colspan="11" style="padding:6px 0 0;background:var(--bg);"></td>
+      <td colspan="11"></td>
     </tr>`;
   }).join('');
 }
