@@ -5921,6 +5921,9 @@ async function selectRdTicket(idx, directTicket) {
   const ownerEditBtn = document.getElementById('rd-owner-edit-btn');
   if (ownerEditBtn) ownerEditBtn.style.display = 'none'; // DB 확인 후 갱신
 
+  const replyInput = document.getElementById('rd-customer-reply');
+  if (replyInput) replyInput.value = '';
+
   const historyBox = document.getElementById('rd-history');
   if (historyBox) historyBox.style.display = 'none';
   const memoBody = document.getElementById('rd-memo-body');
