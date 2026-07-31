@@ -70,11 +70,21 @@ async function sendMail(to, subject, html) {
   if (!res.ok) throw new Error(`Graph API 전송 실패: ${await res.text()}`);
 }
 
+// 제목에 원래 수신자 이메일을 그대로 노출하면(예: "[TEST→a@b.com] ...") Microsoft 365
+// 사칭/피싱 방지 필터에 걸려 Graph API는 202를 반환해도 실제로는 조용히 격리(quarantine)되는
+// 문제가 있었다. 그래서 원래 수신자 정보는 제목이 아니라 본문 상단 배너로 표시한다.
+function withTestBanner(html, originalTo) {
+  if (!TEST_EMAIL_OVERRIDE) return html;
+  const banner = `<div style="background:#111827;color:#fbbf24;font:12px/1.6 monospace;padding:8px 16px;text-align:center;">TEST MODE (원래 수신자: ${originalTo})</div>`;
+  return html.replace('<body>', `<body>${banner}`);
+}
+
 async function sendAndLog(to, subject, html, ticketId, eventType, results) {
   const actualTo = TEST_EMAIL_OVERRIDE || to;
-  const actualSubject = TEST_EMAIL_OVERRIDE ? `[TEST→${to}] ${subject}` : subject;
+  const actualSubject = TEST_EMAIL_OVERRIDE ? `[TEST] ${subject}` : subject;
+  const actualHtml = withTestBanner(html, to);
   try {
-    await sendMail(actualTo, actualSubject, html);
+    await sendMail(actualTo, actualSubject, actualHtml);
     results.push({ channel: 'email', eventType, recipient: to, subject, ticketId, status: 'sent' });
   } catch (err) {
     results.push({ channel: 'email', eventType, recipient: to, subject, ticketId, status: 'failed', errorMessage: String(err) });
