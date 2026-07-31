@@ -1,9 +1,18 @@
 // api-layer Lambda — 티켓 생성/상태변경/담당자배정 API (RDS 직접 연결, VPC 안)
 // index.html(Phase 6)이 API Gateway를 통해 호출하게 될 엔드포인트.
 // DB 쓰기 후 notify-handler/send-email Lambda를 직접 호출해서 알림을 보낸다.
+//
+// Slack/이메일 발송은 외부 API 호출이라 느릴 수 있어 클라이언트 응답을 기다리게 하면 안 된다.
+// 응답을 만든 뒤 await 없이 그냥 두는 방식(fire-and-forget)은 Lambda 실행 환경이 응답 직후
+// 멈춰버릴 수 있어 신뢰할 수 없으므로, 자기 자신을 비동기(Event) 방식으로 재호출해서
+// 완전히 별도의 Lambda 실행으로 알림 처리를 넘긴다 (deferNotify / __deferred 분기).
 
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 import { query } from './db.mjs';
 import { notifySlack, notifyEmail } from './notify.mjs';
+
+const lambda = new LambdaClient({});
+const SELF_FN = process.env.AWS_LAMBDA_FUNCTION_NAME;
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -26,6 +35,11 @@ const STATUS_KO = {
 
 function json(statusCode, body) {
   return { statusCode, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+}
+
+async function getTicket(id) {
+  const rows = await query('select * from tickets where id=$1', [id]);
+  return rows[0] ?? null;
 }
 
 async function getCompanyName(companyId) {
@@ -52,6 +66,21 @@ async function getAccountManagerEmail(companyId, managerField) {
 async function getAdminEmails() {
   const rows = await query(`select email from users where role='admin' and is_active=true`);
   return rows.map(u => u.email).filter(Boolean);
+}
+
+// 알림 처리를 별도의 비동기 Lambda 실행으로 넘긴다. 실패해도 원래 요청(DB 쓰기)은 이미
+// 끝난 뒤이므로 에러는 로그만 남기고 삼킨다 — 알림 실패가 저장 자체를 실패시키면 안 된다.
+async function deferNotify(kind, payload) {
+  if (!SELF_FN) return; // 함수명을 알 수 없는 환경(로컬 실행 등)에서는 건너뜀
+  try {
+    await lambda.send(new InvokeCommand({
+      FunctionName: SELF_FN,
+      InvocationType: 'Event',
+      Payload: Buffer.from(JSON.stringify({ __deferred: kind, ...payload })),
+    }));
+  } catch (err) {
+    console.error(`[deferNotify:${kind} 호출 실패]`, err);
+  }
 }
 
 // ── POST /tickets ──
@@ -89,29 +118,36 @@ async function createTicket(body) {
   );
   const ticket = inserted[0];
 
-  const notifyPayload = { companyName, requesterName: requester.name, assigneeName: assignedToName };
+  await deferNotify('create', { ticketId: ticket.id });
+
+  return json(201, { ticket });
+}
+
+async function notifyForCreate(ticketId) {
+  const ticket = await getTicket(ticketId);
+  if (!ticket) return;
+  const requester = await getUser(ticket.created_by);
+  const notifyPayload = { companyName: ticket.company_name, requesterName: ticket.created_by_name, assigneeName: ticket.assigned_to_name };
 
   await notifySlack({ type: 'TICKET_INSERT', ticket, ...notifyPayload, attachmentFileNames: [] });
 
   const emailJobs = [];
-  const emailPayload = { ticket, companyName, requesterEmail: requester.email, requesterName: requester.name };
-  if (requester.email) {
+  const emailPayload = { ticket, companyName: ticket.company_name, requesterEmail: requester?.email, requesterName: ticket.created_by_name };
+  if (requester?.email) {
     emailJobs.push(notifyEmail({ type: 'INSERT', ...emailPayload }));
   }
-  if (['contract', 'license'].includes(category)) {
-    const accountManagerEmail = await getAccountManagerEmail(company_id, 'account_manager');
+  if (['contract', 'license'].includes(ticket.category)) {
+    const accountManagerEmail = await getAccountManagerEmail(ticket.company_id, 'account_manager');
     if (accountManagerEmail) emailJobs.push(notifyEmail({ type: 'INSERT', ...emailPayload, accountManagerEmail }));
   }
-  if (priority === 'critical') {
+  if (ticket.priority === 'critical') {
     const [accountManagerEmail, adminEmails] = await Promise.all([
-      getAccountManagerEmail(company_id, 'account_manager'),
+      getAccountManagerEmail(ticket.company_id, 'account_manager'),
       getAdminEmails(),
     ]);
     emailJobs.push(notifyEmail({ type: 'INSERT', ...emailPayload, accountManagerEmail, adminEmails }));
   }
   await Promise.allSettled(emailJobs);
-
-  return json(201, { ticket });
 }
 
 // ── PATCH /tickets/{id}/status ──
@@ -128,14 +164,24 @@ async function updateStatus(ticketId, body) {
     [status, ticketId]
   );
   const ticket = updated[0];
-  if (prevStatus === status) return json(200, { ticket });
 
-  const companyName = await getCompanyName(ticket.company_id);
+  if (prevStatus !== status) {
+    await deferNotify('status', { ticketId, prevStatus });
+  }
+
+  return json(200, { ticket });
+}
+
+async function notifyForStatus(ticketId, prevStatus) {
+  const ticket = await getTicket(ticketId);
+  if (!ticket) return;
+  const nextStatus = ticket.status;
+  const companyName = ticket.company_name;
   const requester = await getUser(ticket.created_by);
   const assignee = await getUser(ticket.assigned_to);
   const notifyBase = { companyName, requesterName: requester?.name, assigneeName: assignee?.name ?? '미배정' };
 
-  if (['pending_customer', 'completed'].includes(status)) {
+  if (['pending_customer', 'completed'].includes(nextStatus)) {
     await notifySlack({ type: 'TICKET_STATUS', ticket, ...notifyBase, prevStatus });
   }
 
@@ -143,11 +189,9 @@ async function updateStatus(ticketId, body) {
     await notifyEmail({ type: 'STATUS_CHANGE', ticket, companyName, requesterEmail: requester.email, requesterName: requester.name, prevStatus });
   }
 
-  if (!['completed', 'cancelled'].includes(status) && ticket.due_date && new Date(ticket.due_date) < new Date()) {
+  if (!['completed', 'cancelled'].includes(nextStatus) && ticket.due_date && new Date(ticket.due_date) < new Date()) {
     await notifySlack({ type: 'TICKET_OVERDUE', ticket, ...notifyBase });
   }
-
-  return json(200, { ticket });
 }
 
 // ── PATCH /tickets/{id}/assign ──
@@ -167,24 +211,31 @@ async function assignTicket(ticketId, body) {
     [assigned_to, newAssignee.name, ticketId]
   );
   const ticket = updated[0];
-  if (prevAssigneeId === assigned_to) return json(200, { ticket });
 
-  const companyName = await getCompanyName(ticket.company_id);
-  const requester = await getUser(ticket.created_by);
-  const prevAssignee = await getUser(prevAssigneeId);
-
-  await notifySlack({
-    type: 'TICKET_ASSIGNED', ticket, companyName,
-    requesterName: requester?.name, assigneeName: newAssignee.name,
-    prevAssigneeName: prevAssignee?.name ?? '미배정',
-  });
+  if (prevAssigneeId !== assigned_to) {
+    await deferNotify('assign', { ticketId, prevAssigneeId });
+  }
 
   return json(200, { ticket });
 }
 
+async function notifyForAssign(ticketId, prevAssigneeId) {
+  const ticket = await getTicket(ticketId);
+  if (!ticket) return;
+  const requester = await getUser(ticket.created_by);
+  const prevAssignee = await getUser(prevAssigneeId);
+
+  await notifySlack({
+    type: 'TICKET_ASSIGNED', ticket, companyName: ticket.company_name,
+    requesterName: requester?.name, assigneeName: ticket.assigned_to_name,
+    prevAssigneeName: prevAssignee?.name ?? '미배정',
+  });
+}
+
 // ── PATCH /tickets/{id}/manage ──
-// index.html의 "관리" 모달(saveManage) 전용: 상태/담당자/마감일을 한 번에 저장하고,
-// 이력(ticket_history)·메모(ticket_memos) 기록, Slack 알림, (체크박스 선택 시) 이메일까지 처리한다.
+// index.html의 "관리" 모달(saveManage) 전용: 상태/담당자/마감일을 한 번에 저장한다.
+// 이력(ticket_history)·메모(ticket_memos) 기록은 응답 전에 즉시 처리하고,
+// Slack 알림·이메일(느린 외부 호출)만 비동기로 넘긴다.
 async function manageTicket(ticketId, body) {
   const { status, assigned_to, due_date, memo, send_email, cc_emails, changed_by, changed_by_name } = body;
 
@@ -210,7 +261,6 @@ async function manageTicket(ticketId, body) {
 
   const statusChanged = nextStatus !== prevStatus;
   const assigneeChanged = (assigned_to ?? null) !== (prevAssigneeId ?? null);
-  const prevAssignee = assigneeChanged ? await getUser(prevAssigneeId) : null;
 
   if (statusChanged) {
     await query(
@@ -219,6 +269,7 @@ async function manageTicket(ticketId, body) {
     );
   }
   if (assigneeChanged) {
+    const prevAssignee = await getUser(prevAssigneeId);
     await query(
       `insert into ticket_history (ticket_id, action, note, changed_by, changed_by_name) values ($1,$2,$3,$4,$5)`,
       [ticketId, prevAssigneeId ? 'reassigned' : 'assigned', `${prevAssignee?.name ?? '미배정'} → ${assignedToName ?? '미배정'}`, changed_by ?? null, changed_by_name ?? null]
@@ -228,29 +279,41 @@ async function manageTicket(ticketId, body) {
     await query(`insert into ticket_memos (ticket_id, note, changed_by) values ($1,$2,$3)`, [ticketId, memo, changed_by ?? null]);
   }
 
-  const companyName = await getCompanyName(ticket.company_id);
-  const requester = await getUser(ticket.created_by);
-  const assigneeNow = await getUser(ticket.assigned_to);
-  const notifyBase = { companyName, requesterName: requester?.name, assigneeName: assigneeNow?.name ?? '미배정' };
-
-  if (assigneeChanged) {
-    await notifySlack({ type: 'TICKET_ASSIGNED', ticket, ...notifyBase, prevAssigneeName: prevAssignee?.name ?? '미배정' });
-  }
-  if (statusChanged && ['pending_customer', 'completed'].includes(nextStatus)) {
-    await notifySlack({ type: 'TICKET_STATUS', ticket, ...notifyBase, prevStatus });
-  }
-  if (statusChanged && !['completed', 'cancelled'].includes(nextStatus) && ticket.due_date && new Date(ticket.due_date) < new Date()) {
-    await notifySlack({ type: 'TICKET_OVERDUE', ticket, ...notifyBase });
-  }
-  if (statusChanged && send_email && requester?.email) {
-    await notifyEmail({
-      type: 'STATUS_CHANGE', ticket, companyName,
-      requesterEmail: requester.email, requesterName: requester.name,
-      prevStatus, ccEmails: cc_emails,
+  if (statusChanged || assigneeChanged) {
+    await deferNotify('manage', {
+      ticketId, prevStatus, prevAssigneeId, statusChanged, assigneeChanged,
+      sendEmail: !!send_email, ccEmails: cc_emails,
     });
   }
 
   return json(200, { ticket });
+}
+
+async function notifyForManage(job) {
+  const { ticketId, prevStatus, prevAssigneeId, statusChanged, assigneeChanged, sendEmail, ccEmails } = job;
+  const ticket = await getTicket(ticketId);
+  if (!ticket) return;
+  const companyName = ticket.company_name;
+  const requester = await getUser(ticket.created_by);
+  const notifyBase = { companyName, requesterName: requester?.name, assigneeName: ticket.assigned_to_name ?? '미배정' };
+
+  if (assigneeChanged) {
+    const prevAssignee = await getUser(prevAssigneeId);
+    await notifySlack({ type: 'TICKET_ASSIGNED', ticket, ...notifyBase, prevAssigneeName: prevAssignee?.name ?? '미배정' });
+  }
+  if (statusChanged && ['pending_customer', 'completed'].includes(ticket.status)) {
+    await notifySlack({ type: 'TICKET_STATUS', ticket, ...notifyBase, prevStatus });
+  }
+  if (statusChanged && !['completed', 'cancelled'].includes(ticket.status) && ticket.due_date && new Date(ticket.due_date) < new Date()) {
+    await notifySlack({ type: 'TICKET_OVERDUE', ticket, ...notifyBase });
+  }
+  if (statusChanged && sendEmail && requester?.email) {
+    await notifyEmail({
+      type: 'STATUS_CHANGE', ticket, companyName,
+      requesterEmail: requester.email, requesterName: requester.name,
+      prevStatus, ccEmails,
+    });
+  }
 }
 
 // ── EventBridge Scheduler가 매일 09:00 KST에 {"task":"overdue_batch"} 페이로드로 직접 호출 ──
@@ -274,7 +337,25 @@ async function runOverdueBatch() {
   return json(200, { processed: items.length });
 }
 
+// 자기 자신에게 비동기(Event)로 재호출됐을 때 처리할 알림 작업 — kind별 디스패치
+const DEFERRED_HANDLERS = {
+  create: (job) => notifyForCreate(job.ticketId),
+  status: (job) => notifyForStatus(job.ticketId, job.prevStatus),
+  assign: (job) => notifyForAssign(job.ticketId, job.prevAssigneeId),
+  manage: (job) => notifyForManage(job),
+};
+
 export const handler = async (event) => {
+  // ── 비동기 알림 작업 (자기 자신을 Event로 재호출한 경우) ──
+  if (event.__deferred) {
+    try {
+      await DEFERRED_HANDLERS[event.__deferred]?.(event);
+    } catch (err) {
+      console.error(`[deferred:${event.__deferred} 처리 오류]`, err);
+    }
+    return { statusCode: 200 };
+  }
+
   if (event.task === 'overdue_batch') {
     try {
       return await runOverdueBatch();
