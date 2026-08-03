@@ -4547,12 +4547,31 @@ async function loadCompanies() {
 
   if (!sb) return;
 
-  const { data, error } = await sb.from('companies').select('*').order('name');
+  const [{ data, error }, { data: contractRows }] = await Promise.all([
+    sb.from('companies').select('*').order('name'),
+    sb.from('company_contracts').select('company_id,bixs_contact,end_date'),
+  ]);
   if (error) {
     tbody.innerHTML = `<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--red);font-size:13px;">오류: ${error.message}</td></tr>`;
     return;
   }
-  allCompanies = data || [];
+  const contractsByCompany = {};
+  (contractRows || []).forEach(ct => {
+    (contractsByCompany[ct.company_id] ??= []).push(ct);
+  });
+  const today = new Date();
+  allCompanies = (data || []).map(c => {
+    const contracts = contractsByCompany[c.id] || [];
+    let nearest = null, nearestDiff = Infinity;
+    contracts.forEach(ct => {
+      if (!ct.end_date) return;
+      const diff = Math.abs(new Date(ct.end_date) - today);
+      if (diff < nearestDiff) { nearestDiff = diff; nearest = ct; }
+    });
+    const co = { ...c };
+    co.sales_manager_display = (nearest && nearest.bixs_contact) || c.account_manager || null;
+    return co;
+  });
   document.getElementById('companies-count').textContent = allCompanies.length + '개 고객사';
   applyCompanyFilter();
 }
@@ -4616,7 +4635,7 @@ function renderCompanies(companies) {
         <td><span class="badge ${stBadge}">${stLabel}</span></td>
         <td style="font-size:12px;">${ctLabel}</td>
         <td style="font-size:12px;">${products}</td>
-        <td style="font-size:12px;">${escHtml(c.account_manager || '—')}</td>
+        <td style="font-size:12px;">${escHtml(c.sales_manager_display || '—')}</td>
         <td style="font-size:12px;">${escHtml(c.tech_support_manager || '—')}</td>
         <td style="font-size:12px;">${escHtml(c.main_contact_name || '—')}</td>
         <td style="font-size:12px;">${escHtml(c.main_contact_phone || '—')}</td>
