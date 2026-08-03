@@ -3623,6 +3623,16 @@ function closeModal(id) {
   }
 }
 
+// ESC 키로 현재 열려있는 모달 닫기 (여러 모달이 겹쳐 있으면 가장 위(z-index가 높은) 것만 닫음)
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const openModals = [...document.querySelectorAll('[id^="modal-"]')]
+    .filter(m => getComputedStyle(m).display !== 'none');
+  if (!openModals.length) return;
+  openModals.sort((a, b) => (parseInt(getComputedStyle(b).zIndex) || 0) - (parseInt(getComputedStyle(a).zIndex) || 0));
+  closeModal(openModals[0].id);
+});
+
 // ══════════════════════════════════════════
 //  Supabase 초기화
 // ══════════════════════════════════════════
