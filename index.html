@@ -2804,6 +2804,7 @@ function startSessionWatch() {
 }
 
 function doLogout() {
+  stopArAutoRefresh();
   currentUser = null;
   allMgTickets = [];
   allTickets = [];
@@ -2866,9 +2867,10 @@ function showPage(tabEl, pageId, fromHistory) {
   if (!fromHistory) history.pushState({ pageId }, '', '#' + pageId);
 
   // 페이지별 데이터 로드
+  stopArAutoRefresh();
   if (pageId === 'p-dashboard')   loadDashboard();
   if (pageId === 'p-my-requests')  loadTickets();
-  if (pageId === 'p-all-requests') loadAllTickets();
+  if (pageId === 'p-all-requests') { loadAllTickets(); startArAutoRefresh(); }
   setTimeout(fitListHeight, 50);
   if (pageId === 'p-customers')   loadCompanies().then(fitListHeight);
   if (pageId === 'p-users')       loadUsers().then(fitListHeight);
@@ -6195,14 +6197,14 @@ function updateTkFilterButtonStates() {
   });
 }
 
-async function loadAllTickets() {
+async function loadAllTickets(silent = false) {
   const tbody = document.getElementById('ar-tbody');
   if (!tbody) return;
   detachSharedRequestDetail(tbody);
-  tbody.innerHTML = '<tr><td colspan="10" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>';
+  if (!silent) tbody.innerHTML = '<tr><td colspan="10" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>';
 
   if (!sb) {
-    tbody.innerHTML = '<tr><td colspan="10" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">DB 연결 없음</td></tr>';
+    if (!silent) tbody.innerHTML = '<tr><td colspan="10" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">DB 연결 없음</td></tr>';
     return;
   }
 
@@ -6236,10 +6238,34 @@ async function loadAllTickets() {
   }
 
   const { data, error } = await q;
-  if (error) { tbody.innerHTML = `<tr><td colspan="8" style="padding:24px;text-align:center;color:var(--red-d);">오류: ${error.message}</td></tr>`; return; }
+  if (error) {
+    if (!silent) tbody.innerHTML = `<tr><td colspan="8" style="padding:24px;text-align:center;color:var(--red-d);">오류: ${error.message}</td></tr>`;
+    return;
+  }
   allMgTickets = data || [];
   populateArDynamicFilters();
   renderAllTickets();
+}
+
+// ── 요청 관리 자동 새로고침: 다른 사용자가 만들거나 바꾼 요청을 새로고침 없이 반영 ──
+let arAutoRefreshTimer = null;
+const AR_AUTO_REFRESH_MS = 20000;
+
+function startArAutoRefresh() {
+  stopArAutoRefresh();
+  arAutoRefreshTimer = setInterval(arAutoRefreshTick, AR_AUTO_REFRESH_MS);
+}
+
+function stopArAutoRefresh() {
+  if (arAutoRefreshTimer) { clearInterval(arAutoRefreshTimer); arAutoRefreshTimer = null; }
+}
+
+// 상세를 펼쳐보고 있거나 처리 모달을 여는 중에는 다시 그리지 않는다 (입력 중인 내용 보호)
+async function arAutoRefreshTick() {
+  if (!document.getElementById('p-all-requests')?.classList.contains('active')) { stopArAutoRefresh(); return; }
+  if (document.querySelector('#ar-tbody tr.ticket-row.open')) return;
+  if (document.getElementById('modal-manage')?.style.display === 'flex') return;
+  await loadAllTickets(true);
 }
 
 let arPage = 1;
@@ -6397,6 +6423,7 @@ async function goToManageTicket(ticketId) {
   if (mainBody) mainBody.scrollTop = 0;
   await loadAllTickets();
   openAllTicketRowById(ticketId);
+  startArAutoRefresh();
 }
 
 // 좌측 리스트 렌더
