@@ -140,16 +140,16 @@ textarea{resize:vertical;min-height:100px;}
 .ticket-row.open td{background:var(--accent-l);border-top:1px solid var(--accent);border-bottom:none;}
 .ticket-row .row-arrow{display:inline-block;font-size:11px;color:var(--faint);margin-left:6px;transition:transform .15s;}
 .ticket-row.open .row-arrow{transform:rotate(180deg);color:var(--accent);}
-.ticket-row.open td:first-child{border-top-left-radius:var(--r-lg);background-color:var(--accent-l);background-image:linear-gradient(var(--accent),var(--accent));background-repeat:no-repeat;background-size:var(--r-lg) 100%;background-position:left top;}
-.ticket-row.open td:last-child{border-right:1px solid var(--accent);border-top-right-radius:var(--r-lg);}
-.ticket-detail-row.detail-open td{padding:14px 14px 14px 20px;background:var(--surface);border-right:1px solid var(--accent);border-bottom:1px solid var(--accent);border-bottom-left-radius:var(--r-lg);border-bottom-right-radius:var(--r-lg);background-image:linear-gradient(var(--accent),var(--accent));background-repeat:no-repeat;background-size:var(--r-lg) 100%;background-position:left top;}
+.ticket-row.open td:first-child{border-top-left-radius:8px;background-color:var(--accent-l);background-image:linear-gradient(var(--accent),var(--accent));background-repeat:no-repeat;background-size:8px 100%;background-position:left top;}
+.ticket-row.open td:last-child{border-right:1px solid var(--accent);border-top-right-radius:8px;}
+.ticket-detail-row.detail-open td{padding:14px 14px 14px 20px;background:var(--surface);border-right:1px solid var(--accent);border-bottom:1px solid var(--accent);border-bottom-left-radius:8px;border-bottom-right-radius:8px;background-image:linear-gradient(var(--accent),var(--accent));background-repeat:no-repeat;background-size:8px 100%;background-position:left top;}
 .ticket-detail-row.detail-open .card{border:none;border-radius:0;margin-bottom:0;}
 .company-row.open td{background:var(--accent-l);}
 .ticket-detail-row:hover td{background:inherit !important;cursor:default !important;}
 /* 위 hover 규칙의 background:inherit !important가 상세 영역의 왼쪽 컬러 레일(background-image)까지
    지워버려서, 마우스를 올리면 레일이 사라지는 문제가 있었음 → detail-open 상태에서는 더 높은
    특이도로 배경/레일을 다시 지정해 hover 중에도 유지되도록 처리 */
-.ticket-detail-row.detail-open:hover td{background:var(--surface) !important;background-image:linear-gradient(var(--accent),var(--accent)) !important;background-repeat:no-repeat !important;background-size:var(--r-lg) 100% !important;background-position:left top !important;cursor:default !important;}
+.ticket-detail-row.detail-open:hover td{background:var(--surface) !important;background-image:linear-gradient(var(--accent),var(--accent)) !important;background-repeat:no-repeat !important;background-size:8px 100% !important;background-position:left top !important;cursor:default !important;}
 .ticket-detail-row td{white-space:normal;}
 .ticket-detail-row td>div{width:100%;box-sizing:border-box;}
 .tbl-fit{table-layout:fixed;}
