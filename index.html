@@ -5546,7 +5546,8 @@ async function loadUsers() {
   const { data, error } = await sb
     .from('users')
     .select('*, company:company_id(name)')
-    .order('name');
+    .order('name')
+    .limit(1000);
 
   if (error) {
     tbody.innerHTML = `<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--red);font-size:13px;">오류: ${error.message}</td></tr>`;
@@ -5993,7 +5994,8 @@ async function loadAllTickets() {
 
   let q = sb.from('tickets')
     .select('id, ticket_number, title, category, priority, status, created_at, due_date, assigned_to_name, company_name, created_by_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(1000);
 
   // 역할 기반 강제 필터
   if (allowedCats) {
