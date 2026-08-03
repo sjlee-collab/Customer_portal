@@ -1471,6 +1471,17 @@ textarea{resize:vertical;min-height:100px;}
     <div style="padding:20px 24px;display:flex;flex-direction:column;gap:16px;">
       <div style="font-size:13px;font-weight:600;color:var(--text);border-bottom:1px solid var(--border);padding-bottom:8px;" id="mg-ticket-title"></div>
       <div class="form-group">
+        <label>카테고리 수정</label>
+        <select id="mg-category">
+          <option value="tech_support">기술지원</option>
+          <option value="contract">계약 문의</option>
+          <option value="license">라이선스 문의</option>
+          <option value="education">교육 문의</option>
+          <option value="customer">고객 문의</option>
+          <option value="other">기타 문의</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label>담당자 지정</label>
         <select id="mg-assignee">
           <option value="">미배정</option>
@@ -6820,6 +6831,7 @@ async function openManage(idx) {
   if (!mgTicket) return;
   document.getElementById('mg-ticket-num').textContent   = mgTicket.ticket_number || '';
   document.getElementById('mg-ticket-title').textContent = mgTicket.title || '';
+  document.getElementById('mg-category').value = mgTicket.category || 'other';
   document.getElementById('mg-status').value = mgTicket.status || 'received';
   document.getElementById('mg-due-date').value = mgTicket.due_date ? mgTicket.due_date.slice(0, 10) : '';
   document.getElementById('mg-memo').value   = '';
@@ -6855,15 +6867,18 @@ let _savingManage = false;
 async function saveManage() {
   if (!mgTicket || _savingManage) return;
   _savingManage = true;
+  const category   = document.getElementById('mg-category').value;
   const status     = document.getElementById('mg-status').value;
   const assigneeId = document.getElementById('mg-assignee').value || null;
   const dueDate    = document.getElementById('mg-due-date').value || null;
   const memo       = document.getElementById('mg-memo').value.trim();
   // 선점: 변경 전 값 캡처 후 즉시 업데이트
+  const prevCategory     = mgTicket.category;
   const prevStatus       = mgTicket.status;
   const prevAssigneeId   = mgTicket.assigned_to || mgTicket.assignee?.id || null;
   const prevAssigneeName = mgTicket.assigned_to_name || null;
   const prevDueDate      = mgTicket.due_date || null;
+  mgTicket.category    = category;
   mgTicket.status      = status;
   mgTicket.assigned_to = assigneeId;
   mgTicket.due_date    = dueDate;
@@ -6880,11 +6895,11 @@ async function saveManage() {
   if (sb) {
     // 이력 기록·메모 저장·Slack/이메일 알림까지 서버(api-layer)가 한 번에 처리한다.
     const { error } = await apiManageTicket(mgTicket.id, {
-      status, assigned_to: assigneeId, due_date: dueDate, memo,
+      category, status, assigned_to: assigneeId, due_date: dueDate, memo,
       send_email: !!sendEmailChecked, cc_emails: ccEmails,
       changed_by: currentUser?.id || null, changed_by_name: currentUser?.name || null,
     });
-    if (error) { mgTicket.status = prevStatus; mgTicket.assigned_to = prevAssigneeId; mgTicket.assigned_to_name = prevAssigneeName; mgTicket.due_date = prevDueDate; _savingManage = false; showToast('저장 실패: ' + error.message, true); return; }
+    if (error) { mgTicket.category = prevCategory; mgTicket.status = prevStatus; mgTicket.assigned_to = prevAssigneeId; mgTicket.assigned_to_name = prevAssigneeName; mgTicket.due_date = prevDueDate; _savingManage = false; showToast('저장 실패: ' + error.message, true); return; }
   }
 
   _savingManage = false;

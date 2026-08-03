@@ -240,7 +240,7 @@ async function notifyForAssign(ticketId, prevAssigneeId) {
 // 이력(ticket_history)·메모(ticket_memos) 기록은 응답 전에 즉시 처리하고,
 // Slack 알림·이메일(느린 외부 호출)만 비동기로 넘긴다.
 async function manageTicket(ticketId, body) {
-  const { status, assigned_to, due_date, memo, send_email, cc_emails, changed_by, changed_by_name } = body;
+  const { category, status, assigned_to, due_date, memo, send_email, cc_emails, changed_by, changed_by_name } = body;
 
   const before = await query('select * from tickets where id=$1', [ticketId]);
   if (!before[0]) return json(404, { error: '티켓을 찾을 수 없습니다' });
@@ -256,9 +256,10 @@ async function manageTicket(ticketId, body) {
   }
 
   const nextStatus = status ?? prevStatus;
+  const nextCategory = category ?? prev.category;
   const updated = await query(
-    `update tickets set status=$1, assigned_to=$2, assigned_to_name=$3, due_date=$4, updated_at=now() where id=$5 returning *`,
-    [nextStatus, assigned_to ?? null, assignedToName, due_date ?? null, ticketId]
+    `update tickets set category=$1, status=$2, assigned_to=$3, assigned_to_name=$4, due_date=$5, updated_at=now() where id=$6 returning *`,
+    [nextCategory, nextStatus, assigned_to ?? null, assignedToName, due_date ?? null, ticketId]
   );
   const ticket = updated[0];
 
