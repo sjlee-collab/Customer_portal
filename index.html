@@ -766,6 +766,15 @@ textarea{resize:vertical;min-height:100px;}
               <tr><td colspan="10" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
             </tbody>
           </table></div>
+          <div style="padding:12px 18px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:flex-end;gap:10px;background:var(--surface2);flex-shrink:0;">
+            <span style="font-size:12px;color:var(--muted);margin-right:auto;" id="tk-page-total"></span>
+            <button class="btn btn-outline btn-sm" onclick="changeTkPage(-1)">← 이전</button>
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;">
+              <input type="text" id="tk-page-input" value="1" inputmode="numeric" style="width:34px;text-align:center;border:1px solid var(--accent);border-radius:7px;padding:4px 2px;font-size:12px;font-variant-numeric:tabular-nums;outline:none;box-shadow:0 0 0 3px var(--accent-l);" onkeydown="if(event.key==='Enter')jumpTkPage(this.value)">
+              <span>/ <span id="tk-page-count">1</span> 페이지</span>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="changeTkPage(1)">다음 →</button>
+          </div>
         </div>
       </div>
 
@@ -988,6 +997,15 @@ textarea{resize:vertical;min-height:100px;}
               <tr><td colspan="8" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
             </tbody>
           </table></div>
+          <div style="padding:12px 18px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:flex-end;gap:10px;background:var(--surface2);flex-shrink:0;">
+            <span style="font-size:12px;color:var(--muted);margin-right:auto;" id="ar-page-total"></span>
+            <button class="btn btn-outline btn-sm" onclick="changeArPage(-1)">← 이전</button>
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;">
+              <input type="text" id="ar-page-input" value="1" inputmode="numeric" style="width:34px;text-align:center;border:1px solid var(--accent);border-radius:7px;padding:4px 2px;font-size:12px;font-variant-numeric:tabular-nums;outline:none;box-shadow:0 0 0 3px var(--accent-l);" onkeydown="if(event.key==='Enter')jumpArPage(this.value)">
+              <span>/ <span id="ar-page-count">1</span> 페이지</span>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="changeArPage(1)">다음 →</button>
+          </div>
         </div>
       </div>
 
@@ -4182,6 +4200,21 @@ function setTicketFilter(filter, el) {
   applyTicketFilter();
 }
 
+let tkPage = 1;
+let tkLastFilterKey = null;
+const TK_PAGE_SIZE = 20;
+
+function changeTkPage(delta) {
+  tkPage += delta;
+  applyTicketFilter();
+}
+
+function jumpTkPage(val) {
+  const n = parseInt(val, 10);
+  if (!isNaN(n)) tkPage = n;
+  applyTicketFilter();
+}
+
 function applyTicketFilter() {
   const q = (document.getElementById('ticket-search')?.value || '').trim().toLowerCase();
   const filtered = allTickets.filter(t => {
@@ -4194,7 +4227,23 @@ function applyTicketFilter() {
     if (tkFilters.status.length && !tkFilters.status.includes(t.status)) return false;
     return true;
   });
-  renderTickets(filtered);
+
+  // 검색어/필터가 실제로 바뀐 경우에만 1페이지로 리셋
+  const filterKey = JSON.stringify([q, ticketFilter, tkFilters.category, tkFilters.priority, tkFilters.status]);
+  if (filterKey !== tkLastFilterKey) { tkPage = 1; tkLastFilterKey = filterKey; }
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / TK_PAGE_SIZE));
+  tkPage = Math.min(Math.max(1, tkPage), totalPages);
+  const pageItems = filtered.slice((tkPage - 1) * TK_PAGE_SIZE, tkPage * TK_PAGE_SIZE);
+
+  const totalEl = document.getElementById('tk-page-total');
+  if (totalEl) totalEl.textContent = `총 ${filtered.length}건`;
+  const pageInput = document.getElementById('tk-page-input');
+  if (pageInput) pageInput.value = tkPage;
+  const pageCount = document.getElementById('tk-page-count');
+  if (pageCount) pageCount.textContent = totalPages;
+
+  renderTickets(pageItems);
 }
 
 // 펼친 요청 행을 스크롤 영역 맨 위(고정 헤더 바로 아래)로 스크롤하고, 이후 스크롤해도
@@ -6031,6 +6080,21 @@ async function loadAllTickets() {
   renderAllTickets();
 }
 
+let arPage = 1;
+let arLastFilterKey = null;
+const AR_PAGE_SIZE = 20;
+
+function changeArPage(delta) {
+  arPage += delta;
+  renderAllTickets();
+}
+
+function jumpArPage(val) {
+  const n = parseInt(val, 10);
+  if (!isNaN(n)) arPage = n;
+  renderAllTickets();
+}
+
 function renderAllTickets() {
   const tbody = document.getElementById('ar-tbody');
   if (!tbody) return;
@@ -6056,6 +6120,10 @@ function renderAllTickets() {
     return true;
   });
 
+  // 검색어/필터가 실제로 바뀐 경우에만 1페이지로 리셋 (저장 후 재조회 등에는 현재 페이지 유지)
+  const filterKey = JSON.stringify([q, arFilters.category, arFilters.priority, arFilters.status, arFilters.company, arFilters.requester, arFilters.assignee]);
+  if (filterKey !== arLastFilterKey) { arPage = 1; arLastFilterKey = filterKey; }
+
   const countEl = document.getElementById('ar-count');
   if (countEl) {
     countEl.textContent = list.length === allMgTickets.length
@@ -6063,11 +6131,21 @@ function renderAllTickets() {
       : `· 총 ${allMgTickets.length}건 중 ${list.length}건`;
   }
 
+  const totalPages = Math.max(1, Math.ceil(list.length / AR_PAGE_SIZE));
+  arPage = Math.min(Math.max(1, arPage), totalPages);
+  const pageList = list.slice((arPage - 1) * AR_PAGE_SIZE, arPage * AR_PAGE_SIZE);
+  const totalEl = document.getElementById('ar-page-total');
+  if (totalEl) totalEl.textContent = `총 ${list.length}건`;
+  const pageInput = document.getElementById('ar-page-input');
+  if (pageInput) pageInput.value = arPage;
+  const pageCount = document.getElementById('ar-page-count');
+  if (pageCount) pageCount.textContent = totalPages;
+
   if (!list.length) {
     tbody.innerHTML = '<tr><td colspan="9" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">조건에 맞는 요청이 없습니다.</td></tr>';
     return;
   }
-  tbody.innerHTML = list.map((t) => {
+  tbody.innerHTML = pageList.map((t) => {
     const idx       = allMgTickets.indexOf(t);
     const catL      = CATEGORY_LABELS[t.category]  || t.category || '—';
     const catB      = CATEGORY_BADGE[t.category]   || 'b-gray';
