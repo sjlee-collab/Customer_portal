@@ -113,8 +113,15 @@ function layout(subtitle, body) {
 </style></head><body><div class="wrap"><div class="hd"><div class="hd-title">빅스데이터 고객지원 포탈</div><div class="hd-sub">${subtitle}</div></div><div class="bd">${body}</div><div class="ft">본 메일은 발신 전용입니다. 문의는 고객지원 포탈을 이용해주세요.<br>© 빅스데이터 주식회사</div></div></body></html>`;
 }
 
+function portalLinkBtn(ticketNumber, label) {
+  if (!PORTAL_URL) return '';
+  const url = `${PORTAL_URL}?ticket=${ticketNumber}`;
+  const display = url.replace(/^https?:\/\//, '');
+  return `<a class="btn" href="${url}">${label}</a><div style="font-size:11px;color:#9ca3af;margin-top:8px;">${display}</div>`;
+}
+
 function customerStatusChangeHtml(ticket, companyName, requesterName, prevStatus) {
-  const btn = PORTAL_URL ? `<a class="btn" href="${PORTAL_URL}?ticket=${ticket.ticket_number}">요청 상세 보기</a>` : '';
+  const btn = portalLinkBtn(ticket.ticket_number, '요청 상세 보기');
   const prevKo = STATUS_KO[prevStatus] ?? prevStatus ?? '—';
   const newKo = STATUS_KO[ticket.status] ?? ticket.status ?? '—';
   const dateStr = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
@@ -129,19 +136,19 @@ function customerStatusChangeHtml(ticket, companyName, requesterName, prevStatus
 }
 
 function customerNewTicketHtml(ticket, companyName, requesterName) {
-  const btn = PORTAL_URL ? `<a class="btn" href="${PORTAL_URL}?ticket=${ticket.ticket_number}">요청 확인하기</a>` : '';
+  const btn = portalLinkBtn(ticket.ticket_number, '요청 확인하기');
   const dateStr = ticket.created_at ? new Date(ticket.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : '—';
   return layout('요청 접수 확인', `<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">안녕하세요, <strong>${requesterName}</strong>님.<br>고객지원 요청이 정상적으로 접수되었습니다.<br>담당자 배정 후 순차적으로 처리해 드리겠습니다.</p><div class="lbl">접수 정보</div><table class="info"><tr><td>요청번호</td><td><strong>${ticket.ticket_number ?? '—'}</strong></td></tr><tr><td>제목</td><td>${ticket.title ?? '—'}</td></tr><tr><td>고객사</td><td>${companyName}</td></tr><tr><td>카테고리</td><td>${CATEGORY_KO[ticket.category] ?? ticket.category ?? '—'}</td></tr><tr><td>긴급도</td><td>${PRIORITY_KO[ticket.priority] ?? ticket.priority ?? '—'}</td></tr><tr><td>접수일시</td><td>${dateStr}</td></tr></table>${btn}`);
 }
 
 function internalSalesHtml(ticket, companyName, requesterName, requesterEmail) {
-  const btn = PORTAL_URL ? `<a class="btn" href="${PORTAL_URL}?ticket=${ticket.ticket_number}">문의 확인하기</a>` : '';
+  const btn = portalLinkBtn(ticket.ticket_number, '문의 확인하기');
   const dateStr = ticket.created_at ? new Date(ticket.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : '—';
   return layout('계약/라이선스 문의 접수', `<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">담당 고객사로부터 ${CATEGORY_KO[ticket.category] ?? '문의'}가 접수되었습니다.</p><div class="lbl">문의 정보</div><table class="info"><tr><td>요청번호</td><td><strong>${ticket.ticket_number ?? '—'}</strong></td></tr><tr><td>제목</td><td>${ticket.title ?? '—'}</td></tr><tr><td>고객사</td><td>${companyName}</td></tr><tr><td>요청자</td><td>${requesterName} (${requesterEmail})</td></tr><tr><td>카테고리</td><td>${CATEGORY_KO[ticket.category] ?? ticket.category ?? '—'}</td></tr><tr><td>등록일시</td><td>${dateStr}</td></tr></table>${btn}`);
 }
 
 function internalUrgentHtml(ticket, companyName, requesterName) {
-  const btn = PORTAL_URL ? `<a class="btn" href="${PORTAL_URL}?ticket=${ticket.ticket_number}">즉시 확인하기</a>` : '';
+  const btn = portalLinkBtn(ticket.ticket_number, '즉시 확인하기');
   const dateStr = ticket.created_at ? new Date(ticket.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : '—';
   return layout('긴급 요청 알림', `<div class="alert-box alert-red"><strong>긴급 요청이 접수되었습니다.</strong> 즉각적인 대응이 필요합니다.</div><div class="lbl">요청 정보</div><table class="info"><tr><td>요청번호</td><td><strong>${ticket.ticket_number ?? '—'}</strong></td></tr><tr><td>제목</td><td>${ticket.title ?? '—'}</td></tr><tr><td>고객사</td><td>${companyName}</td></tr><tr><td>요청자</td><td>${requesterName}</td></tr><tr><td>카테고리</td><td>${CATEGORY_KO[ticket.category] ?? ticket.category ?? '—'}</td></tr><tr><td>긴급도</td><td><span class="badge b-red">긴급</span></td></tr><tr><td>등록일시</td><td>${dateStr}</td></tr></table>${btn}`);
 }
