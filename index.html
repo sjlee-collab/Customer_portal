@@ -585,17 +585,17 @@ textarea{resize:vertical;min-height:100px;}
           <span id="dlc-end" style="display:none;"></span>
         </div>
         <!-- 내부 전용 오늘 신규요청 카드 -->
-        <div id="dash-today-stat" class="stat" style="display:none;">
+        <div id="dash-today-stat" class="stat dash-recent-kpi-card" data-filter="today" style="display:none;cursor:pointer;" onclick="toggleDashRecentFilter('today')">
           <div class="stat-label">오늘 신규요청</div>
           <div class="stat-val" id="dash-today-val">—</div>
           <div class="stat-sub" id="dash-today-sub">불러오는 중...</div>
         </div>
-        <div class="stat">
+        <div class="stat dash-recent-kpi-card" data-filter="inprogress" style="cursor:pointer;" onclick="toggleDashRecentFilter('inprogress')">
           <div class="stat-label">처리 중 요청</div>
           <div class="stat-val" id="dash-inprogress-val">—</div>
           <div class="stat-sub" id="dash-inprogress-sub">불러오는 중...</div>
         </div>
-        <div class="stat">
+        <div class="stat dash-recent-kpi-card" data-filter="completed" style="cursor:pointer;" onclick="toggleDashRecentFilter('completed')">
           <div class="stat-label">완료된 요청</div>
           <div class="stat-val" id="dash-completed-val">—</div>
           <div class="stat-sub" id="dash-completed-sub">누적 처리 완료</div>
@@ -634,10 +634,10 @@ textarea{resize:vertical;min-height:100px;}
         <!-- 운영/관리 대시보드 -->
         <div data-show-roles="tech_support,sales,education,admin">
           <div class="stats" style="grid-template-columns:repeat(5,1fr);">
-            <div class="stat"><div class="stat-label">오늘 신규 요청</div><div class="stat-val" id="dash-admin-today-val">—</div><div class="stat-sub" id="dash-admin-today-sub">불러오는 중...</div></div>
-            <div class="stat"><div class="stat-label">미처리</div><div class="stat-val" style="color:var(--red);" id="dash-admin-pending-val">—</div><div class="stat-sub" id="dash-admin-pending-sub">처리 대기 건수</div></div>
-            <div class="stat"><div class="stat-label">지연</div><div class="stat-val" style="color:#e53e3e;font-weight:900;" id="dash-admin-delayed-val">—</div><div class="stat-sub" id="dash-admin-delayed-sub">완료예정일 초과</div></div>
-            <div class="stat"><div class="stat-label">처리 완료 (오늘)</div><div class="stat-val" style="color:var(--green);" id="dash-admin-done-val">—</div><div class="stat-sub"></div></div>
+            <div class="stat dash-kpi-card" data-filter="today" style="cursor:pointer;" onclick="toggleDashFilter('today')"><div class="stat-label">오늘 신규 요청</div><div class="stat-val" id="dash-admin-today-val">—</div><div class="stat-sub" id="dash-admin-today-sub">불러오는 중...</div></div>
+            <div class="stat dash-kpi-card" data-filter="pending" style="cursor:pointer;" onclick="toggleDashFilter('pending')"><div class="stat-label">미처리</div><div class="stat-val" style="color:var(--red);" id="dash-admin-pending-val">—</div><div class="stat-sub" id="dash-admin-pending-sub">처리 대기 건수</div></div>
+            <div class="stat dash-kpi-card" data-filter="delayed" style="cursor:pointer;" onclick="toggleDashFilter('delayed')"><div class="stat-label">지연</div><div class="stat-val" style="color:#e53e3e;font-weight:900;" id="dash-admin-delayed-val">—</div><div class="stat-sub" id="dash-admin-delayed-sub">완료예정일 초과</div></div>
+            <div class="stat dash-kpi-card" data-filter="done" style="cursor:pointer;" onclick="toggleDashFilter('done')"><div class="stat-label">처리 완료 (오늘)</div><div class="stat-val" style="color:var(--green);" id="dash-admin-done-val">—</div><div class="stat-sub"></div></div>
             <div class="stat"><div class="stat-label">전체 고객사</div><div class="stat-val" id="dash-admin-companies-val">—</div><div class="stat-sub" id="dash-admin-companies-sub"></div></div>
           </div>
           <div style="display:grid;grid-template-columns:400px 1fr;gap:16px;align-items:stretch;height:calc(100vh - 300px);">
@@ -651,10 +651,6 @@ textarea{resize:vertical;min-height:100px;}
             <div class="card" style="display:flex;flex-direction:column;overflow:hidden;">
               <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;padding-bottom:10px;">
                 <div class="card-title" style="margin-bottom:0;">요청</div>
-                <div id="dash-filter-btns" style="display:none;gap:6px;">
-                  <button id="dash-filter-pending" onclick="setDashFilter('pending')" style="font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid var(--border-strong);background:transparent;color:var(--muted);cursor:pointer;">미처리</button>
-                  <button id="dash-filter-delayed" onclick="setDashFilter('delayed')" style="font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid var(--border-strong);background:transparent;color:var(--muted);cursor:pointer;">지연</button>
-                </div>
               </div>
               <div class="tbl-scroll list-scroll" style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;"><table class="tbl">
                 <thead><tr><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">요청 번호</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">고객사</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">제목</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">카테고리</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">상태</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">접수일</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">완료예정일</th></tr></thead>
@@ -3935,22 +3931,9 @@ async function loadDashboard() {
       .select('id, ticket_number, title, category, status, created_at'))
       .order('created_at', { ascending: false }).limit(200);
     dashRecentTickets = recent || [];
-    const tbody = document.getElementById('dash-recent-tbody');
-    if (tbody) {
-      if (!recent || !recent.length) {
-        tbody.innerHTML = '<tr><td colspan="5" style="padding:16px;text-align:center;color:var(--faint);">요청 없음</td></tr>';
-      } else {
-        tbody.innerHTML = recent.map((t, i) => {
-          const catL = CATEGORY_LABELS[t.category] || t.category || '—';
-          const catC = CATEGORY_BADGE[t.category] || 'b-gray';
-          const stL  = STATUS_LABELS[t.status] || t.status;
-          const stC  = STATUS_BADGE[t.status] || 'b-gray';
-          return `<tr style="cursor:pointer;" onclick="showDetail(dashRecentTickets[${i}])"><td><span style="font-variant-numeric:tabular-nums;color:var(--accent);font-weight:600;">${escHtml(t.ticket_number||'')}</span></td>` +
-            `<td><div style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(t.title||'')}">${escHtml(t.title||'')}</div></td><td><span class="badge ${catC}">${catL}</span></td>` +
-            `<td><span class="badge ${stC}">${stL}</span></td><td style="color:var(--faint);">${fmtTime(t.created_at).slice(0,10)}</td></tr>`;
-        }).join('');
-      }
-    }
+    window._dashRecentFilter = window._dashRecentFilter || 'all';
+    updateDashRecentCardStyles();
+    renderDashRecentTable(window._dashRecentFilter);
 
   } else if (ADMIN_ROLES.has(role)) {
     const todayStart = new Date(); todayStart.setHours(0,0,0,0);
@@ -4007,42 +3990,36 @@ async function loadDashboard() {
     const DASH_ALLOWED_CATS = { tech_support: ['tech_support', 'other'], sales: ['contract', 'license', 'other'], education: ['education'] };
     const dashAllowedCats = DASH_ALLOWED_CATS[role] || null;
     let recentQ = sb.from('tickets')
-      .select('id, ticket_number, title, category, status, priority, created_at, due_date, company_name, company:company_id(name)')
+      .select('id, ticket_number, title, category, status, priority, created_at, updated_at, due_date, company_name, company:company_id(name)')
       .order('created_at', { ascending: false }).limit(200);
     if (dashAllowedCats) recentQ = recentQ.in('category', dashAllowedCats);
     const { data: recentTickets } = await recentQ;
     window._dashAdminTickets = recentTickets || [];
-    const filterBtns = document.getElementById('dash-filter-btns');
-    if (role === 'admin') {
-      if (filterBtns) filterBtns.style.display = 'flex';
-      setDashFilter(window._dashAdminFilter || 'pending');
-    } else {
-      if (filterBtns) filterBtns.style.display = 'none';
-      renderDashAdminTable('all');
-    }
+    window._dashAdminFilter = window._dashAdminFilter || 'all';
+    updateDashFilterCardStyles();
+    renderDashAdminTable(window._dashAdminFilter);
   }
 }
 
-let _dashAdminFilter = 'pending';
-window._dashAdminFilter = 'pending';
+window._dashAdminFilter = 'all';
 
-function setDashFilter(f) {
-  window._dashAdminFilter = f;
-  ['pending','delayed'].forEach(k => {
-    const btn = document.getElementById('dash-filter-' + k);
-    if (!btn) return;
-    if (k === f) {
-      btn.style.background = 'var(--accent)';
-      btn.style.color = '#fff';
-      btn.style.borderColor = 'var(--accent)';
-    } else {
-      btn.style.background = 'transparent';
-      btn.style.color = 'var(--muted)';
-      btn.style.borderColor = 'var(--border-strong)';
-    }
-  });
-  renderDashAdminTable(f);
+// KPI 카드 클릭 → 필터 토글 (같은 카드 다시 누르면 전체 보기로 해제)
+function toggleDashFilter(f) {
+  window._dashAdminFilter = (window._dashAdminFilter === f) ? 'all' : f;
+  updateDashFilterCardStyles();
+  renderDashAdminTable(window._dashAdminFilter);
 }
+
+function updateDashFilterCardStyles() {
+  const active = window._dashAdminFilter;
+  document.querySelectorAll('.dash-kpi-card[data-filter]').forEach(card => {
+    const isActive = card.dataset.filter === active;
+    card.style.borderColor = isActive ? 'var(--accent)' : '';
+    card.style.boxShadow = isActive ? '0 0 0 2px var(--accent-l)' : '';
+  });
+}
+
+const DASH_FILTER_EMPTY_LABEL = { pending: '미처리 요청 없음', delayed: '지연 요청 없음', today: '오늘 신규 요청 없음', done: '오늘 처리 완료된 요청 없음' };
 
 function renderDashAdminTable(f) {
   const ptbody = document.getElementById('dash-admin-pending-tbody');
@@ -4055,10 +4032,14 @@ function renderDashAdminTable(f) {
     tickets = all.filter(t => PENDING_STATUSES.includes(t.status));
   } else if (f === 'delayed') {
     tickets = all.filter(t => PENDING_STATUSES.includes(t.status) && t.due_date && t.due_date < todayStr);
+  } else if (f === 'today') {
+    tickets = all.filter(t => (t.created_at || '').slice(0, 10) === todayStr);
+  } else if (f === 'done') {
+    tickets = all.filter(t => t.status === 'completed' && (t.updated_at || '').slice(0, 10) === todayStr);
   }
   const colspan = 7;
   if (!tickets.length) {
-    ptbody.innerHTML = `<tr><td colspan="${colspan}" style="padding:16px;text-align:center;color:var(--faint);">${f === 'delayed' ? '지연 요청 없음' : f === 'pending' ? '미처리 요청 없음' : '요청 없음'}</td></tr>`;
+    ptbody.innerHTML = `<tr><td colspan="${colspan}" style="padding:16px;text-align:center;color:var(--faint);">${DASH_FILTER_EMPTY_LABEL[f] || '요청 없음'}</td></tr>`;
     return;
   }
   ptbody.innerHTML = tickets.map(t => {
@@ -4080,6 +4061,56 @@ function renderDashAdminTable(f) {
       `<td><span class="badge ${statB}" style="font-size:11px;">${statL}</span></td>` +
       `<td style="font-size:12px;color:var(--faint);">${(t.created_at||'').slice(0,10)}</td>` +
       `<td>${dueDateDisplay}</td></tr>`;
+  }).join('');
+}
+
+// ── 고객/내부 대시보드 "최근 요청건" — KPI 카드 클릭 필터 ──
+window._dashRecentFilter = 'all';
+
+function toggleDashRecentFilter(f) {
+  window._dashRecentFilter = (window._dashRecentFilter === f) ? 'all' : f;
+  updateDashRecentCardStyles();
+  renderDashRecentTable(window._dashRecentFilter);
+}
+
+function updateDashRecentCardStyles() {
+  const active = window._dashRecentFilter;
+  document.querySelectorAll('.dash-recent-kpi-card[data-filter]').forEach(card => {
+    const isActive = card.dataset.filter === active;
+    card.style.borderColor = isActive ? 'var(--accent)' : '';
+    card.style.boxShadow = isActive ? '0 0 0 2px var(--accent-l)' : '';
+  });
+}
+
+const DASH_RECENT_ACTIVE_STATUSES = ['received', 'classifying', 'assigned', 'in_progress', 'pending_customer', 'on_hold'];
+const DASH_RECENT_EMPTY_LABEL = { inprogress: '처리 중인 요청 없음', completed: '완료된 요청 없음', today: '오늘 등록한 요청 없음' };
+
+function renderDashRecentTable(f) {
+  const tbody = document.getElementById('dash-recent-tbody');
+  if (!tbody) return;
+  const all = dashRecentTickets || [];
+  const todayStr = new Date().toISOString().slice(0, 10);
+  let tickets = all;
+  if (f === 'inprogress') {
+    tickets = all.filter(t => DASH_RECENT_ACTIVE_STATUSES.includes(t.status));
+  } else if (f === 'completed') {
+    tickets = all.filter(t => t.status === 'completed');
+  } else if (f === 'today') {
+    tickets = all.filter(t => (t.created_at || '').slice(0, 10) === todayStr);
+  }
+  if (!tickets.length) {
+    tbody.innerHTML = `<tr><td colspan="5" style="padding:16px;text-align:center;color:var(--faint);">${DASH_RECENT_EMPTY_LABEL[f] || '요청 없음'}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = tickets.map((t) => {
+    const idx = dashRecentTickets.indexOf(t);
+    const catL = CATEGORY_LABELS[t.category] || t.category || '—';
+    const catC = CATEGORY_BADGE[t.category] || 'b-gray';
+    const stL  = STATUS_LABELS[t.status] || t.status;
+    const stC  = STATUS_BADGE[t.status] || 'b-gray';
+    return `<tr style="cursor:pointer;" onclick="showDetail(dashRecentTickets[${idx}])"><td><span style="font-variant-numeric:tabular-nums;color:var(--accent);font-weight:600;">${escHtml(t.ticket_number||'')}</span></td>` +
+      `<td><div style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(t.title||'')}">${escHtml(t.title||'')}</div></td><td><span class="badge ${catC}">${catL}</span></td>` +
+      `<td><span class="badge ${stC}">${stL}</span></td><td style="color:var(--faint);">${fmtTime(t.created_at).slice(0,10)}</td></tr>`;
   }).join('');
 }
 
