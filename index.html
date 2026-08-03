@@ -1471,8 +1471,8 @@ textarea{resize:vertical;min-height:100px;}
     <div style="padding:20px 24px;display:flex;flex-direction:column;gap:16px;">
       <div style="font-size:13px;font-weight:600;color:var(--text);border-bottom:1px solid var(--border);padding-bottom:8px;" id="mg-ticket-title"></div>
       <div class="form-group">
-        <label>카테고리 수정</label>
-        <select id="mg-category">
+        <label>카테고리</label>
+        <select id="mg-category" onchange="onMgCategoryChange()">
           <option value="tech_support">기술지원</option>
           <option value="contract">계약 문의</option>
           <option value="license">라이선스 문의</option>
@@ -6826,6 +6826,38 @@ async function saveMemo() {
   showToast('✅ 메모가 저장됐습니다.');
 }
 
+// 카테고리별 담당자 역할 매핑
+const MG_CAT_ROLES = {
+  tech_support: ['tech_support', 'admin'],
+  contract:     ['sales', 'admin'],
+  license:      ['sales', 'admin'],
+  education:    ['education', 'admin'],
+  other:        ['tech_support', 'sales', 'admin'],
+};
+
+// 담당자 목록을 카테고리에 맞는 역할로 채운다 (openManage 초기 로드 / 카테고리 변경 시 재사용)
+async function populateMgAssigneeOptions(category, selectedAssigneeId) {
+  const roles = MG_CAT_ROLES[category] || ['tech_support', 'admin'];
+  const sel = document.getElementById('mg-assignee');
+  sel.innerHTML = '<option value="">미배정</option>';
+  if (sb) {
+    const { data: users } = await sb.from('users').select('id, name, role').in('role', roles).eq('is_active', true);
+    (users || []).forEach(u => {
+      const opt = document.createElement('option');
+      opt.value = u.id;
+      opt.textContent = `${u.name} (${ROLE_LABELS[u.role] || u.role})`;
+      if (selectedAssigneeId === u.id) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+}
+
+// 모달 안에서 카테고리를 바꾸면 담당자 목록도 그 카테고리에 맞게 다시 채움 (기존 선택은 초기화)
+async function onMgCategoryChange() {
+  const category = document.getElementById('mg-category').value;
+  await populateMgAssigneeOptions(category, null);
+}
+
 async function openManage(idx) {
   mgTicket = allMgTickets[idx];
   if (!mgTicket) return;
@@ -6837,29 +6869,7 @@ async function openManage(idx) {
   document.getElementById('mg-memo').value   = '';
   document.getElementById('mg-cc-emails').value = '';
 
-  // 카테고리별 담당자 역할 매핑
-  const CAT_ROLES = {
-    tech_support: ['tech_support', 'admin'],
-    contract:     ['sales', 'admin'],
-    license:      ['sales', 'admin'],
-    education:    ['education', 'admin'],
-    other:        ['tech_support', 'sales', 'admin'],
-  };
-  const roles = CAT_ROLES[mgTicket.category] || ['tech_support', 'admin'];
-
-  // 담당자 목록: 카테고리에 맞는 역할 필터링
-  const sel = document.getElementById('mg-assignee');
-  sel.innerHTML = '<option value="">미배정</option>';
-  if (sb) {
-    const { data: users } = await sb.from('users').select('id, name, role').in('role', roles).eq('is_active', true);
-    (users || []).forEach(u => {
-      const opt = document.createElement('option');
-      opt.value = u.id;
-      opt.textContent = `${u.name} (${ROLE_LABELS[u.role] || u.role})`;
-      if (mgTicket.assignee?.id === u.id) opt.selected = true;
-      sel.appendChild(opt);
-    });
-  }
+  await populateMgAssigneeOptions(mgTicket.category, mgTicket.assignee?.id);
   openModal('modal-manage');
 }
 
