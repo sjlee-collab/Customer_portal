@@ -19,14 +19,22 @@ const BUCKET_MAP = {
   'contract-attachments': process.env.BUCKET_CONTRACT_ATTACHMENTS,
 };
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, content-type',
-  'Access-Control-Allow-Methods': 'POST,OPTIONS',
-};
+const ALLOWED_ORIGINS = ['https://support.bigxdata.io', 'https://dev.dlayoierdftk6.amplifyapp.com'];
+
+function corsHeaders(event) {
+  const origin = event?.headers?.origin || event?.headers?.Origin;
+  return {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
+    'Access-Control-Allow-Headers': 'authorization, content-type',
+    'Access-Control-Allow-Methods': 'POST,OPTIONS',
+    'Vary': 'Origin',
+  };
+}
+
+let currentEvent = null;
 
 function json(statusCode, body) {
-  return { statusCode, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+  return { statusCode, headers: { ...corsHeaders(currentEvent), 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 }
 
 function resolveBucket(logicalName) {
@@ -80,10 +88,11 @@ async function handleRemove(body) {
 }
 
 export const handler = async (event) => {
+  currentEvent = event;
   const method = event.requestContext?.http?.method ?? event.httpMethod;
   const path = event.rawPath ?? event.path ?? '';
 
-  if (method === 'OPTIONS') return { statusCode: 200, headers: CORS_HEADERS, body: '' };
+  if (method === 'OPTIONS') return { statusCode: 200, headers: corsHeaders(event), body: '' };
 
   try {
     const body = event.body ? JSON.parse(event.body) : {};

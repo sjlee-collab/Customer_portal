@@ -17,17 +17,35 @@
 
 import { query } from './db.mjs';
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, content-type',
-  'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS',
-};
+const ALLOWED_ORIGINS = ['https://support.bigxdata.io', 'https://dev.dlayoierdftk6.amplifyapp.com'];
+
+function corsHeaders(event) {
+  const origin = event?.headers?.origin || event?.headers?.Origin;
+  return {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
+    'Access-Control-Allow-Headers': 'authorization, content-type',
+    'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS',
+    'Vary': 'Origin',
+  };
+}
 
 const ALLOWED_TABLES = new Set([
   'companies', 'company_contracts', 'company_licenses', 'users', 'tickets',
   'log_notification', 'content_documents', 'ticket_history', 'log_integration',
   'ticket_replies', 'ticket_memos', 'ticket_attachments', 'content_notices', 'role_permissions',
 ]);
+
+// 이 컬럼들은 select=* 나 명시적 요청과 무관하게 응답에서 절대 내려주지 않는다.
+// 비밀번호 검증은 api-layer의 /auth/* 엔드포인트가 서버 쪽에서 전담한다.
+const BLOCKED_COLUMNS = {
+  users: new Set(['password', 'reset_token', 'reset_token_expires_at']),
+};
+
+function stripBlockedColumns(table, rows) {
+  const blocked = BLOCKED_COLUMNS[table];
+  if (!blocked) return;
+  for (const row of rows) for (const col of blocked) delete row[col];
+}
 
 // 임베드(alias:fk_col(cols)) 시 fk 컬럼이 가리키는 테이블
 const EMBED_TABLE_MAP = {
@@ -56,8 +74,10 @@ class HttpError extends Error {
   }
 }
 
+let currentEvent = null;
+
 function json(statusCode, body) {
-  return { statusCode, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+  return { statusCode, headers: { ...corsHeaders(currentEvent), 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 }
 
 // "col1,col2,alias:fk(col1,col2)" 를 최상위 콤마 기준으로 분리 (괄호 안 콤마는 무시)
@@ -87,7 +107,10 @@ function parseSelect(selectParam) {
       const cols = colsRaw.split(',').map(c => c.trim()).filter(Boolean);
       cols.forEach(c => assertIdent(c, 'select 컬럼'));
       if (!EMBED_TABLE_MAP[fkCol]) throw new HttpError(400, `임베드 미지원 fk 컬럼: ${fkCol}`);
-      embeds.push({ alias, fkCol, cols, table: EMBED_TABLE_MAP[fkCol] });
+      const embedTable = EMBED_TABLE_MAP[fkCol];
+      const embedBlocked = BLOCKED_COLUMNS[embedTable];
+      const safeCols = embedBlocked ? cols.filter(c => !embedBlocked.has(c)) : cols;
+      embeds.push({ alias, fkCol, cols: safeCols, table: embedTable });
     } else if (part === '*') {
       plainCols.push('*');
     } else {
@@ -185,6 +208,8 @@ async function handleGet(table, qs) {
   if (!fetchAllCols && extraFkCols.length) {
     for (const row of rows) for (const fk of extraFkCols) delete row[fk];
   }
+  stripBlockedColumns(table, rows);
+  for (const embed of embeds) stripBlockedColumns(embed.table, rows.map(r => r[embed.alias]).filter(Boolean));
 
   if (qs.single) {
     if (!rows.length) throw new HttpError(404, '결과 없음');
@@ -219,6 +244,7 @@ async function handlePost(table, body, onConflict) {
     );
     results.push(inserted[0]);
   }
+  stripBlockedColumns(table, results);
   return json(201, Array.isArray(body) ? results : results[0]);
 }
 
@@ -234,6 +260,7 @@ async function handlePatch(table, id, body) {
     params
   );
   if (!updated.length) throw new HttpError(404, '대상을 찾을 수 없습니다');
+  stripBlockedColumns(table, updated);
   return json(200, updated[0]);
 }
 
@@ -244,11 +271,12 @@ async function handleDelete(table, id) {
 }
 
 export const handler = async (event) => {
+  currentEvent = event;
   const method = event.requestContext?.http?.method ?? event.httpMethod;
   const path = event.rawPath ?? event.path ?? '';
   const qs = event.queryStringParameters || {};
 
-  if (method === 'OPTIONS') return { statusCode: 200, headers: CORS_HEADERS, body: '' };
+  if (method === 'OPTIONS') return { statusCode: 200, headers: corsHeaders(event), body: '' };
 
   try {
     const withId = path.match(/^\/data\/([a-zA-Z_][a-zA-Z0-9_]*)\/([^/]+)$/);

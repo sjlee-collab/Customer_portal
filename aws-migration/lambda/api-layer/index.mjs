@@ -7,7 +7,7 @@
 // 멈춰버릴 수 있어 신뢰할 수 없으므로, 자기 자신을 비동기(Event) 방식으로 재호출해서
 // 완전히 별도의 Lambda 실행으로 알림 처리를 넘긴다 (deferNotify / __deferred 분기).
 
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createHash } from 'node:crypto';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 import { query } from './db.mjs';
 import { notifySlack, notifyEmail } from './notify.mjs';
@@ -17,11 +17,26 @@ const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
 const lambda = new LambdaClient({});
 const SELF_FN = process.env.AWS_LAMBDA_FUNCTION_NAME;
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, content-type',
-  'Access-Control-Allow-Methods': 'GET,POST,PATCH,OPTIONS',
-};
+const ALLOWED_ORIGINS = ['https://support.bigxdata.io', 'https://dev.dlayoierdftk6.amplifyapp.com'];
+
+function corsHeaders(event) {
+  const origin = event?.headers?.origin || event?.headers?.Origin;
+  return {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
+    'Access-Control-Allow-Headers': 'authorization, content-type',
+    'Access-Control-Allow-Methods': 'GET,POST,PATCH,OPTIONS',
+    'Vary': 'Origin',
+  };
+}
+
+let currentEvent = null;
+
+// index.html의 hashPassword()와 동일한 알고리즘(salt 없는 SHA-256 hex) — 로그인/비밀번호
+// 검증을 서버로 옮기면서 클라이언트가 하던 해시 비교를 그대로 서버에서 재현하기 위함.
+function hashPassword(pw) {
+  return createHash('sha256').update(pw, 'utf8').digest('hex');
+}
+function isHashed(pw) { return typeof pw === 'string' && /^[0-9a-f]{64}$/.test(pw); }
 
 const DEFAULT_ASSIGNEE_BY_CATEGORY = {
   education: { id: '53d240b2-b950-4c94-9289-17feb229aa69', name: '김서연' }, // syeonkim@bigxdata.io
@@ -37,7 +52,7 @@ const STATUS_KO = {
 };
 
 function json(statusCode, body) {
-  return { statusCode, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+  return { statusCode, headers: { ...corsHeaders(currentEvent), 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 }
 
 async function getTicket(id) {
@@ -323,6 +338,62 @@ async function notifyForManage(job) {
   }
 }
 
+// ── POST /auth/login ──
+// 비밀번호 비교를 서버에서 전담한다 — 클라이언트는 password 컬럼을 절대 조회하지 않는다
+// (data-api가 users.password를 응답에서 차단하므로 어차피 받을 수도 없다).
+async function login(body) {
+  const { email, password } = body;
+  if (!email || !password) return json(400, { error: 'email, password는 필수입니다' });
+
+  const rows = await query(
+    'select id, name, role, company_id, contract_id, phone, is_active, password from users where email=$1',
+    [email]
+  );
+  const user = rows[0];
+  if (!user) return json(404, { error: '등록되지 않은 계정입니다. 담당자에게 문의하세요.' });
+  if (user.is_active === false) return json(403, { error: '비활성화된 계정입니다. 담당자에게 문의하세요.' });
+
+  const stored = user.password;
+  if (stored) {
+    if (isHashed(stored)) {
+      if (hashPassword(password) !== stored) return json(401, { error: '비밀번호가 올바르지 않습니다.' });
+    } else {
+      // 평문으로 저장된 legacy 계정 → 평문 비교 후 자동으로 해시로 업그레이드
+      if (password !== stored) return json(401, { error: '비밀번호가 올바르지 않습니다.' });
+      await query('update users set password=$1 where id=$2', [hashPassword(password), user.id]);
+    }
+  }
+
+  const companyName = await getCompanyName(user.company_id);
+  return json(200, {
+    user: {
+      id: user.id, name: user.name, role: user.role,
+      company_id: user.company_id || null, contract_id: user.contract_id || null,
+      phone: user.phone || '', company: companyName === '-' ? '' : companyName,
+    },
+  });
+}
+
+// ── POST /auth/verify-password ──
+// 마이페이지에서 비밀번호를 바꾸기 전 "현재 비밀번호" 확인용. 검증만 하고 저장은
+// 하지 않는다 — 실제 변경은 클라이언트가 기존처럼 새 비밀번호 해시로 PATCH한다.
+async function verifyPassword(body) {
+  const { userId, password } = body;
+  if (!userId) return json(400, { error: 'userId는 필수입니다' });
+
+  const rows = await query('select password from users where id=$1', [userId]);
+  const user = rows[0];
+  if (!user) return json(404, { error: '사용자를 찾을 수 없습니다' });
+
+  const stored = user.password;
+  if (!stored) return json(200, { ok: true }); // 저장된 비밀번호가 없으면 확인할 게 없음
+
+  if (!password) return json(400, { error: 'password는 필수입니다' });
+  const match = isHashed(stored) ? hashPassword(password) === stored : password === stored;
+  if (!match) return json(401, { error: '현재 비밀번호가 올바르지 않습니다.' });
+  return json(200, { ok: true });
+}
+
 // ── POST /auth/request-reset ──
 async function requestPasswordReset(body) {
   const { email } = body;
@@ -399,6 +470,7 @@ const DEFERRED_HANDLERS = {
 };
 
 export const handler = async (event) => {
+  currentEvent = event;
   // ── 비동기 알림 작업 (자기 자신을 Event로 재호출한 경우) ──
   if (event.__deferred) {
     try {
@@ -430,11 +502,17 @@ export const handler = async (event) => {
   const method = event.requestContext?.http?.method ?? event.httpMethod;
   const path = event.rawPath ?? event.path ?? '';
 
-  if (method === 'OPTIONS') return { statusCode: 200, headers: CORS_HEADERS, body: '' };
+  if (method === 'OPTIONS') return { statusCode: 200, headers: corsHeaders(event), body: '' };
 
   const body = event.body ? JSON.parse(event.body) : {};
 
   try {
+    if (method === 'POST' && path === '/auth/login') {
+      return await login(body);
+    }
+    if (method === 'POST' && path === '/auth/verify-password') {
+      return await verifyPassword(body);
+    }
     if (method === 'POST' && path === '/auth/request-reset') {
       return await requestPasswordReset(body);
     }

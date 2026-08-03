@@ -2401,8 +2401,6 @@ async function hashPassword(pw) {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
-function isHashed(pw) { return typeof pw === 'string' && /^[0-9a-f]{64}$/.test(pw); }
-
 let currentUser = null;
 
 function fillLogin(email, pw) {
@@ -2521,10 +2519,21 @@ async function doLogin() {
   if (btn) { btn.disabled = true; btn.textContent = '로그인 중...'; }
   errEl.style.display = 'none';
 
-  const { data: u, error: ue } = await sb.from('users').select('id, name, role, company_id, contract_id, phone, is_active, password, company:company_id(name)').eq('email', email).single();
+  // 비밀번호 비교는 서버(api-layer /auth/login)가 전담한다 — 브라우저는 비밀번호(해시)를
+  // 절대 받아오지 않는다 (data-api도 users.password를 응답에서 차단하도록 막아둠).
+  let res, data;
+  try {
+    res = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pw }),
+    });
+    data = await res.json().catch(() => null);
+  } catch (e) {
+    res = null; data = null;
+  }
   if (btn) { btn.disabled = false; btn.textContent = '로그인'; }
 
-  if (ue || !u) {
+  if (!res || res.status === 404) {
     const localAcct = ACCOUNTS[email];
     if (localAcct) {
       if (localAcct.pw && pw !== localAcct.pw) { errEl.textContent = '비밀번호가 올바르지 않습니다.'; errEl.style.display = ''; return; }
@@ -2536,31 +2545,15 @@ async function doLogin() {
     errEl.style.display = '';
     return;
   }
-  if (u.is_active === false) {
-    errEl.textContent = '비활성화된 계정입니다. 담당자에게 문의하세요.';
+  if (!res.ok) {
+    errEl.textContent = data?.error || '로그인에 실패했습니다.';
     errEl.style.display = '';
     return;
   }
 
-  const dbPw = u.password;
-  const localAcct = ACCOUNTS[email];
-  const expectedPw = dbPw || localAcct?.pw;
-
-  if (expectedPw) {
-    const pwHash = await hashPassword(pw);
-    if (isHashed(expectedPw)) {
-      // DB에 해시 저장된 경우 → 해시 비교
-      if (pwHash !== expectedPw) { errEl.textContent = '비밀번호가 올바르지 않습니다.'; errEl.style.display = ''; return; }
-    } else {
-      // DB에 평문 저장된 경우 → 평문 비교 후 자동 해시 업그레이드
-      if (pw !== expectedPw) { errEl.textContent = '비밀번호가 올바르지 않습니다.'; errEl.style.display = ''; return; }
-      if (u.id) sb.from('users').update({ password: pwHash }).eq('id', u.id).then(() => {});
-    }
-  }
-
   errEl.style.display = 'none';
-  const companyName = u.company?.name || '';
-  enterApp(email, { id: u.id, role: u.role, name: u.name, company_id: u.company_id || null, contract_id: u.contract_id || null, company: companyName, phone: u.phone || '' });
+  const u = data.user;
+  enterApp(email, { id: u.id, role: u.role, name: u.name, company_id: u.company_id || null, contract_id: u.contract_id || null, company: u.company || '', phone: u.phone || '' });
 }
 
 async function enterApp(email, acct, isRestore) {
@@ -2730,16 +2723,15 @@ async function saveMyPage() {
     if (pwNew.length < 8) { pwErr.textContent = '새 비밀번호는 8자 이상이어야 합니다.'; pwErr.style.display = ''; return; }
     if (pwNew !== pwConfirm) { pwErr.textContent = '새 비밀번호가 일치하지 않습니다.'; pwErr.style.display = ''; return; }
 
-    // 현재 비밀번호 DB 검증 (해시 지원)
+    // 현재 비밀번호 검증은 서버(api-layer /auth/verify-password)가 전담한다 — data-api가
+    // users.password를 응답에서 차단하므로 브라우저에서 직접 비교할 수 없다.
     if (sb && currentUser?.id) {
-      const { data: u } = await sb.from('users').select('password').eq('id', currentUser.id).single();
-      const stored = u?.password || ACCOUNTS[currentUser.email]?.pw;
-      if (stored) {
-        const match = isHashed(stored)
-          ? (await hashPassword(pwCurrent)) === stored
-          : pwCurrent === stored;
-        if (!match) { pwErr.textContent = '현재 비밀번호가 올바르지 않습니다.'; pwErr.style.display = ''; return; }
-      }
+      const res = await fetch(`${API_BASE}/auth/verify-password`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUser.id, password: pwCurrent }),
+      }).catch(() => null);
+      const data = await res?.json().catch(() => null);
+      if (!res?.ok) { pwErr.textContent = data?.error || '현재 비밀번호 확인에 실패했습니다.'; pwErr.style.display = ''; return; }
     }
     pwErr.style.display = 'none';
   }
