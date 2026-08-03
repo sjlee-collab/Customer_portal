@@ -3776,7 +3776,7 @@ async function loadDashboard() {
     if (companyId) {
       if (role === 'customer') {
         let licQuery = sb.from('company_licenses')
-          .select('product_info, license_type, quantity, status, contract_id, company_contracts(start_date, end_date)')
+          .select('product_info, license_type, quantity, status, contract_id, company_contracts:contract_id(start_date, end_date)')
           .eq('status', '활성');
         // 계약 단위로 매핑된 사용자는 그 계약의 라이선스만, 아니면 고객사 전체 라이선스를 대상으로 한다.
         licQuery = contractId ? licQuery.eq('contract_id', contractId) : licQuery.eq('company_id', companyId);
@@ -3850,11 +3850,17 @@ async function loadDashboard() {
           const me = document.getElementById('dlc-manager');
           me.innerHTML = `<span style="font-weight:700;color:var(--accent);white-space:nowrap;">${escHtml(coRow?.account_manager || '—')}</span>${mgrEmail ? `<span style="font-size:9px;font-weight:400;color:var(--muted);white-space:nowrap;">${escHtml(mgrEmail)}</span>` : ''}`;
           detail.style.display = '';
-        } else {
-          const licVal = document.getElementById('dash-license-val');
-          const licSub = document.getElementById('dash-license-sub');
-          if (licVal) licVal.textContent = '—';
-          if (licSub) licSub.textContent = '라이선스 정보 없음';
+        } else if (detail) {
+          document.getElementById('dlc-product').textContent = '라이선스 정보 없음';
+          const sc = document.getElementById('dlc-status');
+          sc.textContent = '';
+          sc.style.background = 'transparent';
+          document.getElementById('dlc-days').textContent = '—';
+          document.getElementById('dlc-type').textContent = '—';
+          document.getElementById('dlc-qty').textContent = '—';
+          document.getElementById('dlc-daterange').textContent = '—';
+          document.getElementById('dlc-manager').textContent = '—';
+          detail.style.display = '';
         }
       } else {
         const { data: contracts } = await sb.from('company_contracts')
