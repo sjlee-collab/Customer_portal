@@ -2208,7 +2208,7 @@ class ApiQuery {
 
   async _exec() {
     try {
-      let url, opts = { method: this._method, headers: {} };
+      let url, opts = { method: this._method, headers: { ...authHeaders() } };
       if (this._method === 'GET') {
         url = `${API_BASE}/data/${this.table}?${this.params.toString()}`;
       } else if (this._method === 'POST') {
@@ -2229,6 +2229,7 @@ class ApiQuery {
       const res = await fetch(url, opts);
       const responseJson = await res.json().catch(() => null);
       if (!res.ok) {
+        if (isAuthRejection(res.status, responseJson)) handleAuthExpired();
         if (this._maybeSingle && res.status === 404) return { data: null, error: null, count: null };
         return { data: null, error: { message: responseJson?.error || res.statusText }, count: null };
       }
@@ -2248,11 +2249,14 @@ function apiStorageFrom(bucket) {
       try {
         const contentType = opts?.contentType || file.type || 'application/octet-stream';
         const presignRes = await fetch(`${API_BASE}/storage/upload-url`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
           body: JSON.stringify({ bucket, path, contentType, contentLength: file.size }),
         });
         const presignJson = await presignRes.json().catch(() => null);
-        if (!presignRes.ok) return { data: null, error: { message: presignJson?.error || presignRes.statusText } };
+        if (!presignRes.ok) {
+          if (isAuthRejection(presignRes.status, presignJson)) handleAuthExpired();
+          return { data: null, error: { message: presignJson?.error || presignRes.statusText } };
+        }
         const putRes = await fetch(presignJson.uploadUrl, { method: 'PUT', headers: { 'Content-Type': contentType }, body: file });
         if (!putRes.ok) return { data: null, error: { message: 'S3 업로드 실패: ' + putRes.statusText } };
         return { data: { path: presignJson.path }, error: null };
@@ -2263,11 +2267,14 @@ function apiStorageFrom(bucket) {
     async remove(paths) {
       try {
         const res = await fetch(`${API_BASE}/storage/remove`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
           body: JSON.stringify({ bucket, paths }),
         });
         const j = await res.json().catch(() => null);
-        if (!res.ok) return { data: null, error: { message: j?.error || res.statusText } };
+        if (!res.ok) {
+          if (isAuthRejection(res.status, j)) handleAuthExpired();
+          return { data: null, error: { message: j?.error || res.statusText } };
+        }
         return { data: j, error: null };
       } catch (e) {
         return { data: null, error: { message: e.message } };
@@ -2281,11 +2288,14 @@ function apiStorageFrom(bucket) {
     async createSignedUrl(path, expiresIn) {
       try {
         const res = await fetch(`${API_BASE}/storage/signed-url`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
           body: JSON.stringify({ bucket, path, expiresIn }),
         });
         const j = await res.json().catch(() => null);
-        if (!res.ok) return { data: null, error: { message: j?.error || res.statusText } };
+        if (!res.ok) {
+          if (isAuthRejection(res.status, j)) handleAuthExpired();
+          return { data: null, error: { message: j?.error || res.statusText } };
+        }
         return { data: { signedUrl: j.signedUrl }, error: null };
       } catch (e) {
         return { data: null, error: { message: e.message } };
@@ -2297,11 +2307,14 @@ function apiStorageFrom(bucket) {
 async function apiFunctionsInvoke(fnName, { body } = {}) {
   try {
     const res = await fetch(`${API_BASE}/functions/${fnName}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify(body || {}),
     });
     const data = await res.json().catch(() => null);
-    if (!res.ok) return { data: null, error: { message: data?.error || res.statusText } };
+    if (!res.ok) {
+      if (isAuthRejection(res.status, data)) handleAuthExpired();
+      return { data: null, error: { message: data?.error || res.statusText } };
+    }
     return { data, error: null };
   } catch (e) {
     return { data: null, error: { message: e.message } };
@@ -2312,11 +2325,14 @@ async function apiFunctionsInvoke(fnName, { body } = {}) {
 async function apiCreateTicket(payload) {
   try {
     const res = await fetch(`${API_BASE}/tickets`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify(payload),
     });
     const j = await res.json().catch(() => null);
-    if (!res.ok) return { data: null, error: { message: j?.error || res.statusText } };
+    if (!res.ok) {
+      if (isAuthRejection(res.status, j)) handleAuthExpired();
+      return { data: null, error: { message: j?.error || res.statusText } };
+    }
     return { data: j.ticket, error: null };
   } catch (e) {
     return { data: null, error: { message: e.message } };
@@ -2326,11 +2342,14 @@ async function apiCreateTicket(payload) {
 async function apiManageTicket(ticketId, body) {
   try {
     const res = await fetch(`${API_BASE}/tickets/${ticketId}/manage`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      method: 'PATCH', headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify(body),
     });
     const j = await res.json().catch(() => null);
-    if (!res.ok) return { data: null, error: { message: j?.error || res.statusText } };
+    if (!res.ok) {
+      if (isAuthRejection(res.status, j)) handleAuthExpired();
+      return { data: null, error: { message: j?.error || res.statusText } };
+    }
     return { data: j.ticket, error: null };
   } catch (e) {
     return { data: null, error: { message: e.message } };
@@ -2402,6 +2421,23 @@ async function hashPassword(pw) {
 }
 
 let currentUser = null;
+
+// API 인증 토큰 — currentUser보다 먼저(예: restoreSession의 검증 호출 시점) 필요할 수 있어
+// 별도 변수로 둔다. currentUser.token에도 같이 저장해 localStorage(cs_session)로 유지된다.
+let authToken = null;
+function setAuthToken(token) { authToken = token || null; }
+function authHeaders() { return authToken ? { Authorization: 'Bearer ' + authToken } : {}; }
+
+// API Gateway Authorizer가 거부한 경우(토큰 없음/만료/위조)만 로그아웃시킨다 — 우리
+// Lambda가 만든 정상적인 4xx 오류(예: 비밀번호 오류)는 항상 { error: '...' } 형태라 구분된다.
+let _authExpiredHandled = false;
+function isAuthRejection(status, data) { return (status === 401 || status === 403) && !data?.error; }
+function handleAuthExpired() {
+  if (_authExpiredHandled || !currentUser) return;
+  _authExpiredHandled = true;
+  doLogout();
+  showToast('세션이 만료되어 다시 로그인해주세요.', true);
+}
 
 function fillLogin(email, pw) {
   document.getElementById('login-email').value = email;
@@ -2553,11 +2589,13 @@ async function doLogin() {
 
   errEl.style.display = 'none';
   const u = data.user;
-  enterApp(email, { id: u.id, role: u.role, name: u.name, company_id: u.company_id || null, contract_id: u.contract_id || null, company: u.company || '', phone: u.phone || '' });
+  enterApp(email, { id: u.id, role: u.role, name: u.name, company_id: u.company_id || null, contract_id: u.contract_id || null, company: u.company || '', phone: u.phone || '', token: data.token });
 }
 
 async function enterApp(email, acct, isRestore) {
   currentUser = { email, ...acct };
+  setAuthToken(acct.token);
+  _authExpiredHandled = false;
 
   // 세션 localStorage 저장 (새 탭/새로고침 시 자동 복구용)
   try { localStorage.setItem('cs_session', JSON.stringify({ email, ...acct })); } catch(_) {}
@@ -2727,11 +2765,14 @@ async function saveMyPage() {
     // users.password를 응답에서 차단하므로 브라우저에서 직접 비교할 수 없다.
     if (sb && currentUser?.id) {
       const res = await fetch(`${API_BASE}/auth/verify-password`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: currentUser.id, password: pwCurrent }),
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ password: pwCurrent }),
       }).catch(() => null);
       const data = await res?.json().catch(() => null);
-      if (!res?.ok) { pwErr.textContent = data?.error || '현재 비밀번호 확인에 실패했습니다.'; pwErr.style.display = ''; return; }
+      if (!res?.ok) {
+        if (res && isAuthRejection(res.status, data)) { handleAuthExpired(); return; }
+        pwErr.textContent = data?.error || '현재 비밀번호 확인에 실패했습니다.'; pwErr.style.display = ''; return;
+      }
     }
     pwErr.style.display = 'none';
   }
@@ -2798,6 +2839,7 @@ function startSessionWatch() {
 function doLogout() {
   stopArAutoRefresh();
   currentUser = null;
+  setAuthToken(null);
   allMgTickets = [];
   allTickets = [];
   allUsers = [];
@@ -7486,6 +7528,8 @@ if (_resetTokenFromUrl) {
     if (!saved) { goScreen('screen-login'); return; }
     const acct = JSON.parse(saved);
     if (!acct?.email || !acct?.role) { goScreen('screen-login'); return; }
+    // 검증 호출(sb.from) 자체가 인증이 필요한 라우트라, enterApp 전에 토큰을 먼저 심어둔다.
+    setAuthToken(acct.token);
     // DB에서 계정 정보를 이메일 기준으로 다시 조회 (캐시된 세션에 id가 없거나 오래된 경우 대비)
     if (sb) {
       sb.from('users').select('id, name, role, company_id, contract_id, phone, is_active, company:company_id(name)').eq('email', acct.email).single().then(({ data: u, error }) => {
@@ -7496,12 +7540,13 @@ if (_resetTokenFromUrl) {
           return;
         }
         if (u.is_active === false) {
+          setAuthToken(null);
           localStorage.removeItem('cs_session');
           goScreen('screen-login');
           return;
         }
         const companyName = u.company?.name || '';
-        enterApp(acct.email, { id: u.id, role: u.role, name: u.name, company_id: u.company_id || null, contract_id: u.contract_id || null, company: companyName, phone: u.phone || '' }, true);
+        enterApp(acct.email, { id: u.id, role: u.role, name: u.name, company_id: u.company_id || null, contract_id: u.contract_id || null, company: companyName, phone: u.phone || '', token: acct.token }, true);
       }).catch(() => {
         // DB 조회 실패 시 저장된 세션으로 그냥 진입
         const { email, ...rest } = acct;

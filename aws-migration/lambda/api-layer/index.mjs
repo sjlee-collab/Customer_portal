@@ -11,8 +11,13 @@ import { randomBytes, createHash } from 'node:crypto';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 import { query } from './db.mjs';
 import { notifySlack, notifyEmail } from './notify.mjs';
+import { signToken } from './jwt.mjs';
 
 const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
+const JWT_SECRET = process.env.JWT_SECRET;
+// 클라이언트의 절대 세션 만료(SESSION_ABSOLUTE_LIMIT_MS, index.html)와 맞춤 — 토큰이
+// 화면상 "로그인 유지" 시간보다 먼저 만료되면 만료 안내 없이 API가 갑자기 401나기 시작한다.
+const TOKEN_TTL_SECONDS = 8 * 60 * 60;
 
 const lambda = new LambdaClient({});
 const SELF_FN = process.env.AWS_LAMBDA_FUNCTION_NAME;
@@ -365,7 +370,12 @@ async function login(body) {
   }
 
   const companyName = await getCompanyName(user.company_id);
+  const token = signToken(
+    { sub: user.id, role: user.role, company_id: user.company_id || null, contract_id: user.contract_id || null },
+    JWT_SECRET, TOKEN_TTL_SECONDS
+  );
   return json(200, {
+    token,
     user: {
       id: user.id, name: user.name, role: user.role,
       company_id: user.company_id || null, contract_id: user.contract_id || null,
@@ -377,9 +387,12 @@ async function login(body) {
 // ── POST /auth/verify-password ──
 // 마이페이지에서 비밀번호를 바꾸기 전 "현재 비밀번호" 확인용. 검증만 하고 저장은
 // 하지 않는다 — 실제 변경은 클라이언트가 기존처럼 새 비밀번호 해시로 PATCH한다.
-async function verifyPassword(body) {
-  const { userId, password } = body;
-  if (!userId) return json(400, { error: 'userId는 필수입니다' });
+// userId는 body가 아니라 인증 토큰(jwt-authorizer가 넘겨준 값)에서만 가져온다 —
+// 그래야 다른 사람의 비밀번호를 대신 확인해보는 걸 막을 수 있다.
+async function verifyPassword(event, body) {
+  const userId = event.requestContext?.authorizer?.lambda?.userId;
+  const { password } = body;
+  if (!userId) return json(401, { error: '인증이 필요합니다' });
 
   const rows = await query('select password from users where id=$1', [userId]);
   const user = rows[0];
@@ -511,7 +524,7 @@ export const handler = async (event) => {
       return await login(body);
     }
     if (method === 'POST' && path === '/auth/verify-password') {
-      return await verifyPassword(body);
+      return await verifyPassword(event, body);
     }
     if (method === 'POST' && path === '/auth/request-reset') {
       return await requestPasswordReset(body);
