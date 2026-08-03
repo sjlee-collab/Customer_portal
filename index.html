@@ -4677,7 +4677,8 @@ async function populateCompanyUserSelects() {
   const { data } = await sb.from('users')
     .select('id, name, role, department, division')
     .eq('is_active', true)
-    .order('name');
+    .order('name')
+    .limit(1000);
   if (!data) return;
 
   const salesSel = document.getElementById('co-manager');
@@ -6167,7 +6168,8 @@ async function loadCustomerRdList(activeId) {
   if (!sb || !currentUser) return;
   const rdQ = sb.from('tickets')
     .select('id, ticket_number, title, category, priority, status, created_at, due_date')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(1000);
   const { data } = currentUser.company_id
     ? await rdQ.eq('company_id', currentUser.company_id)
     : currentUser.id
