@@ -3477,6 +3477,12 @@ async function showDetail(ticket) {
     if (searchBox) searchBox.value = '';
 
     await loadTickets();
+
+    // 대상 요청이 있는 페이지로 옮겨야 그 행이 실제로 DOM에 그려져서 펼칠 수 있다.
+    const idx = allTickets.findIndex(t => t.id === ticket.id);
+    if (idx !== -1) tkPage = Math.floor(idx / TK_PAGE_SIZE) + 1;
+    applyTicketFilter();
+
     openRequestRowById(ticket.id);
     return;
   }
