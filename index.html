@@ -137,14 +137,13 @@ textarea{resize:vertical;min-height:100px;}
 .tbl-compact td{padding:6px 14px;font-size:12.5px;}
 .tbl tr:hover td{background:var(--surface2);cursor:pointer;}
 .company-detail-row:hover td{background:inherit !important;cursor:default !important;}
-.ticket-row.open td{background:var(--accent-l);}
+.ticket-row.open td{background:var(--accent-l);border-top:1px solid var(--accent);border-bottom:none;}
 .ticket-row.open{position:sticky;z-index:2;box-shadow:0 1px 0 var(--border-md);will-change:transform;backface-visibility:hidden;}
 .ticket-row .row-arrow{display:inline-block;font-size:11px;color:var(--faint);margin-left:6px;transition:transform .15s;}
 .ticket-row.open .row-arrow{transform:rotate(180deg);color:var(--accent);}
-.ticket-row.open td{border-top:1px solid var(--accent-m);}
-.ticket-row.open td:first-child{border-left:3px solid var(--accent);border-top-left-radius:var(--r-lg);}
-.ticket-row.open td:last-child{border-right:3px solid var(--accent);border-top-right-radius:var(--r-lg);}
-.ticket-detail-row.detail-open td{padding:0;background:var(--surface);border-left:3px solid var(--accent);border-right:3px solid var(--accent);border-bottom:1px solid var(--accent-m);border-bottom-left-radius:var(--r-lg);border-bottom-right-radius:var(--r-lg);}
+.ticket-row.open td:first-child{border-top-left-radius:var(--r-lg);background-color:var(--accent-l);background-image:linear-gradient(var(--accent),var(--accent));background-repeat:no-repeat;background-size:var(--r-lg) 100%;background-position:left top;}
+.ticket-row.open td:last-child{border-right:1px solid var(--accent);border-top-right-radius:var(--r-lg);}
+.ticket-detail-row.detail-open td{padding:0;background:var(--surface);border-right:1px solid var(--accent);border-bottom:1px solid var(--accent);border-bottom-left-radius:var(--r-lg);border-bottom-right-radius:var(--r-lg);background-image:linear-gradient(var(--accent),var(--accent));background-repeat:no-repeat;background-size:var(--r-lg) 100%;background-position:left top;}
 .ticket-detail-row.detail-open .card{border:none;border-radius:0;margin-bottom:0;}
 .company-row.open td{background:var(--accent-l);}
 .company-row.open{position:sticky;z-index:2;box-shadow:0 1px 0 var(--border-md);will-change:transform;backface-visibility:hidden;}
