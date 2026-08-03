@@ -134,23 +134,26 @@ async function notifyForCreate(ticketId) {
 
   await notifySlack({ type: 'TICKET_INSERT', ticket, ...notifyPayload, attachmentFileNames: [] });
 
-  const emailJobs = [];
-  const emailPayload = { ticket, companyName: ticket.company_name, requesterEmail: requester?.email, requesterName: ticket.created_by_name };
-  if (requester?.email) {
-    emailJobs.push(notifyEmail({ type: 'INSERT', ...emailPayload }));
-  }
+  if (!requester?.email) return;
+
+  // send-email Lambda는 INSERT 타입 호출마다 요청자에게 접수 확인 메일을 보낸다.
+  // 조건별로 notifyEmail을 여러 번 호출하면 접수 확인 메일이 중복 발송되므로,
+  // 계약/라이선스·긴급 여부에 필요한 정보를 모두 모아 단 한 번만 호출한다.
+  const emailPayload = { ticket, companyName: ticket.company_name, requesterEmail: requester.email, requesterName: ticket.created_by_name };
+
   if (['contract', 'license'].includes(ticket.category)) {
-    const accountManagerEmail = await getAccountManagerEmail(ticket.company_id, 'account_manager');
-    if (accountManagerEmail) emailJobs.push(notifyEmail({ type: 'INSERT', ...emailPayload, accountManagerEmail }));
+    emailPayload.accountManagerEmail = await getAccountManagerEmail(ticket.company_id, 'account_manager');
   }
   if (ticket.priority === 'critical') {
     const [accountManagerEmail, adminEmails] = await Promise.all([
-      getAccountManagerEmail(ticket.company_id, 'account_manager'),
+      emailPayload.accountManagerEmail ?? getAccountManagerEmail(ticket.company_id, 'account_manager'),
       getAdminEmails(),
     ]);
-    emailJobs.push(notifyEmail({ type: 'INSERT', ...emailPayload, accountManagerEmail, adminEmails }));
+    emailPayload.accountManagerEmail = accountManagerEmail;
+    emailPayload.adminEmails = adminEmails;
   }
-  await Promise.allSettled(emailJobs);
+
+  await notifyEmail({ type: 'INSERT', ...emailPayload });
 }
 
 // ── PATCH /tickets/{id}/status ──
