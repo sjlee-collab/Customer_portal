@@ -2373,16 +2373,31 @@ async function requestPasswordReset() {
   const btn = document.getElementById('fp-submit-btn');
   btn.disabled = true;
   try {
-    await fetch(`${API_BASE}/auth/request-reset`, {
+    const res = await fetch(`${API_BASE}/auth/request-reset`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
     });
-  } catch (_) {}
-  // 계정 존재 여부와 무관하게 항상 같은 안내를 보여준다 (이메일 등록 여부 노출 방지)
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      resultEl.style.display = '';
+      resultEl.style.background = '#FEF2F2';
+      resultEl.style.color = '#DC2626';
+      resultEl.textContent = data?.error || '등록된 이메일이 아닙니다.';
+      btn.disabled = false;
+      return;
+    }
+  } catch (e) {
+    resultEl.style.display = '';
+    resultEl.style.background = '#FEF2F2';
+    resultEl.style.color = '#DC2626';
+    resultEl.textContent = '요청 중 오류가 발생했습니다: ' + e.message;
+    btn.disabled = false;
+    return;
+  }
   resultEl.style.display = '';
   resultEl.style.background = '#EAF3DE';
   resultEl.style.color = '#1a6e3a';
-  resultEl.textContent = '등록된 이메일이면 재설정 링크를 보내드렸습니다. 메일함을 확인해주세요.';
+  resultEl.textContent = '재설정 링크를 보내드렸습니다. 메일함을 확인해주세요.';
   document.getElementById('fp-form-group').style.display = 'none';
   btn.style.display = 'none';
 }

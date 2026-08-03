@@ -320,19 +320,20 @@ async function notifyForManage(job) {
 }
 
 // ── POST /auth/request-reset ──
-// 이메일 존재 여부를 노출하지 않기 위해 계정이 있든 없든 항상 같은 응답을 준다.
 async function requestPasswordReset(body) {
   const { email } = body;
   if (!email) return json(400, { error: 'email은 필수입니다' });
 
   const rows = await query('select id, name, is_active from users where email=$1', [email]);
   const user = rows[0];
-  if (user && user.is_active !== false) {
-    const token = randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS).toISOString();
-    await query('update users set reset_token=$1, reset_token_expires_at=$2 where id=$3', [token, expiresAt, user.id]);
-    await notifyEmail({ type: 'PASSWORD_RESET', toEmail: email, userName: user.name, token });
+  if (!user || user.is_active === false) {
+    return json(404, { error: '등록된 이메일이 아닙니다.' });
   }
+
+  const token = randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS).toISOString();
+  await query('update users set reset_token=$1, reset_token_expires_at=$2 where id=$3', [token, expiresAt, user.id]);
+  await notifyEmail({ type: 'PASSWORD_RESET', toEmail: email, userName: user.name, token });
   return json(200, { ok: true });
 }
 
