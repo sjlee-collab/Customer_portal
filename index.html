@@ -2989,7 +2989,7 @@ let docsFaqCatFilter = '';
 async function loadDocuments() {
   const tbody = document.getElementById('docs-tbody');
   tbody.innerHTML = '<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>';
-  const { data, error } = await sb.from('content_documents').select('*').order('created_at', { ascending: false });
+  const { data, error } = await sb.from('content_documents').select('*').order('created_at', { ascending: false }).limit(1000);
   if (error) { tbody.innerHTML = `<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--danger);">오류: ${error.message}</td></tr>`; return; }
   allDocsAdmin = data || [];
   const faqCount = allDocsAdmin.filter(d => d.product === 'faq').length;
@@ -3623,7 +3623,7 @@ async function loadNotices() {
   const cards = document.querySelectorAll('.dash-notice-card');
   const lists = document.querySelectorAll('.dash-notice-list');
   if (!cards.length || !sb) return;
-  const { data, error } = await sb.from('content_notices').select('*').order('created_at', { ascending: false });
+  const { data, error } = await sb.from('content_notices').select('*').order('created_at', { ascending: false }).limit(1000);
   if (error || !data || !data.length) { cards.forEach(c => c.style.display = 'none'); return; }
   const isAdmin = isNoticeAdmin();
   const html = data.map((n, i) => `
@@ -3676,7 +3676,7 @@ async function openAllNoticesModal() {
   body.innerHTML = '<div style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</div>';
   openModal('modal-notices');
   if (!sb) return;
-  const { data, error } = await sb.from('content_notices').select('*').order('created_at', { ascending: false });
+  const { data, error } = await sb.from('content_notices').select('*').order('created_at', { ascending: false }).limit(1000);
   if (error || !data || !data.length) {
     body.innerHTML = '<div style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">등록된 공지가 없습니다.</div>';
     return;
@@ -5761,7 +5761,7 @@ let _userCompanyOptions = [];
 async function populateCompanySelect(selectedId) {
   const hidden = document.getElementById('u-company');
   if (!hidden || !sb) return;
-  const { data } = await sb.from('companies').select('id, name').order('name');
+  const { data } = await sb.from('companies').select('id, name').order('name').limit(1000);
   if (!data) return;
   _userCompanyOptions = [{ id: '', name: '빅스데이터' }, ...data];
   const selected = _userCompanyOptions.find(c => c.id === (selectedId || '')) || _userCompanyOptions[0];
@@ -6837,7 +6837,8 @@ async function loadLibFiles() {
 
   const { data, error } = await sb.from('content_documents')
     .select('id, title, category, product, description, file_name, file_size, storage_path, is_public, created_at, updated_at, download_count')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(1000);
 
   if (error) { tbody.innerHTML = `<tr><td colspan="5" style="padding:40px;text-align:center;color:var(--red);">오류: ${escHtml(error.message)}</td></tr>`; return; }
   allLibDocs = data || [];
