@@ -37,6 +37,7 @@ const EMBED_TABLE_MAP = {
   uploaded_by: 'users',
   company_id: 'companies',
   contract_id: 'company_contracts',
+  ticket_id: 'tickets',
 };
 
 const IDENT_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
