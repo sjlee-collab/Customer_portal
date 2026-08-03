@@ -25,11 +25,11 @@ const CORS_HEADERS = {
 
 const DEFAULT_ASSIGNEE_BY_CATEGORY = {
   education: { id: '53d240b2-b950-4c94-9289-17feb229aa69', name: '김서연' }, // syeonkim@bigxdata.io
+  tech_support: { id: 'f3637639-2574-41e7-83dd-2f7891c79688', name: '강원이' }, // wykang@bigxdata.io
 };
 const COMPANY_MANAGER_FIELD_BY_CATEGORY = {
   contract: 'account_manager',
   license: 'account_manager',
-  tech_support: 'tech_support_manager',
 };
 const STATUS_KO = {
   received: '접수', classifying: '분류 중', assigned: '담당자 배정', in_progress: '처리 중',
