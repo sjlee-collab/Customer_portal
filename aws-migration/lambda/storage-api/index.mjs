@@ -39,17 +39,23 @@ function resolveBucket(logicalName) {
 // 서버에서도 한 번 더 막아야 실제 통제가 됨. FAQ 답변에 붙여넣는 이미지(png/jpg 등)도
 // 이 버킷을 같이 쓰므로 이미지 확장자를 포함해야 함.
 const ALLOWED_DOCUMENT_EXTENSIONS = ['.pdf', '.docx', '.pptx', '.xlsx', '.png', '.jpg', '.jpeg', '.gif', '.zip', '.mp4'];
+const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024; // 20MB — 클라이언트 accept/hint는 우회 가능하므로 서버에서도 확인
 
 async function handleUploadUrl(body) {
-  const { bucket, path, contentType } = body;
+  const { bucket, path, contentType, contentLength } = body;
   if (bucket === 'documents') {
     const ext = '.' + (path.split('.').pop() || '').toLowerCase();
     if (!ALLOWED_DOCUMENT_EXTENSIONS.includes(ext)) {
       return json(400, { error: `허용되지 않는 파일 형식입니다: ${ext}` });
     }
+    if (typeof contentLength === 'number' && contentLength > MAX_DOCUMENT_SIZE) {
+      return json(400, { error: `파일이 너무 큽니다. 최대 20MB까지 업로드할 수 있습니다.` });
+    }
   }
   const Bucket = resolveBucket(bucket);
-  const cmd = new PutObjectCommand({ Bucket, Key: path, ContentType: contentType || 'application/octet-stream' });
+  const cmdParams = { Bucket, Key: path, ContentType: contentType || 'application/octet-stream' };
+  if (bucket === 'documents' && typeof contentLength === 'number') cmdParams.ContentLength = contentLength;
+  const cmd = new PutObjectCommand(cmdParams);
   const uploadUrl = await getSignedUrl(s3, cmd, { expiresIn: 300 });
   return json(200, { uploadUrl, path });
 }

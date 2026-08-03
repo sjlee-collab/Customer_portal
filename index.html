@@ -2100,6 +2100,7 @@ textarea{resize:vertical;min-height:100px;}
             ondrop="event.preventDefault();this.style.borderColor='var(--border-md)';handleDocFileDrop(event.dataTransfer.files)">
             <div id="d-dropzone-label" style="font-size:13px;color:var(--muted);">클릭하거나 파일을 여기로 드래그하세요</div>
           </div>
+          <div style="font-size:11px;color:var(--faint);margin-top:6px;">.pdf .docx .pptx .xlsx .png .jpg .jpeg .gif .zip .mp4 파일, 20MB 이하</div>
           <input type="file" id="d-file-input" accept=".pdf,.docx,.pptx,.xlsx,.png,.jpg,.jpeg,.gif,.zip,.mp4" style="display:none;" onchange="handleDocFileDrop(this.files)">
           <input type="hidden" id="d-filename">
         </div>
@@ -2217,7 +2218,7 @@ function apiStorageFrom(bucket) {
         const contentType = opts?.contentType || file.type || 'application/octet-stream';
         const presignRes = await fetch(`${API_BASE}/storage/upload-url`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ bucket, path, contentType }),
+          body: JSON.stringify({ bucket, path, contentType, contentLength: file.size }),
         });
         const presignJson = await presignRes.json().catch(() => null);
         if (!presignRes.ok) return { data: null, error: { message: presignJson?.error || presignRes.statusText } };
@@ -3275,6 +3276,7 @@ function openEditDoc(d) {
 
 let _docFile = null; // 선택된 File 객체 보관
 const ALLOWED_DOC_EXTENSIONS = ['.pdf', '.docx', '.pptx', '.xlsx', '.png', '.jpg', '.jpeg', '.gif', '.zip', '.mp4'];
+const MAX_DOC_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
 function handleDocFileDrop(files) {
   if (!files || !files.length) return;
@@ -3283,6 +3285,10 @@ function handleDocFileDrop(files) {
   // accept 속성은 드래그&드롭에는 적용 안 되므로, 여기서도 한 번 더 확인 (파일 선택창 우회 방지)
   if (!ALLOWED_DOC_EXTENSIONS.includes(ext)) {
     showToast(`허용되지 않는 파일 형식입니다 (${ext}). PDF/Word/PPT/Excel/이미지/ZIP/MP4만 업로드할 수 있습니다.`, true);
+    return;
+  }
+  if (f.size > MAX_DOC_FILE_SIZE) {
+    showToast(`파일이 너무 큽니다 (${(f.size / 1024 / 1024).toFixed(1)}MB). 최대 20MB까지 업로드할 수 있습니다.`, true);
     return;
   }
   _docFile = f;
