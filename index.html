@@ -2377,11 +2377,16 @@ async function doLogin() {
   enterApp(email, { id: u.id, role: u.role, name: u.name, company_id: u.company_id || null, contract_id: u.contract_id || null, company: companyName, phone: u.phone || '' });
 }
 
-async function enterApp(email, acct) {
+async function enterApp(email, acct, isRestore) {
   currentUser = { email, ...acct };
 
   // 세션 localStorage 저장 (새 탭/새로고침 시 자동 복구용)
   try { localStorage.setItem('cs_session', JSON.stringify({ email, ...acct })); } catch(_) {}
+
+  // 새 로그인일 때만 절대 만료 기준 시각을 새로 잡는다 (복구 시에는 원래 로그인 시각 유지)
+  if (!isRestore) { try { localStorage.setItem('cs_login_time', String(Date.now())); } catch(_) {} }
+  startSessionWatch();
+  if (!currentUser) return; // startSessionWatch가 만료 판단하고 즉시 로그아웃시킨 경우
 
   // 로그인 시각 기록
   if (sb && acct.id) {
@@ -2575,12 +2580,53 @@ async function saveMyPage() {
   showToast(changePw ? '비밀번호가 변경되었습니다.' : '프로필이 저장되었습니다.');
 }
 
+// ── 세션 자동 만료: 유휴 1시간 / 로그인 후 절대 8시간 ──
+const SESSION_IDLE_LIMIT_MS     = 60 * 60 * 1000;
+const SESSION_ABSOLUTE_LIMIT_MS = 8 * 60 * 60 * 1000;
+const SESSION_CHECK_INTERVAL_MS = 30 * 1000;
+let _sessionWatchStarted = false;
+
+function touchSessionActivity() {
+  if (!currentUser) return;
+  try { localStorage.setItem('cs_last_activity', String(Date.now())); } catch(_) {}
+}
+
+function checkSessionExpiry() {
+  if (!currentUser) return;
+  const now           = Date.now();
+  const lastActivity  = parseInt(localStorage.getItem('cs_last_activity') || '0', 10);
+  const loginTime     = parseInt(localStorage.getItem('cs_login_time') || '0', 10);
+  const idleExpired     = lastActivity && (now - lastActivity > SESSION_IDLE_LIMIT_MS);
+  const absoluteExpired = loginTime && (now - loginTime > SESSION_ABSOLUTE_LIMIT_MS);
+  if (idleExpired || absoluteExpired) {
+    doLogout();
+    showToast(idleExpired ? '장시간 활동이 없어 자동 로그아웃되었습니다.' : '로그인 후 일정 시간이 지나 자동 로그아웃되었습니다.', true);
+  }
+}
+
+function startSessionWatch() {
+  if (_sessionWatchStarted) return;
+  _sessionWatchStarted = true;
+  checkSessionExpiry(); // 탭 복구 시점에 이미 만료돼 있었다면 즉시 로그아웃
+  if (!currentUser) return;
+  if (!localStorage.getItem('cs_login_time')) {
+    try { localStorage.setItem('cs_login_time', String(Date.now())); } catch(_) {}
+  }
+  touchSessionActivity();
+  ['click', 'keydown', 'scroll'].forEach(evt => document.addEventListener(evt, touchSessionActivity, { passive: true }));
+  setInterval(checkSessionExpiry, SESSION_CHECK_INTERVAL_MS);
+}
+
 function doLogout() {
   currentUser = null;
   allMgTickets = [];
   allTickets = [];
   allUsers = [];
-  try { localStorage.removeItem('cs_session'); } catch(_) {}
+  try {
+    localStorage.removeItem('cs_session');
+    localStorage.removeItem('cs_login_time');
+    localStorage.removeItem('cs_last_activity');
+  } catch(_) {}
   history.replaceState(null, '', location.pathname);
   goScreen('screen-login');
 }
@@ -6790,7 +6836,7 @@ initSupabase();
         if (error || !u) {
           // DB 조회 실패 시 저장된 세션으로 그냥 진입
           const { email, ...rest } = acct;
-          enterApp(email, rest);
+          enterApp(email, rest, true);
           return;
         }
         if (u.is_active === false) {
@@ -6799,15 +6845,15 @@ initSupabase();
           return;
         }
         const companyName = u.company?.name || '';
-        enterApp(acct.email, { id: u.id, role: u.role, name: u.name, company_id: u.company_id || null, contract_id: u.contract_id || null, company: companyName, phone: u.phone || '' });
+        enterApp(acct.email, { id: u.id, role: u.role, name: u.name, company_id: u.company_id || null, contract_id: u.contract_id || null, company: companyName, phone: u.phone || '' }, true);
       }).catch(() => {
         // DB 조회 실패 시 저장된 세션으로 그냥 진입
         const { email, ...rest } = acct;
-        enterApp(email, rest);
+        enterApp(email, rest, true);
       });
     } else {
       const { email, ...rest } = acct;
-      enterApp(email, rest);
+      enterApp(email, rest, true);
     }
   } catch(_) {
     goScreen('screen-login');
