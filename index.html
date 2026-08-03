@@ -6450,7 +6450,24 @@ async function goToManageTicket(ticketId) {
   if (reqTab) reqTab.classList.add('active');
   const mainBody = document.getElementById('main-body');
   if (mainBody) mainBody.scrollTop = 0;
+
   await loadAllTickets();
+
+  // 검색어/열 필터가 남아 있으면 대상 티켓이 목록에서 걸러져 아예 안 보일 수 있어 초기화한다.
+  const searchEl = document.getElementById('ar-search');
+  if (searchEl) searchEl.value = '';
+  Object.keys(arFilters).forEach(key => { arFilters[key] = []; });
+  document.querySelectorAll('#p-all-requests .th-filter-pop input[type=checkbox]').forEach(el => el.checked = false);
+  updateArFilterButtonStates();
+
+  // 대상 티켓이 있는 페이지로 옮겨야 그 행이 실제로 DOM에 그려져서 펼칠 수 있다.
+  const ROLE_ALLOWED_CATS_HOME = { tech_support: ['tech_support', 'other'], sales: ['contract', 'license', 'other'], education: ['education'] };
+  const allowedCats = ROLE_ALLOWED_CATS_HOME[currentUser?.role] || null;
+  const visibleList = allowedCats ? allMgTickets.filter(t => allowedCats.includes(t.category)) : allMgTickets;
+  const idx = visibleList.findIndex(t => t.id === ticketId);
+  if (idx !== -1) arPage = Math.floor(idx / AR_PAGE_SIZE) + 1;
+  renderAllTickets();
+
   openAllTicketRowById(ticketId);
   startArAutoRefresh();
 }
