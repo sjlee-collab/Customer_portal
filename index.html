@@ -2100,7 +2100,7 @@ textarea{resize:vertical;min-height:100px;}
             ondrop="event.preventDefault();this.style.borderColor='var(--border-md)';handleDocFileDrop(event.dataTransfer.files)">
             <div id="d-dropzone-label" style="font-size:13px;color:var(--muted);">클릭하거나 파일을 여기로 드래그하세요</div>
           </div>
-          <input type="file" id="d-file-input" style="display:none;" onchange="handleDocFileDrop(this.files)">
+          <input type="file" id="d-file-input" accept=".pdf,.docx,.pptx,.xlsx,.png,.jpg,.jpeg,.gif,.zip,.mp4" style="display:none;" onchange="handleDocFileDrop(this.files)">
           <input type="hidden" id="d-filename">
         </div>
       </div>
@@ -3274,10 +3274,17 @@ function openEditDoc(d) {
 }
 
 let _docFile = null; // 선택된 File 객체 보관
+const ALLOWED_DOC_EXTENSIONS = ['.pdf', '.docx', '.pptx', '.xlsx', '.png', '.jpg', '.jpeg', '.gif', '.zip', '.mp4'];
 
 function handleDocFileDrop(files) {
   if (!files || !files.length) return;
   const f = files[0];
+  const ext = '.' + (f.name.split('.').pop() || '').toLowerCase();
+  // accept 속성은 드래그&드롭에는 적용 안 되므로, 여기서도 한 번 더 확인 (파일 선택창 우회 방지)
+  if (!ALLOWED_DOC_EXTENSIONS.includes(ext)) {
+    showToast(`허용되지 않는 파일 형식입니다 (${ext}). PDF/Word/PPT/Excel/이미지/ZIP/MP4만 업로드할 수 있습니다.`, true);
+    return;
+  }
   _docFile = f;
   document.getElementById('d-filename').value = f.name;
   document.getElementById('d-dropzone-label').textContent = `${f.name} (${(f.size / 1024).toFixed(1)} KB)`;
@@ -4712,6 +4719,12 @@ function renderCompanies(companies) {
       'AgentWorks':      { text: 'AW', bg: '#6C5CE7' },
     };
     const usedSet = new Set(Array.isArray(c.products) ? c.products : []);
+    const customProducts = (Array.isArray(c.products) ? c.products : []).filter(p => !ALL_PRODUCTS.includes(p));
+    const etcActive = customProducts.length > 0;
+    const etcTitle  = etcActive ? `기타: ${customProducts.join(', ')}` : '기타 (미사용)';
+    const etcStyle  = etcActive
+      ? 'background:#64748B;color:#fff;'
+      : 'background:var(--surface-1);color:var(--faint);border:1px solid var(--border);';
     const products = `<div style="display:flex;gap:4px;">${ALL_PRODUCTS.map(p => {
       const m = PRODUCT_MONO[p];
       const active = usedSet.has(p);
@@ -4719,7 +4732,7 @@ function renderCompanies(companies) {
         ? `background:${m.bg};color:#fff;`
         : 'background:var(--surface-1);color:var(--faint);border:1px solid var(--border);';
       return `<div title="${escHtml(p)}${active ? '' : ' (미사용)'}" style="width:22px;height:22px;border-radius:6px;font-size:9.5px;font-weight:800;display:flex;align-items:center;justify-content:center;letter-spacing:-.02em;${style}">${m.text}</div>`;
-    }).join('')}</div>`;
+    }).join('')}<div title="${escHtml(etcTitle)}" style="width:22px;height:22px;border-radius:6px;font-size:9.5px;font-weight:800;display:flex;align-items:center;justify-content:center;letter-spacing:-.02em;${etcStyle}">기타</div></div>`;
     const ctLabel = CUSTOMER_TYPE_KO[c.customer_type] || (c.customer_type ? escHtml(c.customer_type) : '—');
 
     return `

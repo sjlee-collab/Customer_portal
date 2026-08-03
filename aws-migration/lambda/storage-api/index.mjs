@@ -35,8 +35,19 @@ function resolveBucket(logicalName) {
   return bucket;
 }
 
+// 자료실(documents 버킷)에 허용할 확장자 — accept 속성은 우회 가능한 UI 힌트일 뿐이라
+// 서버에서도 한 번 더 막아야 실제 통제가 됨. FAQ 답변에 붙여넣는 이미지(png/jpg 등)도
+// 이 버킷을 같이 쓰므로 이미지 확장자를 포함해야 함.
+const ALLOWED_DOCUMENT_EXTENSIONS = ['.pdf', '.docx', '.pptx', '.xlsx', '.png', '.jpg', '.jpeg', '.gif', '.zip', '.mp4'];
+
 async function handleUploadUrl(body) {
   const { bucket, path, contentType } = body;
+  if (bucket === 'documents') {
+    const ext = '.' + (path.split('.').pop() || '').toLowerCase();
+    if (!ALLOWED_DOCUMENT_EXTENSIONS.includes(ext)) {
+      return json(400, { error: `허용되지 않는 파일 형식입니다: ${ext}` });
+    }
+  }
   const Bucket = resolveBucket(bucket);
   const cmd = new PutObjectCommand({ Bucket, Key: path, ContentType: contentType || 'application/octet-stream' });
   const uploadUrl = await getSignedUrl(s3, cmd, { expiresIn: 300 });
