@@ -4550,8 +4550,8 @@ async function loadCompanies() {
   if (!sb) return;
 
   const [{ data, error }, { data: contractRows }] = await Promise.all([
-    sb.from('companies').select('*').order('name'),
-    sb.from('company_contracts').select('company_id,bixs_contact,end_date'),
+    sb.from('companies').select('*').order('name').limit(1000),
+    sb.from('company_contracts').select('company_id,bixs_contact,end_date').limit(1000),
   ]);
   if (error) {
     tbody.innerHTML = `<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--red);font-size:13px;">오류: ${error.message}</td></tr>`;
