@@ -372,6 +372,20 @@ async function runOverdueBatch() {
   return json(200, { processed: items.length });
 }
 
+// ── EventBridge Scheduler가 매일 09:00 KST에 {"task":"expire_contracts"} 페이로드로 직접 호출 ──
+// 계약상태(진행중/만료 등)는 화면에서 수동으로만 바뀌는 값이라, 종료일이 지나도 자동으로
+// "만료"로 안 바뀌는 문제가 있었음 — 매일 종료일 지난 "진행중" 계약을 "만료"로 정리한다.
+async function runContractExpiryBatch() {
+  const today = new Date().toISOString().slice(0, 10);
+  const updated = await query(
+    `update company_contracts set status='만료', updated_at=now()
+     where status='진행중' and end_date < $1
+     returning id, contract_name`,
+    [today]
+  );
+  return json(200, { updated: updated.length, contracts: updated.map(c => c.contract_name) });
+}
+
 // 자기 자신에게 비동기(Event)로 재호출됐을 때 처리할 알림 작업 — kind별 디스패치
 const DEFERRED_HANDLERS = {
   create: (job) => notifyForCreate(job.ticketId),
@@ -396,6 +410,15 @@ export const handler = async (event) => {
       return await runOverdueBatch();
     } catch (err) {
       console.error('[overdue_batch 오류]', err);
+      return json(500, { error: String(err) });
+    }
+  }
+
+  if (event.task === 'expire_contracts') {
+    try {
+      return await runContractExpiryBatch();
+    } catch (err) {
+      console.error('[expire_contracts 오류]', err);
       return json(500, { error: String(err) });
     }
   }
