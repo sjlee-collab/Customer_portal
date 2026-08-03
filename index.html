@@ -3127,11 +3127,19 @@ async function uploadFaqImage(file) {
 function insertImageAtCursor(url) {
   const el = document.getElementById('doc-description');
   const img = document.createElement('img');
-  img.src = url;
   img.style.display = 'block';
   img.style.maxWidth = '100%';
   img.style.borderRadius = '6px';
   img.style.margin = '6px 0';
+  // 고배율(레티나 등) 화면에서 캡처한 이미지는 실제 픽셀 수가 더 많아서, 화면 배율만큼
+  // 나눠서 표시 크기를 잡아줘야 캡처 당시 눈에 보이던 크기와 비슷하게 보임
+  img.onload = () => {
+    const dpr = window.devicePixelRatio || 1;
+    if (dpr > 1 && img.naturalWidth) {
+      img.style.width = Math.round(img.naturalWidth / dpr) + 'px';
+    }
+  };
+  img.src = url;
   const sel = window.getSelection();
   if (sel && sel.rangeCount && el.contains(sel.anchorNode)) {
     const range = sel.getRangeAt(0);
