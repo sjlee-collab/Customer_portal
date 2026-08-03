@@ -137,14 +137,13 @@ textarea{resize:vertical;min-height:100px;}
 .tbl-compact td{padding:6px 14px;font-size:12.5px;}
 .tbl tr:hover td{background:var(--surface2);cursor:pointer;}
 .company-detail-row:hover td{background:inherit !important;cursor:default !important;}
-.ticket-row.open td{background:var(--accent-l);}
+.ticket-row.open td{background:var(--accent-l);border-top:1px solid var(--accent);border-bottom:none;}
 .ticket-row.open{position:sticky;z-index:2;box-shadow:0 1px 0 var(--border-md);will-change:transform;backface-visibility:hidden;}
 .ticket-row .row-arrow{display:inline-block;font-size:11px;color:var(--faint);margin-left:6px;transition:transform .15s;}
 .ticket-row.open .row-arrow{transform:rotate(180deg);color:var(--accent);}
-.ticket-row.open td{border-top:1px solid var(--accent-m);}
-.ticket-row.open td:first-child{border-left:3px solid var(--accent);border-top-left-radius:var(--r-lg);}
-.ticket-row.open td:last-child{border-right:3px solid var(--accent);border-top-right-radius:var(--r-lg);}
-.ticket-detail-row.detail-open td{padding:0;background:var(--surface);border-left:3px solid var(--accent);border-right:3px solid var(--accent);border-bottom:1px solid var(--accent-m);border-bottom-left-radius:var(--r-lg);border-bottom-right-radius:var(--r-lg);}
+.ticket-row.open td:first-child{border-top-left-radius:var(--r-lg);background-color:var(--accent-l);background-image:linear-gradient(var(--accent),var(--accent));background-repeat:no-repeat;background-size:var(--r-lg) 100%;background-position:left top;}
+.ticket-row.open td:last-child{border-right:1px solid var(--accent);border-top-right-radius:var(--r-lg);}
+.ticket-detail-row.detail-open td{padding:14px 14px 14px 20px;background:var(--surface);border-right:1px solid var(--accent);border-bottom:1px solid var(--accent);border-bottom-left-radius:var(--r-lg);border-bottom-right-radius:var(--r-lg);background-image:linear-gradient(var(--accent),var(--accent));background-repeat:no-repeat;background-size:var(--r-lg) 100%;background-position:left top;}
 .ticket-detail-row.detail-open .card{border:none;border-radius:0;margin-bottom:0;}
 .company-row.open td{background:var(--accent-l);}
 .company-row.open{position:sticky;z-index:2;box-shadow:0 1px 0 var(--border-md);will-change:transform;backface-visibility:hidden;}
@@ -952,7 +951,7 @@ textarea{resize:vertical;min-height:100px;}
         </div>
         <div class="ar-filter-chips" id="ar-filter-chips"></div>
         <div class="card" style="padding:0;overflow:visible;">
-          <div class="tbl-scroll list-scroll"><table class="tbl">
+          <div class="tbl-scroll list-scroll" style="padding:0 14px;"><table class="tbl" style="border-collapse:separate;border-spacing:0;">
             <thead><tr>
               <th style="padding:8px 12px;">요청 번호</th>
               <th style="padding:8px 12px;">제목</th>
@@ -6382,7 +6381,8 @@ function renderAllTickets() {
                       : '<span style="color:var(--faint);">미배정</span>';
     const date    = (t.created_at||'').slice(0,10);
     const dueDate = t.due_date ? t.due_date.slice(0,10) : '<span style="color:var(--faint);">—</span>';
-    return `<tr class="ticket-row" style="cursor:pointer;" data-id="${t.id}" onclick="toggleAllTicketRow(this, allMgTickets[${idx}])">
+    return `<tr class="ar-spacer" style="display:none;"><td colspan="11" style="padding:0;border:none;height:14px;"></td></tr>
+    <tr class="ticket-row" style="cursor:pointer;" data-id="${t.id}" onclick="toggleAllTicketRow(this, allMgTickets[${idx}])">
       <td style="color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;font-size:12px;">${escHtml(t.ticket_number||'—')}</td>
       <td style="font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(t.title||'')}<span class="row-arrow">▾</span></td>
       <td><span class="badge ${catB}">${catL}</span></td>
@@ -6397,7 +6397,8 @@ function renderAllTickets() {
     </tr>
     <tr class="ticket-detail-row" style="display:none;">
       <td colspan="11"></td>
-    </tr>`;
+    </tr>
+    <tr class="ar-spacer" style="display:none;"><td colspan="11" style="padding:0;border:none;height:14px;"></td></tr>`;
   }).join('');
 }
 
@@ -6407,11 +6408,15 @@ function toggleAllTicketRow(tr, ticket) {
   const detailTr = tr.nextElementSibling;
   const wasOpen = tr.classList.contains('open');
 
-  // 다른 곳에서 열려있던 요청 상세는 모두 접기
+  // 다른 곳에서 열려있던 요청 상세는 모두 접기 (앞뒤 spacer도 함께 숨김)
   document.querySelectorAll('#ar-tbody tr.ticket-row.open').forEach(r => {
     r.classList.remove('open');
     const dr = r.nextElementSibling;
     if (dr) { dr.style.display = 'none'; dr.classList.remove('detail-open'); }
+    const spBefore = r.previousElementSibling;
+    if (spBefore && spBefore.classList.contains('ar-spacer')) spBefore.style.display = 'none';
+    const spAfter = dr && dr.nextElementSibling;
+    if (spAfter && spAfter.classList.contains('ar-spacer')) spAfter.style.display = 'none';
   });
 
   const detailContent = document.getElementById('rd-detail-content');
@@ -6433,6 +6438,10 @@ function toggleAllTicketRow(tr, ticket) {
     const td = detailTr.querySelector('td');
     if (td && detailContent) td.appendChild(detailContent);
   }
+  const spBefore = tr.previousElementSibling;
+  if (spBefore && spBefore.classList.contains('ar-spacer')) spBefore.style.display = '';
+  const spAfter = detailTr && detailTr.nextElementSibling;
+  if (spAfter && spAfter.classList.contains('ar-spacer')) spAfter.style.display = '';
   selectRdTicket(null, ticket);
   pinRowToTop(tr);
 }
