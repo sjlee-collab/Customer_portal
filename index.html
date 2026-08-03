@@ -1147,6 +1147,15 @@ textarea{resize:vertical;min-height:100px;}
               <tr><td colspan="9" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
             </tbody>
           </table></div>
+          <div style="padding:12px 18px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:flex-end;gap:10px;background:var(--surface2);flex-shrink:0;">
+            <span style="font-size:12px;color:var(--muted);margin-right:auto;" id="co-page-total"></span>
+            <button class="btn btn-outline btn-sm" onclick="changeCoPage(-1)">← 이전</button>
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;">
+              <input type="text" id="co-page-input" value="1" inputmode="numeric" style="width:34px;text-align:center;border:1px solid var(--accent);border-radius:7px;padding:4px 2px;font-size:12px;font-variant-numeric:tabular-nums;outline:none;box-shadow:0 0 0 3px var(--accent-l);" onkeydown="if(event.key==='Enter')jumpCoPage(this.value)">
+              <span>/ <span id="co-page-count">1</span> 페이지</span>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="changeCoPage(1)">다음 →</button>
+          </div>
         </div>
 
         <!-- 고객사 선택 시 상세 패널 -->
@@ -4633,6 +4642,20 @@ const STATUS_CO_BADGE  = { active:'b-green', expiring_soon:'b-amber', expired:'b
 
 let allCompanies = [];
 let companyFilter = 'all';
+let coPage = 1;
+let coLastFilterKey = null;
+const CO_PAGE_SIZE = 20;
+
+function changeCoPage(delta) {
+  coPage += delta;
+  applyCompanyFilter();
+}
+
+function jumpCoPage(val) {
+  const n = parseInt(val, 10);
+  if (!isNaN(n)) coPage = n;
+  applyCompanyFilter();
+}
 
 // 고객사 아코디언에 열려 있던 공용 상세 패널(company-detail-panel)이 tbody를 통째로 갈아끼울 때
 // (innerHTML 재할당) 함께 파괴되지 않도록, 갈아끼우기 전에 안전한 자리로 빼둔다.
@@ -4696,7 +4719,23 @@ function applyCompanyFilter() {
     if (companyFilter !== 'all') return (c.customer_type || '기타') === companyFilter;
     return true;
   });
-  renderCompanies(filtered);
+
+  // 검색어/필터가 실제로 바뀐 경우에만 1페이지로 리셋 (저장 후 재조회 등에는 현재 페이지 유지)
+  const filterKey = JSON.stringify([q, companyFilter]);
+  if (filterKey !== coLastFilterKey) { coPage = 1; coLastFilterKey = filterKey; }
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / CO_PAGE_SIZE));
+  coPage = Math.min(Math.max(1, coPage), totalPages);
+  const pageItems = filtered.slice((coPage - 1) * CO_PAGE_SIZE, coPage * CO_PAGE_SIZE);
+
+  const totalEl = document.getElementById('co-page-total');
+  if (totalEl) totalEl.textContent = `총 ${filtered.length}건`;
+  const pageInput = document.getElementById('co-page-input');
+  if (pageInput) pageInput.value = coPage;
+  const pageCount = document.getElementById('co-page-count');
+  if (pageCount) pageCount.textContent = totalPages;
+
+  renderCompanies(pageItems);
 }
 
 const CUSTOMER_TYPE_KO = {
@@ -4740,6 +4779,7 @@ function renderCompanies(companies) {
       return `<div title="${escHtml(p)}${active ? '' : ' (미사용)'}" style="width:22px;height:22px;border-radius:6px;font-size:9.5px;font-weight:800;display:flex;align-items:center;justify-content:center;letter-spacing:-.02em;${style}">${m.text}</div>`;
     }).join('')}<div title="${escHtml(etcTitle)}" style="width:22px;height:22px;border-radius:6px;font-size:9.5px;font-weight:800;display:flex;align-items:center;justify-content:center;letter-spacing:-.02em;${etcStyle}">기타</div></div>`;
     const ctLabel = CUSTOMER_TYPE_KO[c.customer_type] || (c.customer_type ? escHtml(c.customer_type) : '—');
+    const idx = allCompanies.indexOf(c);
 
     return `
       <tr class="company-row" style="cursor:pointer;" onclick="selectCompany(this,'${c.id}','${escHtml(c.name)}','${stLabel}')">
@@ -4752,7 +4792,7 @@ function renderCompanies(companies) {
         <td style="font-size:12px;">${escHtml(c.main_contact_name || '—')}</td>
         <td style="font-size:12px;">${escHtml(c.main_contact_phone || '—')}</td>
         <td style="white-space:nowrap;" onclick="event.stopPropagation()">
-          ${isAdmin ? `<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick='openEditCompany(${escHtml(JSON.stringify(c).replace(/'/g,"&#39;"))})'>수정</button>` : ''}
+          ${isAdmin ? `<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="openEditCompany(allCompanies[${idx}])">수정</button>` : ''}
           <button class="btn btn-ghost btn-sm" style="font-size:11px;color:#e53e3e;" onclick="deleteCompany('${c.id}','${escHtml(c.name)}')">삭제</button>
         </td>
       </tr>
