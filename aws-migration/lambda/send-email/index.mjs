@@ -153,10 +153,24 @@ function internalUrgentHtml(ticket, companyName, requesterName) {
   return layout('긴급 요청 알림', `<div class="alert-box alert-red"><strong>긴급 요청이 접수되었습니다.</strong> 즉각적인 대응이 필요합니다.</div><div class="lbl">요청 정보</div><table class="info"><tr><td>요청번호</td><td><strong>${ticket.ticket_number ?? '—'}</strong></td></tr><tr><td>제목</td><td>${ticket.title ?? '—'}</td></tr><tr><td>고객사</td><td>${companyName}</td></tr><tr><td>요청자</td><td>${requesterName}</td></tr><tr><td>카테고리</td><td>${CATEGORY_KO[ticket.category] ?? ticket.category ?? '—'}</td></tr><tr><td>긴급도</td><td><span class="badge b-red">긴급</span></td></tr><tr><td>등록일시</td><td>${dateStr}</td></tr></table>${btn}`);
 }
 
+function passwordResetHtml(userName, resetUrl) {
+  const display = resetUrl.replace(/^https?:\/\//, '');
+  return layout('비밀번호 재설정', `<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">안녕하세요, <strong>${userName}</strong>님.<br>비밀번호 재설정을 요청하셨습니다. 아래 버튼을 눌러 새 비밀번호를 설정해주세요.</p><a class="btn" href="${resetUrl}">비밀번호 재설정하기</a><div style="font-size:11px;color:#9ca3af;margin-top:8px;">${display}</div><p style="margin:20px 0 0;font-size:12px;color:#9ca3af;">이 링크는 30분간 유효합니다. 본인이 요청하지 않았다면 이 메일을 무시해주세요.</p>`);
+}
+
 export const handler = async (event) => {
   const results = [];
   try {
     const payload = typeof event.body === 'string' ? JSON.parse(event.body) : (event.body || event);
+
+    if (payload.type === 'PASSWORD_RESET') {
+      const { toEmail, userName, token } = payload;
+      if (!toEmail || !token) return { statusCode: 400, body: 'missing toEmail/token' };
+      const resetUrl = `${PORTAL_URL}?reset=${token}`;
+      await sendAndLog(toEmail, '[빅스데이터 고객지원] 비밀번호 재설정 안내', passwordResetHtml(userName || '고객', resetUrl), null, 'password_reset', results);
+      const sent = results.filter(r => r.status === 'sent').length;
+      return ok({ ok: true, sent, results });
+    }
 
     if (payload.type === 'CONNECTION_TEST') {
       if (!MS_TENANT_ID || !MS_CLIENT_ID || !MS_CLIENT_SECRET) {

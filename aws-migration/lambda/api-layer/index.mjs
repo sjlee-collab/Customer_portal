@@ -7,9 +7,12 @@
 // 멈춰버릴 수 있어 신뢰할 수 없으므로, 자기 자신을 비동기(Event) 방식으로 재호출해서
 // 완전히 별도의 Lambda 실행으로 알림 처리를 넘긴다 (deferNotify / __deferred 분기).
 
+import { randomBytes } from 'node:crypto';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 import { query } from './db.mjs';
 import { notifySlack, notifyEmail } from './notify.mjs';
+
+const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
 
 const lambda = new LambdaClient({});
 const SELF_FN = process.env.AWS_LAMBDA_FUNCTION_NAME;
@@ -316,6 +319,37 @@ async function notifyForManage(job) {
   }
 }
 
+// ── POST /auth/request-reset ──
+// 이메일 존재 여부를 노출하지 않기 위해 계정이 있든 없든 항상 같은 응답을 준다.
+async function requestPasswordReset(body) {
+  const { email } = body;
+  if (!email) return json(400, { error: 'email은 필수입니다' });
+
+  const rows = await query('select id, name, is_active from users where email=$1', [email]);
+  const user = rows[0];
+  if (user && user.is_active !== false) {
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS).toISOString();
+    await query('update users set reset_token=$1, reset_token_expires_at=$2 where id=$3', [token, expiresAt, user.id]);
+    await notifyEmail({ type: 'PASSWORD_RESET', toEmail: email, userName: user.name, token });
+  }
+  return json(200, { ok: true });
+}
+
+// ── POST /auth/reset-password ──
+async function resetPassword(body) {
+  const { token, newPasswordHash } = body;
+  if (!token || !newPasswordHash) return json(400, { error: 'token, newPasswordHash는 필수입니다' });
+
+  const updated = await query(
+    `update users set password=$1, reset_token=null, reset_token_expires_at=null
+     where reset_token=$2 and reset_token_expires_at > now() returning id`,
+    [newPasswordHash, token]
+  );
+  if (!updated.length) return json(400, { error: '유효하지 않거나 만료된 링크입니다' });
+  return json(200, { ok: true });
+}
+
 // ── EventBridge Scheduler가 매일 09:00 KST에 {"task":"overdue_batch"} 페이로드로 직접 호출 ──
 async function runOverdueBatch() {
   const today = new Date().toISOString().slice(0, 10);
@@ -373,6 +407,12 @@ export const handler = async (event) => {
   const body = event.body ? JSON.parse(event.body) : {};
 
   try {
+    if (method === 'POST' && path === '/auth/request-reset') {
+      return await requestPasswordReset(body);
+    }
+    if (method === 'POST' && path === '/auth/reset-password') {
+      return await resetPassword(body);
+    }
     if (method === 'POST' && path === '/tickets') {
       return await createTicket(body);
     }

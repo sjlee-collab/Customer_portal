@@ -422,11 +422,56 @@ textarea{resize:vertical;min-height:100px;}
           </button>
         </div>
       </div>
+      <div style="text-align:right;margin-top:-6px;">
+        <span style="font-size:11.5px;color:var(--accent);font-weight:600;cursor:pointer;" onclick="goScreen('screen-forgot-password')">비밀번호를 잊으셨나요?</span>
+      </div>
       <div id="login-error" style="display:none;background:#FEF2F2;border:1px solid #FECACA;border-radius:var(--r-md);padding:9px 12px;font-size:12px;color:#DC2626;"></div>
       <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:2px;" onclick="doLogin()">로그인</button>
       <div style="text-align:center;font-size:12px;color:var(--faint);">계정이 없으신가요? <span style="color:var(--accent);cursor:pointer;" onclick="openModal('modal-contact-support')">담당자에게 문의</span></div>
     </div>
 
+  </div>
+</div>
+
+<!-- 비밀번호 재설정 요청 -->
+<div id="screen-forgot-password" class="login-wrap" style="display:none;">
+  <div class="login-box">
+    <div class="login-logo">B</div>
+    <div class="login-title">비밀번호 재설정</div>
+    <div class="login-sub">가입하신 이메일로 재설정 링크를 보내드립니다.</div>
+
+    <div style="display:flex;flex-direction:column;gap:14px;margin-top:8px;">
+      <div class="form-group" id="fp-form-group">
+        <label>이메일</label>
+        <input type="email" id="fp-email" placeholder="name@company.com" onkeydown="if(event.key==='Enter')requestPasswordReset()">
+      </div>
+      <div id="fp-result" style="display:none;font-size:12px;border-radius:var(--r-md);padding:9px 12px;line-height:1.6;"></div>
+      <button class="btn btn-primary" id="fp-submit-btn" style="width:100%;justify-content:center;margin-top:2px;" onclick="requestPasswordReset()">재설정 링크 받기</button>
+      <div style="text-align:center;font-size:12px;color:var(--accent);font-weight:600;cursor:pointer;" onclick="goScreen('screen-login')">← 로그인으로 돌아가기</div>
+    </div>
+  </div>
+</div>
+
+<!-- 비밀번호 재설정 (메일의 링크로 진입) -->
+<div id="screen-reset-password" class="login-wrap" style="display:none;">
+  <div class="login-box">
+    <div class="login-logo">B</div>
+    <div class="login-title">새 비밀번호 설정</div>
+    <div class="login-sub">새로 사용할 비밀번호를 입력해주세요.</div>
+
+    <div style="display:flex;flex-direction:column;gap:14px;margin-top:8px;">
+      <div class="form-group">
+        <label>새 비밀번호</label>
+        <input type="password" id="rp-pw-new" placeholder="새 비밀번호 입력" onkeydown="if(event.key==='Enter')submitPasswordReset()">
+      </div>
+      <div class="form-group">
+        <label>새 비밀번호 확인</label>
+        <input type="password" id="rp-pw-confirm" placeholder="새 비밀번호 다시 입력" onkeydown="if(event.key==='Enter')submitPasswordReset()">
+      </div>
+      <div id="rp-error" style="display:none;background:#FEF2F2;border:1px solid #FECACA;border-radius:var(--r-md);padding:9px 12px;font-size:12px;color:#DC2626;"></div>
+      <button class="btn btn-primary" id="rp-submit-btn" style="width:100%;justify-content:center;margin-top:2px;" onclick="submitPasswordReset()">비밀번호 변경</button>
+      <div style="text-align:center;font-size:12px;color:var(--accent);font-weight:600;cursor:pointer;" onclick="goScreen('screen-login')">← 로그인으로 돌아가기</div>
+    </div>
   </div>
 </div>
 
@@ -2311,6 +2356,70 @@ function toggleLoginPw() {
   const eyeOffSvg = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>';
   if (input.type === 'password') { input.type = 'text';     icon.innerHTML = eyeOffSvg; }
   else                           { input.type = 'password'; icon.innerHTML = eyeSvg; }
+}
+
+let _resetToken = null;
+
+async function requestPasswordReset() {
+  const email = (document.getElementById('fp-email').value || '').trim();
+  const resultEl = document.getElementById('fp-result');
+  if (!email) {
+    resultEl.style.display = '';
+    resultEl.style.background = '#FEF2F2';
+    resultEl.style.color = '#DC2626';
+    resultEl.textContent = '이메일을 입력하세요.';
+    return;
+  }
+  const btn = document.getElementById('fp-submit-btn');
+  btn.disabled = true;
+  try {
+    await fetch(`${API_BASE}/auth/request-reset`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+  } catch (_) {}
+  // 계정 존재 여부와 무관하게 항상 같은 안내를 보여준다 (이메일 등록 여부 노출 방지)
+  resultEl.style.display = '';
+  resultEl.style.background = '#EAF3DE';
+  resultEl.style.color = '#1a6e3a';
+  resultEl.textContent = '등록된 이메일이면 재설정 링크를 보내드렸습니다. 메일함을 확인해주세요.';
+  document.getElementById('fp-form-group').style.display = 'none';
+  btn.style.display = 'none';
+}
+
+async function submitPasswordReset() {
+  const pw1 = document.getElementById('rp-pw-new').value || '';
+  const pw2 = document.getElementById('rp-pw-confirm').value || '';
+  const errEl = document.getElementById('rp-error');
+  errEl.style.display = 'none';
+  if (!pw1 || pw1.length < 8) { errEl.textContent = '비밀번호는 8자 이상이어야 합니다.'; errEl.style.display = ''; return; }
+  if (pw1 !== pw2) { errEl.textContent = '비밀번호가 일치하지 않습니다.'; errEl.style.display = ''; return; }
+  if (!_resetToken) { errEl.textContent = '유효하지 않은 접근입니다.'; errEl.style.display = ''; return; }
+
+  const btn = document.getElementById('rp-submit-btn');
+  btn.disabled = true;
+  try {
+    const hash = await hashPassword(pw1);
+    const res = await fetch(`${API_BASE}/auth/reset-password`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: _resetToken, newPasswordHash: hash }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      errEl.textContent = data?.error || '재설정에 실패했습니다.';
+      errEl.style.display = '';
+      btn.disabled = false;
+      return;
+    }
+    _resetToken = null;
+    history.replaceState(null, '', location.pathname);
+    goScreen('screen-login');
+    showToast('✅ 비밀번호가 변경됐습니다. 새 비밀번호로 로그인해주세요.');
+  } catch (e) {
+    errEl.textContent = '재설정 중 오류가 발생했습니다: ' + e.message;
+    errEl.style.display = '';
+    btn.disabled = false;
+  }
 }
 
 async function doLogin() {
@@ -6823,6 +6932,13 @@ async function downloadDoc(url, filename, docId) {
 // ══════════════════════════════════════════
 initSupabase();
 
+// URL에 ?reset=<token>이 있으면 비밀번호 재설정 화면으로 바로 진입 (세션 복구보다 우선)
+const _resetTokenFromUrl = new URLSearchParams(location.search).get('reset');
+if (_resetTokenFromUrl) {
+  _resetToken = _resetTokenFromUrl;
+  goScreen('screen-reset-password');
+} else {
+
 // localStorage 세션 복구 — 저장된 세션이 있으면 자동 로그인
 (function restoreSession() {
   try {
@@ -6859,6 +6975,8 @@ initSupabase();
     goScreen('screen-login');
   }
 })();
+
+}
 </script>
 </body>
 </html>
