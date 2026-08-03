@@ -206,7 +206,7 @@ textarea{resize:vertical;min-height:100px;}
 .th-filter-opt:hover{background:var(--surface2);}
 .th-filter-opt input{accent-color:var(--accent);}
 .th-filter-empty{padding:8px;font-size:12px;color:var(--faint);}
-.th-filter-foot{display:flex;justify-content:space-between;gap:6px;margin-top:4px;padding-top:6px;border-top:1px solid var(--border);}
+.th-filter-foot{display:flex;justify-content:space-between;gap:6px;margin-bottom:4px;padding-bottom:6px;border-bottom:1px solid var(--border);}
 .th-filter-foot button{font-size:11px;font-weight:600;padding:5px 10px;border-radius:6px;border:none;cursor:pointer;}
 .th-filter-clear{background:none;color:var(--muted);}
 .th-filter-clear:hover{background:var(--surface2);}
@@ -942,32 +942,36 @@ textarea{resize:vertical;min-height:100px;}
               <th>
                 <button class="th-filter-btn" onclick="toggleArFilterPop(this,'category')">카테고리 <span class="th-filter-caret">▾</span></button>
                 <div class="th-filter-pop" id="ar-pop-category">
+                  <div class="th-filter-foot">
+                    <button class="th-filter-clear" onclick="clearArFilter('category')">초기화</button>
+                    <button class="th-filter-apply" onclick="applyArFilter('category')">적용</button>
+                  </div>
                   <label class="th-filter-opt"><input type="checkbox" value="tech_support"> 기술지원</label>
                   <label class="th-filter-opt"><input type="checkbox" value="contract"> 계약 문의</label>
                   <label class="th-filter-opt"><input type="checkbox" value="license"> 라이선스 문의</label>
                   <label class="th-filter-opt"><input type="checkbox" value="education"> 교육 문의</label>
                   <label class="th-filter-opt"><input type="checkbox" value="other"> 기타</label>
-                  <div class="th-filter-foot">
-                    <button class="th-filter-clear" onclick="clearArFilter('category')">초기화</button>
-                    <button class="th-filter-apply" onclick="applyArFilter('category')">적용</button>
-                  </div>
                 </div>
               </th>
               <th>
                 <button class="th-filter-btn" onclick="toggleArFilterPop(this,'priority')">긴급도 <span class="th-filter-caret">▾</span></button>
                 <div class="th-filter-pop" id="ar-pop-priority">
-                  <label class="th-filter-opt"><input type="checkbox" value="normal"> 일반</label>
-                  <label class="th-filter-opt"><input type="checkbox" value="high"> 빠른 확인 필요</label>
-                  <label class="th-filter-opt"><input type="checkbox" value="critical"> 긴급</label>
                   <div class="th-filter-foot">
                     <button class="th-filter-clear" onclick="clearArFilter('priority')">초기화</button>
                     <button class="th-filter-apply" onclick="applyArFilter('priority')">적용</button>
                   </div>
+                  <label class="th-filter-opt"><input type="checkbox" value="normal"> 일반</label>
+                  <label class="th-filter-opt"><input type="checkbox" value="high"> 빠른 확인 필요</label>
+                  <label class="th-filter-opt"><input type="checkbox" value="critical"> 긴급</label>
                 </div>
               </th>
               <th>
                 <button class="th-filter-btn" onclick="toggleArFilterPop(this,'status')">상태 <span class="th-filter-caret">▾</span></button>
                 <div class="th-filter-pop" id="ar-pop-status">
+                  <div class="th-filter-foot">
+                    <button class="th-filter-clear" onclick="clearArFilter('status')">초기화</button>
+                    <button class="th-filter-apply" onclick="applyArFilter('status')">적용</button>
+                  </div>
                   <label class="th-filter-opt"><input type="checkbox" value="received"> 접수</label>
                   <label class="th-filter-opt"><input type="checkbox" value="classifying"> 분류 중</label>
                   <label class="th-filter-opt"><input type="checkbox" value="in_progress"> 처리 중</label>
@@ -975,10 +979,6 @@ textarea{resize:vertical;min-height:100px;}
                   <label class="th-filter-opt"><input type="checkbox" value="on_hold"> 보류</label>
                   <label class="th-filter-opt"><input type="checkbox" value="completed"> 완료</label>
                   <label class="th-filter-opt"><input type="checkbox" value="cancelled"> 취소</label>
-                  <div class="th-filter-foot">
-                    <button class="th-filter-clear" onclick="clearArFilter('status')">초기화</button>
-                    <button class="th-filter-apply" onclick="applyArFilter('status')">적용</button>
-                  </div>
                 </div>
               </th>
               <th>
@@ -6057,13 +6057,14 @@ function populateArDynamicFilters() {
     const companies = [...new Set(allMgTickets.map(t => t.company?.name || t.company_name).filter(Boolean))]
       .sort((a, b) => a.localeCompare(b, 'ko'));
     const checked = new Set(arFilters.company);
-    companyPop.innerHTML = (companies.length
-      ? companies.map(c => `<label class="th-filter-opt"><input type="checkbox" value="${escHtml(c)}"${checked.has(c) ? ' checked' : ''}> ${escHtml(c)}</label>`).join('')
-      : '<div class="th-filter-empty">고객사 없음</div>') +
+    companyPop.innerHTML =
       `<div class="th-filter-foot">
         <button class="th-filter-clear" onclick="clearArFilter('company')">초기화</button>
         <button class="th-filter-apply" onclick="applyArFilter('company')">적용</button>
-      </div>`;
+      </div>` +
+      (companies.length
+        ? companies.map(c => `<label class="th-filter-opt"><input type="checkbox" value="${escHtml(c)}"${checked.has(c) ? ' checked' : ''}> ${escHtml(c)}</label>`).join('')
+        : '<div class="th-filter-empty">고객사 없음</div>');
   }
 
   const requesterPop = document.getElementById('ar-pop-requester');
@@ -6071,13 +6072,14 @@ function populateArDynamicFilters() {
     const requesters = [...new Set(allMgTickets.map(t => t.requester?.name || t.created_by_name).filter(Boolean))]
       .sort((a, b) => a.localeCompare(b, 'ko'));
     const checked = new Set(arFilters.requester);
-    requesterPop.innerHTML = (requesters.length
-      ? requesters.map(r => `<label class="th-filter-opt"><input type="checkbox" value="${escHtml(r)}"${checked.has(r) ? ' checked' : ''}> ${escHtml(r)}</label>`).join('')
-      : '<div class="th-filter-empty">요청자 없음</div>') +
+    requesterPop.innerHTML =
       `<div class="th-filter-foot">
         <button class="th-filter-clear" onclick="clearArFilter('requester')">초기화</button>
         <button class="th-filter-apply" onclick="applyArFilter('requester')">적용</button>
-      </div>`;
+      </div>` +
+      (requesters.length
+        ? requesters.map(r => `<label class="th-filter-opt"><input type="checkbox" value="${escHtml(r)}"${checked.has(r) ? ' checked' : ''}> ${escHtml(r)}</label>`).join('')
+        : '<div class="th-filter-empty">요청자 없음</div>');
   }
 
   const assigneePop = document.getElementById('ar-pop-assignee');
@@ -6088,11 +6090,12 @@ function populateArDynamicFilters() {
     const checked = new Set(arFilters.assignee);
     let opts = assignees.map(a => `<label class="th-filter-opt"><input type="checkbox" value="${escHtml(a)}"${checked.has(a) ? ' checked' : ''}> ${escHtml(a)}</label>`).join('');
     if (hasUnassigned) opts += `<label class="th-filter-opt"><input type="checkbox" value="__unassigned"${checked.has('__unassigned') ? ' checked' : ''}> 미배정</label>`;
-    assigneePop.innerHTML = (opts || '<div class="th-filter-empty">담당자 없음</div>') +
+    assigneePop.innerHTML =
       `<div class="th-filter-foot">
         <button class="th-filter-clear" onclick="clearArFilter('assignee')">초기화</button>
         <button class="th-filter-apply" onclick="applyArFilter('assignee')">적용</button>
-      </div>`;
+      </div>` +
+      (opts || '<div class="th-filter-empty">담당자 없음</div>');
   }
 }
 
