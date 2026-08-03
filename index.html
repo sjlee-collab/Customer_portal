@@ -1756,8 +1756,9 @@ textarea{resize:vertical;min-height:100px;}
             <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Tableau Desktop" style="accent-color:var(--accent);"> Tableau Desktop</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Dataworks" style="accent-color:var(--accent);"> Dataworks</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="AgentWorks" style="accent-color:var(--accent);"> AgentWorks</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="기타" style="accent-color:var(--accent);"> 기타</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" id="co-product-other-chk" class="co-product-chk" value="기타" style="accent-color:var(--accent);" onchange="toggleCoProductOtherInput()"> 기타</label>
           </div>
+          <input type="text" id="co-product-other-text" placeholder="제품명을 입력하세요 (예: Power BI)" style="display:none;margin-top:8px;width:260px;">
         </div>
 
         <!-- ⑤ 담당 영업대표  ⑥ 담당 기술지원자 -->
@@ -4783,9 +4784,21 @@ async function openNewCompanyModal() {
   const emailNotifyChk = document.getElementById('co-email-notify');
   if (emailNotifyChk) emailNotifyChk.checked = true;
   document.querySelectorAll('.co-product-chk').forEach(chk => { chk.checked = false; });
+  toggleCoProductOtherInput();
   await populateCompanyUserSelects();
   openModal('modal-company');
 }
+
+// "기타" 체크 여부에 따라 직접입력 텍스트창을 보이거나 숨김 (체크 해제 시 값도 비움)
+function toggleCoProductOtherInput() {
+  const chk = document.getElementById('co-product-other-chk');
+  const input = document.getElementById('co-product-other-text');
+  if (!chk || !input) return;
+  input.style.display = chk.checked ? '' : 'none';
+  if (!chk.checked) input.value = '';
+}
+
+const KNOWN_PRODUCT_VALUES = ['Tableau Server', 'Tableau Cloud', 'Tableau Desktop', 'Dataworks', 'AgentWorks'];
 
 async function openEditCompany(c) {
   document.querySelector('#modal-company div[style*="font-size:16px"]').textContent = '고객사 수정';
@@ -4804,9 +4817,13 @@ async function openEditCompany(c) {
   const emailNotifyChkEdit = document.getElementById('co-email-notify');
   if (emailNotifyChkEdit) emailNotifyChkEdit.checked = c.email_notification_enabled !== false;
   const selected = Array.isArray(c.products) ? c.products : [];
+  const customProduct = selected.find(p => !KNOWN_PRODUCT_VALUES.includes(p));
   document.querySelectorAll('.co-product-chk').forEach(chk => {
-    chk.checked = selected.includes(chk.value);
+    chk.checked = selected.includes(chk.value) || (chk.value === '기타' && !!customProduct);
   });
+  const otherText = document.getElementById('co-product-other-text');
+  if (otherText) otherText.value = customProduct || '';
+  toggleCoProductOtherInput();
   document.getElementById('co-manager').value = c.account_manager || '';
   document.getElementById('co-tech-manager').value = c.tech_support_manager || '';
   await populateCompanyUserSelects();
@@ -4840,7 +4857,10 @@ async function submitCompany() {
     .filter(s => s.length > 0);
 
   const emailNotify = document.getElementById('co-email-notify')?.checked ?? true;
-  const products    = Array.from(document.querySelectorAll('.co-product-chk:checked')).map(el => el.value);
+  const productOtherText = document.getElementById('co-product-other-text')?.value?.trim();
+  const products    = Array.from(document.querySelectorAll('.co-product-chk:checked')).map(el =>
+    el.value === '기타' ? (productOtherText || '기타') : el.value
+  );
 
   const salesforceId = document.getElementById('co-salesforce-id')?.value?.trim() || null;
 
