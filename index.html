@@ -212,6 +212,13 @@ textarea{resize:vertical;min-height:100px;}
 .th-filter-clear:hover{background:var(--surface2);}
 .th-filter-apply{background:var(--accent);color:#fff;}
 
+.mg-recipient-preview{display:none;align-items:flex-start;gap:7px;margin-top:8px;padding:9px 11px;border-radius:var(--r-sm);background:var(--green-l);font-size:12px;color:var(--text);line-height:1.55;}
+.mg-recipient-preview.show{display:flex;}
+.mg-recipient-preview.off{background:var(--surface2);}
+.mg-recipient-preview .ic{color:var(--green-d);font-size:13px;flex-shrink:0;margin-top:1px;}
+.mg-recipient-preview b{font-weight:700;}
+.mg-recipient-preview .addrs{color:var(--muted);}
+
 /* ── stats row ── */
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
 .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px 20px;}
@@ -1521,11 +1528,12 @@ textarea{resize:vertical;min-height:100px;}
       </div>
       <div class="form-group">
         <label>참조 수신자</label>
-        <input type="text" id="mg-cc-emails" placeholder="추가로 메일을 받을 주소 (쉼표로 구분)">
+        <input type="text" id="mg-cc-emails" placeholder="추가로 메일을 받을 주소 (쉼표로 구분)" oninput="updateMgRecipientPreview()">
         <div style="font-size:11px;color:var(--faint);">비워두면 요청자에게만 발송됩니다. 여러 명은 쉼표(,)로 구분해서 입력하세요.</div>
+        <div class="mg-recipient-preview" id="mg-recipient-preview"></div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;padding:10px 0 2px;">
-        <input type="checkbox" id="mg-send-email" checked style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent);">
+        <input type="checkbox" id="mg-send-email" checked style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent);" onchange="updateMgRecipientPreview()">
         <label for="mg-send-email" style="font-size:13px;color:var(--fg);cursor:pointer;margin:0;font-weight:500;">고객에게 상태 변경 메일 발송</label>
       </div>
     </div>
@@ -6170,7 +6178,7 @@ async function loadAllTickets() {
   }
 
   let q = sb.from('tickets')
-    .select('id, ticket_number, title, category, priority, status, created_at, due_date, assigned_to_name, company_name, created_by_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
+    .select('id, ticket_number, title, category, priority, status, created_at, due_date, assigned_to_name, company_name, created_by_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name,email)')
     .order('created_at', { ascending: false })
     .limit(1000);
 
@@ -6964,9 +6972,33 @@ async function openManage(idx) {
   document.getElementById('mg-due-date').value = mgTicket.due_date ? mgTicket.due_date.slice(0, 10) : '';
   document.getElementById('mg-memo').value   = '';
   document.getElementById('mg-cc-emails').value = '';
+  updateMgRecipientPreview();
 
   await populateMgAssigneeOptions(mgTicket.category, mgTicket.assignee?.id);
   openModal('modal-manage');
+}
+
+// 요청자 + 참조 수신자를 합쳐 실제 메일 발송 대상을 미리 보여준다
+function updateMgRecipientPreview() {
+  const box = document.getElementById('mg-recipient-preview');
+  if (!box) return;
+  const sendChecked = document.getElementById('mg-send-email')?.checked;
+  if (!sendChecked) {
+    box.className = 'mg-recipient-preview show off';
+    box.innerHTML = '<span class="ic">–</span><span>발송 안 함으로 설정되어 메일이 가지 않습니다.</span>';
+    return;
+  }
+  const requesterEmail = mgTicket?.requester?.email || '';
+  const ccEmails = (document.getElementById('mg-cc-emails')?.value || '')
+    .split(',').map(s => s.trim()).filter(s => s.includes('@'));
+  const addrs = [requesterEmail, ...ccEmails].filter(Boolean);
+  if (!addrs.length) {
+    box.className = 'mg-recipient-preview show off';
+    box.innerHTML = '<span class="ic">–</span><span>요청자 이메일 정보가 없어 발송 대상을 확인할 수 없습니다.</span>';
+    return;
+  }
+  box.className = 'mg-recipient-preview show';
+  box.innerHTML = `<span class="ic">✓</span><span><b>발송 대상 ${addrs.length}명</b> — <span class="addrs">${escHtml(addrs.join(', '))}</span></span>`;
 }
 
 let _savingManage = false;
