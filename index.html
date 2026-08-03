@@ -951,7 +951,7 @@ textarea{resize:vertical;min-height:100px;}
         </div>
         <div class="ar-filter-chips" id="ar-filter-chips"></div>
         <div class="card" style="padding:0;overflow:visible;">
-          <div class="tbl-scroll list-scroll"><table class="tbl">
+          <div class="tbl-scroll list-scroll" style="padding:0 14px;"><table class="tbl">
             <thead><tr>
               <th style="padding:8px 12px;">요청 번호</th>
               <th style="padding:8px 12px;">제목</th>
@@ -6347,7 +6347,8 @@ function renderAllTickets() {
                       : '<span style="color:var(--faint);">미배정</span>';
     const date    = (t.created_at||'').slice(0,10);
     const dueDate = t.due_date ? t.due_date.slice(0,10) : '<span style="color:var(--faint);">—</span>';
-    return `<tr class="ticket-row" style="cursor:pointer;" data-id="${t.id}" onclick="toggleAllTicketRow(this, allMgTickets[${idx}])">
+    return `<tr class="ar-spacer" style="display:none;"><td colspan="11" style="padding:0;border:none;height:14px;"></td></tr>
+    <tr class="ticket-row" style="cursor:pointer;" data-id="${t.id}" onclick="toggleAllTicketRow(this, allMgTickets[${idx}])">
       <td style="color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;font-size:12px;">${escHtml(t.ticket_number||'—')}</td>
       <td style="font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(t.title||'')}<span class="row-arrow">▾</span></td>
       <td><span class="badge ${catB}">${catL}</span></td>
@@ -6362,7 +6363,8 @@ function renderAllTickets() {
     </tr>
     <tr class="ticket-detail-row" style="display:none;">
       <td colspan="11"></td>
-    </tr>`;
+    </tr>
+    <tr class="ar-spacer" style="display:none;"><td colspan="11" style="padding:0;border:none;height:14px;"></td></tr>`;
   }).join('');
 }
 
@@ -6372,11 +6374,15 @@ function toggleAllTicketRow(tr, ticket) {
   const detailTr = tr.nextElementSibling;
   const wasOpen = tr.classList.contains('open');
 
-  // 다른 곳에서 열려있던 요청 상세는 모두 접기
+  // 다른 곳에서 열려있던 요청 상세는 모두 접기 (앞뒤 spacer도 함께 숨김)
   document.querySelectorAll('#ar-tbody tr.ticket-row.open').forEach(r => {
     r.classList.remove('open');
     const dr = r.nextElementSibling;
     if (dr) { dr.style.display = 'none'; dr.classList.remove('detail-open'); }
+    const spBefore = r.previousElementSibling;
+    if (spBefore && spBefore.classList.contains('ar-spacer')) spBefore.style.display = 'none';
+    const spAfter = dr && dr.nextElementSibling;
+    if (spAfter && spAfter.classList.contains('ar-spacer')) spAfter.style.display = 'none';
   });
 
   const detailContent = document.getElementById('rd-detail-content');
@@ -6398,6 +6404,10 @@ function toggleAllTicketRow(tr, ticket) {
     const td = detailTr.querySelector('td');
     if (td && detailContent) td.appendChild(detailContent);
   }
+  const spBefore = tr.previousElementSibling;
+  if (spBefore && spBefore.classList.contains('ar-spacer')) spBefore.style.display = '';
+  const spAfter = detailTr && detailTr.nextElementSibling;
+  if (spAfter && spAfter.classList.contains('ar-spacer')) spAfter.style.display = '';
   selectRdTicket(null, ticket);
   pinRowToTop(tr);
 }
