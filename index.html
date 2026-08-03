@@ -111,6 +111,10 @@ input[type=text],input[type=email],input[type=password],select,textarea{
 }
 input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-l);}
 textarea{resize:vertical;min-height:100px;}
+[contenteditable="true"].rich-editable{width:100%;padding:9px 12px;border:1px solid var(--border-md);border-radius:var(--r-md);font-size:13px;font-family:inherit;background:var(--surface);color:var(--text);transition:.12s;outline:none;overflow-y:auto;resize:vertical;line-height:1.5;box-sizing:border-box;}
+[contenteditable="true"].rich-editable:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-l);}
+[contenteditable="true"].rich-editable:empty:before{content:attr(data-placeholder);color:var(--faint);}
+[contenteditable="true"].rich-editable img{max-width:100%;}
 .form-hint{font-size:11px;color:var(--faint);}
 .auto-field{background:var(--surface2);color:var(--muted);cursor:not-allowed;}
 .file-drop{border:1.5px dashed var(--border-md);border-radius:var(--r-md);padding:20px;text-align:center;color:var(--muted);font-size:13px;cursor:pointer;transition:.12s;}
@@ -2052,7 +2056,7 @@ textarea{resize:vertical;min-height:100px;}
         </div>
         <div class="form-group" style="grid-column:1/-1;">
           <label id="doc-desc-label">설명</label>
-          <textarea id="doc-description" rows="3" style="width:100%;resize:vertical;" placeholder="자료에 대한 간단한 설명"></textarea>
+          <div id="doc-description" class="rich-editable" contenteditable="true" style="min-height:70px;max-height:320px;" data-placeholder="자료에 대한 간단한 설명 (이미지를 복사해서 붙여넣을 수 있습니다)" onpaste="handleDescPaste(event)"></div>
         </div>
         <div class="form-group" style="grid-column:1/-1;">
           <label>파일 공개여부</label>
@@ -3105,8 +3109,108 @@ function renderDocsFaq() {
       <td style="overflow:hidden;" onclick="event.stopPropagation();">${docFaqActions(d)}</td>
     </tr>
     <tr class="faq-ans-row" style="display:none;">
-      <td colspan="6" style="background:var(--surface2);font-size:13px;color:var(--muted);line-height:1.7;padding:14px 16px;">${escHtml(d.description||'').replace(/\n/g,'<br>')}</td>
+      <td colspan="6" style="background:var(--surface2);font-size:13px;color:var(--muted);line-height:1.7;padding:14px 16px;">${renderFaqAnswer(d.description)}</td>
     </tr>`).join('');
+}
+
+// ── 답변/설명 입력창(contenteditable) 이미지 붙여넣기 ──
+async function uploadFaqImage(file) {
+  if (!file || !file.type.startsWith('image/')) throw new Error('이미지 파일만 붙여넣을 수 있습니다.');
+  if (file.size > 5 * 1024 * 1024) throw new Error('이미지는 5MB 이하만 가능합니다.');
+  const ext = (file.type.split('/')[1] || 'png').toLowerCase();
+  const path = `faq-images/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const { data, error } = await sb.storage.from('documents').upload(path, file, { contentType: file.type });
+  if (error) throw new Error(error.message);
+  return sb.storage.from('documents').getPublicUrl(data.path).data.publicUrl;
+}
+
+function insertImageAtCursor(url) {
+  const el = document.getElementById('doc-description');
+  const img = document.createElement('img');
+  img.src = url;
+  img.style.display = 'block';
+  img.style.maxWidth = '100%';
+  img.style.borderRadius = '6px';
+  img.style.margin = '6px 0';
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount && el.contains(sel.anchorNode)) {
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+    range.insertNode(img);
+    range.setStartAfter(img);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  } else {
+    el.appendChild(img);
+  }
+}
+
+async function handleDescPaste(e) {
+  const items = [...(e.clipboardData?.items || [])];
+  const imgItem = items.find(i => i.type.startsWith('image/'));
+  if (imgItem) {
+    e.preventDefault();
+    try {
+      const url = await uploadFaqImage(imgItem.getAsFile());
+      insertImageAtCursor(url);
+    } catch (err) {
+      showToast('이미지 업로드 실패: ' + err.message, true);
+    }
+    return;
+  }
+  // 서식 없는 순수 텍스트만 붙여넣기 (Word 등에서 복사한 스타일 제거)
+  e.preventDefault();
+  document.execCommand('insertText', false, e.clipboardData.getData('text/plain'));
+}
+
+// 저장/렌더링 공용 — 허용된 태그(이미지·줄바꿈 등)만 남기고 나머지는 제거
+const FAQ_ALLOWED_TAGS = new Set(['IMG', 'BR', 'DIV', 'P', 'B', 'STRONG', 'I', 'EM', 'U']);
+function sanitizeFaqHtml(html) {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html || '';
+  (function clean(el) {
+    [...el.childNodes].forEach(child => {
+      if (child.nodeType === Node.TEXT_NODE) return;
+      if (child.nodeType !== Node.ELEMENT_NODE) { child.remove(); return; }
+      clean(child);
+      if (!FAQ_ALLOWED_TAGS.has(child.tagName)) {
+        while (child.firstChild) el.insertBefore(child.firstChild, child);
+        child.remove();
+        return;
+      }
+      [...child.attributes].forEach(attr => {
+        if (child.tagName === 'IMG' && attr.name === 'src') {
+          if (!/^https:\/\/bigxdata-portal-documents\.s3\./.test(attr.value)) child.remove();
+        } else if (child.tagName === 'IMG' && attr.name === 'style') {
+          const kept = (attr.value.match(/(?:width|height)\s*:\s*\d+(?:px|%)/gi) || []).join(';');
+          if (kept) child.setAttribute('style', kept); else child.removeAttribute('style');
+        } else if (attr.name !== 'src') {
+          child.removeAttribute(attr.name);
+        }
+      });
+    });
+  })(tmp);
+  return tmp.innerHTML;
+}
+
+// 한 줄짜리 목록 미리보기용 — 태그 다 떼고 순수 텍스트만
+function stripHtml(html) {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html || '';
+  return tmp.textContent || '';
+}
+
+// 예전 plain text 데이터와 새 HTML(이미지 포함) 데이터를 모두 안전하게 표시
+function renderFaqAnswer(raw) {
+  const value = raw || '';
+  const looksLikeHtml = /<[a-z][\s\S]*>/i.test(value);
+  return looksLikeHtml ? sanitizeFaqHtml(value) : escHtml(value).replace(/\n/g, '<br>');
+}
+
+// 기존 저장값을 답변 입력창에 채울 때
+function setDescEditorValue(raw) {
+  document.getElementById('doc-description').innerHTML = renderFaqAnswer(raw);
 }
 
 function onDocTypeChange() {
@@ -3123,7 +3227,7 @@ function openEditDoc(d) {
   document.getElementById('doc-title').value = d.title || '';
   document.getElementById('d-type').value = d.product === 'faq' ? 'faq' : '';
   document.getElementById('d-category').value = d.category || 'tableau';
-  document.getElementById('doc-description').value = d.description || '';
+  setDescEditorValue(d.description);
   document.getElementById('d-filename').value = d.file_name || '';
   onDocTypeChange();
   // 기존 파일명 드롭존에 표시
@@ -3191,7 +3295,7 @@ async function submitDocument() {
     title,
     category,
     product: type || null,
-    description: document.getElementById('doc-description').value.trim() || null,
+    description: sanitizeFaqHtml(document.getElementById('doc-description').innerHTML) || null,
     file_name,
     file_size,
     storage_path,
@@ -6735,7 +6839,7 @@ function renderLibFiles() {
       <td class="tbl-ellipsis">${DOC_CAT_LABEL_KO[d.category] || d.category || '-'}</td>
       <td style="overflow:hidden;">
         <div class="tbl-ellipsis" style="font-weight:600;">${DOC_CAT_ICON[d.category] || '📁'} ${escHtml(d.title)}${privateBadge}${newBadge}</div>
-        ${d.description ? `<div class="tbl-ellipsis" style="font-size:11px;color:var(--faint);margin-top:2px;">${escHtml(d.description)}</div>` : ''}
+        ${d.description ? `<div class="tbl-ellipsis" style="font-size:11px;color:var(--faint);margin-top:2px;">${escHtml(stripHtml(d.description))}</div>` : ''}
       </td>
       <td class="tbl-ellipsis" style="font-size:12px;color:var(--faint);">${(isAdmin || isPublic) ? escHtml(d.file_name || '-') : '—'}</td>
       <td style="font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;" id="dl-count-lib-${d.id}">${(d.download_count || 0).toLocaleString()}</td>
@@ -6799,7 +6903,7 @@ function renderLibFaq() {
       ${isAdmin ? `<td style="overflow:hidden;" onclick="event.stopPropagation();">${libFaqActions(d, isAdmin, isPublic)}</td>` : ''}
     </tr>
     <tr class="faq-ans-row" style="display:none;">
-      <td colspan="${colCount}" style="background:var(--surface2);font-size:13px;color:var(--muted);line-height:1.7;padding:14px 16px;">${escHtml(d.description||'').replace(/\n/g,'<br>')}</td>
+      <td colspan="${colCount}" style="background:var(--surface2);font-size:13px;color:var(--muted);line-height:1.7;padding:14px 16px;">${renderFaqAnswer(d.description)}</td>
     </tr>`;
   }).join('');
 }
@@ -6818,7 +6922,7 @@ function openNewDocModal(type) {
   document.getElementById('doc-title').value = '';
   document.getElementById('d-type').value = isFaq ? 'faq' : '';
   document.getElementById('d-category').value = 'tableau';
-  document.getElementById('doc-description').value = '';
+  document.getElementById('doc-description').innerHTML = '';
   document.getElementById('d-filename').value = '';
   onDocTypeChange();
   _docFile = null;
@@ -6841,7 +6945,7 @@ function openLibEditDoc(d) {
   document.getElementById('doc-title').value = d.title || '';
   document.getElementById('d-type').value = d.product === 'faq' ? 'faq' : '';
   document.getElementById('d-category').value = d.category || 'tableau';
-  document.getElementById('doc-description').value = d.description || '';
+  setDescEditorValue(d.description);
   onDocTypeChange();
   const isPubChk = document.getElementById('d-is-public');
   if (isPubChk) { isPubChk.checked = d.is_public !== false; document.getElementById('d-is-public-label').textContent = isPubChk.checked ? '공개 (고객에게 노출됨)' : '비공개 (고객에게 숨김)'; }
