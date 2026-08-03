@@ -47,6 +47,20 @@ function stripBlockedColumns(table, rows) {
   for (const row of rows) for (const col of blocked) delete row[col];
 }
 
+// 이 테이블은 화면에서 스태프(요청 관리 권한이 있는 역할)에게만 보이도록 UI로만 가려뒀는데,
+// 조회 자체엔 아무 제한이 없어서 로그인한 고객 계정이 직접 호출하면 내부 비공개 메모를
+// 그대로 읽을 수 있었다. 화면과 동일한 역할 기준으로 테이블 전체를 막는다.
+const STAFF_ONLY_TABLES = {
+  ticket_memos: new Set(['tech_support', 'sales', 'education', 'admin']),
+};
+
+function assertTableAccess(table, event) {
+  const allowedRoles = STAFF_ONLY_TABLES[table];
+  if (!allowedRoles) return;
+  const role = event.requestContext?.authorizer?.lambda?.role;
+  if (!allowedRoles.has(role)) throw new HttpError(403, '이 데이터에 접근할 권한이 없습니다');
+}
+
 // 임베드(alias:fk_col(cols)) 시 fk 컬럼이 가리키는 테이블
 const EMBED_TABLE_MAP = {
   created_by: 'users',
@@ -284,6 +298,7 @@ export const handler = async (event) => {
 
     const table = (withId ?? noId)?.[1];
     if (!table || !ALLOWED_TABLES.has(table)) throw new HttpError(404, '알 수 없는 테이블입니다');
+    assertTableAccess(table, event);
 
     const body = event.body ? JSON.parse(event.body) : undefined;
 
