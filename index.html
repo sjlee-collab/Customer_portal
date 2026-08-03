@@ -7265,6 +7265,44 @@ async function downloadDoc(url, filename, docId) {
     showToast('다운로드 실패: ' + e.message, true);
   }
 }
+// ── 모든 검색창(.search-box)에 지우기(X) 버튼 공통 추가 ──
+function setupSearchBoxClearButtons() {
+  document.querySelectorAll('input.search-box').forEach(input => {
+    if (input.dataset.clearWired) return;
+    input.dataset.clearWired = '1';
+
+    const wrap = document.createElement('div');
+    wrap.style.position = 'relative';
+    wrap.style.flex = '1';
+    wrap.style.minWidth = '200px';
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+    input.style.width = '100%';
+    input.style.boxSizing = 'border-box';
+    input.style.paddingRight = '28px';
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.setAttribute('aria-label', '검색어 지우기');
+    btn.textContent = '✕';
+    btn.style.cssText = 'display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);width:18px;height:18px;border-radius:50%;border:none;background:transparent;color:var(--faint);font-size:11px;line-height:18px;text-align:center;cursor:pointer;padding:0;';
+    btn.onmouseenter = () => { btn.style.background = 'var(--accent)'; btn.style.color = '#fff'; };
+    btn.onmouseleave = () => { btn.style.background = 'transparent'; btn.style.color = 'var(--faint)'; };
+    btn.onclick = () => {
+      input.value = '';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      btn.style.display = 'none';
+      input.focus();
+    };
+    wrap.appendChild(btn);
+
+    const updateBtn = () => { btn.style.display = input.value ? '' : 'none'; };
+    input.addEventListener('input', updateBtn);
+    updateBtn();
+  });
+}
+setupSearchBoxClearButtons();
+
 // ══════════════════════════════════════════
 //  시작
 // ══════════════════════════════════════════
