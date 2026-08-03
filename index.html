@@ -3775,39 +3775,49 @@ async function loadDashboard() {
     // 라이선스
     if (companyId) {
       if (role === 'customer') {
-        let licQuery = sb.from('company_licenses')
+        // 고객사 전체 계약을 대상으로 조회 (특정 계약에만 매핑된 사용자여도 회사 전체 기준으로 합산)
+        const { data: lics } = await sb.from('company_licenses')
           .select('product_info, license_type, quantity, status, contract_id, company_contracts:contract_id(start_date, end_date)')
-          .eq('status', '활성');
-        // 계약 단위로 매핑된 사용자는 그 계약의 라이선스만, 아니면 고객사 전체 라이선스를 대상으로 한다.
-        licQuery = contractId ? licQuery.eq('contract_id', contractId) : licQuery.eq('company_id', companyId);
-        const { data: lics } = await licQuery;
-        // 계약별로 라이선스 행을 묶고, 계약 종료일이 가장 임박한 계약을 대표로 삼는다.
-        const licGroups = new Map();
-        (lics || []).forEach(l => {
-          const key = l.contract_id || '__none__';
-          if (!licGroups.has(key)) licGroups.set(key, []);
-          licGroups.get(key).push(l);
+          .eq('status', '활성')
+          .eq('company_id', companyId);
+
+        // DB의 계약 status(진행중/만료)는 갱신 시점에 바로 안 바뀌는 경우가 있어 신뢰할 수 없다.
+        // 계약 기간(시작일~종료일)이 오늘을 포함하는 계약만 "현재 활성"으로 친다 —
+        // 이렇게 하면 새 계약(예: 갱신)이 생겨도 옛 계약(갱신 대상)이 자동으로 제외되어 이중 계산을 막는다.
+        const todayISO = new Date().toISOString().slice(0, 10);
+        const current = (lics || []).filter(l => {
+          const cd = l.company_contracts;
+          if (!cd?.start_date || !cd?.end_date) return false;
+          return cd.start_date.slice(0, 10) <= todayISO && todayISO <= cd.end_date.slice(0, 10);
         });
-        let group = null;
-        licGroups.forEach(g => {
-          if (!group) { group = g; return; }
-          const curEnd = group[0]?.company_contracts?.end_date;
-          const end    = g[0]?.company_contracts?.end_date;
-          if (!curEnd) { group = g; return; }
-          if (end && end < curEnd) group = g;
-        });
+
         const detail = document.getElementById('dash-license-detail');
-        if (group && group.length && detail) {
+        if (current.length && detail) {
           const { data: coRow } = await sb.from('companies').select('account_manager').eq('id', companyId).single();
           let mgrEmail = '';
           if (coRow?.account_manager) {
             const { data: mu } = await sb.from('users').select('email').eq('name', coRow.account_manager).eq('is_active', true).single();
             mgrEmail = mu?.email || '';
           }
-          const contractDates = group[0].company_contracts || {};
+
+          // 여러 계약이 동시에 걸쳐 있으면 만료가 가장 임박한 계약을 대표 날짜로 표시
+          let nearestDates = null, nearestDiff = Infinity;
+          current.forEach(l => {
+            const end = l.company_contracts?.end_date;
+            if (!end) return;
+            const diff = Math.abs(new Date(end) - new Date());
+            if (diff < nearestDiff) { nearestDiff = diff; nearestDates = l.company_contracts; }
+          });
+          const contractDates = nearestDates || {};
           const daysLeft = daysUntil(contractDates.end_date);
           const daysColor = daysLeft === null ? 'var(--faint)' : daysLeft <= 30 ? '#dc2626' : daysLeft <= 60 ? '#d97706' : '#059669';
-          document.getElementById('dlc-product').textContent = LIC_PRODUCT_LABEL[group[0].product_info] || group[0].product_info || '—';
+
+          // 제품명: 한 제품만 쓰면 그대로, 여러 제품이 섞여 있으면 "여러 제품"
+          const products = [...new Set(current.map(l => l.product_info).filter(Boolean))];
+          document.getElementById('dlc-product').textContent = products.length <= 1
+            ? (LIC_PRODUCT_LABEL[products[0]] || products[0] || '—')
+            : '여러 제품';
+
           const sc = document.getElementById('dlc-status');
           sc.textContent = '활성';
           sc.style.background = '#ecfdf5';
@@ -3817,15 +3827,15 @@ async function loadDashboard() {
 
           // 라이선스형태: Core면 "Core", Creator/Explorer/Viewer가 있으면 "역할기반" 배지
           const ROLE_BASED_TYPES = ['Creator', 'Explorer', 'Viewer'];
-          const hasCore = group.some(l => l.license_type === 'Core');
-          const hasRoleBased = group.some(l => ROLE_BASED_TYPES.includes(l.license_type));
+          const hasCore = current.some(l => l.license_type === 'Core');
+          const hasRoleBased = current.some(l => ROLE_BASED_TYPES.includes(l.license_type));
           document.getElementById('dlc-type').innerHTML = hasCore
             ? `<span class="dlc-type-badge">Core</span>`
             : hasRoleBased
               ? `<span class="dlc-type-badge">역할기반</span>`
-              : (group[0].license_type ? escHtml(group[0].license_type) : '—');
+              : (current[0]?.license_type ? escHtml(current[0].license_type) : '—');
 
-          // 라이선스 수량: 역할별 알약 (예: C6 · E6 · V7)
+          // 라이선스 수량: 현재 활성인 계약 전체에서 role별로 합산한 알약 (예: C6 · E6 · V7)
           const ROLE_PILL = {
             Core:     { abbr: 'Co', cls: 'dlc-pill-core' },
             Creator:  { abbr: 'C',  cls: 'dlc-pill-creator' },
@@ -3835,18 +3845,22 @@ async function loadDashboard() {
             AM:       { abbr: 'AM', cls: 'dlc-pill-am' },
           };
           const ROLE_ORDER = ['Core', 'Creator', 'Explorer', 'Viewer', 'DM', 'AM'];
-          const pillsHtml = group
-            .filter(l => l.quantity != null && ROLE_PILL[l.license_type])
-            .slice()
-            .sort((a, b) => ROLE_ORDER.indexOf(a.license_type) - ROLE_ORDER.indexOf(b.license_type))
-            .map(l => `<span class="dlc-pill ${ROLE_PILL[l.license_type].cls}">${ROLE_PILL[l.license_type].abbr}${l.quantity}</span>`)
+          const qtyByType = {};
+          current.forEach(l => {
+            if (l.license_type && l.quantity != null) qtyByType[l.license_type] = (qtyByType[l.license_type] || 0) + l.quantity;
+          });
+          const pillsHtml = ROLE_ORDER
+            .filter(t => qtyByType[t] && ROLE_PILL[t])
+            .map(t => `<span class="dlc-pill ${ROLE_PILL[t].cls}">${ROLE_PILL[t].abbr}${qtyByType[t]}</span>`)
             .join('');
           document.getElementById('dlc-qty').innerHTML = pillsHtml
             ? `<span class="dlc-pills">${pillsHtml}</span>`
             : '—';
 
           const fmt = d => d ? d.slice(2,10) : '—';
-          document.getElementById('dlc-daterange').textContent = `${fmt(contractDates.start_date)} · ${fmt(contractDates.end_date)}`;
+          const distinctContracts = new Set(current.map(l => l.contract_id)).size;
+          const contractSuffix = distinctContracts > 1 ? ` 외 ${distinctContracts - 1}건` : '';
+          document.getElementById('dlc-daterange').textContent = `${fmt(contractDates.start_date)} · ${fmt(contractDates.end_date)}${contractSuffix}`;
           const me = document.getElementById('dlc-manager');
           me.innerHTML = `<span style="font-weight:700;color:var(--accent);white-space:nowrap;">${escHtml(coRow?.account_manager || '—')}</span>${mgrEmail ? `<span style="font-size:9px;font-weight:400;color:var(--muted);white-space:nowrap;">${escHtml(mgrEmail)}</span>` : ''}`;
           detail.style.display = '';
