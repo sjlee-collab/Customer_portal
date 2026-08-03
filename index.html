@@ -4031,7 +4031,7 @@ function renderDashAdminTable(f) {
   if (f === 'pending') {
     tickets = all.filter(t => PENDING_STATUSES.includes(t.status));
   } else if (f === 'delayed') {
-    tickets = all.filter(t => PENDING_STATUSES.includes(t.status) && t.due_date && t.due_date < todayStr);
+    tickets = all.filter(t => PENDING_STATUSES.includes(t.status) && t.due_date && t.due_date.slice(0, 10) < todayStr);
   } else if (f === 'today') {
     tickets = all.filter(t => (t.created_at || '').slice(0, 10) === todayStr);
   } else if (f === 'done') {
@@ -4047,11 +4047,12 @@ function renderDashAdminTable(f) {
     const catC = CATEGORY_BADGE[t.category] || 'b-gray';
     const statL = STATUS_LABELS[t.status] || t.status;
     const statB = STATUS_BADGE[t.status] || 'b-gray';
-    const isDelayed = PENDING_STATUSES.includes(t.status) && t.due_date && t.due_date < todayStr;
+    const dueDateStr = t.due_date ? t.due_date.slice(0, 10) : null;
+    const isDelayed = PENDING_STATUSES.includes(t.status) && dueDateStr && dueDateStr < todayStr;
     const rowStyle = 'cursor:pointer;';
-    const overdueDays = isDelayed ? Math.floor((new Date(todayStr) - new Date(t.due_date)) / (24*60*60*1000)) : 0;
-    const dueDateDisplay = t.due_date
-      ? `<span style="font-size:12px;${isDelayed ? 'color:var(--red);font-weight:600;' : 'color:var(--faint);'}">${t.due_date}${isDelayed ? ` <span style="font-size:10px;background:#fee2e2;color:#b91c1c;padding:1px 5px;border-radius:3px;">+${overdueDays}일</span>` : ''}</span>`
+    const overdueDays = isDelayed ? Math.floor((new Date(todayStr) - new Date(dueDateStr)) / (24*60*60*1000)) : 0;
+    const dueDateDisplay = dueDateStr
+      ? `<span style="font-size:12px;${isDelayed ? 'color:var(--red);font-weight:600;' : 'color:var(--faint);'}">${dueDateStr}${isDelayed ? ` <span style="font-size:10px;background:#fee2e2;color:#b91c1c;padding:1px 5px;border-radius:3px;">+${overdueDays}일</span>` : ''}</span>`
       : '<span style="font-size:12px;color:var(--faint);">—</span>';
     return `<tr style="${rowStyle}" onclick="goToManageTicket('${t.id}')">` +
       `<td style="color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;font-size:12px;">${escHtml(t.ticket_number||'')}</td>` +
@@ -4229,9 +4230,10 @@ function renderTickets(tickets) {
                       : '<span style="color:var(--faint);">미배정</span>';
     const date      = t.created_at ? t.created_at.slice(0, 10) : '—';
     const num       = t.ticket_number || t.id?.slice(0, 8);
-    const isDelayed = PENDING_STATUSES.includes(t.status) && t.due_date && t.due_date < todayStr;
-    const overdueDays = isDelayed ? Math.floor((new Date(todayStr) - new Date(t.due_date)) / (24*60*60*1000)) : 0;
-    const dueDateCell = isCustomerRole ? '' : `<td style="font-size:12px;${isDelayed ? 'color:var(--red);font-weight:600;' : 'color:var(--faint);'}">${t.due_date ? t.due_date + (isDelayed ? ` <span style="font-size:10px;background:#fee2e2;color:#b91c1c;padding:1px 5px;border-radius:3px;">+${overdueDays}일</span>` : '') : '—'}</td>`;
+    const dueDateStr = t.due_date ? t.due_date.slice(0, 10) : null;
+    const isDelayed = PENDING_STATUSES.includes(t.status) && dueDateStr && dueDateStr < todayStr;
+    const overdueDays = isDelayed ? Math.floor((new Date(todayStr) - new Date(dueDateStr)) / (24*60*60*1000)) : 0;
+    const dueDateCell = isCustomerRole ? '' : `<td style="font-size:12px;${isDelayed ? 'color:var(--red);font-weight:600;' : 'color:var(--faint);'}">${dueDateStr ? dueDateStr + (isDelayed ? ` <span style="font-size:10px;background:#fee2e2;color:#b91c1c;padding:1px 5px;border-radius:3px;">+${overdueDays}일</span>` : '') : '—'}</td>`;
     const idx = allTickets.indexOf(t);
     return `<tr class="ticket-row" style="cursor:pointer;" data-id="${t.id}" onclick="toggleTicketRow(this, allTickets[${idx}])">
       <td style="color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;font-size:12px;">${escHtml(num)}</td>
@@ -6717,7 +6719,7 @@ async function openManage(idx) {
   document.getElementById('mg-ticket-num').textContent   = mgTicket.ticket_number || '';
   document.getElementById('mg-ticket-title').textContent = mgTicket.title || '';
   document.getElementById('mg-status').value = mgTicket.status || 'received';
-  document.getElementById('mg-due-date').value = mgTicket.due_date || '';
+  document.getElementById('mg-due-date').value = mgTicket.due_date ? mgTicket.due_date.slice(0, 10) : '';
   document.getElementById('mg-memo').value   = '';
   document.getElementById('mg-cc-emails').value = '';
 
