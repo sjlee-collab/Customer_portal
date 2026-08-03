@@ -3131,12 +3131,13 @@ function insertImageAtCursor(url) {
   img.style.maxWidth = '100%';
   img.style.borderRadius = '6px';
   img.style.margin = '6px 0';
-  // 고배율(레티나 등) 화면에서 캡처한 이미지는 실제 픽셀 수가 더 많아서, 화면 배율만큼
-  // 나눠서 표시 크기를 잡아줘야 캡처 당시 눈에 보이던 크기와 비슷하게 보임
+  // 화면 배율 등으로 원본 픽셀 수가 들쭉날쭉해서 배율 계산에 의존하지 않고,
+  // 처음 삽입될 때는 항상 적당한 폭(최대 320px)으로 시작하게 고정한다.
+  // 더 크게/작게 보고 싶으면 이미지 클릭 후 모서리를 드래그해서 직접 조절하면 됨.
+  const MAX_INITIAL_WIDTH = 320;
   img.onload = () => {
-    const dpr = window.devicePixelRatio || 1;
-    if (dpr > 1 && img.naturalWidth) {
-      img.style.width = Math.round(img.naturalWidth / dpr) + 'px';
+    if (img.naturalWidth > MAX_INITIAL_WIDTH) {
+      img.style.width = MAX_INITIAL_WIDTH + 'px';
     }
   };
   img.src = url;
