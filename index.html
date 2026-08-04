@@ -1937,12 +1937,13 @@ textarea{resize:vertical;min-height:100px;}
           <label>제품정보 <span class="req">*</span></label>
           <select id="lic-product">
             <option value="">선택</option>
-            <option value="Server">Tableau Server</option>
-            <option value="Cloud">Tableau Cloud</option>
+            <option value="Tableau Server">Tableau Server</option>
             <option value="Tableau Desktop">Tableau Desktop</option>
-            <option value="Dataworks">Dataworks</option>
-            <option value="AgentWorks">AgentWorks</option>
-            <option value="기타">기타</option>
+            <option value="Tableau Cloud Enterprise">Tableau Cloud Enterprise</option>
+            <option value="Tableau Cloud Standard">Tableau Cloud Standard</option>
+            <option value="Tableau Cloud Plus">Tableau Cloud Plus</option>
+            <option value="Tableau Plus">Tableau Plus</option>
+            <option value="Tableau Next">Tableau Next</option>
           </select>
         </div>
         <div class="form-group span2">
@@ -1950,21 +1951,23 @@ textarea{resize:vertical;min-height:100px;}
           <select id="lic-contract">
           </select>
         </div>
-        <div class="form-group">
-          <label>라이선스 모델</label>
-          <select id="lic-model" onchange="populateLicenseTypeOptions(this.value)">
-            <option value="">선택</option>
-            <option value="역할기반">역할기반</option>
-            <option value="코어">코어</option>
-          </select>
+        <input type="hidden" id="lic-edit-type-value">
+        <div class="form-group span2" id="lic-type-grid-wrap">
+          <label>라이선스 수량</label>
+          <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;">
+            <div><div style="font-size:11px;color:var(--muted);text-align:center;margin-bottom:4px;">Creator</div><input type="number" id="lic-qty-Creator" min="0" placeholder="0" style="text-align:center;"></div>
+            <div><div style="font-size:11px;color:var(--muted);text-align:center;margin-bottom:4px;">Explorer</div><input type="number" id="lic-qty-Explorer" min="0" placeholder="0" style="text-align:center;"></div>
+            <div><div style="font-size:11px;color:var(--muted);text-align:center;margin-bottom:4px;">Viewer</div><input type="number" id="lic-qty-Viewer" min="0" placeholder="0" style="text-align:center;"></div>
+            <div><div style="font-size:11px;color:var(--muted);text-align:center;margin-bottom:4px;">Core</div><input type="number" id="lic-qty-Core" min="0" placeholder="0" style="text-align:center;"></div>
+            <div><div style="font-size:11px;color:var(--muted);text-align:center;margin-bottom:4px;">DM</div><input type="number" id="lic-qty-DM" min="0" placeholder="0" style="text-align:center;"></div>
+            <div><div style="font-size:11px;color:var(--muted);text-align:center;margin-bottom:4px;">AM</div><input type="number" id="lic-qty-AM" min="0" placeholder="0" style="text-align:center;"></div>
+          </div>
         </div>
-        <div class="form-group">
+        <div class="form-group" id="lic-edit-single-wrap" style="display:none;">
           <label>라이선스 유형</label>
-          <select id="lic-type">
-            <option value="">선택</option>
-          </select>
+          <div id="lic-edit-type-label" style="font-size:13px;font-weight:600;padding:9px 0;color:var(--text);">—</div>
         </div>
-        <div class="form-group">
+        <div class="form-group" id="lic-edit-qty-wrap" style="display:none;">
           <label>라이선스 수량</label>
           <input type="number" id="lic-quantity" min="0" placeholder="0">
         </div>
@@ -5399,17 +5402,7 @@ function populateLicenseContractSelect(selectedId) {
   sel.value = selectedId || '';
 }
 
-const LIC_TYPE_OPTIONS_BY_MODEL = {
-  '역할기반': ['Creator', 'Explorer', 'Viewer', 'DM', 'AM'],
-  '코어':     ['Core', 'DM', 'AM'],
-};
-function populateLicenseTypeOptions(model, selectedValue) {
-  const sel = document.getElementById('lic-type');
-  if (!sel) return;
-  const options = LIC_TYPE_OPTIONS_BY_MODEL[model] || [];
-  sel.innerHTML = '<option value="">선택</option>' + options.map(v => `<option value="${v}">${v}</option>`).join('');
-  sel.value = (selectedValue && options.includes(selectedValue)) ? selectedValue : '';
-}
+const LICENSE_TYPES = ['Creator', 'Explorer', 'Viewer', 'Core', 'DM', 'AM'];
 function licenseModelForType(type) {
   if (type === 'Core') return '코어';
   if (['Creator', 'Explorer', 'Viewer', 'DM', 'AM'].includes(type)) return '역할기반';
@@ -5422,11 +5415,12 @@ function openLicenseModal(contractId) {
   document.getElementById('btn-submit-license').textContent  = '등록';
   document.getElementById('lic-id').value = '';
   document.getElementById('lic-company-id').value = selectedCompanyId;
-  ['lic-note'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('lic-note').value = '';
   document.getElementById('lic-product').value  = '';
-  document.getElementById('lic-model').value    = '';
-  populateLicenseTypeOptions('');
-  document.getElementById('lic-quantity').value = '';
+  LICENSE_TYPES.forEach(t => { const el = document.getElementById('lic-qty-' + t); if (el) el.value = ''; });
+  document.getElementById('lic-type-grid-wrap').style.display  = '';
+  document.getElementById('lic-edit-single-wrap').style.display = 'none';
+  document.getElementById('lic-edit-qty-wrap').style.display    = 'none';
   populateLicenseContractSelect(contractId || '');
   openModal('modal-license');
 }
@@ -5442,11 +5436,13 @@ function openEditLicenseModal(l) {
   document.getElementById('lic-id').value         = l.id;
   document.getElementById('lic-company-id').value = l.company_id;
   document.getElementById('lic-product').value    = l.product_info   || '';
-  const model = licenseModelForType(l.license_type);
-  document.getElementById('lic-model').value      = model;
-  populateLicenseTypeOptions(model, l.license_type || '');
+  document.getElementById('lic-edit-type-value').value = l.license_type || '';
+  document.getElementById('lic-edit-type-label').textContent = l.license_type || '—';
   document.getElementById('lic-quantity').value   = l.quantity       != null ? l.quantity : '';
   document.getElementById('lic-note').value       = l.note           || '';
+  document.getElementById('lic-type-grid-wrap').style.display  = 'none';
+  document.getElementById('lic-edit-single-wrap').style.display = '';
+  document.getElementById('lic-edit-qty-wrap').style.display    = '';
   populateLicenseContractSelect(l.contract_id || '');
   openModal('modal-license');
 }
@@ -5456,24 +5452,43 @@ async function submitLicense() {
   const companyId = document.getElementById('lic-company-id').value;
   const product   = document.getElementById('lic-product').value;
   if (!product) { showToast('제품정보는 필수입니다.', true); return; }
+  const contractId = document.getElementById('lic-contract')?.value || null;
+  const note       = document.getElementById('lic-note').value.trim() || null;
   const btn = document.getElementById('btn-submit-license');
   if (btn) { btn.disabled = true; btn.textContent = '처리 중...'; }
 
-  const qtyRaw = document.getElementById('lic-quantity').value;
-  const payload = {
-    company_id:   companyId,
-    contract_id:  document.getElementById('lic-contract')?.value || null,
-    product_info: product,
-    license_type: document.getElementById('lic-type').value    || null,
-    status:       '활성',
-    quantity:     qtyRaw !== '' ? parseInt(qtyRaw, 10)         : null,
-    note:         document.getElementById('lic-note').value.trim()     || null,
-  };
   let error;
   if (id) {
+    const qtyRaw = document.getElementById('lic-quantity').value;
+    const payload = {
+      company_id:   companyId,
+      contract_id:  contractId,
+      product_info: product,
+      license_type: document.getElementById('lic-edit-type-value').value || null,
+      status:       '활성',
+      quantity:     qtyRaw !== '' ? parseInt(qtyRaw, 10) : null,
+      note,
+    };
     ({ error } = await sb.from('company_licenses').update(payload).eq('id', id));
   } else {
-    ({ error } = await sb.from('company_licenses').insert(payload));
+    const rows = LICENSE_TYPES
+      .map(t => ({ type: t, qty: document.getElementById('lic-qty-' + t).value }))
+      .filter(r => r.qty !== '' && parseInt(r.qty, 10) > 0)
+      .map(r => ({
+        company_id:   companyId,
+        contract_id:  contractId,
+        product_info: product,
+        license_type: r.type,
+        status:       '활성',
+        quantity:     parseInt(r.qty, 10),
+        note,
+      }));
+    if (!rows.length) {
+      if (btn) { btn.disabled = false; btn.textContent = '등록'; }
+      showToast('최소 하나 이상 라이선스 수량을 입력하세요.', true);
+      return;
+    }
+    ({ error } = await sb.from('company_licenses').insert(rows));
   }
   if (btn) { btn.disabled = false; btn.textContent = id ? '저장' : '등록'; }
   if (error) { showToast('저장 실패: ' + error.message, true); return; }
