@@ -19,6 +19,7 @@
   --accent-l:  #EEEDFE;
   --accent-m:  #AFA9EC;
   --accent-d:  #3C3489;
+  --login-bg:  #4A4199;
   --green:     #27AE60; --green-l:#EAF3DE; --green-d:#1a6e3a;
   --amber:     #D97706; --amber-l:#FEF3C7; --amber-d:#92400E;
   --red:       #DC2626;  --red-l:#FCEBEB;   --red-d:#791F1F;
@@ -271,10 +272,11 @@ textarea{resize:vertical;min-height:100px;}
 .reply-actions{display:flex;justify-content:space-between;align-items:center;}
 
 /* ── login screen ── */
-.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:40px 20px;box-sizing:border-box;}
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--login-bg);padding:40px 20px;box-sizing:border-box;}
 
 /* ── login screen (split layout) ── */
-.login-split{width:820px;max-width:100%;display:flex;border:1px solid var(--border);background:var(--surface);overflow:hidden;}
+/* 배경이 진한 보라라서 밝은 테두리는 보이지 않으므로 두지 않는다 — 흰 폼 영역이 스스로 경계가 된다. */
+.login-split{width:820px;max-width:100%;display:flex;background:var(--surface);overflow:hidden;}
 .login-side{width:42%;background:var(--accent-d);color:#fff;position:relative;display:flex;flex-direction:column;justify-content:space-between;padding:32px 28px;overflow:hidden;}
 .login-side-mark{position:absolute;right:-34px;top:40%;transform:translateY(-50%);font-size:220px;font-weight:800;line-height:1;color:rgba(255,255,255,.08);letter-spacing:-.05em;}
 .login-side-brand{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;position:relative;z-index:1;}
