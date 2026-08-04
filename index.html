@@ -1098,6 +1098,11 @@ textarea{resize:vertical;min-height:100px;}
                 </div>
                 <!-- 우측: 메타 사이드바 -->
                 <div id="rd-meta-sidebar" style="padding:16px;min-width:0;border-left:1px solid var(--border);background:var(--surface2);">
+                    <!-- 연동 계약 (요청 등록 시점에 스냅샷된 계약) -->
+                    <div style="padding-bottom:9px;margin-bottom:9px;border-bottom:1px solid var(--border);">
+                      <div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">연동 계약</div>
+                      <div style="font-size:12.5px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px;" id="rd-contract-value">—</div>
+                    </div>
                     <!-- 완료예정일 (고객 계정에는 미노출) -->
                     <div id="rd-due-date-row" style="display:none;padding-bottom:9px;margin-bottom:9px;border-bottom:1px solid var(--border);">
                       <div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">완료예정일</div>
@@ -6616,6 +6621,8 @@ async function selectRdTicket(idx, directTicket) {
 
   const isCustomerRole = currentUser?.role === 'customer';
   const isAdminUser = currentUser && ADMIN_ROLES.has(currentUser.role);
+  const contractValueEl = document.getElementById('rd-contract-value');
+  if (contractValueEl) { contractValueEl.textContent = '불러오는 중...'; contractValueEl.style.color = 'var(--faint)'; }
   const dueDateRow = document.getElementById('rd-due-date-row');
   const dueDateValue = document.getElementById('rd-due-date-value');
   if (dueDateRow) dueDateRow.style.display = isCustomerRole ? 'none' : '';
@@ -6648,7 +6655,7 @@ async function selectRdTicket(idx, directTicket) {
   // ── 백그라운드: description·created_by 등 전체 필드 재조회 ──
   if (sb) {
     const { data } = await sb.from('tickets')
-      .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, created_by, assigned_to, assigned_to_name, company_name, created_by_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
+      .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, created_by, contract_id, assigned_to, assigned_to_name, company_name, created_by_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
       .eq('id', selectedId).single();
     if (data && rdTicket.id === selectedId) {
       rdTicket = data;
@@ -6656,8 +6663,28 @@ async function selectRdTicket(idx, directTicket) {
       if (dueDateValue) dueDateValue.textContent = rdTicket.due_date ? rdTicket.due_date.slice(0, 10) : '—';
       const isOwner = currentUser && rdTicket.created_by === currentUser.id;
       if (ownerEditBtn) ownerEditBtn.style.display = isOwner ? '' : 'none';
+      await renderRdContract(rdTicket.contract_id, contractValueEl);
     }
   }
+}
+
+// 요청 등록 시점에 스냅샷된 계약(tickets.contract_id)의 이름/상태를 사이드바에 표시
+const RD_CONTRACT_STATUS_BADGE = { 진행중:'b-accent', 완료:'b-green', 협의중:'b-amber', 해지:'b-red', 만료:'b-gray' };
+async function renderRdContract(contractId, el) {
+  if (!el) return;
+  if (!contractId || !sb) {
+    el.textContent = '계약 미지정';
+    el.style.color = 'var(--faint)';
+    return;
+  }
+  const { data: ct } = await sb.from('company_contracts').select('contract_name, status').eq('id', contractId).single();
+  if (!ct) {
+    el.textContent = '계약 미지정';
+    el.style.color = 'var(--faint)';
+    return;
+  }
+  el.style.color = 'var(--text)';
+  el.innerHTML = `${escHtml(ct.contract_name)} <span class="badge ${RD_CONTRACT_STATUS_BADGE[ct.status] || 'b-gray'}">${escHtml(ct.status || '—')}</span>`;
 }
 
 async function loadRdAttachments() {
