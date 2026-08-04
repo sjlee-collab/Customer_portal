@@ -4740,17 +4740,16 @@ async function loadCompanies() {
   (contractRows || []).forEach(ct => {
     (contractsByCompany[ct.company_id] ??= []).push(ct);
   });
-  const today = new Date();
   allCompanies = (data || []).map(c => {
     const contracts = contractsByCompany[c.id] || [];
-    let nearest = null, nearestDiff = Infinity;
+    // 계약기간 기준 최근 계약(종료일이 가장 늦은 계약)의 빅스계약담당자를 담당영업으로 표시
+    let latest = null;
     contracts.forEach(ct => {
       if (!ct.end_date) return;
-      const diff = Math.abs(new Date(ct.end_date) - today);
-      if (diff < nearestDiff) { nearestDiff = diff; nearest = ct; }
+      if (!latest || new Date(ct.end_date) > new Date(latest.end_date)) latest = ct;
     });
     const co = { ...c };
-    co.sales_manager_display = (nearest && nearest.bixs_contact) || c.account_manager || null;
+    co.sales_manager_display = (latest && latest.bixs_contact) || c.account_manager || null;
     return co;
   });
   document.getElementById('companies-count').textContent = allCompanies.length + '개 고객사';
