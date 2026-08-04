@@ -70,6 +70,119 @@ function assertTableAccess(table, event) {
   if (!allowedRoles.has(role)) throw new HttpError(403, '이 데이터에 접근할 권한이 없습니다');
 }
 
+// ── 테넌트 격리 / 권한 상승 방지 ──
+// 지금까지는 JWT가 유효한지만 확인하고 "행 단위" 제한이 전혀 없었다. 즉 고객(customer)
+// 계정으로 로그인만 하면 /data/companies, /data/tickets, /data/users 를 그대로 호출해서
+// 전체 고객사·전체 티켓·전체 사용자 정보를 다 읽을 수 있었고, PATCH /data/users/자기id에
+// {"role":"admin"} 을 보내면 그대로 관리자로 격상됐다(실제 테스트로 확인됨). 아래에서
+// 역할별로 강제 필터/쓰기 제한을 걸어서 사용자가 준 파라미터와 무관하게 항상 적용한다.
+const TENANT_ROLES = new Set(['customer', 'internal']); // "내 회사/내 것"만 봐야 하는 역할
+// 신뢰할 수 있는 역할만 명시적으로 나열 — API Gateway 인가자를 거치지 않았거나(직접 Lambda
+// 호출 등) role이 비어있는/알 수 없는 요청은 항상 가장 좁은 제한을 받는 쪽이 안전하다.
+const STAFF_ROLES = new Set(['admin', 'sales', 'tech_support', 'education']);
+
+// admin만 등록/수정/삭제 가능해야 하는 테이블 — 화면에서도 admin 권한(company_manage,
+// user_manage, integration, notify_log 등)에게만 노출되던 기능인데 서버 쪽엔 그 검사가 없었다.
+const ADMIN_ONLY_WRITE_TABLES = new Set([
+  'companies', 'company_contracts', 'company_licenses',
+  'log_notification', 'log_integration', 'role_permissions',
+]);
+
+// tickets는 api-layer(/tickets, /tickets/{id}/status, /tickets/{id}/assign 등)가 알림·이력까지
+// 포함해서 전담한다. 실제로 클라이언트도 이 범용 CRUD로 tickets를 쓰는 곳이 없으므로,
+// 알림/이력 없이 몰래 조작되는 경로를 원천 차단하기 위해 쓰기(POST/PATCH/DELETE)는 막는다.
+const NO_DIRECT_WRITE_TABLES = new Set(['tickets']);
+
+// users는 본인 row에 한해서만, 그리고 이 컬럼들만 admin이 아니어도 스스로 바꿀 수 있다.
+// role/company_id/contract_id/is_active/email 같은 컬럼은 admin만 바꿀 수 있어야 한다
+// (안 그러면 로그인한 사용자가 자기 role을 admin으로 바꾸는 권한 상승이 그대로 통과한다).
+const SELF_EDITABLE_USER_COLUMNS = new Set(['name', 'phone', 'department', 'last_login']);
+
+function getAuthz(event) {
+  const a = event.requestContext?.authorizer?.lambda || {};
+  return { role: a.role || null, userId: a.userId || null, companyId: a.companyId || null, contractId: a.contractId || null };
+}
+
+// GET에 항상 덧붙이는 행 단위 제한. 반환값 { sql, params } 를 whereClauses에 AND로 추가한다.
+// admin/스태프(sales·tech_support·education)는 대부분 제한이 없다 — 여러 고객사의 요청을
+// 함께 처리하는 게 원래 업무라 여기서까지 좁히면 화면이 깨진다.
+function tenantRowFilterSql(table, authz, paramOffset) {
+  const { role, userId, companyId, contractId } = authz;
+
+  // 자료실 비공개 문서는 admin만 볼 수 있어야 한다 — 화면에서는 이미 그렇게 가려져 있었지만
+  // API를 직접 호출하면 비공개 문서 내용까지 그대로 조회됐다.
+  if (table === 'content_documents' && role !== 'admin') {
+    return { sql: `"is_public" = true`, params: [] };
+  }
+
+  if (STAFF_ROLES.has(role)) return null;
+
+  if (table === 'companies') {
+    return companyId ? { sql: `"id" = $${paramOffset}`, params: [companyId] } : { sql: '1=0', params: [] };
+  }
+  if (table === 'company_contracts' || table === 'company_licenses') {
+    return companyId ? { sql: `"company_id" = $${paramOffset}`, params: [companyId] } : { sql: '1=0', params: [] };
+  }
+  // users는 행 자체를 막지 않는다 — 고객이 자기 티켓의 답글/이력에서 담당자 이름을
+  // 조회하려면 "본인 아닌" 사용자 row도 봐야 한다(원래 화면 동작). 대신 아래
+  // restrictUserColumnsForNonStaff()에서 본인 행이 아니면 컬럼을 id/name/role로만 제한한다.
+  if (table === 'tickets') {
+    if (role === 'internal') {
+      return userId ? { sql: `"created_by" = $${paramOffset}`, params: [userId] } : { sql: '1=0', params: [] };
+    }
+    if (contractId) return { sql: `"contract_id" = $${paramOffset}`, params: [contractId] };
+    return companyId ? { sql: `"company_id" = $${paramOffset}`, params: [companyId] } : { sql: '1=0', params: [] };
+  }
+  if (table === 'ticket_replies' || table === 'ticket_attachments' || table === 'ticket_history') {
+    if (role === 'internal') {
+      return userId
+        ? { sql: `"ticket_id" in (select id from tickets where created_by = $${paramOffset})`, params: [userId] }
+        : { sql: '1=0', params: [] };
+    }
+    if (contractId) return { sql: `"ticket_id" in (select id from tickets where contract_id = $${paramOffset})`, params: [contractId] };
+    return companyId
+      ? { sql: `"ticket_id" in (select id from tickets where company_id = $${paramOffset})`, params: [companyId] }
+      : { sql: '1=0', params: [] };
+  }
+  return null;
+}
+
+// 스태프가 아닌 역할(고객/internal)이 users를 조회할 때, 본인 행이 아니면 이름/역할
+// 정도만(사내 조직도 수준) 남기고 이메일·전화번호·소속회사 등 나머지 컬럼은 지운다.
+const PUBLIC_USER_COLUMNS = new Set(['id', 'name', 'role']);
+function restrictUserColumnsForNonStaff(table, rows, authz) {
+  if (table !== 'users' || STAFF_ROLES.has(authz.role)) return;
+  for (const row of rows) {
+    if (row.id === authz.userId) continue;
+    for (const col of Object.keys(row)) {
+      if (!PUBLIC_USER_COLUMNS.has(col)) delete row[col];
+    }
+  }
+}
+
+function assertWriteAllowed(table, method, authz, id, cols) {
+  if (authz.role === 'admin') return;
+
+  if (NO_DIRECT_WRITE_TABLES.has(table)) {
+    throw new HttpError(403, '이 테이블은 전용 API를 통해서만 수정할 수 있습니다');
+  }
+  if (ADMIN_ONLY_WRITE_TABLES.has(table)) {
+    throw new HttpError(403, '이 작업은 관리자만 할 수 있습니다');
+  }
+  if (table === 'users') {
+    if (method === 'POST' || method === 'DELETE') {
+      throw new HttpError(403, '이 작업은 관리자만 할 수 있습니다');
+    }
+    if (method === 'PATCH') {
+      if (!authz.userId || id !== authz.userId) {
+        throw new HttpError(403, '본인 계정만 수정할 수 있습니다');
+      }
+      const disallowed = cols.find(c => !SELF_EDITABLE_USER_COLUMNS.has(c));
+      if (disallowed) throw new HttpError(403, `"${disallowed}" 컬럼은 관리자만 변경할 수 있습니다`);
+    }
+  }
+}
+
 // 임베드(alias:fk_col(cols)) 시 fk 컬럼이 가리키는 테이블
 const EMBED_TABLE_MAP = {
   created_by: 'users',
@@ -192,9 +305,16 @@ async function resolveEmbeds(rows, embeds) {
   }
 }
 
-async function handleGet(table, qs) {
+async function handleGet(table, qs, event) {
   const params = [];
   const whereClauses = buildWhere(table, qs, params);
+
+  const authz = getAuthz(event);
+  const tenantFilter = tenantRowFilterSql(table, authz, params.length + 1);
+  if (tenantFilter) {
+    whereClauses.push(tenantFilter.sql);
+    params.push(...tenantFilter.params);
+  }
 
   // count=1 (Supabase의 {count:'exact', head:true} 대응) — 실제 행 대신 개수만 반환
   if (qs.count) {
@@ -233,6 +353,8 @@ async function handleGet(table, qs) {
   }
   stripBlockedColumns(table, rows);
   for (const embed of embeds) stripBlockedColumns(embed.table, rows.map(r => r[embed.alias]).filter(Boolean));
+  restrictUserColumnsForNonStaff(table, rows, authz);
+  for (const embed of embeds) restrictUserColumnsForNonStaff(embed.table, rows.map(r => r[embed.alias]).filter(Boolean), authz);
 
   if (qs.single) {
     if (!rows.length) throw new HttpError(404, '결과 없음');
@@ -241,12 +363,13 @@ async function handleGet(table, qs) {
   return json(200, rows);
 }
 
-async function handlePost(table, body, onConflict) {
+async function handlePost(table, body, onConflict, event) {
   const records = Array.isArray(body) ? body : [body];
   if (!records.length) throw new HttpError(400, '등록할 데이터가 없습니다');
   const cols = Object.keys(records[0]);
   cols.forEach(c => assertIdent(c, 'insert 컬럼'));
   assertNoBlockedWrite(table, cols);
+  assertWriteAllowed(table, 'POST', getAuthz(event), null, cols);
   const colsSql = cols.map(c => `"${c}"`).join(',');
 
   let conflictCols = null;
@@ -272,11 +395,12 @@ async function handlePost(table, body, onConflict) {
   return json(201, Array.isArray(body) ? results : results[0]);
 }
 
-async function handlePatch(table, id, body) {
+async function handlePatch(table, id, body, event) {
   const cols = Object.keys(body);
   if (!cols.length) throw new HttpError(400, '수정할 데이터가 없습니다');
   cols.forEach(c => assertIdent(c, 'update 컬럼'));
   assertNoBlockedWrite(table, cols);
+  assertWriteAllowed(table, 'PATCH', getAuthz(event), id, cols);
   const setSql = cols.map((c, i) => `"${c}" = $${i + 1}`).join(',');
   const params = cols.map(c => body[c] ?? null);
   params.push(id);
@@ -289,7 +413,8 @@ async function handlePatch(table, id, body) {
   return json(200, updated[0]);
 }
 
-async function handleDelete(table, id) {
+async function handleDelete(table, id, event) {
+  assertWriteAllowed(table, 'DELETE', getAuthz(event), id, []);
   const deleted = await query(`delete from "${table}" where id = $1 returning id`, [id]);
   if (!deleted.length) throw new HttpError(404, '대상을 찾을 수 없습니다');
   return json(200, { id: deleted[0].id });
@@ -313,10 +438,10 @@ export const handler = async (event) => {
 
     const body = event.body ? JSON.parse(event.body) : undefined;
 
-    if (method === 'GET' && noId) return await handleGet(table, qs);
-    if (method === 'POST' && noId) return await handlePost(table, body, qs.on_conflict);
-    if (method === 'PATCH' && withId) return await handlePatch(table, withId[2], body);
-    if (method === 'DELETE' && withId) return await handleDelete(table, withId[2]);
+    if (method === 'GET' && noId) return await handleGet(table, qs, event);
+    if (method === 'POST' && noId) return await handlePost(table, body, qs.on_conflict, event);
+    if (method === 'PATCH' && withId) return await handlePatch(table, withId[2], body, event);
+    if (method === 'DELETE' && withId) return await handleDelete(table, withId[2], event);
 
     throw new HttpError(404, 'not found');
   } catch (err) {
