@@ -128,10 +128,17 @@ async function handleSignedUrl(body, event) {
   return json(200, { signedUrl });
 }
 
-async function handleRemove(body) {
+async function handleRemove(body, event) {
   const { bucket, paths } = body;
-  const Bucket = resolveBucket(bucket);
   if (!Array.isArray(paths) || !paths.length) return json(200, { removed: [] });
+
+  for (const path of paths) {
+    if (!(await checkAccess(bucket, path, event))) {
+      return json(403, { error: '이 파일을 삭제할 권한이 없습니다' });
+    }
+  }
+
+  const Bucket = resolveBucket(bucket);
   await s3.send(new DeleteObjectsCommand({
     Bucket,
     Delete: { Objects: paths.map(Key => ({ Key })) },
@@ -150,7 +157,7 @@ export const handler = async (event) => {
     const body = event.body ? JSON.parse(event.body) : {};
     if (method === 'POST' && path === '/storage/upload-url') return await handleUploadUrl(body);
     if (method === 'POST' && path === '/storage/signed-url') return await handleSignedUrl(body, event);
-    if (method === 'POST' && path === '/storage/remove') return await handleRemove(body);
+    if (method === 'POST' && path === '/storage/remove') return await handleRemove(body, event);
     return json(404, { error: 'not found' });
   } catch (err) {
     console.error('[storage-api 오류]', err);
