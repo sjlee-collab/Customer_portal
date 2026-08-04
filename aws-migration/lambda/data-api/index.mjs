@@ -47,6 +47,15 @@ function stripBlockedColumns(table, rows) {
   for (const row of rows) for (const col of blocked) delete row[col];
 }
 
+// 같은 컬럼들을 이 범용 CRUD로 "쓰는" 것도 막는다 — 비밀번호는 반드시 api-layer의
+// /auth/change-password, /auth/reset-password를 거쳐 서버에서 해시된 값만 저장돼야 한다.
+function assertNoBlockedWrite(table, cols) {
+  const blocked = BLOCKED_COLUMNS[table];
+  if (!blocked) return;
+  const hit = cols.find(c => blocked.has(c));
+  if (hit) throw new HttpError(400, `"${hit}" 컬럼은 이 API로 직접 쓸 수 없습니다`);
+}
+
 // 이 테이블은 화면에서 스태프(요청 관리 권한이 있는 역할)에게만 보이도록 UI로만 가려뒀는데,
 // 조회 자체엔 아무 제한이 없어서 로그인한 고객 계정이 직접 호출하면 내부 비공개 메모를
 // 그대로 읽을 수 있었다. 화면과 동일한 역할 기준으로 테이블 전체를 막는다.
@@ -237,6 +246,7 @@ async function handlePost(table, body, onConflict) {
   if (!records.length) throw new HttpError(400, '등록할 데이터가 없습니다');
   const cols = Object.keys(records[0]);
   cols.forEach(c => assertIdent(c, 'insert 컬럼'));
+  assertNoBlockedWrite(table, cols);
   const colsSql = cols.map(c => `"${c}"`).join(',');
 
   let conflictCols = null;
@@ -266,6 +276,7 @@ async function handlePatch(table, id, body) {
   const cols = Object.keys(body);
   if (!cols.length) throw new HttpError(400, '수정할 데이터가 없습니다');
   cols.forEach(c => assertIdent(c, 'update 컬럼'));
+  assertNoBlockedWrite(table, cols);
   const setSql = cols.map((c, i) => `"${c}" = $${i + 1}`).join(',');
   const params = cols.map(c => body[c] ?? null);
   params.push(id);
