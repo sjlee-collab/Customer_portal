@@ -383,10 +383,18 @@ async function notifyForReply(ticketId) {
 // 이력(ticket_history)·메모(ticket_memos) 기록은 응답 전에 즉시 처리하고,
 // Slack 알림·이메일(느린 외부 호출)만 비동기로 넘긴다.
 async function manageTicket(ticketId, body, event) {
-  if (!(await hasPermission(getAuthz(event).role, 'ticket_manage'))) {
+  const authz = getAuthz(event);
+  if (!(await hasPermission(authz.role, 'ticket_manage'))) {
     return json(403, { error: '이 작업을 할 권한이 없습니다' });
   }
-  const { category, status, assigned_to, due_date, memo, send_email, cc_emails, changed_by, changed_by_name } = body;
+  const { category, status, assigned_to, due_date, memo, send_email, cc_emails } = body;
+
+  // changed_by/changed_by_name은 body 값을 절대 믿지 않고 항상 로그인한 본인으로 강제한다 —
+  // 그러지 않으면 ticket_manage 권한만 있는 낮은 직급 스태프가 처리 이력·메모의 작성자를
+  // 다른 실제 사용자(심지어 admin)로 위조할 수 있었다(실제 테스트로 확인됨).
+  const actor = await getUser(authz.userId);
+  const changed_by = authz.userId ?? null;
+  const changed_by_name = actor?.name ?? null;
 
   const before = await query('select * from tickets where id=$1', [ticketId]);
   if (!before[0]) return json(404, { error: '티켓을 찾을 수 없습니다' });
