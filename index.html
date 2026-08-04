@@ -4730,7 +4730,7 @@ async function loadCompanies() {
 
   const [{ data, error }, { data: contractRows }] = await Promise.all([
     sb.from('companies').select('*').order('name').limit(1000),
-    sb.from('company_contracts').select('company_id,bixs_contact,end_date').limit(1000),
+    sb.from('company_contracts').select('company_id,bixs_contact,end_date,status').limit(1000),
   ]);
   if (error) {
     tbody.innerHTML = `<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--red);font-size:13px;">오류: ${error.message}</td></tr>`;
@@ -4741,8 +4741,8 @@ async function loadCompanies() {
     (contractsByCompany[ct.company_id] ??= []).push(ct);
   });
   allCompanies = (data || []).map(c => {
-    const contracts = contractsByCompany[c.id] || [];
-    // 계약기간 기준 최근 계약(종료일이 가장 늦은 계약)의 빅스계약담당자를 담당영업으로 표시
+    const contracts = (contractsByCompany[c.id] || []).filter(ct => ct.status === '진행중');
+    // 진행중 계약 중 계약기간 기준 최근 계약(종료일이 가장 늦은 계약)의 빅스계약담당자를 담당영업으로 표시
     let latest = null;
     contracts.forEach(ct => {
       if (!ct.end_date) return;
