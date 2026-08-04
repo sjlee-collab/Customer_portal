@@ -291,6 +291,27 @@ textarea{resize:vertical;min-height:100px;}
 .login-split input[type=email]:focus,.login-split input[type=password]:focus{border-bottom-color:var(--accent);}
 .login-split .btn-primary{border-radius:0;text-transform:uppercase;letter-spacing:.03em;font-size:12.5px;}
 
+/* ── 운영/관리 홈 대시보드 — 로그인 화면과 같은 플랫 언어 ──
+   각진 모서리 + 헤어라인 구획 + 대문자 마이크로 라벨 + 강조는 남보라 헤더.
+   .stat/.card는 다른 화면에서도 쓰므로 .dash-b 안으로만 스코프를 제한한다. */
+.dash-b .stats{gap:14px;}
+.dash-b .stat{border-radius:0;padding:0;overflow:hidden;}
+.dash-b .stat-label{margin:0;padding:7px 13px;border-bottom:1px solid var(--border);background:var(--surface2);font-size:9.5px;font-weight:700;letter-spacing:.09em;}
+.dash-b .stat-val{padding:13px 13px 0;font-size:26px;line-height:1;letter-spacing:-.02em;}
+.dash-b .stat-sub{margin-top:0;padding:5px 13px 12px;}
+/* 미처리는 브랜드 강조, 지연은 경고로 구분 */
+.dash-b .stat[data-filter="pending"]{border-color:var(--accent-d);}
+.dash-b .stat[data-filter="pending"] .stat-label{background:var(--accent-d);border-bottom-color:var(--accent-d);color:rgba(255,255,255,.82);}
+.dash-b .stat[data-filter="delayed"]{border-color:var(--red);}
+.dash-b .stat[data-filter="delayed"] .stat-label{background:var(--red-l);border-bottom-color:var(--red-l);color:var(--red-d);}
+
+.dash-b .card{border-radius:0;padding:0;}
+.dash-b .dash-panel-h{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;background:var(--accent-d);position:relative;overflow:hidden;}
+.dash-b .dash-panel-h .card-title{margin:0;font-size:9.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,.82);position:relative;z-index:1;}
+.dash-b .dash-panel-h .dash-panel-wm{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:42px;font-weight:800;line-height:1;letter-spacing:-.05em;color:rgba(255,255,255,.10);}
+.dash-b .dash-panel-h .btn{position:relative;z-index:1;border-color:rgba(255,255,255,.42);color:#fff;}
+.dash-b .dash-notice-list{padding:0 14px;}
+
 /* ── admin sidebar ── */
 .admin-shell{display:flex;flex:1;overflow:hidden;}
 .sidebar{width:200px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);padding:16px 0;overflow-y:auto;}
@@ -687,7 +708,7 @@ textarea{resize:vertical;min-height:100px;}
       </div>
         </div><!-- /customer section -->
         <!-- 운영/관리 대시보드 -->
-        <div data-show-roles="tech_support,sales,education,admin">
+        <div class="dash-b" data-show-roles="tech_support,sales,education,admin">
           <div class="stats" style="grid-template-columns:repeat(5,1fr);">
             <div class="stat dash-kpi-card" data-filter="today" style="cursor:pointer;" onclick="toggleDashFilter('today')"><div class="stat-label">오늘 신규 요청</div><div class="stat-val" id="dash-admin-today-val">—</div><div class="stat-sub" id="dash-admin-today-sub">불러오는 중...</div></div>
             <div class="stat dash-kpi-card" data-filter="pending" style="cursor:pointer;" onclick="toggleDashFilter('pending')"><div class="stat-label">미처리</div><div class="stat-val" style="color:var(--red);" id="dash-admin-pending-val">—</div><div class="stat-sub" id="dash-admin-pending-sub">처리 대기 건수</div></div>
@@ -697,15 +718,16 @@ textarea{resize:vertical;min-height:100px;}
           </div>
           <div style="display:grid;grid-template-columns:400px 1fr;gap:16px;align-items:stretch;height:calc(100vh - 300px);">
             <div class="card dash-notice-card" style="display:none;flex-direction:column;overflow:hidden;">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-shrink:0;">
-                <div class="card-title" style="margin-bottom:0;">📢 공지사항</div>
+              <div class="dash-panel-h">
+                <span class="dash-panel-wm" aria-hidden="true">B</span>
+                <div class="card-title">공지사항</div>
                 <button class="btn btn-outline btn-sm" data-show-roles="admin" style="display:none;font-size:11px;padding:4px 10px;" onclick="openNewNoticeModal()">+ 공지 등록</button>
               </div>
-              <div class="dash-notice-list" style="flex:1;min-height:0;overflow-y:auto;margin-right:-24px;padding-right:24px;"></div>
+              <div class="dash-notice-list" style="flex:1;min-height:0;overflow-y:auto;"></div>
             </div>
             <div class="card" style="display:flex;flex-direction:column;overflow:hidden;">
-              <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;padding-bottom:10px;">
-                <div class="card-title" style="margin-bottom:0;">요청</div>
+              <div class="dash-panel-h">
+                <div class="card-title">요청</div>
               </div>
               <div class="tbl-scroll list-scroll" style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;"><table class="tbl">
                 <thead><tr><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">요청 번호</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">고객사</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">제목</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">카테고리</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">상태</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">접수일</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">완료예정일</th></tr></thead>
