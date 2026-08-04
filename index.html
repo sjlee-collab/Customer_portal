@@ -2821,7 +2821,7 @@ async function saveMyPage() {
       if (changePw) {
         const pwRes = await fetch(`${API_BASE}/auth/change-password`, {
           method: 'PATCH', headers: { 'Content-Type': 'application/json', ...authHeaders() },
-          body: JSON.stringify({ newPassword: pwNew }),
+          body: JSON.stringify({ currentPassword: pwCurrent, newPassword: pwNew }),
         }).catch(() => null);
         const pwData = await pwRes?.json().catch(() => null);
         if (!pwRes?.ok) {

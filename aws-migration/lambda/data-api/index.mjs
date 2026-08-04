@@ -118,7 +118,21 @@ async function hasPermission(role, featureKey) {
 // tickets는 api-layer(/tickets, /tickets/{id}/status, /tickets/{id}/assign 등)가 알림·이력까지
 // 포함해서 전담한다. 실제로 클라이언트도 이 범용 CRUD로 tickets를 쓰는 곳이 없으므로,
 // 알림/이력 없이 몰래 조작되는 경로를 원천 차단하기 위해 쓰기(POST/PATCH/DELETE)는 막는다.
-const NO_DIRECT_WRITE_TABLES = new Set(['tickets']);
+// ticket_history(처리 이력)도 감사 기록이라 이 범용 API로는 절대 못 쓰게 막는다 — 이력 작성은
+// api-layer가 자체 DB 연결로만 남기고, 클라이언트는 조회만 한다. 이렇게 안 막으면 로그인한
+// 사용자가 가짜 상태변경 이력을 주입하거나(작성자 위조) 자기 티켓 이력을 DELETE로 지워
+// 감사 추적을 파괴할 수 있었다(실제 테스트로 확인). GET(조회)은 여기 걸리지 않는다.
+const NO_DIRECT_WRITE_TABLES = new Set(['tickets', 'ticket_history']);
+
+// 이 테이블들에 쓸 때 "누가 썼는가" 컬럼은 클라이언트가 준 값을 절대 믿지 않고 항상 인증
+// 토큰의 본인 userId로 덮어쓴다 — 안 그러면 남(관리자 포함)의 명의로 답글/첨부/메모를
+// 위조할 수 있었다(실제 테스트로 확인). 값은 POST에서 강제 세팅하고, PATCH(수정)에서는
+// 작성자 컬럼 변경 자체를 막는다.
+const FORCED_IDENTITY_COLUMN = {
+  ticket_replies: 'changed_by',
+  ticket_attachments: 'uploaded_by',
+  ticket_memos: 'changed_by',
+};
 
 // users는 본인 row에 한해서만, 그리고 이 컬럼들만 admin이 아니어도 스스로 바꿀 수 있다.
 // role/company_id/contract_id/is_active/email 같은 컬럼은 admin만 바꿀 수 있어야 한다
@@ -133,7 +147,7 @@ function getAuthz(event) {
 // GET에 항상 덧붙이는 행 단위 제한. 반환값 { sql, params } 를 whereClauses에 AND로 추가한다.
 // admin/스태프(sales·tech_support·education)는 대부분 제한이 없다 — 여러 고객사의 요청을
 // 함께 처리하는 게 원래 업무라 여기서까지 좁히면 화면이 깨진다.
-async function tenantRowFilterSql(table, authz, paramOffset) {
+async function tenantRowFilterSql(table, authz, paramOffset, qs) {
   const { role, userId, companyId, contractId } = authz;
 
   // 자료실 비공개 문서는 library_manage 권한이 있어야 볼 수 있다(화면과 동일한 기준 —
@@ -151,9 +165,16 @@ async function tenantRowFilterSql(table, authz, paramOffset) {
   if (table === 'company_contracts' || table === 'company_licenses') {
     return companyId ? { sql: `"company_id" = $${paramOffset}`, params: [companyId] } : { sql: '1=0', params: [] };
   }
-  // users는 행 자체를 막지 않는다 — 고객이 자기 티켓의 답글/이력에서 담당자 이름을
-  // 조회하려면 "본인 아닌" 사용자 row도 봐야 한다(원래 화면 동작). 대신 아래
-  // restrictUserColumnsForNonStaff()에서 본인 행이 아니면 컬럼을 id/name/role로만 제한한다.
+  // users: 스태프가 아닌 역할은 "명단 전체 조회"를 막는다 — 예전엔 필터 없이 호출하면
+  // 전 고객사 사용자 91명(이름·역할·id)이 다 나왔고 role=eq.admin으로 관리자만 골라내
+  // 표적 피싱 대상 명단을 만들 수 있었다(실제 테스트로 확인). 화면에서 고객이 필요로 하는
+  // 건 "특정 id의 담당자/작성자 이름"뿐이므로, id 필터(?id=eq. / ?id=in.)가 있을 때만
+  // 통과시키고 없으면 본인 행으로만 좁힌다. (컬럼은 restrictUserColumnsForNonStaff에서 추가 제한)
+  if (table === 'users') {
+    const hasIdFilter = qs && typeof qs.id === 'string';
+    if (hasIdFilter) return null; // 명시적 id 조회는 허용(담당자/작성자 이름 조회)
+    return userId ? { sql: `"id" = $${paramOffset}`, params: [userId] } : { sql: '1=0', params: [] };
+  }
   if (table === 'tickets') {
     if (role === 'internal') {
       return userId ? { sql: `"created_by" = $${paramOffset}`, params: [userId] } : { sql: '1=0', params: [] };
@@ -223,9 +244,15 @@ async function assertTicketScopedWriteAllowed(table, method, id, body, authz) {
     return;
   }
   // PATCH/DELETE — 대상 행이 실제로 어느 ticket_id에 속하는지부터 조회해서 확인한다.
-  const rows = await query(`select ticket_id from "${table}" where id=$1`, [id]);
+  // ticket_replies는 여기에 더해 "본인이 쓴 답글"만 수정·삭제할 수 있게 한다 — 안 그러면
+  // 자기 티켓에 달린 스태프 답글을 고객이 내용 조작하거나 지울 수 있었다(실제 테스트로 확인).
+  // (화면의 canEdit도 "본인 글 or 스태프" 기준이라 이 규칙과 일치한다.)
+  const rows = await query(`select * from "${table}" where id=$1`, [id]);
   if (!(await ticketBelongsToRequester(rows[0]?.ticket_id, authz))) {
     throw new HttpError(403, '이 요청에 접근할 권한이 없습니다');
+  }
+  if (table === 'ticket_replies' && rows[0] && rows[0].changed_by !== authz.userId) {
+    throw new HttpError(403, '본인이 작성한 답글만 수정·삭제할 수 있습니다');
   }
 }
 
@@ -395,7 +422,7 @@ async function handleGet(table, qs, event) {
   const whereClauses = buildWhere(table, qs, params);
 
   const authz = getAuthz(event);
-  const tenantFilter = await tenantRowFilterSql(table, authz, params.length + 1);
+  const tenantFilter = await tenantRowFilterSql(table, authz, params.length + 1, qs);
   if (tenantFilter) {
     whereClauses.push(tenantFilter.sql);
     params.push(...tenantFilter.params);
@@ -451,10 +478,20 @@ async function handleGet(table, qs, event) {
 async function handlePost(table, body, onConflict, event) {
   const records = Array.isArray(body) ? body : [body];
   if (!records.length) throw new HttpError(400, '등록할 데이터가 없습니다');
+  const authz = getAuthz(event);
+
+  // 신원 컬럼(작성자)은 클라이언트 값 무시하고 항상 본인으로 강제 — 위조 방지.
+  const identityCol = FORCED_IDENTITY_COLUMN[table];
+  if (identityCol) {
+    for (const rec of records) rec[identityCol] = authz.userId;
+    // ticket_history는 아예 직접 쓰기 금지지만, 혹시 모를 changed_by_name 위조도 원천 차단
+    for (const rec of records) if ('changed_by_name' in rec) delete rec.changed_by_name;
+  }
+
   const cols = Object.keys(records[0]);
   cols.forEach(c => assertIdent(c, 'insert 컬럼'));
   assertNoBlockedWrite(table, cols);
-  await assertWriteAllowed(table, 'POST', getAuthz(event), null, cols, body);
+  await assertWriteAllowed(table, 'POST', authz, null, cols, body);
   const colsSql = cols.map(c => `"${c}"`).join(',');
 
   let conflictCols = null;
@@ -481,6 +518,12 @@ async function handlePost(table, body, onConflict, event) {
 }
 
 async function handlePatch(table, id, body, event) {
+  // 수정 시 작성자 컬럼을 바꾸지 못하게 원천 제거 — 답글/메모 내용을 고치면서 작성자를
+  // 딴 사람으로 돌려놓는 위조를 막는다.
+  const identityCol = FORCED_IDENTITY_COLUMN[table];
+  if (identityCol && identityCol in body) delete body[identityCol];
+  if ('changed_by_name' in body) delete body.changed_by_name;
+
   const cols = Object.keys(body);
   if (!cols.length) throw new HttpError(400, '수정할 데이터가 없습니다');
   cols.forEach(c => assertIdent(c, 'update 컬럼'));

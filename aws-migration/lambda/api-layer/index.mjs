@@ -543,8 +543,20 @@ async function verifyPassword(event, body) {
 async function changePassword(event, body) {
   const userId = event.requestContext?.authorizer?.lambda?.userId;
   if (!userId) return json(401, { error: '인증이 필요합니다' });
-  const { newPassword } = body;
+  const { currentPassword, newPassword } = body;
   if (!newPassword || newPassword.length < 8) return json(400, { error: '비밀번호는 8자 이상이어야 합니다.' });
+
+  // 현재 비밀번호를 서버에서 반드시 재확인한다 — 예전엔 유효한 토큰만 있으면 현재 비밀번호
+  // 없이 새 비밀번호로 바꿔버릴 수 있어(토큰 1개 유출 = 계정 완전 탈취), 화면의 verify-password
+  // 호출을 건너뛰고 이 엔드포인트를 직접 때리면 그대로 통했다(실제 테스트로 확인).
+  const rows = await query('select password from users where id=$1', [userId]);
+  const stored = rows[0]?.password;
+  if (stored) {
+    if (!currentPassword) return json(400, { error: '현재 비밀번호를 입력해주세요.' });
+    if (!checkPassword(currentPassword, stored)) return json(401, { error: '현재 비밀번호가 올바르지 않습니다.' });
+  }
+  // stored가 없는(비밀번호 미설정) 계정은 로그인 자체가 안 되므로 여기 도달할 수 없다.
+
   await query('update users set password=$1 where id=$2', [hashPassword(newPassword), userId]);
   return json(200, { ok: true });
 }
