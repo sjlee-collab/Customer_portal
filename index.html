@@ -3129,11 +3129,8 @@ function setDocsFaqCategory(cat, el) {
 
 function docRowActions(d) {
   const btnStyle = 'padding:4px 8px;font-size:11px;';
-  const fileUrl = d.storage_path
-    ? sb.storage.from('documents').getPublicUrl(d.storage_path.split('/').map(s => encodeURIComponent(decodeURIComponent(s))).join('/')).data?.publicUrl
-    : null;
-  const dlBtn = fileUrl
-    ? `<button class="btn btn-outline btn-sm" style="${btnStyle}" onclick="downloadDoc('${fileUrl}','${escHtml(d.file_name || d.title)}','${d.id}')">⬇ 다운로드</button>`
+  const dlBtn = d.storage_path
+    ? `<button class="btn btn-outline btn-sm" style="${btnStyle}" onclick="downloadPrivateFile('documents','${escHtml(d.storage_path)}','${escHtml(d.file_name || d.title)}','${d.id}')">⬇ 다운로드</button>`
     : `<button class="btn btn-outline btn-sm" style="${btnStyle}" disabled>⬇ 다운로드</button>`;
   return `<div style="display:flex;gap:4px;flex-wrap:nowrap;overflow:hidden;">
     ${dlBtn}
@@ -3179,6 +3176,7 @@ function toggleFaqRow(tr) {
   scopeBody.querySelectorAll('.faq-ans-row').forEach(r => r.style.display = 'none');
   if (!isOpen) {
     ansRow.style.display = 'table-row';
+    resolveFaqImages(ansRow);
     const docId = tr.dataset.docId;
     if (docId && sb) bumpDocCount(docId);
   }
@@ -3216,12 +3214,28 @@ async function uploadFaqImage(file) {
   const path = `faq-images/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
   const { data, error } = await sb.storage.from('documents').upload(path, file, { contentType: file.type });
   if (error) throw new Error(error.message);
-  return sb.storage.from('documents').getPublicUrl(data.path).data.publicUrl;
+  const { data: signedData, error: signErr } = await sb.storage.from('documents').createSignedUrl(data.path, 300);
+  if (signErr || !signedData?.signedUrl) throw new Error(signErr?.message || '이미지 URL 생성 실패');
+  return { path: data.path, url: signedData.signedUrl };
 }
 
-function insertImageAtCursor(url) {
+// description(FAQ 답변) HTML 안에 남겨진 data-storage-path를 근거로, 매번 화면에 표시될 때
+// 새 서명 URL로 갈아끼운다 — 저장된 서명 URL은 시간이 지나면 만료되므로 절대 그대로 믿지 않는다.
+async function resolveFaqImages(container) {
+  if (!container || !sb) return;
+  const imgs = [...container.querySelectorAll('img[data-storage-path]')];
+  await Promise.all(imgs.map(async img => {
+    const path = img.dataset.storagePath;
+    if (!path) return;
+    const { data } = await sb.storage.from('documents').createSignedUrl(path, 300);
+    if (data?.signedUrl) img.src = data.signedUrl;
+  }));
+}
+
+function insertImageAtCursor(path, url) {
   const el = document.getElementById('doc-description');
   const img = document.createElement('img');
+  img.dataset.storagePath = path;
   img.style.display = 'block';
   img.style.maxWidth = '100%';
   img.style.borderRadius = '6px';
@@ -3256,8 +3270,8 @@ async function handleDescPaste(e) {
   if (imgItem) {
     e.preventDefault();
     try {
-      const url = await uploadFaqImage(imgItem.getAsFile());
-      insertImageAtCursor(url);
+      const { path, url } = await uploadFaqImage(imgItem.getAsFile());
+      insertImageAtCursor(path, url);
     } catch (err) {
       showToast('이미지 업로드 실패: ' + err.message, true);
     }
@@ -3289,6 +3303,8 @@ function sanitizeFaqHtml(html) {
         } else if (child.tagName === 'IMG' && attr.name === 'style') {
           const kept = (attr.value.match(/(?:width|height)\s*:\s*\d+(?:px|%)/gi) || []).join(';');
           if (kept) child.setAttribute('style', kept); else child.removeAttribute('style');
+        } else if (child.tagName === 'IMG' && attr.name === 'data-storage-path') {
+          // 서명 URL 재발급용 원본 경로 — 그대로 유지
         } else if (attr.name !== 'src') {
           child.removeAttribute(attr.name);
         }
@@ -3314,7 +3330,9 @@ function renderFaqAnswer(raw) {
 
 // 기존 저장값을 답변 입력창에 채울 때
 function setDescEditorValue(raw) {
-  document.getElementById('doc-description').innerHTML = renderFaqAnswer(raw);
+  const el = document.getElementById('doc-description');
+  el.innerHTML = renderFaqAnswer(raw);
+  resolveFaqImages(el);
 }
 
 function onDocTypeChange() {
@@ -3516,16 +3534,15 @@ async function showDetail(ticket) {
       .order('created_at', { ascending: true });
     if (attData && attData.length > 0) {
       attList.innerHTML = attData.map(f => {
-        const url = sb.storage.from('ticket-attachments').getPublicUrl(f.storage_path).data?.publicUrl || '#';
         const sizeKb = f.file_size ? (f.file_size / 1024).toFixed(0) + ' KB' : '';
         const ext = f.file_name.split('.').pop()?.toLowerCase() || '';
         const isImage = ['jpg','jpeg','png','gif','webp'].includes(ext);
         const icon = isImage ? '[IMG]' : ext === 'pdf' ? '[PDF]' : ext === 'zip' ? '[ZIP]' : '[FILE]';
         return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
           <span style="font-size:11px;font-weight:700;color:var(--muted);background:var(--surface2);padding:2px 5px;border-radius:4px;">${icon}</span>
-          <a href="#" onclick="event.preventDefault();downloadDoc('${escHtml(url)}','${escHtml(f.file_name)}')" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--accent);text-decoration:none;">${escHtml(f.file_name)}</a>
+          <a href="#" onclick="event.preventDefault();downloadPrivateFile('ticket-attachments','${escHtml(f.storage_path)}','${escHtml(f.file_name)}')" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--accent);text-decoration:none;">${escHtml(f.file_name)}</a>
           <span style="color:var(--muted);flex-shrink:0;font-size:12px;">${sizeKb}</span>
-          <button onclick="downloadDoc('${escHtml(url)}','${escHtml(f.file_name)}')"
+          <button onclick="downloadPrivateFile('ticket-attachments','${escHtml(f.storage_path)}','${escHtml(f.file_name)}')"
              style="color:var(--muted);font-size:11px;padding:2px 8px;border:1px solid var(--border-md);border-radius:var(--r-sm);background:none;cursor:pointer;">다운로드</button>
         </div>`;
       }).join('');
@@ -5038,7 +5055,7 @@ function selectCompany(rowEl, id, name, statusLabel) {
   loadCompanyContractsAndLicenses();
 }
 
-async function downloadPrivateFile(bucket, path, filename) {
+async function downloadPrivateFile(bucket, path, filename, docId) {
   if (!path || !sb) return;
   const { data, error } = await sb.storage.from(bucket).createSignedUrl(path, 60);
   if (error || !data?.signedUrl) { showToast('파일을 불러올 수 없습니다: ' + (error?.message || ''), true); return; }
@@ -5054,6 +5071,7 @@ async function downloadPrivateFile(bucket, path, filename) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(blobUrl);
+    if (docId) await bumpDocCount(docId);
   } catch (e) {
     showToast('다운로드 실패: ' + e.message, true);
   }
@@ -6677,11 +6695,10 @@ async function loadRdAttachments() {
     const uploader = f.uploaded_by?.name || '';
     const date = f.created_at ? new Date(f.created_at).toLocaleString('ko-KR', { hour12: false }) : '';
     const tooltip = [f.file_name, sizeKb, uploader, date].filter(Boolean).join(' · ');
-    const url = sb.storage.from('ticket-attachments').getPublicUrl(f.storage_path).data?.publicUrl || '#';
     return `<span style="display:inline-flex;align-items:center;gap:7px;background:var(--surface2);border:1px solid var(--border);border-radius:99px;padding:5px 6px 5px 10px;font-size:11.5px;max-width:100%;" title="${escHtml(tooltip)}">
       <span style="color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px;">📄 ${escHtml(f.file_name)}</span>
       <span style="color:var(--faint);font-size:10.5px;flex-shrink:0;">${sizeKb}</span>
-      <button onclick="downloadDoc('${escHtml(url)}','${escHtml(f.file_name)}')" title="다운로드"
+      <button onclick="downloadPrivateFile('ticket-attachments','${escHtml(f.storage_path)}','${escHtml(f.file_name)}')" title="다운로드"
          style="width:18px;height:18px;border-radius:99px;border:none;background:var(--surface);color:var(--faint);font-size:10px;cursor:pointer;flex-shrink:0;">↓</button>
       <button onclick="rdDeleteAttachment('${f.id}','${escHtml(f.storage_path)}')" title="삭제"
          style="width:18px;height:18px;border-radius:99px;border:none;background:var(--surface);color:var(--faint);font-size:10px;cursor:pointer;flex-shrink:0;">✕</button>
@@ -7236,10 +7253,10 @@ function setLibFaqCategory(cat, el) {
   renderLibFaq();
 }
 
-function libRowActions(d, isAdmin, isPublic, fileUrl) {
+function libRowActions(d, isAdmin, isPublic) {
   const btnStyle = 'padding:4px 8px;font-size:11px;';
-  const downloadBtn = (!isAdmin && !isPublic) ? '' : fileUrl
-    ? `<button class="btn btn-outline btn-sm" style="${btnStyle}" onclick="downloadDoc('${fileUrl}','${escHtml(d.file_name || d.title)}','${d.id}')">⬇ 다운로드</button>`
+  const downloadBtn = (!isAdmin && !isPublic) ? '' : d.storage_path
+    ? `<button class="btn btn-outline btn-sm" style="${btnStyle}" onclick="downloadPrivateFile('documents','${escHtml(d.storage_path)}','${escHtml(d.file_name || d.title)}','${d.id}')">⬇ 다운로드</button>`
     : `<button class="btn btn-outline btn-sm" style="${btnStyle}" disabled>⬇ 다운로드</button>`;
   const dJson = escHtml(JSON.stringify(d).replace(/'/g,"&#39;"));
   const adminBtns = isAdmin ? `
@@ -7271,9 +7288,6 @@ function renderLibFiles() {
 
   tbody.innerHTML = list.map(d => {
     const isPublic = d.is_public !== false;
-    const fileUrl = d.storage_path && sb
-      ? sb.storage.from('documents').getPublicUrl(d.storage_path.split('/').map(s => encodeURIComponent(decodeURIComponent(s))).join('/')).data?.publicUrl
-      : null;
     const isNew = d.created_at && new Date(d.created_at) > thirtyDaysAgo;
     const privateBadge = isAdmin && !isPublic ? '<span class="badge b-red" style="font-size:10px;margin-left:6px;">비공개</span>' : '';
     const newBadge = isNew ? '<span class="badge b-accent" style="font-size:10px;margin-left:6px;">NEW</span>' : '';
@@ -7286,7 +7300,7 @@ function renderLibFiles() {
       <td class="tbl-ellipsis" style="font-size:12px;color:var(--faint);">${(isAdmin || isPublic) ? escHtml(d.file_name || '-') : '—'}</td>
       <td style="font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;" id="dl-count-lib-${d.id}">${(d.download_count || 0).toLocaleString()}</td>
       <td style="white-space:nowrap;color:var(--faint);">${(d.created_at || '').slice(0,10)}</td>
-      <td style="overflow:hidden;">${libRowActions(d, isAdmin, isPublic, fileUrl)}</td>
+      <td style="overflow:hidden;">${libRowActions(d, isAdmin, isPublic)}</td>
     </tr>`;
   }).join('');
 }
@@ -7470,24 +7484,6 @@ async function bumpDocCount(docId) {
   });
 }
 
-async function downloadDoc(url, filename, docId) {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) { showToast('다운로드 실패: ' + res.statusText, true); return; }
-    const blob = await res.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(blobUrl);
-    if (docId && sb) await bumpDocCount(docId);
-  } catch (e) {
-    showToast('다운로드 실패: ' + e.message, true);
-  }
-}
 // ── 모든 검색창(.search-box)에 지우기(X) 버튼 공통 추가 ──
 function setupSearchBoxClearButtons() {
   document.querySelectorAll('input.search-box').forEach(input => {
