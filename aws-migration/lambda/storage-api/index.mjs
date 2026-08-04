@@ -46,26 +46,100 @@ function resolveBucket(logicalName) {
   return bucket;
 }
 
-// 자료실(documents 버킷)에 허용할 확장자 — accept 속성은 우회 가능한 UI 힌트일 뿐이라
-// 서버에서도 한 번 더 막아야 실제 통제가 됨. FAQ 답변에 붙여넣는 이미지(png/jpg 등)도
-// 이 버킷을 같이 쓰므로 이미지 확장자를 포함해야 함.
-const ALLOWED_DOCUMENT_EXTENSIONS = ['.pdf', '.docx', '.pptx', '.xlsx', '.png', '.jpg', '.jpeg', '.gif', '.zip', '.mp4'];
-const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024; // 20MB — 클라이언트 accept/hint는 우회 가능하므로 서버에서도 확인
+// 허용 확장자 — accept 속성은 우회 가능한 UI 힌트일 뿐이라 서버에서도 한 번 더 막아야
+// 실제 통제가 됨. 각 버킷의 클라이언트 accept/실제 용도 기준으로 맞춤.
+const ALLOWED_EXTENSIONS_BY_BUCKET = {
+  documents: ['.pdf', '.docx', '.pptx', '.xlsx', '.png', '.jpg', '.jpeg', '.gif', '.zip', '.mp4'],
+  'ticket-attachments': ['.pdf', '.log', '.txt', '.zip', '.xlsx', '.docx', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'],
+  'contract-attachments': ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.png', '.jpg', '.jpeg', '.gif', '.zip'],
+};
+const MAX_UPLOAD_SIZE = 20 * 1024 * 1024; // 20MB — 클라이언트 accept/hint는 우회 가능하므로 서버에서도 확인
 
-async function handleUploadUrl(body) {
-  const { bucket, path, contentType, contentLength } = body;
-  if (bucket === 'documents') {
-    const ext = '.' + (path.split('.').pop() || '').toLowerCase();
-    if (!ALLOWED_DOCUMENT_EXTENSIONS.includes(ext)) {
-      return json(400, { error: `허용되지 않는 파일 형식입니다: ${ext}` });
-    }
-    if (typeof contentLength === 'number' && contentLength > MAX_DOCUMENT_SIZE) {
-      return json(400, { error: `파일이 너무 큽니다. 최대 20MB까지 업로드할 수 있습니다.` });
-    }
+// 업로드 시점에는(다운로드/삭제와 달리) 아직 메타데이터 행이 없으므로 storage_path로
+// 기존 행을 찾아 소유권을 확인하는 checkAccess()를 그대로 쓸 수 없다. 대신 경로의 첫
+// 세그먼트(티켓ID)가 요청자가 실제로 접근 가능한 티켓인지 data-api에 위임해서 확인한다.
+async function checkTicketOwnership(ticketId, event) {
+  if (!ticketId) return false;
+  const innerEvent = {
+    requestContext: { http: { method: 'GET' }, authorizer: event.requestContext?.authorizer },
+    rawPath: '/data/tickets',
+    queryStringParameters: { id: `eq.${ticketId}`, select: 'id', limit: '1' },
+  };
+  try {
+    const res = await lambda.send(new InvokeCommand({
+      FunctionName: DATA_API_FN, InvocationType: 'RequestResponse',
+      Payload: Buffer.from(JSON.stringify(innerEvent)),
+    }));
+    const payload = JSON.parse(Buffer.from(res.Payload).toString('utf-8'));
+    if (payload.statusCode !== 200) return false;
+    const rows = JSON.parse(payload.body);
+    return Array.isArray(rows) && rows.length > 0;
+  } catch (err) {
+    console.error('[storage-api 티켓 소유권확인 실패]', err);
+    return false;
   }
+}
+
+// company_contracts/content_documents 쓰기 권한(company_manage/library_manage)은
+// role_permissions 테이블이 기준이다(화면에서 커스터마이징 가능) — storage-api는 DB가
+// 없으므로 data-api에 조회를 위임해서 같은 기준을 그대로 따른다.
+async function checkFeaturePermission(role, featureKey, event) {
+  if (role === 'admin') return true;
+  if (!role) return false;
+  const innerEvent = {
+    requestContext: { http: { method: 'GET' }, authorizer: event.requestContext?.authorizer },
+    rawPath: '/data/role_permissions',
+    queryStringParameters: { role: `eq.${role}`, feature_key: `eq.${featureKey}`, select: 'enabled', limit: '1' },
+  };
+  try {
+    const res = await lambda.send(new InvokeCommand({
+      FunctionName: DATA_API_FN, InvocationType: 'RequestResponse',
+      Payload: Buffer.from(JSON.stringify(innerEvent)),
+    }));
+    const payload = JSON.parse(Buffer.from(res.Payload).toString('utf-8'));
+    if (payload.statusCode !== 200) return false;
+    const rows = JSON.parse(payload.body);
+    return rows[0]?.enabled === true;
+  } catch (err) {
+    console.error('[storage-api 권한확인 실패]', err);
+    return false;
+  }
+}
+
+// 업로드 경로별 소유권/권한 검사 — signed-url/remove의 checkAccess()와 대칭되는 쓰기 쪽 검사.
+async function checkUploadAllowed(bucket, path, event) {
+  const role = event.requestContext?.authorizer?.lambda?.role || null;
+  if (bucket === 'ticket-attachments') {
+    const ticketId = String(path).split('/')[0];
+    return await checkTicketOwnership(ticketId, event);
+  }
+  if (bucket === 'contract-attachments') {
+    return await checkFeaturePermission(role, 'company_manage', event);
+  }
+  if (bucket === 'documents') {
+    return await checkFeaturePermission(role, 'library_manage', event);
+  }
+  return false; // 알 수 없는 버킷은 기본적으로 거부
+}
+
+async function handleUploadUrl(body, event) {
+  const { bucket, path, contentType, contentLength } = body;
+
+  const allowedExts = ALLOWED_EXTENSIONS_BY_BUCKET[bucket];
+  const ext = '.' + (String(path).split('.').pop() || '').toLowerCase();
+  if (!allowedExts || !allowedExts.includes(ext)) {
+    return json(400, { error: `허용되지 않는 파일 형식입니다: ${ext}` });
+  }
+  if (typeof contentLength === 'number' && contentLength > MAX_UPLOAD_SIZE) {
+    return json(400, { error: `파일이 너무 큽니다. 최대 20MB까지 업로드할 수 있습니다.` });
+  }
+
+  const allowed = await checkUploadAllowed(bucket, path, event);
+  if (!allowed) return json(403, { error: '이 경로에 업로드할 권한이 없습니다' });
+
   const Bucket = resolveBucket(bucket);
   const cmdParams = { Bucket, Key: path, ContentType: contentType || 'application/octet-stream' };
-  if (bucket === 'documents' && typeof contentLength === 'number') cmdParams.ContentLength = contentLength;
+  if (typeof contentLength === 'number') cmdParams.ContentLength = contentLength;
   const cmd = new PutObjectCommand(cmdParams);
   const uploadUrl = await getSignedUrl(s3, cmd, { expiresIn: 300 });
   return json(200, { uploadUrl, path });
@@ -155,7 +229,7 @@ export const handler = async (event) => {
 
   try {
     const body = event.body ? JSON.parse(event.body) : {};
-    if (method === 'POST' && path === '/storage/upload-url') return await handleUploadUrl(body);
+    if (method === 'POST' && path === '/storage/upload-url') return await handleUploadUrl(body, event);
     if (method === 'POST' && path === '/storage/signed-url') return await handleSignedUrl(body, event);
     if (method === 'POST' && path === '/storage/remove') return await handleRemove(body, event);
     return json(404, { error: 'not found' });
