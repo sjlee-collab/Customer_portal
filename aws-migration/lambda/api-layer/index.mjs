@@ -417,12 +417,13 @@ async function login(body) {
   if (user.is_active === false) return json(403, { error: '비활성화된 계정입니다. 담당자에게 문의하세요.' });
 
   const stored = user.password;
-  if (stored) {
-    if (!checkPassword(password, stored)) return json(401, { error: '비밀번호가 올바르지 않습니다.' });
-    // 예전 형식(평문 또는 salt 없는 SHA-256)으로 저장돼 있었다면 로그인 성공 시점에 scrypt로 승격
-    if (!isScryptHash(stored)) {
-      await query('update users set password=$1 where id=$2', [hashPassword(password), user.id]);
-    }
+  // 비밀번호가 아예 설정되지 않은 계정(관리자가 막 등록한 신규 계정 등)은 무슨 비밀번호를
+  // 넣어도 통과되던 구멍이 있었다 — 반드시 비밀번호 재설정을 먼저 거치게 막는다.
+  if (!stored) return json(403, { error: '비밀번호가 설정되지 않은 계정입니다. "비밀번호를 잊으셨나요?"로 먼저 설정해주세요.' });
+  if (!checkPassword(password, stored)) return json(401, { error: '비밀번호가 올바르지 않습니다.' });
+  // 예전 형식(평문 또는 salt 없는 SHA-256)으로 저장돼 있었다면 로그인 성공 시점에 scrypt로 승격
+  if (!isScryptHash(stored)) {
+    await query('update users set password=$1 where id=$2', [hashPassword(password), user.id]);
   }
 
   const companyName = await getCompanyName(user.company_id);
