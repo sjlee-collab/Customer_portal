@@ -8,7 +8,7 @@
 // 입력 payload 형태:
 // {
 //   type: 'TICKET_INSERT' | 'TICKET_ASSIGNED' | 'TICKET_STATUS' | 'TICKET_OVERDUE'
-//       | 'OVERDUE_BATCH' | 'CONNECTION_TEST',
+//       | 'TICKET_REPLY' | 'OVERDUE_BATCH' | 'CONNECTION_TEST',
 //   ticket: { id, ticket_number, title, category, priority, created_at, due_date, status },
 //   companyName, requesterName, assigneeName,
 //   prevAssigneeName,          // TICKET_ASSIGNED 용
@@ -161,6 +161,22 @@ async function handleTicketStatus(payload, results) {
   }
 }
 
+async function handleTicketReply(payload, results) {
+  const { ticket } = payload;
+  const header = `💬 *고객 답글 등록*`;
+  const body = buildBaseMessage(ticket, payload) + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`;
+  await sendSlack(SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, 'reply', header, body, results);
+  if (['contract', 'license'].includes(ticket.category) && SLACK_WEBHOOK_SALES) {
+    await sendSlack(SLACK_WEBHOOK_SALES, '#영업-슬랙채널', ticket.id, 'reply', header, body, results);
+  }
+  if (ticket.category === 'tech_support' && SLACK_WEBHOOK_TECH) {
+    await sendSlack(SLACK_WEBHOOK_TECH, '#기술지원-슬랙채널', ticket.id, 'reply', header, body, results);
+  }
+  if (ticket.category === 'education' && SLACK_WEBHOOK_EDU) {
+    await sendSlack(SLACK_WEBHOOK_EDU, '#교육-슬랙채널', ticket.id, 'reply', header, body, results);
+  }
+}
+
 async function handleTicketOverdue(payload, results) {
   const { ticket, overdueDays } = payload;
   const dueDateStr = new Date(ticket.due_date).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' });
@@ -183,6 +199,7 @@ export const handler = async (event) => {
     case 'TICKET_ASSIGNED':  await handleTicketAssigned(payload, results); break;
     case 'TICKET_STATUS':    await handleTicketStatus(payload, results); break;
     case 'TICKET_OVERDUE':   await handleTicketOverdue(payload, results); break;
+    case 'TICKET_REPLY':     await handleTicketReply(payload, results); break;
     default: break;
   }
 

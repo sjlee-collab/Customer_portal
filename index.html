@@ -2345,6 +2345,23 @@ async function apiCreateTicket(payload) {
   }
 }
 
+async function apiAddReply(ticketId, note, changedBy) {
+  try {
+    const res = await fetch(`${API_BASE}/tickets/${ticketId}/reply`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ note, changed_by: changedBy }),
+    });
+    const j = await res.json().catch(() => null);
+    if (!res.ok) {
+      if (isAuthRejection(res.status, j)) handleAuthExpired();
+      return { error: { message: j?.error || res.statusText } };
+    }
+    return { error: null };
+  } catch (e) {
+    return { error: { message: e.message } };
+  }
+}
+
 async function apiManageTicket(ticketId, body) {
   try {
     const res = await fetch(`${API_BASE}/tickets/${ticketId}/manage`, {
@@ -6889,11 +6906,7 @@ async function sendCustomerReply() {
   const text = (document.getElementById('rd-customer-reply').value || '').trim();
   if (!text) { showToast('내용을 입력하세요.', true); return; }
   _sendingReply = true;
-  const { error } = await sb.from('ticket_replies').insert({
-    ticket_id: rdTicket.id,
-    note: text,
-    changed_by: currentUser?.id || null
-  });
+  const { error } = await apiAddReply(rdTicket.id, text, currentUser?.id || null);
   _sendingReply = false;
   if (error) { showToast('등록 실패: ' + error.message, true); return; }
   document.getElementById('rd-customer-reply').value = '';

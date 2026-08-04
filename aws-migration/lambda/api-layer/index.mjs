@@ -90,7 +90,7 @@ async function getCompanyName(companyId) {
 
 async function getUser(userId) {
   if (!userId) return null;
-  const rows = await query('select id, name, email, contract_id from users where id=$1', [userId]);
+  const rows = await query('select id, name, email, role, contract_id from users where id=$1', [userId]);
   return rows[0] ?? null;
 }
 
@@ -281,6 +281,38 @@ async function notifyForAssign(ticketId, prevAssigneeId) {
     type: 'TICKET_ASSIGNED', ticket, companyName: ticket.company_name,
     requesterName: requester?.name, assigneeName: ticket.assigned_to_name,
     prevAssigneeName: prevAssignee?.name ?? '미배정',
+  });
+}
+
+// ── POST /tickets/{id}/reply ──
+// 고객/직원 공용 답글 스레드. 답글 작성자가 고객(role='customer')일 때만 담당 Slack
+// 채널로 알림을 보낸다 — 직원끼리의 답글은 알림 대상이 아님.
+async function addReply(ticketId, body) {
+  const { note, changed_by } = body;
+  if (!note) return json(400, { error: 'note는 필수입니다' });
+
+  const author = await getUser(changed_by);
+
+  await query(
+    `insert into ticket_replies (ticket_id, note, changed_by) values ($1,$2,$3)`,
+    [ticketId, note, changed_by ?? null]
+  );
+
+  if (author?.role === 'customer') {
+    await deferNotify('reply', { ticketId });
+  }
+
+  return json(201, { ok: true });
+}
+
+async function notifyForReply(ticketId) {
+  const ticket = await getTicket(ticketId);
+  if (!ticket) return;
+  const requester = await getUser(ticket.created_by);
+
+  await notifySlack({
+    type: 'TICKET_REPLY', ticket, companyName: ticket.company_name,
+    requesterName: requester?.name, assigneeName: ticket.assigned_to_name,
   });
 }
 
@@ -517,6 +549,7 @@ const DEFERRED_HANDLERS = {
   status: (job) => notifyForStatus(job.ticketId, job.prevStatus),
   assign: (job) => notifyForAssign(job.ticketId, job.prevAssigneeId),
   manage: (job) => notifyForManage(job),
+  reply: (job) => notifyForReply(job.ticketId),
 };
 
 export const handler = async (event) => {
@@ -586,6 +619,10 @@ export const handler = async (event) => {
     const manageMatch = path.match(/^\/tickets\/([^/]+)\/manage$/);
     if (method === 'PATCH' && manageMatch) {
       return await manageTicket(manageMatch[1], body);
+    }
+    const replyMatch = path.match(/^\/tickets\/([^/]+)\/reply$/);
+    if (method === 'POST' && replyMatch) {
+      return await addReply(replyMatch[1], body);
     }
     return json(404, { error: 'not found' });
   } catch (err) {
