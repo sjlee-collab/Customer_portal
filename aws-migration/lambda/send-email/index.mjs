@@ -158,10 +158,26 @@ function passwordResetHtml(userName, resetUrl) {
   return layout('비밀번호 재설정', `<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">안녕하세요, <strong>${userName}</strong>님.<br>비밀번호 재설정을 요청하셨습니다. 아래 버튼을 눌러 새 비밀번호를 설정해주세요.</p><a class="btn" href="${resetUrl}">비밀번호 재설정하기</a><div style="font-size:11px;color:#9ca3af;margin-top:8px;">${display}</div><p style="margin:20px 0 0;font-size:12px;color:#9ca3af;">이 링크는 30분간 유효합니다. 본인이 요청하지 않았다면 이 메일을 무시해주세요.</p>`);
 }
 
+// API Gateway(공개 라우트)로 들어온 요청인지 구분 — api-layer의 내부 직접 invoke는
+// requestContext가 없는 순수 payload 객체 그대로 넘어온다. 공개 라우트로 온 요청은
+// "연동 관리" 화면의 연결테스트(CONNECTION_TEST)만, 그것도 스태프 role만 허용한다 —
+// 그 외 타입(PASSWORD_RESET 등)은 임의의 로그인 사용자가 회사 명의로 임의 수신자에게
+// 이메일을 보낼 수 있는 취약점이었다.
+const STAFF_ROLES = new Set(['admin', 'sales', 'tech_support', 'education']);
+function isPublicGatewayRequest(event) { return !!event?.requestContext; }
+function getRequesterRole(event) { return event?.requestContext?.authorizer?.lambda?.role || null; }
+
 export const handler = async (event) => {
   const results = [];
   try {
     const payload = typeof event.body === 'string' ? JSON.parse(event.body) : (event.body || event);
+
+    if (isPublicGatewayRequest(event)) {
+      const role = getRequesterRole(event);
+      if (payload.type !== 'CONNECTION_TEST' || !STAFF_ROLES.has(role)) {
+        return { statusCode: 403, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: '이 기능은 내부 시스템에서만 호출할 수 있습니다' }) };
+      }
+    }
 
     if (payload.type === 'PASSWORD_RESET') {
       const { toEmail, userName, token } = payload;
