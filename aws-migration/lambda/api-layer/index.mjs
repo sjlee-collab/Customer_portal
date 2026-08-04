@@ -7,7 +7,7 @@
 // 멈춰버릴 수 있어 신뢰할 수 없으므로, 자기 자신을 비동기(Event) 방식으로 재호출해서
 // 완전히 별도의 Lambda 실행으로 알림 처리를 넘긴다 (deferNotify / __deferred 분기).
 
-import { randomBytes, createHash } from 'node:crypto';
+import { randomBytes, createHash, scryptSync, timingSafeEqual } from 'node:crypto';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 import { query } from './db.mjs';
 import { notifySlack, notifyEmail } from './notify.mjs';
@@ -36,12 +36,29 @@ function corsHeaders(event) {
 
 let currentEvent = null;
 
-// index.html의 hashPassword()와 동일한 알고리즘(salt 없는 SHA-256 hex) — 로그인/비밀번호
-// 검증을 서버로 옮기면서 클라이언트가 하던 해시 비교를 그대로 서버에서 재현하기 위함.
+// 비밀번호 해시 — scrypt(salt 포함, node:crypto 내장, 느린 KDF)를 표준으로 쓴다.
+// 예전 두 세대의 저장 형식(평문 / salt 없는 SHA-256)도 로그인 성공 시 이 형식으로 자동 승격한다.
 function hashPassword(pw) {
-  return createHash('sha256').update(pw, 'utf8').digest('hex');
+  const salt = randomBytes(16);
+  const hash = scryptSync(pw, salt, 64);
+  return `scrypt$${salt.toString('hex')}$${hash.toString('hex')}`;
 }
-function isHashed(pw) { return typeof pw === 'string' && /^[0-9a-f]{64}$/.test(pw); }
+function isScryptHash(pw) { return typeof pw === 'string' && /^scrypt\$[0-9a-f]{32}\$[0-9a-f]{128}$/.test(pw); }
+function isSha256Hash(pw) { return typeof pw === 'string' && /^[0-9a-f]{64}$/.test(pw); }
+function isHashed(pw) { return isScryptHash(pw) || isSha256Hash(pw); }
+
+function checkPassword(pw, stored) {
+  if (isScryptHash(stored)) {
+    const [, saltHex, hashHex] = stored.split('$');
+    const expected = Buffer.from(hashHex, 'hex');
+    const actual = scryptSync(pw, Buffer.from(saltHex, 'hex'), expected.length);
+    return actual.length === expected.length && timingSafeEqual(actual, expected);
+  }
+  if (isSha256Hash(stored)) {
+    return createHash('sha256').update(pw, 'utf8').digest('hex') === stored;
+  }
+  return pw === stored; // 아주 오래된 평문 legacy 계정
+}
 
 const DEFAULT_ASSIGNEE_BY_CATEGORY = {
   education: { id: '53d240b2-b950-4c94-9289-17feb229aa69', name: '김서연' }, // syeonkim@bigxdata.io
@@ -369,11 +386,9 @@ async function login(body) {
 
   const stored = user.password;
   if (stored) {
-    if (isHashed(stored)) {
-      if (hashPassword(password) !== stored) return json(401, { error: '비밀번호가 올바르지 않습니다.' });
-    } else {
-      // 평문으로 저장된 legacy 계정 → 평문 비교 후 자동으로 해시로 업그레이드
-      if (password !== stored) return json(401, { error: '비밀번호가 올바르지 않습니다.' });
+    if (!checkPassword(password, stored)) return json(401, { error: '비밀번호가 올바르지 않습니다.' });
+    // 예전 형식(평문 또는 salt 없는 SHA-256)으로 저장돼 있었다면 로그인 성공 시점에 scrypt로 승격
+    if (!isScryptHash(stored)) {
       await query('update users set password=$1 where id=$2', [hashPassword(password), user.id]);
     }
   }
@@ -411,8 +426,20 @@ async function verifyPassword(event, body) {
   if (!stored) return json(200, { ok: true }); // 저장된 비밀번호가 없으면 확인할 게 없음
 
   if (!password) return json(400, { error: 'password는 필수입니다' });
-  const match = isHashed(stored) ? hashPassword(password) === stored : password === stored;
-  if (!match) return json(401, { error: '현재 비밀번호가 올바르지 않습니다.' });
+  if (!checkPassword(password, stored)) return json(401, { error: '현재 비밀번호가 올바르지 않습니다.' });
+  return json(200, { ok: true });
+}
+
+// ── PATCH /auth/change-password ──
+// 마이페이지의 "새 비밀번호"는 여기서만 받는다 — data-api의 범용 PATCH로 users.password를
+// 직접 쓰지 못하게 막아뒀으므로(아래 data-api 쪽 BLOCKED_WRITE_COLUMNS), 비밀번호 변경은
+// 반드시 이 서버 엔드포인트를 거쳐야 하고 평문을 받아 여기서만 해시한다.
+async function changePassword(event, body) {
+  const userId = event.requestContext?.authorizer?.lambda?.userId;
+  if (!userId) return json(401, { error: '인증이 필요합니다' });
+  const { newPassword } = body;
+  if (!newPassword || newPassword.length < 8) return json(400, { error: '비밀번호는 8자 이상이어야 합니다.' });
+  await query('update users set password=$1 where id=$2', [hashPassword(newPassword), userId]);
   return json(200, { ok: true });
 }
 
@@ -436,13 +463,14 @@ async function requestPasswordReset(body) {
 
 // ── POST /auth/reset-password ──
 async function resetPassword(body) {
-  const { token, newPasswordHash } = body;
-  if (!token || !newPasswordHash) return json(400, { error: 'token, newPasswordHash는 필수입니다' });
+  const { token, newPassword } = body;
+  if (!token || !newPassword) return json(400, { error: 'token, newPassword는 필수입니다' });
+  if (newPassword.length < 8) return json(400, { error: '비밀번호는 8자 이상이어야 합니다.' });
 
   const updated = await query(
     `update users set password=$1, reset_token=null, reset_token_expires_at=null
      where reset_token=$2 and reset_token_expires_at > now() returning id`,
-    [newPasswordHash, token]
+    [hashPassword(newPassword), token]
   );
   if (!updated.length) return json(400, { error: '유효하지 않거나 만료된 링크입니다' });
   return json(200, { ok: true });
@@ -534,6 +562,9 @@ export const handler = async (event) => {
     }
     if (method === 'POST' && path === '/auth/verify-password') {
       return await verifyPassword(event, body);
+    }
+    if (method === 'PATCH' && path === '/auth/change-password') {
+      return await changePassword(event, body);
     }
     if (method === 'POST' && path === '/auth/request-reset') {
       return await requestPasswordReset(body);

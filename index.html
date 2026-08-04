@@ -2408,19 +2408,6 @@ const STATUS_BADGE = {
 // 관리자 화면 접근 가능 역할
 const ADMIN_ROLES = new Set(['tech_support', 'sales', 'education', 'admin']);
 
-const ACCOUNTS = {
-  'sjl@bigxdata.io':       { role: 'admin',        pw: 'bigxdata1234!', name: '이상재',  company: '빅스데이터' },
-  'smlee@bigxdata.io':     { role: 'tech_support', pw: 'bigxdata1234!', name: '이수민',  company: '빅스데이터' },
-  'snkim@bigxdata.io':     { role: 'internal',     pw: 'bigxdata1234!', name: '김수년',  company: '빅스데이터' },
-  'sjlee@bigxdata.io':     { role: 'customer',     pw: 'bigxdata1234!', name: '김고객',  company: '마루', company_id: '794f008b-63c3-4a6e-b804-e3adfeac198a' },
-  'swlee@bigxdata.io':     { role: 'sales',        pw: 'bigxdata1234!', name: '이승우',  company: '빅스데이터' },
-};
-
-async function hashPassword(pw) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
-}
-
 let currentUser = null;
 
 // API 인증 토큰 — currentUser보다 먼저(예: restoreSession의 검증 호출 시점) 필요할 수 있어
@@ -2511,10 +2498,9 @@ async function submitPasswordReset() {
   const btn = document.getElementById('rp-submit-btn');
   btn.disabled = true;
   try {
-    const hash = await hashPassword(pw1);
     const res = await fetch(`${API_BASE}/auth/reset-password`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: _resetToken, newPasswordHash: hash }),
+      body: JSON.stringify({ token: _resetToken, newPassword: pw1 }),
     });
     const data = await res.json().catch(() => null);
     if (!res.ok) {
@@ -2542,16 +2528,6 @@ async function doLogin() {
   if (!email) { errEl.textContent = '이메일을 입력하세요.'; errEl.style.display = ''; return; }
   if (!pw)    { errEl.textContent = '비밀번호를 입력하세요.'; errEl.style.display = ''; return; }
 
-  // Supabase 미연결 시 로컬 ACCOUNTS 폴백 (평문 비교만)
-  if (!sb) {
-    const acct = ACCOUNTS[email];
-    if (!acct) { errEl.textContent = '등록되지 않은 계정입니다.'; errEl.style.display = ''; return; }
-    if (acct.pw && pw !== acct.pw) { errEl.textContent = '비밀번호가 올바르지 않습니다.'; errEl.style.display = ''; return; }
-    errEl.style.display = 'none';
-    enterApp(email, acct);
-    return;
-  }
-
   const btn = document.querySelector('#screen-login .btn-primary');
   if (btn) { btn.disabled = true; btn.textContent = '로그인 중...'; }
   errEl.style.display = 'none';
@@ -2570,15 +2546,8 @@ async function doLogin() {
   }
   if (btn) { btn.disabled = false; btn.textContent = '로그인'; }
 
-  if (!res || res.status === 404) {
-    const localAcct = ACCOUNTS[email];
-    if (localAcct) {
-      if (localAcct.pw && pw !== localAcct.pw) { errEl.textContent = '비밀번호가 올바르지 않습니다.'; errEl.style.display = ''; return; }
-      errEl.style.display = 'none';
-      enterApp(email, localAcct);
-      return;
-    }
-    errEl.textContent = '등록되지 않은 계정입니다. 담당자에게 문의하세요.';
+  if (!res) {
+    errEl.textContent = '서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.';
     errEl.style.display = '';
     return;
   }
@@ -2788,9 +2757,22 @@ async function saveMyPage() {
       const payload = { name };
       if (phone) payload.phone = phone;
       if (dept)  payload.department = dept;
-      if (changePw) payload.password = await hashPassword(pwNew);
       const { error } = await sb.from('users').update(payload).eq('id', currentUser.id);
       if (error) { alert('저장 중 오류가 발생했습니다: ' + error.message); return; }
+
+      // 비밀번호는 반드시 서버(api-layer /auth/change-password)에서만 해시해서 저장한다 —
+      // data-api의 범용 PATCH로는 password 컬럼을 쓸 수 없게 막아뒀다.
+      if (changePw) {
+        const pwRes = await fetch(`${API_BASE}/auth/change-password`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ newPassword: pwNew }),
+        }).catch(() => null);
+        const pwData = await pwRes?.json().catch(() => null);
+        if (!pwRes?.ok) {
+          if (pwRes && isAuthRejection(pwRes.status, pwData)) { handleAuthExpired(); return; }
+          alert('비밀번호 변경 중 오류가 발생했습니다: ' + (pwData?.error || '')); return;
+        }
+      }
     }
   }
 
