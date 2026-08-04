@@ -1230,9 +1230,9 @@ textarea{resize:vertical;min-height:100px;}
           </div>
           <div class="card" style="padding:0;overflow:hidden;">
             <div class="tbl-scroll list-scroll"><table class="tbl">
-              <thead><tr><th>이름</th><th>이메일</th><th>고객사</th><th>사용자 유형</th><th>최근 로그인</th><th>상태</th><th>액션</th></tr></thead>
+              <thead><tr><th>이름</th><th>계약</th><th>이메일</th><th>고객사</th><th>사용자 유형</th><th>최근 로그인</th><th>상태</th><th>액션</th></tr></thead>
               <tbody id="users-tbody-customer">
-                <tr><td colspan="7" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
+                <tr><td colspan="8" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
               </tbody>
             </table></div>
           </div>
@@ -5792,7 +5792,7 @@ async function loadUsers() {
 
   const { data, error } = await sb
     .from('users')
-    .select('*, company:company_id(name)')
+    .select('*, company:company_id(name), contract:contract_id(contract_name,status)')
     .order('name')
     .limit(1000);
 
@@ -5871,8 +5871,9 @@ function applyUserFilter() {
 function renderUsers(users, tbodyId) {
   const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
+  const isCustomerTable = tbodyId === 'users-tbody-customer';
   if (!users.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="padding:40px;text-align:center;color:var(--faint);">등록된 사용자가 없습니다.</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="${isCustomerTable ? 8 : 7}" style="padding:40px;text-align:center;color:var(--faint);">등록된 사용자가 없습니다.</td></tr>`;
     return;
   }
   tbody.innerHTML = users.map(u => {
@@ -5883,9 +5884,13 @@ function renderUsers(users, tbodyId) {
     const activeHtml = u.is_active
       ? '<span class="badge b-green">활성</span>'
       : '<span class="badge b-gray">비활성</span>';
+    const contractHtml = u.contract
+      ? `${escHtml(u.contract.contract_name)} <span class="badge ${RD_CONTRACT_STATUS_BADGE[u.contract.status] || 'b-gray'}">${escHtml(u.contract.status || '—')}</span>`
+      : '<span style="color:var(--faint);">계약 미지정</span>';
     return `
       <tr>
         <td style="font-weight:600;">${escHtml(u.name)}</td>
+        ${isCustomerTable ? `<td style="font-size:12px;">${contractHtml}</td>` : ''}
         <td style="font-size:12px;color:var(--muted);">${escHtml(u.email)}</td>
         <td style="font-size:12px;">${escHtml(companyName)}</td>
         <td><span class="badge ${roleBadge}">${roleLabel}</span></td>
