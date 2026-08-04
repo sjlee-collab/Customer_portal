@@ -9,8 +9,11 @@
 
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
 const s3 = new S3Client({ region: process.env.AWS_REGION || 'ap-northeast-2' });
+const lambda = new LambdaClient({});
+const DATA_API_FN = process.env.DATA_API_FN || 'customer_portal_data-api';
 
 // Supabase 시절 버킷 이름 -> 실제 S3 버킷 이름
 const BUCKET_MAP = {
@@ -68,8 +71,57 @@ async function handleUploadUrl(body) {
   return json(200, { uploadUrl, path });
 }
 
-async function handleSignedUrl(body) {
+// signed-url(다운로드)은 "이 경로에 해당하는 메타데이터 행을 이 요청자가 볼 수 있는가"를
+// data-api에 그대로 위임해서 확인한다 — storage-api 자체는 DB 접속이 없으므로 직접
+// 판단하지 않고, 요청자와 동일한 인증 컨텍스트로 data-api를 내부 호출(Lambda invoke)해서
+// 그쪽의 테넌트 격리 로직(고객은 자기 회사 것만, 비공개 문서는 admin만 등)을 재사용한다.
+const OWNERSHIP_TABLE_BY_BUCKET = {
+  'ticket-attachments': { table: 'ticket_attachments', column: 'storage_path' },
+  documents: { table: 'content_documents', column: 'storage_path' },
+  'contract-attachments': { table: 'company_contracts', column: 'file_path' },
+};
+
+// FAQ 답변에 붙여넣는 이미지는 content_documents의 독립된 행이 아니라 답변 본문 HTML
+// 안에 data-storage-path로만 남아있어서 메타데이터 조회로는 소유권을 확인할 수 없다.
+// 실제 다운로드 가능한 문서 파일보다 민감도가 낮다고 보고 검사에서 제외한다.
+function isExemptPath(bucket, path) {
+  return bucket === 'documents' && path.startsWith('faq-images/');
+}
+
+async function checkAccess(bucket, path, event) {
+  if (isExemptPath(bucket, path)) return true;
+  const mapping = OWNERSHIP_TABLE_BY_BUCKET[bucket];
+  if (!mapping) return false; // 알 수 없는 버킷은 기본적으로 거부
+
+  const innerEvent = {
+    requestContext: {
+      http: { method: 'GET' },
+      authorizer: event.requestContext?.authorizer,
+    },
+    rawPath: `/data/${mapping.table}`,
+    queryStringParameters: { [mapping.column]: `eq.${path}`, select: 'id', limit: '1' },
+  };
+
+  try {
+    const res = await lambda.send(new InvokeCommand({
+      FunctionName: DATA_API_FN,
+      InvocationType: 'RequestResponse',
+      Payload: Buffer.from(JSON.stringify(innerEvent)),
+    }));
+    const payload = JSON.parse(Buffer.from(res.Payload).toString('utf-8'));
+    if (payload.statusCode !== 200) return false;
+    const rows = JSON.parse(payload.body);
+    return Array.isArray(rows) && rows.length > 0;
+  } catch (err) {
+    console.error('[storage-api 권한확인 실패]', err);
+    return false; // 확인 자체가 실패하면 안전하게 거부
+  }
+}
+
+async function handleSignedUrl(body, event) {
   const { bucket, path, expiresIn } = body;
+  const allowed = await checkAccess(bucket, path, event);
+  if (!allowed) return json(403, { error: '이 파일에 접근할 권한이 없습니다' });
   const Bucket = resolveBucket(bucket);
   const cmd = new GetObjectCommand({ Bucket, Key: path });
   const signedUrl = await getSignedUrl(s3, cmd, { expiresIn: expiresIn || 60 });
@@ -97,7 +149,7 @@ export const handler = async (event) => {
   try {
     const body = event.body ? JSON.parse(event.body) : {};
     if (method === 'POST' && path === '/storage/upload-url') return await handleUploadUrl(body);
-    if (method === 'POST' && path === '/storage/signed-url') return await handleSignedUrl(body);
+    if (method === 'POST' && path === '/storage/signed-url') return await handleSignedUrl(body, event);
     if (method === 'POST' && path === '/storage/remove') return await handleRemove(body);
     return json(404, { error: 'not found' });
   } catch (err) {
