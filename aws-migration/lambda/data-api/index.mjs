@@ -185,7 +185,43 @@ function restrictUserColumnsForNonStaff(table, rows, authz) {
   }
 }
 
-async function assertWriteAllowed(table, method, authz, id, cols) {
+// ticket_replies/ticket_attachments/ticket_history의 쓰기 — 고객/internal이 아무 ticket_id나
+// 넣어서 다른 회사 티켓에 답글/첨부를 주입하거나, 남의 답글·첨부를 수정/삭제할 수 있었다.
+// GET에 쓰는 tenantRowFilterSql과 동일한 기준으로 그 ticket_id가 진짜 자기 것인지 확인한다.
+const TICKET_SCOPED_TABLES = new Set(['ticket_replies', 'ticket_attachments', 'ticket_history']);
+
+async function ticketBelongsToRequester(ticketId, authz) {
+  if (STAFF_ROLES.has(authz.role)) return true;
+  if (!ticketId) return false;
+  const { role, userId, companyId, contractId } = authz;
+  let sql, params;
+  if (role === 'internal') { sql = 'select 1 from tickets where id=$1 and created_by=$2'; params = [ticketId, userId]; }
+  else if (contractId)     { sql = 'select 1 from tickets where id=$1 and contract_id=$2'; params = [ticketId, contractId]; }
+  else if (companyId)      { sql = 'select 1 from tickets where id=$1 and company_id=$2'; params = [ticketId, companyId]; }
+  else return false;
+  const rows = await query(sql, params);
+  return rows.length > 0;
+}
+
+async function assertTicketScopedWriteAllowed(table, method, id, body, authz) {
+  if (STAFF_ROLES.has(authz.role)) return;
+  if (method === 'POST') {
+    const records = Array.isArray(body) ? body : [body];
+    for (const rec of records) {
+      if (!(await ticketBelongsToRequester(rec.ticket_id, authz))) {
+        throw new HttpError(403, '이 요청에 접근할 권한이 없습니다');
+      }
+    }
+    return;
+  }
+  // PATCH/DELETE — 대상 행이 실제로 어느 ticket_id에 속하는지부터 조회해서 확인한다.
+  const rows = await query(`select ticket_id from "${table}" where id=$1`, [id]);
+  if (!(await ticketBelongsToRequester(rows[0]?.ticket_id, authz))) {
+    throw new HttpError(403, '이 요청에 접근할 권한이 없습니다');
+  }
+}
+
+async function assertWriteAllowed(table, method, authz, id, cols, body) {
   if (authz.role === 'admin') return;
 
   if (NO_DIRECT_WRITE_TABLES.has(table)) {
@@ -217,6 +253,10 @@ async function assertWriteAllowed(table, method, authz, id, cols) {
         throw new HttpError(403, '이 작업을 할 권한이 없습니다');
       }
     }
+    return;
+  }
+  if (TICKET_SCOPED_TABLES.has(table)) {
+    await assertTicketScopedWriteAllowed(table, method, id, body, authz);
   }
 }
 
@@ -406,7 +446,7 @@ async function handlePost(table, body, onConflict, event) {
   const cols = Object.keys(records[0]);
   cols.forEach(c => assertIdent(c, 'insert 컬럼'));
   assertNoBlockedWrite(table, cols);
-  await assertWriteAllowed(table, 'POST', getAuthz(event), null, cols);
+  await assertWriteAllowed(table, 'POST', getAuthz(event), null, cols, body);
   const colsSql = cols.map(c => `"${c}"`).join(',');
 
   let conflictCols = null;
@@ -437,7 +477,7 @@ async function handlePatch(table, id, body, event) {
   if (!cols.length) throw new HttpError(400, '수정할 데이터가 없습니다');
   cols.forEach(c => assertIdent(c, 'update 컬럼'));
   assertNoBlockedWrite(table, cols);
-  await assertWriteAllowed(table, 'PATCH', getAuthz(event), id, cols);
+  await assertWriteAllowed(table, 'PATCH', getAuthz(event), id, cols, body);
   const setSql = cols.map((c, i) => `"${c}" = $${i + 1}`).join(',');
   const params = cols.map(c => body[c] ?? null);
   params.push(id);
