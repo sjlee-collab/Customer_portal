@@ -59,8 +59,11 @@ function assertNoBlockedWrite(table, cols) {
 // 이 테이블은 화면에서 스태프(요청 관리 권한이 있는 역할)에게만 보이도록 UI로만 가려뒀는데,
 // 조회 자체엔 아무 제한이 없어서 로그인한 고객 계정이 직접 호출하면 내부 비공개 메모를
 // 그대로 읽을 수 있었다. 화면과 동일한 역할 기준으로 테이블 전체를 막는다.
+// log_integration(연동 상태/에러 로그)은 고객이 볼 이유가 없는 순수 내부 운영 정보라
+// role_permissions 커스터마이징 여부와 무관하게 항상 스태프 전용으로 막는다.
 const STAFF_ONLY_TABLES = {
   ticket_memos: new Set(['tech_support', 'sales', 'education', 'admin']),
+  log_integration: new Set(['tech_support', 'sales', 'education', 'admin']),
 };
 
 function assertTableAccess(table, event) {
@@ -158,7 +161,12 @@ async function tenantRowFilterSql(table, authz, paramOffset) {
     if (contractId) return { sql: `"contract_id" = $${paramOffset}`, params: [contractId] };
     return companyId ? { sql: `"company_id" = $${paramOffset}`, params: [companyId] } : { sql: '1=0', params: [] };
   }
-  if (table === 'ticket_replies' || table === 'ticket_attachments' || table === 'ticket_history') {
+  // log_notification(알림 발송 로그)이 이 필터에서 빠져있어서, customer/internal이
+  // /data/log_notification을 직접 호출하면 전체 고객사의 알림 이력(수신자 이메일 주소
+  // 포함)을 다 읽을 수 있었다(실제 테스트로 확인 — 791건 전체 조회, 타 회사 직원 이메일
+  // 노출). ticket_replies 등과 동일하게 ticket_id 기준으로 본인 접근 가능한 티켓으로 제한한다
+  // (ticket_id가 null인 행 — 연결테스트 등 — 은 이 서브쿼리에 걸리지 않아 자동으로 제외됨).
+  if (table === 'ticket_replies' || table === 'ticket_attachments' || table === 'ticket_history' || table === 'log_notification') {
     if (role === 'internal') {
       return userId
         ? { sql: `"ticket_id" in (select id from tickets where created_by = $${paramOffset})`, params: [userId] }
