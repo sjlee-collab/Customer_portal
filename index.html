@@ -1930,7 +1930,6 @@ textarea{resize:vertical;min-height:100px;}
       <button onclick="closeModal('modal-license')" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--faint);">✕</button>
     </div>
     <div style="padding:24px;">
-      <input type="hidden" id="lic-id">
       <input type="hidden" id="lic-company-id">
       <div class="form-grid" style="gap:16px;">
         <div class="form-group span2">
@@ -1951,8 +1950,7 @@ textarea{resize:vertical;min-height:100px;}
           <select id="lic-contract">
           </select>
         </div>
-        <input type="hidden" id="lic-edit-type-value">
-        <div class="form-group span2" id="lic-type-grid-wrap">
+        <div class="form-group span2">
           <label>라이선스 수량</label>
           <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;">
             <div><div style="font-size:11px;color:var(--muted);text-align:center;margin-bottom:4px;">Creator</div><input type="number" id="lic-qty-Creator" min="0" placeholder="0" style="width:100%;box-sizing:border-box;padding:9px 6px;border:1px solid var(--border-md);border-radius:var(--r-md);font-size:13px;text-align:center;"></div>
@@ -1962,14 +1960,6 @@ textarea{resize:vertical;min-height:100px;}
             <div><div style="font-size:11px;color:var(--muted);text-align:center;margin-bottom:4px;">DM</div><input type="number" id="lic-qty-DM" min="0" placeholder="0" style="width:100%;box-sizing:border-box;padding:9px 6px;border:1px solid var(--border-md);border-radius:var(--r-md);font-size:13px;text-align:center;"></div>
             <div><div style="font-size:11px;color:var(--muted);text-align:center;margin-bottom:4px;">AM</div><input type="number" id="lic-qty-AM" min="0" placeholder="0" style="width:100%;box-sizing:border-box;padding:9px 6px;border:1px solid var(--border-md);border-radius:var(--r-md);font-size:13px;text-align:center;"></div>
           </div>
-        </div>
-        <div class="form-group" id="lic-edit-single-wrap" style="display:none;">
-          <label>라이선스</label>
-          <div id="lic-edit-type-label" style="font-size:13px;font-weight:600;padding:9px 0;color:var(--text);">—</div>
-        </div>
-        <div class="form-group" id="lic-edit-qty-wrap" style="display:none;">
-          <label>라이선스 수량</label>
-          <input type="number" id="lic-quantity" min="0" placeholder="0">
         </div>
         <div class="form-group span2">
           <label>비고</label>
@@ -5135,22 +5125,37 @@ async function loadCompanyContractsAndLicenses() {
 }
 
 const LIC_PRODUCT_LABEL = { Server: 'Tableau Server', Cloud: 'Tableau Cloud' };
+// 제품정보별로 묶어서 유형(Creator/Explorer/Viewer/Core/DM/AM)을 가로 컬럼으로 펼쳐 보여준다.
+// 수정/삭제는 유형 행 하나하나가 아니라 이 제품 그룹 전체를 대상으로 한 번에 처리한다.
 function renderLicenseTable(licenses) {
-  return `<div class="tbl-scroll"><table class="tbl tbl-compact">
-    <thead><tr><th>제품정보</th><th>라이선스</th><th>수량</th><th>비고</th><th>액션</th></tr></thead>
-    <tbody>${licenses.map(l => {
-      return `
+  const contractId = licenses[0]?.contract_id || '';
+  const byProduct = new Map();
+  licenses.forEach(l => {
+    if (!byProduct.has(l.product_info)) byProduct.set(l.product_info, []);
+    byProduct.get(l.product_info).push(l);
+  });
+  const rows = [...byProduct.entries()].map(([product, group]) => {
+    const byType = Object.fromEntries(group.map(r => [r.license_type, r]));
+    const qtyCells = LICENSE_TYPES.map(t => {
+      const r = byType[t];
+      return `<td style="text-align:center;">${r && r.quantity != null ? r.quantity : '<span style="color:var(--faint);">—</span>'}</td>`;
+    }).join('');
+    const rowIds = group.map(r => r.id);
+    const filePaths = group.map(r => r.file_path).filter(Boolean);
+    const productArg = escHtml(product).replace(/'/g, "&#39;");
+    return `
       <tr>
-        <td style="font-weight:600;">${escHtml(LIC_PRODUCT_LABEL[l.product_info] || l.product_info || '—')}</td>
-        <td>${escHtml(l.license_type || '—')}</td>
-        <td>${l.quantity != null ? l.quantity : '—'}</td>
-        <td style="max-width:100px;white-space:normal;">${escHtml(l.note || '—')}</td>
+        <td style="font-weight:600;">${escHtml(LIC_PRODUCT_LABEL[product] || product || '—')}</td>
+        ${qtyCells}
         <td style="white-space:nowrap;">
-          <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="editLicenseById('${l.id}')">수정</button>
-          <button class="btn btn-ghost btn-sm" style="font-size:11px;color:#e53e3e;" onclick="deleteLicense('${l.id}','${escHtml(l.file_path||'')}')">삭제</button>
+          <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="editLicenseGroup('${escHtml(contractId)}','${productArg}')">수정</button>
+          <button class="btn btn-ghost btn-sm" style="font-size:11px;color:#e53e3e;" onclick='deleteLicenseGroup(${JSON.stringify(rowIds)},${JSON.stringify(filePaths)})'>삭제</button>
         </td>
       </tr>`;
-    }).join('')}</tbody>
+  }).join('');
+  return `<div class="tbl-scroll"><table class="tbl tbl-compact">
+    <thead><tr><th>제품정보</th>${LICENSE_TYPES.map(t => `<th style="text-align:center;">${t}</th>`).join('')}<th>액션</th></tr></thead>
+    <tbody>${rows}</tbody>
   </table></div>`;
 }
 
@@ -5403,98 +5408,95 @@ function populateLicenseContractSelect(selectedId) {
 
 const LICENSE_TYPES = ['Creator', 'Explorer', 'Viewer', 'Core', 'DM', 'AM'];
 
+// null이면 등록 모드. 값이 있으면 이 제품 그룹(제품정보+계약) 전체를 한 번에 수정하는 모드 —
+// rowsByType[유형]에 기존 행 id가 있으면 update, 없으면 새로 insert, 수량을 비우면 delete.
+let _editingLicenseGroup = null;
+
 function openLicenseModal(contractId) {
   if (!selectedCompanyId) { showToast('고객사를 먼저 선택해주세요.', true); return; }
+  _editingLicenseGroup = null;
   document.getElementById('modal-license-title').textContent = '라이선스정보 입력';
   document.getElementById('btn-submit-license').textContent  = '등록';
-  document.getElementById('lic-id').value = '';
   document.getElementById('lic-company-id').value = selectedCompanyId;
   document.getElementById('lic-note').value = '';
   document.getElementById('lic-product').value  = '';
   LICENSE_TYPES.forEach(t => { const el = document.getElementById('lic-qty-' + t); if (el) el.value = ''; });
-  document.getElementById('lic-type-grid-wrap').style.display  = '';
-  document.getElementById('lic-edit-single-wrap').style.display = 'none';
-  document.getElementById('lic-edit-qty-wrap').style.display    = 'none';
   populateLicenseContractSelect(contractId || '');
   openModal('modal-license');
 }
 
-function editLicenseById(id) {
-  const l = _selectedCompanyLicenses.find(x => x.id === id);
-  if (l) openEditLicenseModal(l);
-}
+function editLicenseGroup(contractId, productInfo) {
+  const group = _selectedCompanyLicenses.filter(l =>
+    (l.contract_id || '') === (contractId || '') && l.product_info === productInfo);
+  if (!group.length) return;
+  const rowsByType = Object.fromEntries(group.map(l => [l.license_type, l.id]));
+  _editingLicenseGroup = { contractId, productInfo, rowsByType };
 
-function openEditLicenseModal(l) {
   document.getElementById('modal-license-title').textContent = '라이선스정보 수정';
   document.getElementById('btn-submit-license').textContent  = '저장';
-  document.getElementById('lic-id').value         = l.id;
-  document.getElementById('lic-company-id').value = l.company_id;
-  document.getElementById('lic-product').value    = l.product_info   || '';
-  document.getElementById('lic-edit-type-value').value = l.license_type || '';
-  document.getElementById('lic-edit-type-label').textContent = l.license_type || '—';
-  document.getElementById('lic-quantity').value   = l.quantity       != null ? l.quantity : '';
-  document.getElementById('lic-note').value       = l.note           || '';
-  document.getElementById('lic-type-grid-wrap').style.display  = 'none';
-  document.getElementById('lic-edit-single-wrap').style.display = '';
-  document.getElementById('lic-edit-qty-wrap').style.display    = '';
-  populateLicenseContractSelect(l.contract_id || '');
+  document.getElementById('lic-company-id').value = group[0].company_id;
+  document.getElementById('lic-product').value    = productInfo;
+  document.getElementById('lic-note').value       = (group.find(l => l.note)?.note) || '';
+  LICENSE_TYPES.forEach(t => {
+    const el = document.getElementById('lic-qty-' + t);
+    if (!el) return;
+    const row = group.find(l => l.license_type === t);
+    el.value = row && row.quantity != null ? row.quantity : '';
+  });
+  populateLicenseContractSelect(contractId || '');
   openModal('modal-license');
 }
 
 async function submitLicense() {
-  const id        = document.getElementById('lic-id').value;
-  const companyId = document.getElementById('lic-company-id').value;
-  const product   = document.getElementById('lic-product').value;
+  const companyId  = document.getElementById('lic-company-id').value;
+  const product    = document.getElementById('lic-product').value;
   if (!product) { showToast('제품정보는 필수입니다.', true); return; }
   const contractId = document.getElementById('lic-contract')?.value || null;
   const note       = document.getElementById('lic-note').value.trim() || null;
   const btn = document.getElementById('btn-submit-license');
   if (btn) { btn.disabled = true; btn.textContent = '처리 중...'; }
 
-  let error;
-  if (id) {
-    const qtyRaw = document.getElementById('lic-quantity').value;
-    const payload = {
-      company_id:   companyId,
-      contract_id:  contractId,
-      product_info: product,
-      license_type: document.getElementById('lic-edit-type-value').value || null,
-      status:       '활성',
-      quantity:     qtyRaw !== '' ? parseInt(qtyRaw, 10) : null,
-      note,
-    };
-    ({ error } = await sb.from('company_licenses').update(payload).eq('id', id));
-  } else {
-    const rows = LICENSE_TYPES
-      .map(t => ({ type: t, qty: document.getElementById('lic-qty-' + t).value }))
-      .filter(r => r.qty !== '' && parseInt(r.qty, 10) > 0)
-      .map(r => ({
-        company_id:   companyId,
-        contract_id:  contractId,
-        product_info: product,
-        license_type: r.type,
-        status:       '활성',
-        quantity:     parseInt(r.qty, 10),
-        note,
-      }));
-    if (!rows.length) {
-      if (btn) { btn.disabled = false; btn.textContent = '등록'; }
-      showToast('최소 하나 이상 라이선스 수량을 입력하세요.', true);
-      return;
-    }
-    ({ error } = await sb.from('company_licenses').insert(rows));
+  const isEdit = !!_editingLicenseGroup;
+  const qtyByType = Object.fromEntries(LICENSE_TYPES.map(t => [t, document.getElementById('lic-qty-' + t).value]));
+
+  if (!isEdit && !LICENSE_TYPES.some(t => qtyByType[t] !== '' && parseInt(qtyByType[t], 10) > 0)) {
+    if (btn) { btn.disabled = false; btn.textContent = '등록'; }
+    showToast('최소 하나 이상 라이선스 수량을 입력하세요.', true);
+    return;
   }
-  if (btn) { btn.disabled = false; btn.textContent = id ? '저장' : '등록'; }
-  if (error) { showToast('저장 실패: ' + error.message, true); return; }
+
+  const errors = [];
+  await Promise.all(LICENSE_TYPES.map(async (t) => {
+    const raw = qtyByType[t];
+    const qty = raw !== '' ? parseInt(raw, 10) : null;
+    const existingId = isEdit ? _editingLicenseGroup.rowsByType[t] : null;
+    const payload = {
+      company_id: companyId, contract_id: contractId,
+      product_info: product, license_type: t, status: '활성', quantity: qty, note,
+    };
+    let error;
+    if (existingId) {
+      if (qty != null && qty > 0) ({ error } = await sb.from('company_licenses').update(payload).eq('id', existingId));
+      else ({ error } = await sb.from('company_licenses').delete().eq('id', existingId));
+    } else if (qty != null && qty > 0) {
+      ({ error } = await sb.from('company_licenses').insert(payload));
+    }
+    if (error) errors.push(error.message);
+  }));
+
+  if (btn) { btn.disabled = false; btn.textContent = isEdit ? '저장' : '등록'; }
+  if (errors.length) { showToast('저장 실패: ' + errors[0], true); return; }
   closeModal('modal-license');
-  showToast('✅ 라이선스정보가 ' + (id ? '수정' : '등록') + '되었습니다.');
+  showToast('✅ 라이선스정보가 ' + (isEdit ? '수정' : '등록') + '되었습니다.');
   loadCompanyLicenses();
 }
 
-async function deleteLicense(id, filePath) {
-  if (!confirm('라이선스 정보를 삭제하시겠습니까?')) return;
-  if (filePath) await sb.storage.from('contract-attachments').remove([filePath]);
-  const { error } = await sb.from('company_licenses').delete().eq('id', id);
+async function deleteLicenseGroup(ids, filePaths) {
+  if (!ids.length) return;
+  if (!confirm('이 제품의 라이선스 정보를 모두 삭제하시겠습니까?')) return;
+  if (filePaths.length) await sb.storage.from('contract-attachments').remove(filePaths);
+  const results = await Promise.all(ids.map(id => sb.from('company_licenses').delete().eq('id', id)));
+  const error = results.find(r => r.error)?.error;
   if (error) { showToast('삭제 실패: ' + error.message, true); return; }
   showToast('삭제되었습니다.');
   loadCompanyLicenses();
