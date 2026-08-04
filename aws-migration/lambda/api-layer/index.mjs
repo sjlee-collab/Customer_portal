@@ -90,8 +90,46 @@ async function getCompanyName(companyId) {
 
 async function getUser(userId) {
   if (!userId) return null;
-  const rows = await query('select id, name, email, role, contract_id from users where id=$1', [userId]);
+  const rows = await query('select id, name, email, role, company_id, contract_id from users where id=$1', [userId]);
   return rows[0] ?? null;
+}
+
+// JWT 인가자(jwt-authorizer)가 넘겨준 role/userId/companyId/contractId — data-api에서
+// 이미 검증된 것과 동일한 패턴. api-layer의 /tickets/* 엔드포인트들은 지금까지 이 정보를
+// 전혀 확인하지 않고 body 값만 그대로 믿어서, 로그인만 하면 남의 티켓 상태변경·재배정·
+// 답글주입·내부메모작성·사칭이 전부 가능했다(실제 테스트로 확인).
+function getAuthz(event) {
+  const a = event.requestContext?.authorizer?.lambda || {};
+  return { role: a.role || null, userId: a.userId || null, companyId: a.companyId || null, contractId: a.contractId || null };
+}
+
+const STAFF_ROLES = new Set(['admin', 'sales', 'tech_support', 'education']);
+
+// role_permissions 테이블의 실제 설정을 그대로 따른다(하드코딩 admin 체크가 아님) —
+// data-api 쪽과 동일한 기준으로, 권한 관리 화면에서 커스터마이징한 값이 진짜 기준이다.
+async function hasPermission(role, featureKey) {
+  if (role === 'admin') return true;
+  if (!role) return false;
+  const rows = await query(
+    'select enabled from role_permissions where role=$1 and feature_key=$2',
+    [role, featureKey]
+  );
+  return !!rows[0]?.enabled;
+}
+
+// 이 ticketId가 실제로 요청자의 것인지 확인 — 고객은 자기 회사/계약, internal은 본인이
+// 만든 티켓만. 스태프/관리자는 여러 고객사 티켓을 같이 처리하는 게 원래 업무라 통과.
+async function ticketBelongsToRequester(ticketId, authz) {
+  if (STAFF_ROLES.has(authz.role)) return true;
+  if (!ticketId) return false;
+  const { role, userId, companyId, contractId } = authz;
+  let sql, params;
+  if (role === 'internal') { sql = 'select 1 from tickets where id=$1 and created_by=$2'; params = [ticketId, userId]; }
+  else if (contractId)     { sql = 'select 1 from tickets where id=$1 and contract_id=$2'; params = [ticketId, contractId]; }
+  else if (companyId)      { sql = 'select 1 from tickets where id=$1 and company_id=$2'; params = [ticketId, companyId]; }
+  else return false;
+  const rows = await query(sql, params);
+  return rows.length > 0;
 }
 
 // 요청자에게 상태변경 메일을 보내도 되는지 확인 — 계약 재구성으로 요청자가 티켓 등록
@@ -133,12 +171,22 @@ async function deferNotify(kind, payload) {
 }
 
 // ── POST /tickets ──
-async function createTicket(body) {
-  const { title, category, description, product, priority = 'normal', created_by, company_id, contract_id } = body;
-  if (!title || !category || !created_by) return json(400, { error: 'title, category, created_by는 필수입니다' });
+// created_by/company_id/contract_id는 항상 로그인한 본인 계정 기준으로 채운다 — body로
+// 받은 값을 그대로 믿으면 남을 사칭해서(다른 created_by로) 티켓을 만들 수 있었다
+// (그 사람 명의로 등록되고 접수 확인 메일도 그 사람에게 감 — 실제 테스트로 확인됨).
+async function createTicket(body, event) {
+  const authz = getAuthz(event);
+  if (!authz.userId) return json(401, { error: '인증이 필요합니다' });
 
-  const requester = await getUser(created_by);
+  const { title, category, description, product, priority = 'normal' } = body;
+  if (!title || !category) return json(400, { error: 'title, category는 필수입니다' });
+
+  const requester = await getUser(authz.userId);
   if (!requester) return json(400, { error: '존재하지 않는 사용자입니다' });
+
+  const created_by = authz.userId;
+  const company_id = requester.company_id ?? null;
+  const contract_id = requester.contract_id ?? null;
 
   let assignedTo = null, assignedToName = null;
   const defaultAssignee = DEFAULT_ASSIGNEE_BY_CATEGORY[category];
@@ -203,7 +251,10 @@ async function notifyForCreate(ticketId) {
 }
 
 // ── PATCH /tickets/{id}/status ──
-async function updateStatus(ticketId, body) {
+async function updateStatus(ticketId, body, event) {
+  if (!(await hasPermission(getAuthz(event).role, 'ticket_manage'))) {
+    return json(403, { error: '이 작업을 할 권한이 없습니다' });
+  }
   const { status } = body;
   if (!status) return json(400, { error: 'status는 필수입니다' });
 
@@ -247,7 +298,10 @@ async function notifyForStatus(ticketId, prevStatus) {
 }
 
 // ── PATCH /tickets/{id}/assign ──
-async function assignTicket(ticketId, body) {
+async function assignTicket(ticketId, body, event) {
+  if (!(await hasPermission(getAuthz(event).role, 'ticket_manage'))) {
+    return json(403, { error: '이 작업을 할 권한이 없습니다' });
+  }
   const { assigned_to } = body;
   if (!assigned_to) return json(400, { error: 'assigned_to는 필수입니다' });
 
@@ -287,15 +341,23 @@ async function notifyForAssign(ticketId, prevAssigneeId) {
 // ── POST /tickets/{id}/reply ──
 // 고객/직원 공용 답글 스레드. 답글 작성자가 고객(role='customer')일 때만 담당 Slack
 // 채널로 알림을 보낸다 — 직원끼리의 답글은 알림 대상이 아님.
-async function addReply(ticketId, body) {
-  const { note, changed_by } = body;
+async function addReply(ticketId, body, event) {
+  const authz = getAuthz(event);
+  if (!authz.userId) return json(401, { error: '인증이 필요합니다' });
+  if (!(await ticketBelongsToRequester(ticketId, authz))) {
+    return json(403, { error: '이 요청에 접근할 권한이 없습니다' });
+  }
+
+  const { note } = body;
   if (!note) return json(400, { error: 'note는 필수입니다' });
 
+  // changed_by는 항상 로그인한 본인 — body 값을 믿으면 남을 사칭한 답글을 남길 수 있었다.
+  const changed_by = authz.userId;
   const author = await getUser(changed_by);
 
   await query(
     `insert into ticket_replies (ticket_id, note, changed_by) values ($1,$2,$3)`,
-    [ticketId, note, changed_by ?? null]
+    [ticketId, note, changed_by]
   );
 
   if (author?.role === 'customer') {
@@ -320,7 +382,10 @@ async function notifyForReply(ticketId) {
 // index.html의 "관리" 모달(saveManage) 전용: 상태/담당자/마감일을 한 번에 저장한다.
 // 이력(ticket_history)·메모(ticket_memos) 기록은 응답 전에 즉시 처리하고,
 // Slack 알림·이메일(느린 외부 호출)만 비동기로 넘긴다.
-async function manageTicket(ticketId, body) {
+async function manageTicket(ticketId, body, event) {
+  if (!(await hasPermission(getAuthz(event).role, 'ticket_manage'))) {
+    return json(403, { error: '이 작업을 할 권한이 없습니다' });
+  }
   const { category, status, assigned_to, due_date, memo, send_email, cc_emails, changed_by, changed_by_name } = body;
 
   const before = await query('select * from tickets where id=$1', [ticketId]);
@@ -607,23 +672,23 @@ export const handler = async (event) => {
       return await resetPassword(body);
     }
     if (method === 'POST' && path === '/tickets') {
-      return await createTicket(body);
+      return await createTicket(body, event);
     }
     const statusMatch = path.match(/^\/tickets\/([^/]+)\/status$/);
     if (method === 'PATCH' && statusMatch) {
-      return await updateStatus(statusMatch[1], body);
+      return await updateStatus(statusMatch[1], body, event);
     }
     const assignMatch = path.match(/^\/tickets\/([^/]+)\/assign$/);
     if (method === 'PATCH' && assignMatch) {
-      return await assignTicket(assignMatch[1], body);
+      return await assignTicket(assignMatch[1], body, event);
     }
     const manageMatch = path.match(/^\/tickets\/([^/]+)\/manage$/);
     if (method === 'PATCH' && manageMatch) {
-      return await manageTicket(manageMatch[1], body);
+      return await manageTicket(manageMatch[1], body, event);
     }
     const replyMatch = path.match(/^\/tickets\/([^/]+)\/reply$/);
     if (method === 'POST' && replyMatch) {
-      return await addReply(replyMatch[1], body);
+      return await addReply(replyMatch[1], body, event);
     }
     return json(404, { error: 'not found' });
   } catch (err) {
