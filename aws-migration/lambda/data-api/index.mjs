@@ -81,12 +81,36 @@ const TENANT_ROLES = new Set(['customer', 'internal']); // "내 회사/내 것"�
 // 호출 등) role이 비어있는/알 수 없는 요청은 항상 가장 좁은 제한을 받는 쪽이 안전하다.
 const STAFF_ROLES = new Set(['admin', 'sales', 'tech_support', 'education']);
 
-// admin만 등록/수정/삭제 가능해야 하는 테이블 — 화면에서도 admin 권한(company_manage,
-// user_manage, integration, notify_log 등)에게만 노출되던 기능인데 서버 쪽엔 그 검사가 없었다.
-const ADMIN_ONLY_WRITE_TABLES = new Set([
-  'companies', 'company_contracts', 'company_licenses',
-  'log_notification', 'log_integration', 'role_permissions',
-]);
+// 이 테이블들에 대한 쓰기는 "관리자만"이 아니라 권한 관리 화면(role_permissions 테이블)에
+// 실제로 설정된 값을 그대로 따라야 한다 — 예를 들어 library_manage는 기본값은 admin만
+// 켜져 있지만 실제로는 tech_support에게도 켜져 있는 등, 관리자가 화면에서 커스터마이징한
+// 값이 진짜 기준이다. 하드코딩된 admin 체크는 이런 커스터마이징을 무시해서 회귀를 만든다.
+const WRITE_PERMISSION_BY_TABLE = {
+  companies: 'company_manage',
+  company_contracts: 'company_manage',
+  company_licenses: 'company_manage',
+  log_notification: 'notify_log',
+  log_integration: 'integration',
+  role_permissions: 'permission',
+  content_documents: 'library_manage',
+};
+
+// content_notices(공지사항)는 화면에서도 role_permissions와 무관하게 순수 role==='admin'
+// 하드코딩(isNoticeAdmin())으로만 노출된다 — library_manage 등 커스터마이징 가능한
+// 권한이 아니므로 위 동적 매핑에 넣지 않고 항상 admin만 쓰게 한다.
+const ADMIN_ONLY_WRITE_TABLES = new Set(['content_notices']);
+
+// role_permissions 테이블에서 해당 역할에 이 기능이 실제로 켜져 있는지 확인한다.
+// admin은 항상 통과(권한 관리 화면 자체를 admin이 잠글 수도 있으므로 스스로는 항상 허용).
+async function hasPermission(role, featureKey) {
+  if (role === 'admin') return true;
+  if (!role) return false;
+  const rows = await query(
+    'select enabled from role_permissions where role=$1 and feature_key=$2',
+    [role, featureKey]
+  );
+  return !!rows[0]?.enabled;
+}
 
 // tickets는 api-layer(/tickets, /tickets/{id}/status, /tickets/{id}/assign 등)가 알림·이력까지
 // 포함해서 전담한다. 실제로 클라이언트도 이 범용 CRUD로 tickets를 쓰는 곳이 없으므로,
@@ -106,12 +130,13 @@ function getAuthz(event) {
 // GET에 항상 덧붙이는 행 단위 제한. 반환값 { sql, params } 를 whereClauses에 AND로 추가한다.
 // admin/스태프(sales·tech_support·education)는 대부분 제한이 없다 — 여러 고객사의 요청을
 // 함께 처리하는 게 원래 업무라 여기서까지 좁히면 화면이 깨진다.
-function tenantRowFilterSql(table, authz, paramOffset) {
+async function tenantRowFilterSql(table, authz, paramOffset) {
   const { role, userId, companyId, contractId } = authz;
 
-  // 자료실 비공개 문서는 admin만 볼 수 있어야 한다 — 화면에서는 이미 그렇게 가려져 있었지만
-  // API를 직접 호출하면 비공개 문서 내용까지 그대로 조회됐다.
-  if (table === 'content_documents' && role !== 'admin') {
+  // 자료실 비공개 문서는 library_manage 권한이 있어야 볼 수 있다(화면과 동일한 기준 —
+  // library_manage는 기본값이 admin만이지만 다른 역할에 커스터마이징될 수 있으므로
+  // role==='admin' 하드코딩이 아니라 실제 권한 설정을 그대로 따른다).
+  if (table === 'content_documents' && !(await hasPermission(role, 'library_manage'))) {
     return { sql: `"is_public" = true`, params: [] };
   }
 
@@ -160,7 +185,7 @@ function restrictUserColumnsForNonStaff(table, rows, authz) {
   }
 }
 
-function assertWriteAllowed(table, method, authz, id, cols) {
+async function assertWriteAllowed(table, method, authz, id, cols) {
   if (authz.role === 'admin') return;
 
   if (NO_DIRECT_WRITE_TABLES.has(table)) {
@@ -169,16 +194,28 @@ function assertWriteAllowed(table, method, authz, id, cols) {
   if (ADMIN_ONLY_WRITE_TABLES.has(table)) {
     throw new HttpError(403, '이 작업은 관리자만 할 수 있습니다');
   }
+  const permissionKey = WRITE_PERMISSION_BY_TABLE[table];
+  if (permissionKey) {
+    if (!(await hasPermission(authz.role, permissionKey))) {
+      throw new HttpError(403, '이 작업을 할 권한이 없습니다');
+    }
+    return;
+  }
   if (table === 'users') {
     if (method === 'POST' || method === 'DELETE') {
-      throw new HttpError(403, '이 작업은 관리자만 할 수 있습니다');
+      if (!(await hasPermission(authz.role, 'user_manage'))) {
+        throw new HttpError(403, '이 작업을 할 권한이 없습니다');
+      }
+      return;
     }
     if (method === 'PATCH') {
-      if (!authz.userId || id !== authz.userId) {
-        throw new HttpError(403, '본인 계정만 수정할 수 있습니다');
+      if (id === authz.userId) {
+        const disallowed = cols.find(c => !SELF_EDITABLE_USER_COLUMNS.has(c));
+        if (!disallowed) return; // 본인 행 + 안전한 컬럼만: 누구나 허용
       }
-      const disallowed = cols.find(c => !SELF_EDITABLE_USER_COLUMNS.has(c));
-      if (disallowed) throw new HttpError(403, `"${disallowed}" 컬럼은 관리자만 변경할 수 있습니다`);
+      if (!(await hasPermission(authz.role, 'user_manage'))) {
+        throw new HttpError(403, '이 작업을 할 권한이 없습니다');
+      }
     }
   }
 }
@@ -310,7 +347,7 @@ async function handleGet(table, qs, event) {
   const whereClauses = buildWhere(table, qs, params);
 
   const authz = getAuthz(event);
-  const tenantFilter = tenantRowFilterSql(table, authz, params.length + 1);
+  const tenantFilter = await tenantRowFilterSql(table, authz, params.length + 1);
   if (tenantFilter) {
     whereClauses.push(tenantFilter.sql);
     params.push(...tenantFilter.params);
@@ -369,7 +406,7 @@ async function handlePost(table, body, onConflict, event) {
   const cols = Object.keys(records[0]);
   cols.forEach(c => assertIdent(c, 'insert 컬럼'));
   assertNoBlockedWrite(table, cols);
-  assertWriteAllowed(table, 'POST', getAuthz(event), null, cols);
+  await assertWriteAllowed(table, 'POST', getAuthz(event), null, cols);
   const colsSql = cols.map(c => `"${c}"`).join(',');
 
   let conflictCols = null;
@@ -400,7 +437,7 @@ async function handlePatch(table, id, body, event) {
   if (!cols.length) throw new HttpError(400, '수정할 데이터가 없습니다');
   cols.forEach(c => assertIdent(c, 'update 컬럼'));
   assertNoBlockedWrite(table, cols);
-  assertWriteAllowed(table, 'PATCH', getAuthz(event), id, cols);
+  await assertWriteAllowed(table, 'PATCH', getAuthz(event), id, cols);
   const setSql = cols.map((c, i) => `"${c}" = $${i + 1}`).join(',');
   const params = cols.map(c => body[c] ?? null);
   params.push(id);
@@ -414,7 +451,7 @@ async function handlePatch(table, id, body, event) {
 }
 
 async function handleDelete(table, id, event) {
-  assertWriteAllowed(table, 'DELETE', getAuthz(event), id, []);
+  await assertWriteAllowed(table, 'DELETE', getAuthz(event), id, []);
   const deleted = await query(`delete from "${table}" where id = $1 returning id`, [id]);
   if (!deleted.length) throw new HttpError(404, '대상을 찾을 수 없습니다');
   return json(200, { id: deleted[0].id });
