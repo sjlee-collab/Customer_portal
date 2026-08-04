@@ -73,8 +73,17 @@ async function getCompanyName(companyId) {
 
 async function getUser(userId) {
   if (!userId) return null;
-  const rows = await query('select id, name, email from users where id=$1', [userId]);
+  const rows = await query('select id, name, email, contract_id from users where id=$1', [userId]);
   return rows[0] ?? null;
+}
+
+// 요청자에게 상태변경 메일을 보내도 되는지 확인 — 계약 재구성으로 요청자가 티켓 등록
+// 당시와 다른 계약으로 옮겨졌으면, 스냅샷된 옛 계약 기준으로 메일이 나가지 않게 막는다.
+// 둘 중 하나라도 계약이 지정 안 된 경우(null, 회사 전체 공유)는 막지 않는다.
+function isNotifiableRequester(requester, ticket) {
+  if (!requester?.email) return false;
+  if (ticket.contract_id && requester.contract_id && requester.contract_id !== ticket.contract_id) return false;
+  return true;
 }
 
 async function getAccountManagerEmail(companyId, managerField) {
@@ -211,7 +220,7 @@ async function notifyForStatus(ticketId, prevStatus) {
     await notifySlack({ type: 'TICKET_STATUS', ticket, ...notifyBase, prevStatus });
   }
 
-  if (requester?.email) {
+  if (isNotifiableRequester(requester, ticket)) {
     await notifyEmail({ type: 'STATUS_CHANGE', ticket, companyName, requesterEmail: requester.email, requesterName: requester.name, prevStatus });
   }
 
@@ -334,7 +343,7 @@ async function notifyForManage(job) {
   if (statusChanged && !['completed', 'cancelled'].includes(ticket.status) && ticket.due_date && new Date(ticket.due_date) < new Date()) {
     await notifySlack({ type: 'TICKET_OVERDUE', ticket, ...notifyBase });
   }
-  if (statusChanged && sendEmail && requester?.email) {
+  if (statusChanged && sendEmail && isNotifiableRequester(requester, ticket)) {
     await notifyEmail({
       type: 'STATUS_CHANGE', ticket, companyName,
       requesterEmail: requester.email, requesterName: requester.name,
