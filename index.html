@@ -2614,12 +2614,13 @@ async function enterApp(email, acct, isRestore) {
   // 기본 데이터 로드
   loadDashboard();
 
-  // URL ?ticket=TK-xxx 파라미터로 직접 접근 시 해당 티켓 상세 표시 (내부 직원 전용)
+  // URL ?ticket=TK-xxx 파라미터로 직접 접근 시 해당 티켓 상세 표시 (이메일/Slack 링크용)
+  // showDetail()이 역할별로 알아서 분기하므로(관리자 계열=요청 관리, 고객/internal=내 요청) 여기선 역할 구분 없이 호출한다.
   const ticketParam = new URLSearchParams(window.location.search).get('ticket');
-  if (ticketParam && sb && ADMIN_ROLES.has(acct.role)) {
-    // 상세 페이지가 있는 역할(admin/tech_support/sales)만 URL 파라미터로 바로 상세 진입
+  if (ticketParam && sb) {
     sb.from('tickets').select('*').eq('ticket_number', ticketParam).single().then(({ data }) => {
       if (data) showDetail(data);
+      else if (acct.role === 'customer' || acct.role === 'internal') loadTickets();
     });
   } else if (acct.role === 'customer' || acct.role === 'internal') {
     loadTickets();
