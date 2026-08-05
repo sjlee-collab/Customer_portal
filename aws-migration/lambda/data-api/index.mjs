@@ -180,7 +180,11 @@ async function tenantRowFilterSql(table, authz, paramOffset, qs) {
       return userId ? { sql: `"created_by" = $${paramOffset}`, params: [userId] } : { sql: '1=0', params: [] };
     }
     if (contractId) return { sql: `"contract_id" = $${paramOffset}`, params: [contractId] };
-    return companyId ? { sql: `"company_id" = $${paramOffset}`, params: [companyId] } : { sql: '1=0', params: [] };
+    if (companyId) return { sql: `"company_id" = $${paramOffset}`, params: [companyId] };
+    // 회사·계약이 둘 다 없는 고객(예: 소속 미지정 계정)은 예전엔 1=0으로 자기 티켓조차 못 봤다
+    // (요청을 등록해도 대시보드/목록에 안 나옴). 최소한 본인이 만든 티켓은 보이게 created_by로 폴백한다.
+    // 클라이언트도 이 경우 created_by로 필터하도록 돼 있어 동작이 일치한다.
+    return userId ? { sql: `"created_by" = $${paramOffset}`, params: [userId] } : { sql: '1=0', params: [] };
   }
   // log_notification(알림 발송 로그)이 이 필터에서 빠져있어서, customer/internal이
   // /data/log_notification을 직접 호출하면 전체 고객사의 알림 이력(수신자 이메일 주소
@@ -194,8 +198,10 @@ async function tenantRowFilterSql(table, authz, paramOffset, qs) {
         : { sql: '1=0', params: [] };
     }
     if (contractId) return { sql: `"ticket_id" in (select id from tickets where contract_id = $${paramOffset})`, params: [contractId] };
-    return companyId
-      ? { sql: `"ticket_id" in (select id from tickets where company_id = $${paramOffset})`, params: [companyId] }
+    if (companyId) return { sql: `"ticket_id" in (select id from tickets where company_id = $${paramOffset})`, params: [companyId] };
+    // 회사·계약 미지정 고객: 본인이 만든 티켓에 달린 답글/첨부/이력/알림로그만 보이게 폴백(위 tickets와 동일 기준)
+    return userId
+      ? { sql: `"ticket_id" in (select id from tickets where created_by = $${paramOffset})`, params: [userId] }
       : { sql: '1=0', params: [] };
   }
   return null;
