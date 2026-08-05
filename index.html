@@ -4455,7 +4455,7 @@ function renderTickets(tickets) {
     const overdueDays = isDelayed ? Math.floor((new Date(todayStr) - new Date(dueDateStr)) / (24*60*60*1000)) : 0;
     const dueDateCell = isCustomerRole ? '' : `<td style="font-size:12px;${isDelayed ? 'color:var(--red);font-weight:600;' : 'color:var(--faint);'}">${dueDateStr ? dueDateStr + (isDelayed ? ` <span style="font-size:10px;background:#fee2e2;color:#b91c1c;padding:1px 5px;border-radius:3px;">+${overdueDays}일</span>` : '') : '—'}</td>`;
     const idx = allTickets.indexOf(t);
-    return `<tr class="ar-spacer" style="display:none;"><td colspan="${colCount}" style="padding:0;border:none;height:24px;"></td></tr>
+    return `<tr class="ar-spacer" style="display:none;"><td colspan="${colCount}" style="padding:0;border:none;height:40px;"></td></tr>
     <tr class="ticket-row" style="cursor:pointer;" data-id="${t.id}" onclick="toggleTicketRow(this, allTickets[${idx}])">
       <td style="color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;font-size:12px;">${escHtml(num)}</td>
       <td style="font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(t.title||'')}<span class="row-arrow">▾</span></td>
@@ -4471,7 +4471,7 @@ function renderTickets(tickets) {
     <tr class="ticket-detail-row" style="display:none;">
       <td colspan="${colCount}"></td>
     </tr>
-    <tr class="ar-spacer" style="display:none;"><td colspan="${colCount}" style="padding:0;border:none;height:24px;"></td></tr>`;
+    <tr class="ar-spacer" style="display:none;"><td colspan="${colCount}" style="padding:0;border:none;height:40px;"></td></tr>`;
   }).join('');
 }
 
