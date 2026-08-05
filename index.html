@@ -1883,7 +1883,8 @@ textarea{resize:vertical;min-height:100px;}
       <div class="form-grid" style="gap:16px;">
         <div class="form-group">
           <label>계약명 <span class="req">*</span></label>
-          <input type="text" id="ct-name" placeholder="예: 2026년 Tableau Enterprise 계약">
+          <input type="text" id="ct-name" placeholder="IN26-고객사명-16C+80V">
+          <div class="form-hint">신규 계약은 <b>IN</b>, 갱신 계약은 <b>MR</b> + 연도 2자리로 시작합니다.</div>
         </div>
         <div class="form-group">
           <label>Salesforce ID</label>
@@ -5380,11 +5381,21 @@ function openEditContractModal(ct) {
   openModal('modal-contract');
 }
 
+// 계약명 형식 — 신규는 IN, 갱신은 MR + 연도 2자리로 시작한다 (예: IN26-고객사명-16C+80V).
+// 입력 단계에서는 대소문자를 가리지 않고 받되, 저장 직전에 접두어를 대문자로 맞춰 표기를 통일한다.
+const CONTRACT_NAME_RE = /^(IN|MR)(\d{2})-/i;
+
 async function submitContract() {
   const id         = document.getElementById('ct-id').value;
   const companyId  = document.getElementById('ct-company-id').value;
-  const name       = document.getElementById('ct-name').value.trim();
+  let   name       = document.getElementById('ct-name').value.trim();
   if (!name) { showToast('계약명은 필수입니다.', true); return; }
+  if (!CONTRACT_NAME_RE.test(name)) {
+    showToast('계약명은 IN 또는 MR + 연도 2자리로 시작해야 합니다. 예: IN26-고객사명-16C+80V', true);
+    document.getElementById('ct-name').focus();
+    return;
+  }
+  name = name.replace(CONTRACT_NAME_RE, (_, pre, yy) => pre.toUpperCase() + yy + '-');
   const btn = document.getElementById('btn-submit-contract');
   if (btn) { btn.disabled = true; btn.textContent = '처리 중...'; }
 
