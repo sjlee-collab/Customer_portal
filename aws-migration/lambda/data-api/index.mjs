@@ -443,7 +443,12 @@ async function handleGet(table, qs, event) {
   const fetchAllCols = plainCols.includes('*');
   const requestedSet = new Set(plainCols);
   const extraFkCols = fetchAllCols ? [] : embeds.map(e => e.fkCol).filter(fk => !requestedSet.has(fk));
-  const fetchCols = fetchAllCols ? ['*'] : [...plainCols, ...new Set(extraFkCols)];
+  // restrictUserColumnsForNonStaff는 "본인 행인가"를 row.id로 판별하는데, 화면이 select에 id를
+  // 넣지 않고 users를 조회하면(예: 내 정보의 phone/department 재조회) 본인 행인데도 id가 없어
+  // self 판별이 실패해 컬럼이 전부 지워졌다. 판별용으로 id를 조회에 슬쩍 넣고 응답에서 다시 뺀다.
+  const needsIdForStrip = !fetchAllCols && table === 'users' && !STAFF_ROLES.has(authz.role) && !requestedSet.has('id');
+  const extraFetch = [...new Set([...extraFkCols, ...(needsIdForStrip ? ['id'] : [])])];
+  const fetchCols = fetchAllCols ? ['*'] : [...plainCols, ...extraFetch];
 
   const colsSql = fetchAllCols ? '*' : fetchCols.map(c => `"${c}"`).join(',');
   let sql = `select ${colsSql} from "${table}"`;
@@ -467,6 +472,8 @@ async function handleGet(table, qs, event) {
   for (const embed of embeds) stripBlockedColumns(embed.table, rows.map(r => r[embed.alias]).filter(Boolean));
   restrictUserColumnsForNonStaff(table, rows, authz);
   for (const embed of embeds) restrictUserColumnsForNonStaff(embed.table, rows.map(r => r[embed.alias]).filter(Boolean), authz);
+  // 판별용으로만 넣었던 id는 호출자가 요청하지 않았으면 응답에서 제거 (self 판별 이후에 지워야 함)
+  if (needsIdForStrip) { for (const row of rows) delete row.id; }
 
   if (qs.single) {
     if (!rows.length) throw new HttpError(404, '결과 없음');
