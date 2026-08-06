@@ -5749,12 +5749,32 @@ async function loadNotifyLog() {
     overdue:          '지연 요청',
   };
 
+  // 계정유형은 수신자 이메일 도메인이 아니라 users.role로 판정한다.
+  // 자사 도메인(@bigxdata.io)을 쓰는 고객 계정이 실제로 있어서(예: 빅스_DT 소속 고객)
+  // 도메인만 보고 판단하면 고객이 "내부직원"으로 잘못 표시됐다.
+  const recipientEmails = [...new Set(
+    data.map(n => (n.recipient || '').trim().toLowerCase()).filter(e => e.includes('@'))
+  )];
+  const roleByEmail = {};
+  for (let i = 0; i < recipientEmails.length; i += 50) {
+    const { data: us } = await sb.from('users')
+      .select('email, role')
+      .in('email', recipientEmails.slice(i, i + 50))
+      .limit(1000);
+    (us || []).forEach(u => { if (u.email) roleByEmail[u.email.trim().toLowerCase()] = u.role; });
+  }
+  // Slack은 내부 채널로만 발송되므로 항상 내부직원. 이메일 수신자는 role로 판정하되,
+  // 계정을 찾지 못하면(삭제된 계정·포탈 외부 수신자) 기존 도메인 추정으로 폴백한다.
+  const isInternalRecipient = (n) => {
+    if (n.channel === 'slack') return true;
+    const email = (n.recipient || '').trim().toLowerCase();
+    const role = roleByEmail[email];
+    if (role) return role !== 'customer';
+    return (email.split('@')[1] || '') === 'bigxdata.io';
+  };
+
   const filteredData = accountFilter
-    ? data.filter(n => {
-        const domain = (n.recipient || '').split('@')[1] || '';
-        const isInternal = domain === 'bigxdata.io' || n.channel === 'slack';
-        return accountFilter === 'internal' ? isInternal : !isInternal;
-      })
+    ? data.filter(n => (accountFilter === 'internal' ? isInternalRecipient(n) : !isInternalRecipient(n)))
     : data;
 
   document.getElementById('notify-count').textContent = `총 ${filteredData.length}건`;
@@ -5803,8 +5823,7 @@ async function loadNotifyLog() {
       : '';
     const detailRows = ticketDetailRows + failReasonBlock;
 
-    const recipientDomain = (n.recipient || '').split('@')[1] || '';
-    const isInternal = recipientDomain === 'bigxdata.io' || n.channel === 'slack';
+    const isInternal = isInternalRecipient(n);
     const accountTypeBadge = isInternal
       ? '<span class="badge" style="font-size:11px;background:#ede9fe;color:#5b21b6;">내부직원</span>'
       : '<span class="badge" style="font-size:11px;background:#dbeafe;color:#1e40af;">고객</span>';
