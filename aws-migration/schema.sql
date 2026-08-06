@@ -224,9 +224,15 @@ create table public.company_licenses (
   updated_at    timestamptz not null default now(),
   file_name     text,
   file_path     text,
-  contract_id   uuid
+  contract_id   uuid,
+  start_date    date,
+  end_date      date,
+  renewal_date  date
 );
 comment on column public.company_licenses.contract_id is '사업부 등으로 계약이 나뉜 경우, 이 라이선스가 속한 계약(company_contracts). null이면 고객사 공통(계약 미지정) 라이선스.';
+comment on column public.company_licenses.start_date   is '라이선스 시작일. 계약(company_contracts) 기간과 다를 수 있다.';
+comment on column public.company_licenses.end_date     is '라이선스 만료일. 계약 기간과 다를 수 있다.';
+comment on column public.company_licenses.renewal_date is '갱신을 완료해야 하는 날(기한). 실제 갱신 이력이 아니다.';
 
 -- ── 13. content_notices ──
 create table public.content_notices (
