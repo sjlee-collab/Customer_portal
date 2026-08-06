@@ -1390,7 +1390,6 @@ textarea{resize:vertical;min-height:100px;}
                 <option value="overdue">지연 요청</option>
                 <option value="account_invite">계정 초대</option>
                 <option value="password_reset">비밀번호 재설정</option>
-                <option value="password_admin_reset">비밀번호 초기화(관리자)</option>
               </select></th>
               <th><select id="notify-filter-account" onchange="loadNotifyLog()" class="th-filter">
                 <option value="">계정유형</option>
@@ -6196,36 +6195,35 @@ async function toggleUserActive(id, current) {
   await loadUsers();
 }
 
-// 관리자가 사용자 비밀번호를 직접 초기화한다 — 초대/재설정 메일을 못 받는 고객을
-// 전화로 응대할 때 쓴다. 기본값을 그대로 쓰거나 다른 값을 입력할 수 있다.
-const DEFAULT_RESET_PASSWORD = 'bigxdata1234!';
+// 관리자가 사용자를 대신해 비밀번호 재설정을 걸어준다 — "비밀번호를 잊으셨나요?"와
+// 같은 재설정 메일이 나가고, 새 비밀번호는 사용자 본인이 정한다. 관리자가 비밀번호를
+// 지정하지 않으므로 공용 임시 비밀번호가 돌아다닐 일이 없다.
+const _resettingUsers = new Set();
 
 async function resetUserPassword(id, name) {
-  const pw = prompt(name + ' 사용자의 비밀번호를 초기화합니다.\n설정할 비밀번호를 입력하세요 (8자 이상).', DEFAULT_RESET_PASSWORD);
-  if (pw === null) return;                       // 취소
-  const newPassword = pw.trim();
-  if (newPassword.length < 8) { showToast('비밀번호는 8자 이상이어야 합니다.', true); return; }
+  if (!confirm(name + ' 사용자에게 비밀번호 재설정 메일을 보냅니다.\n사용자가 메일의 링크로 직접 새 비밀번호를 설정하게 됩니다.\n\n계속할까요?')) return;
 
-  let emailSent = false;
+  // 연타로 같은 사용자에게 메일이 여러 번 나가지 않게 잠근다. 마지막 토큰만 유효해져
+  // 앞서 보낸 메일의 링크가 죽는 것도 함께 막힌다.
+  if (_resettingUsers.has(id)) return;
+  _resettingUsers.add(id);
   try {
     const res = await fetch(`${API_BASE}/auth/admin-reset-password`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ userId: id, newPassword }),
+      body: JSON.stringify({ userId: id }),
     });
     const data = await res.json().catch(() => null);
-    if (!res.ok) {
-      showToast(data?.error || '비밀번호 초기화에 실패했습니다.', true);
-      return;
-    }
-    emailSent = !!data?.emailSent;
+    if (!res.ok) { showToast(data?.error || '재설정 메일 발송에 실패했습니다.', true); return; }
+    // 링크 유효기간이 30분이라 "언제까지"를 같이 알려줘야 관리자가 사용자에게 안내할 수 있다.
+    showToast(data?.emailSent
+      ? '✅ ' + name + ' 님에게 비밀번호 재설정 메일을 보냈습니다. 링크는 30분간 유효합니다.'
+      : '⚠️ 재설정 링크는 발급됐으나 메일 발송에 실패했습니다. 사용자에게 "비밀번호를 잊으셨나요?"로 안내해주세요.',
+      !data?.emailSent);
   } catch (_) {
-    showToast('비밀번호 초기화에 실패했습니다. 잠시 후 다시 시도해주세요.', true);
-    return;
+    showToast('재설정 메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.', true);
+  } finally {
+    _resettingUsers.delete(id);
   }
-  // 메일이 나갔어도 새 비밀번호는 본문에 없으므로, 관리자가 직접 알려줘야 하는 건 마찬가지다.
-  showToast(emailSent
-    ? '✅ ' + name + ' 비밀번호를 초기화하고 안내 메일을 보냈습니다. 새 비밀번호는 직접 알려주세요.'
-    : '⚠️ ' + name + ' 비밀번호는 초기화됐으나 안내 메일 발송에 실패했습니다. 사용자에게 직접 안내해주세요.', !emailSent);
 }
 
 async function deleteUser(id, name) {
