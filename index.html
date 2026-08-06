@@ -1388,6 +1388,8 @@ textarea{resize:vertical;min-height:100px;}
                 <option value="urgent">긴급 요청</option>
                 <option value="assigned">담당자 변경</option>
                 <option value="overdue">지연 요청</option>
+                <option value="account_invite">계정 초대</option>
+                <option value="password_reset">비밀번호 재설정</option>
               </select></th>
               <th><select id="notify-filter-account" onchange="loadNotifyLog()" class="th-filter">
                 <option value="">계정유형</option>
@@ -5823,6 +5825,8 @@ async function loadNotifyLog() {
     internal_sales:   '내부 영업 알림',
     urgent:           '긴급 요청',
     overdue:          '지연 요청',
+    account_invite:   '계정 초대',
+    password_reset:   '비밀번호 재설정',
   };
 
   // 계정유형은 수신자 이메일 도메인이 아니라 users.role로 판정한다.
@@ -6161,7 +6165,25 @@ async function submitUser() {
   document.querySelector('#modal-user .btn-primary').textContent = '추가';
   document.getElementById('u-id').value = '';
   closeModal('modal-user');
-  showToast('✅ ' + name + (id ? ' 수정 완료' : ' 추가 완료'));
+
+  // 신규 계정만 초대 메일을 보낸다 — 수정할 때마다 보내면 이미 쓰고 있는 사용자의
+  // 비밀번호 설정 링크가 다시 발급돼 혼란스럽다.
+  // 메일 발송이 실패해도 계정 생성 자체는 이미 성공했으므로 롤백하지 않고 안내만 한다.
+  if (!id) {
+    let invited = false;
+    try {
+      const res = await fetch(`${API_BASE}/auth/invite`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ email }),
+      });
+      invited = res.ok;
+    } catch (_) { invited = false; }
+    showToast(invited
+      ? '✅ ' + name + ' 추가 완료 — 비밀번호 설정 메일을 보냈습니다.'
+      : '⚠️ ' + name + ' 추가 완료 — 다만 초대 메일 발송에 실패했습니다. 사용자에게 "비밀번호를 잊으셨나요?"로 설정하도록 안내해주세요.', !invited);
+  } else {
+    showToast('✅ ' + name + ' 수정 완료');
+  }
   await loadUsers();
 }
 

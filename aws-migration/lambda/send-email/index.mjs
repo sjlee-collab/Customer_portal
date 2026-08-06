@@ -153,6 +153,13 @@ function internalUrgentHtml(ticket, companyName, requesterName) {
   return layout('긴급 요청 알림', `<div class="alert-box alert-red"><strong>긴급 요청이 접수되었습니다.</strong> 즉각적인 대응이 필요합니다.</div><div class="lbl">요청 정보</div><table class="info"><tr><td>요청번호</td><td><strong>${ticket.ticket_number ?? '—'}</strong></td></tr><tr><td>제목</td><td>${ticket.title ?? '—'}</td></tr><tr><td>고객사</td><td>${companyName}</td></tr><tr><td>요청자</td><td>${requesterName}</td></tr><tr><td>카테고리</td><td>${CATEGORY_KO[ticket.category] ?? ticket.category ?? '—'}</td></tr><tr><td>긴급도</td><td><span class="badge b-red">긴급</span></td></tr><tr><td>등록일시</td><td>${dateStr}</td></tr></table>${btn}`);
 }
 
+// 신규 계정 초대 — 관리자가 계정을 만들면 사용자가 직접 비밀번호를 정하도록 안내한다.
+// 임시 비밀번호를 만들어 전달하지 않으므로 평문 비밀번호가 오가는 구간이 없다.
+function accountInviteHtml(userName, setupUrl, validDays) {
+  const display = setupUrl.replace(/^https?:\/\//, '');
+  return layout('계정 생성 안내', `<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">안녕하세요, <strong>${userName}</strong>님.<br>빅스데이터 고객지원 포탈 계정이 생성되었습니다.<br>아래 버튼을 눌러 사용하실 비밀번호를 직접 설정해주세요.</p><a class="btn" href="${setupUrl}">비밀번호 설정하기</a><div style="font-size:11px;color:#9ca3af;margin-top:8px;">${display}</div><p style="margin:20px 0 0;font-size:12px;color:#9ca3af;">이 링크는 ${validDays}일간 유효합니다. 기간이 지나면 로그인 화면의 "비밀번호를 잊으셨나요?"로 다시 설정하실 수 있습니다.</p>`);
+}
+
 function passwordResetHtml(userName, resetUrl) {
   const display = resetUrl.replace(/^https?:\/\//, '');
   return layout('비밀번호 재설정', `<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">안녕하세요, <strong>${userName}</strong>님.<br>비밀번호 재설정을 요청하셨습니다. 아래 버튼을 눌러 새 비밀번호를 설정해주세요.</p><a class="btn" href="${resetUrl}">비밀번호 재설정하기</a><div style="font-size:11px;color:#9ca3af;margin-top:8px;">${display}</div><p style="margin:20px 0 0;font-size:12px;color:#9ca3af;">이 링크는 30분간 유효합니다. 본인이 요청하지 않았다면 이 메일을 무시해주세요.</p>`);
@@ -177,6 +184,16 @@ export const handler = async (event) => {
       if (payload.type !== 'CONNECTION_TEST' || !STAFF_ROLES.has(role)) {
         return { statusCode: 403, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: '이 기능은 내부 시스템에서만 호출할 수 있습니다' }) };
       }
+    }
+
+    if (payload.type === 'ACCOUNT_INVITE') {
+      const { toEmail, userName, token, validDays } = payload;
+      if (!toEmail || !token) return { statusCode: 400, body: 'missing toEmail/token' };
+      const setupUrl = `${PORTAL_URL}?reset=${token}`;
+      await sendAndLog(toEmail, '[빅스데이터 고객지원] 포탈 계정이 생성되었습니다 — 비밀번호를 설정해주세요',
+        accountInviteHtml(userName || '고객', setupUrl, validDays || 7), null, 'account_invite', results);
+      const sent = results.filter(r => r.status === 'sent').length;
+      return ok({ ok: true, sent, results });
     }
 
     if (payload.type === 'PASSWORD_RESET') {

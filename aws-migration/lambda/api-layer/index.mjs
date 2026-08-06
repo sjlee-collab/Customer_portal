@@ -579,6 +579,34 @@ async function requestPasswordReset(body) {
   return json(200, { ok: true });
 }
 
+// ── POST /auth/invite ──
+// 관리자가 계정을 만든 뒤 호출한다. 임시 비밀번호를 만들지 않고, 사용자가 스스로
+// 비밀번호를 정하도록 설정 링크만 메일로 보낸다(재설정 토큰 재사용).
+// 초대 링크는 재설정(30분)보다 길게 7일을 준다 — 담당자가 메일을 늦게 확인하는 경우가 많다.
+const INVITE_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+async function inviteUser(body, event) {
+  const authz = getAuthz(event);
+  // 계정 생성 권한이 있는 사람만 초대 메일을 보낼 수 있다 — 아무나 호출하면 임의 주소로
+  // 회사 명의 메일을 보내거나 남의 계정 비밀번호를 재설정할 수 있게 된다.
+  if (!(await hasPermission(authz.role, 'user_manage'))) {
+    return json(403, { error: '사용자 관리 권한이 필요합니다' });
+  }
+  const { email } = body;
+  if (!email) return json(400, { error: 'email은 필수입니다' });
+
+  const rows = await query('select id, name, is_active from users where email=$1', [email]);
+  const user = rows[0];
+  if (!user) return json(404, { error: '등록된 이메일이 아닙니다.' });
+  if (user.is_active === false) return json(403, { error: '비활성화된 계정입니다.' });
+
+  const token = randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + INVITE_TOKEN_TTL_MS).toISOString();
+  await query('update users set reset_token=$1, reset_token_expires_at=$2 where id=$3', [token, expiresAt, user.id]);
+  await notifyEmail({ type: 'ACCOUNT_INVITE', toEmail: email, userName: user.name, token, validDays: 7 });
+  return json(200, { ok: true });
+}
+
 // ── POST /auth/reset-password ──
 async function resetPassword(body) {
   const { token, newPassword } = body;
@@ -690,6 +718,9 @@ export const handler = async (event) => {
     }
     if (method === 'POST' && path === '/auth/reset-password') {
       return await resetPassword(body);
+    }
+    if (method === 'POST' && path === '/auth/invite') {
+      return await inviteUser(body, event);
     }
     if (method === 'POST' && path === '/tickets') {
       return await createTicket(body, event);
