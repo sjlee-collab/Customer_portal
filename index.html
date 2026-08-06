@@ -907,6 +907,7 @@ textarea{resize:vertical;min-height:100px;}
         <span class="filter-chip" onclick="setLibCategory('tableau',this)">Tableau Desktop</span>
         <span class="filter-chip" onclick="setLibCategory('tableau-server',this)">Tableau Server</span>
         <span class="filter-chip" onclick="setLibCategory('tableau-cloud',this)">Tableau Cloud</span>
+        <span class="filter-chip" onclick="setLibCategory('tableau-prep',this)">Tableau Prep</span>
         <span class="filter-chip" onclick="setLibCategory('edu',this)">교육</span>
         <span class="filter-chip" onclick="setLibCategory('product-intro',this)">제품 소개서</span>
       </div>
@@ -929,6 +930,7 @@ textarea{resize:vertical;min-height:100px;}
         <span class="filter-chip" onclick="setLibFaqCategory('tableau',this)">Tableau Desktop</span>
         <span class="filter-chip" onclick="setLibFaqCategory('tableau-server',this)">Tableau Server</span>
         <span class="filter-chip" onclick="setLibFaqCategory('tableau-cloud',this)">Tableau Cloud</span>
+        <span class="filter-chip" onclick="setLibFaqCategory('tableau-prep',this)">Tableau Prep</span>
         <span class="filter-chip" onclick="setLibFaqCategory('edu',this)">교육</span>
         <span class="filter-chip" onclick="setLibFaqCategory('product-intro',this)">제품 소개서</span>
       </div>
@@ -1320,6 +1322,7 @@ textarea{resize:vertical;min-height:100px;}
             <span class="filter-chip" onclick="setDocsCategory('tableau',this)">Tableau Desktop</span>
             <span class="filter-chip" onclick="setDocsCategory('tableau-server',this)">Tableau Server</span>
             <span class="filter-chip" onclick="setDocsCategory('tableau-cloud',this)">Tableau Cloud</span>
+            <span class="filter-chip" onclick="setDocsCategory('tableau-prep',this)">Tableau Prep</span>
             <span class="filter-chip" onclick="setDocsCategory('edu',this)">교육</span>
             <span class="filter-chip" onclick="setDocsCategory('product-intro',this)">제품 소개서</span>
           </div>
@@ -1341,6 +1344,7 @@ textarea{resize:vertical;min-height:100px;}
             <span class="filter-chip" onclick="setDocsFaqCategory('tableau',this)">Tableau Desktop</span>
             <span class="filter-chip" onclick="setDocsFaqCategory('tableau-server',this)">Tableau Server</span>
             <span class="filter-chip" onclick="setDocsFaqCategory('tableau-cloud',this)">Tableau Cloud</span>
+            <span class="filter-chip" onclick="setDocsFaqCategory('tableau-prep',this)">Tableau Prep</span>
             <span class="filter-chip" onclick="setDocsFaqCategory('edu',this)">교육</span>
             <span class="filter-chip" onclick="setDocsFaqCategory('product-intro',this)">제품 소개서</span>
           </div>
@@ -2163,6 +2167,7 @@ textarea{resize:vertical;min-height:100px;}
             <option value="tableau">Tableau Desktop</option>
             <option value="tableau-server">Tableau Server</option>
             <option value="tableau-cloud">Tableau Cloud</option>
+            <option value="tableau-prep">Tableau Prep</option>
             <option value="edu">교육</option>
             <option value="product-intro">제품 소개서</option>
           </select>
@@ -3134,7 +3139,7 @@ async function testIntegration(type) {
 }
 
 // ─── 자료실 관리 ────────────────────────────────────────
-const DOC_CATEGORY_LABEL = { tableau:'Tableau Desktop', 'tableau-server':'Tableau Server', 'tableau-cloud':'Tableau Cloud', edu:'교육', 'product-intro':'제품 소개서', faq:'FAQ' };
+const DOC_CATEGORY_LABEL = { tableau:'Tableau Desktop', 'tableau-server':'Tableau Server', 'tableau-cloud':'Tableau Cloud', 'tableau-prep':'Tableau Prep', edu:'교육', 'product-intro':'제품 소개서', faq:'FAQ' };
 
 let allDocsAdmin = [];
 let docsCatFilter = '';
@@ -7420,8 +7425,8 @@ let allLibDocs = [];
 let libProductFilter = '';
 let libFaqCatFilter = '';
 
-const DOC_CAT_ICON = { tableau:'📊', 'tableau-server':'🖥️', 'tableau-cloud':'☁️', edu:'🎓', 'product-intro':'📄', faq:'❓' };
-const DOC_CAT_LABEL_KO = { tableau:'Tableau Desktop', 'tableau-server':'Tableau Server', 'tableau-cloud':'Tableau Cloud', edu:'교육', 'product-intro':'제품 소개서', faq:'FAQ' };
+const DOC_CAT_ICON = { tableau:'📊', 'tableau-server':'🖥️', 'tableau-cloud':'☁️', 'tableau-prep':'🧹', edu:'🎓', 'product-intro':'📄', faq:'❓' };
+const DOC_CAT_LABEL_KO = { tableau:'Tableau Desktop', 'tableau-server':'Tableau Server', 'tableau-cloud':'Tableau Cloud', 'tableau-prep':'Tableau Prep', edu:'교육', 'product-intro':'제품 소개서', faq:'FAQ' };
 
 async function loadLibFiles() {
   const tbody = document.getElementById('lib-files-tbody');
