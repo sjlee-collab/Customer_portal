@@ -160,6 +160,15 @@ function accountInviteHtml(userName, setupUrl, validDays) {
   return layout('계정 생성 안내', `<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">안녕하세요, <strong>${userName}</strong>님.<br>빅스데이터 고객지원 포탈 계정이 생성되었습니다.<br>아래 버튼을 눌러 사용하실 비밀번호를 직접 설정해주세요.</p><a class="btn" href="${setupUrl}">비밀번호 설정하기</a><div style="font-size:11px;color:#9ca3af;margin-top:8px;">${display}</div><p style="margin:20px 0 0;font-size:12px;color:#9ca3af;">이 링크는 ${validDays}일간 유효합니다. 기간이 지나면 로그인 화면의 "비밀번호를 잊으셨나요?"로 다시 설정하실 수 있습니다.</p>`);
 }
 
+// 관리자가 비밀번호를 초기화했을 때 당사자에게 보내는 안내.
+// 새 비밀번호는 본문에 넣지 않는다 — 메일은 안전한 전달 수단이 아니고 받은편지함에
+// 계속 남는다. 관리자가 별도로 알려주거나, 아래 링크로 본인이 직접 정하면 된다.
+// 본인이 요청하지 않은 초기화를 알아챌 수 있게 하는 역할도 겸한다.
+function passwordAdminResetHtml(userName, setupUrl, validDays) {
+  const display = setupUrl.replace(/^https?:\/\//, '');
+  return layout('비밀번호 초기화 안내', `<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">안녕하세요, <strong>${userName}</strong>님.<br>관리자가 회원님의 포탈 비밀번호를 초기화했습니다.<br>담당자에게 안내받은 비밀번호로 로그인하시거나, 아래 버튼을 눌러 직접 새 비밀번호를 설정하실 수 있습니다.</p><a class="btn" href="${setupUrl}">비밀번호 직접 설정하기</a><div style="font-size:11px;color:#9ca3af;margin-top:8px;">${display}</div><p style="margin:20px 0 0;font-size:12px;color:#9ca3af;">이 링크는 ${validDays}일간 유효합니다. 초기화를 요청하신 적이 없다면 담당자에게 즉시 알려주세요.</p>`);
+}
+
 function passwordResetHtml(userName, resetUrl) {
   const display = resetUrl.replace(/^https?:\/\//, '');
   return layout('비밀번호 재설정', `<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">안녕하세요, <strong>${userName}</strong>님.<br>비밀번호 재설정을 요청하셨습니다. 아래 버튼을 눌러 새 비밀번호를 설정해주세요.</p><a class="btn" href="${resetUrl}">비밀번호 재설정하기</a><div style="font-size:11px;color:#9ca3af;margin-top:8px;">${display}</div><p style="margin:20px 0 0;font-size:12px;color:#9ca3af;">이 링크는 30분간 유효합니다. 본인이 요청하지 않았다면 이 메일을 무시해주세요.</p>`);
@@ -184,6 +193,16 @@ export const handler = async (event) => {
       if (payload.type !== 'CONNECTION_TEST' || !STAFF_ROLES.has(role)) {
         return { statusCode: 403, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: '이 기능은 내부 시스템에서만 호출할 수 있습니다' }) };
       }
+    }
+
+    if (payload.type === 'PASSWORD_ADMIN_RESET') {
+      const { toEmail, userName, token, validDays } = payload;
+      if (!toEmail || !token) return { statusCode: 400, body: 'missing toEmail/token' };
+      const setupUrl = `${PORTAL_URL}?reset=${token}`;
+      await sendAndLog(toEmail, '[빅스데이터 고객지원] 비밀번호가 초기화되었습니다',
+        passwordAdminResetHtml(userName || '고객', setupUrl, validDays || 7), null, 'password_admin_reset', results);
+      const sent = results.filter(r => r.status === 'sent').length;
+      return ok({ ok: true, sent, results });
     }
 
     if (payload.type === 'ACCOUNT_INVITE') {
