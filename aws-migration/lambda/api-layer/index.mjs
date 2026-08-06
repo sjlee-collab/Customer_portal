@@ -608,47 +608,44 @@ async function inviteUser(body, event) {
 }
 
 // ── POST /auth/admin-reset-password ──
-// 관리자가 사용자 비밀번호를 직접 초기화한다. 초대/재설정 메일을 못 받는 고객을
-// 전화로 응대할 때 쓴다. 비밀번호는 해시로만 저장하고, 평문은 호출한 화면에만 남는다.
+// 관리자가 사용자를 대신해 비밀번호 재설정을 걸어준다. 관리자가 비밀번호를 정해주지
+// 않고, "비밀번호를 잊으셨나요?"와 똑같은 재설정 메일만 보낸다 — 새 비밀번호는 본인만
+// 알게 되고, 공용 임시 비밀번호가 돌아다니지 않는다.
+// 토큰 유효기간도 그 흐름과 같은 30분이어야 한다(메일 본문이 30분이라고 안내한다).
 async function adminResetPassword(body, event) {
   const authz = getAuthz(event);
   if (!(await hasPermission(authz.role, 'user_manage'))) {
     return json(403, { error: '사용자 관리 권한이 필요합니다' });
   }
-  const { userId, newPassword } = body;
-  if (!userId || !newPassword) return json(400, { error: 'userId, newPassword는 필수입니다' });
-  if (newPassword.length < 8) return json(400, { error: '비밀번호는 8자 이상이어야 합니다.' });
+  const { userId } = body;
+  if (!userId) return json(400, { error: 'userId는 필수입니다' });
 
-  const targets = await query('select id, name, email, role from users where id=$1', [userId]);
+  const targets = await query('select id, name, email, role, is_active from users where id=$1', [userId]);
   const target = targets[0];
   if (!target) return json(404, { error: '존재하지 않는 사용자입니다.' });
+  if (target.is_active === false) return json(403, { error: '비활성화된 계정입니다.' });
 
-  // 권한 상승 차단 — user_manage를 가진 비관리자(예: 영업)가 관리자·내부직원 계정의
-  // 비밀번호를 갈아끼워 그 계정으로 로그인하는 경로를 막는다. 고객 계정 초기화만 허용.
+  // 권한 상승 차단 — user_manage를 가진 비관리자(예: 영업)가 관리자·내부직원 계정에
+  // 재설정을 걸어 메일을 가로채는 식으로 계정을 넘겨받는 경로를 막는다.
   if (target.role !== 'customer' && authz.role !== 'admin') {
-    return json(403, { error: '내부 직원 계정의 비밀번호는 관리자만 초기화할 수 있습니다.' });
+    return json(403, { error: '내부 직원 계정은 관리자만 재설정할 수 있습니다.' });
   }
 
-  // 안내 메일에 "직접 새 비밀번호 설정" 링크를 같이 넣어주려고 토큰을 새로 발급한다.
-  // 관리자가 정해준 비밀번호를 쓰든, 링크로 본인이 정하든 둘 다 가능하게 열어둔다.
   const token = randomBytes(32).toString('hex');
-  const expiresAt = new Date(Date.now() + INVITE_TOKEN_TTL_MS).toISOString();
-  await query(
-    'update users set password=$1, reset_token=$2, reset_token_expires_at=$3 where id=$4',
-    [hashPassword(newPassword), token, expiresAt, target.id]);
-  // 누가 누구 비밀번호를 바꿨는지는 남겨야 사후 추적이 된다(별도 감사 테이블은 아직 없음).
+  const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS).toISOString();
+  await query('update users set reset_token=$1, reset_token_expires_at=$2 where id=$3',
+    [token, expiresAt, target.id]);
+  // 누가 누구에게 재설정을 걸었는지는 남겨야 사후 추적이 된다(별도 감사 테이블은 아직 없음).
   console.log(`[admin-reset] by=${authz.userId} role=${authz.role} target=${target.email}`);
 
-  // 메일이 실패해도 비밀번호는 이미 바뀌었으므로 되돌리지 않는다. 대신 발송 여부를
-  // 응답에 담아 관리자가 "직접 안내해야 하는지"를 화면에서 알 수 있게 한다.
   let emailSent = false;
   try {
     const r = await notifyEmail({
-      type: 'PASSWORD_ADMIN_RESET', toEmail: target.email, userName: target.name, token, validDays: 7,
+      type: 'PASSWORD_RESET', toEmail: target.email, userName: target.name, token,
     });
     emailSent = !!r?.ok && (r.sent ?? 0) > 0;
   } catch (e) {
-    console.error('[admin-reset] 안내 메일 발송 실패', e);
+    console.error('[admin-reset] 재설정 메일 발송 실패', e);
   }
   return json(200, { ok: true, name: target.name, email: target.email, emailSent });
 }
