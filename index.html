@@ -101,6 +101,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Ne
 .btn-ghost:hover{background:var(--surface2);}
 .btn-sm{padding:5px 13px;font-size:12px;}
 .btn-danger{background:#FCEBEB;color:var(--red-d);border:1px solid #f5c6c6;}
+.btn:disabled{opacity:.6;cursor:default;}
+/* 조회 중 표시용 회전 아이콘 — 모션을 줄이도록 설정한 사용자에게는 돌리지 않는다. */
+.spin{animation:spin-rot .9s linear infinite;transform-origin:50% 50%;}
+@keyframes spin-rot{to{transform:rotate(360deg);}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none;}}
 
 /* ── form ── */
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
@@ -1355,7 +1360,10 @@ textarea{resize:vertical;min-height:100px;}
       <div id="p-notify-log" class="page u-page">
         <div class="section-header">
           <div><div class="section-title">알림 로그</div><div class="section-sub" id="notify-count"></div></div>
-          <div></div>
+          <button class="btn btn-outline btn-sm" id="btn-notify-refresh" onclick="refreshNotifyLog()">
+            <svg id="notify-refresh-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+            <span id="notify-refresh-label">새로고침</span>
+          </button>
         </div>
         <div class="card" style="padding:0;overflow:hidden;">
           <div class="tbl-scroll list-scroll"><table class="tbl">
@@ -5666,6 +5674,28 @@ async function savePermissions() {
 }
 
 // ── 알림 로그 ──────────────────────────────────────────────────
+// 알림 로그 수동 새로고침 — 조회가 끝날 때까지 버튼을 잠가 연타로 같은 조회가 겹치지 않게 한다.
+// loadNotifyLog()가 중간에 return하거나 예외를 던져도 finally에서 항상 원래 상태로 되돌린다.
+let _notifyRefreshing = false;
+async function refreshNotifyLog() {
+  if (_notifyRefreshing) return;
+  _notifyRefreshing = true;
+  const btn = document.getElementById('btn-notify-refresh');
+  const ico = document.getElementById('notify-refresh-ico');
+  const label = document.getElementById('notify-refresh-label');
+  if (btn) btn.disabled = true;
+  if (ico) ico.classList.add('spin');
+  if (label) label.textContent = '불러오는 중…';
+  try {
+    await loadNotifyLog();
+  } finally {
+    _notifyRefreshing = false;
+    if (btn) btn.disabled = false;
+    if (ico) ico.classList.remove('spin');
+    if (label) label.textContent = '새로고침';
+  }
+}
+
 async function loadNotifyLog() {
   const tbody = document.getElementById('notify-tbody');
   if (!tbody) return;
