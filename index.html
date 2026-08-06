@@ -2000,6 +2000,10 @@ textarea{resize:vertical;min-height:100px;}
           </select>
         </div>
         <div class="form-group span2">
+          <label>라이선스 키</label>
+          <input type="text" id="lic-key" placeholder="TSBX-4F2A-91C7-B0D3-6E85" style="font-family:ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;letter-spacing:.02em;">
+        </div>
+        <div class="form-group span2">
           <label>라이선스 기간</label>
           <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;">
             <div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">시작일</div><input type="date" id="lic-start-date" style="width:100%;"></div>
@@ -5225,6 +5229,26 @@ function licenseDateCell(dateStr, badge) {
   return `<td style="white-space:nowrap;font-variant-numeric:tabular-nums;">${d}${badge || ''}</td>`;
 }
 
+// 라이선스 키는 눈으로 옮겨 적다 틀리기 쉬워서 클릭 한 번에 복사되게 한다.
+// navigator.clipboard는 보안 컨텍스트(https)에서만 동작하므로 실패 시 안내만 띄운다.
+async function copyLicenseKey(key) {
+  try {
+    await navigator.clipboard.writeText(key);
+    showToast('✅ 라이선스 키를 복사했습니다.');
+  } catch (_) {
+    showToast('복사에 실패했습니다. 키를 직접 선택해 복사해주세요.', true);
+  }
+}
+
+function licenseKeyCell(key) {
+  if (!key) return '<td><span style="color:var(--faint);">—</span></td>';
+  const safe = escHtml(key);
+  return `<td style="white-space:nowrap;">
+    <span style="font-family:ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;font-size:11.5px;">${safe}</span>
+    <button class="btn btn-ghost btn-sm" style="font-size:10.5px;margin-left:6px;" onclick="copyLicenseKey('${safe.replace(/'/g, "&#39;")}')">복사</button>
+  </td>`;
+}
+
 function renderLicenseTable(licenses) {
   const contractId = licenses[0]?.contract_id || '';
   const byProduct = new Map();
@@ -5249,11 +5273,14 @@ function renderLicenseTable(licenses) {
       licenseDateCell(startDate) +
       licenseDateCell(endDate, licenseExpiredBadge(endDate)) +
       licenseDateCell(renewalDate, licenseRenewalBadge(renewalDate));
+    // 키도 그룹 공통 값이라 기간과 같은 방식으로 첫 유효값을 대표로 보여준다.
+    const licenseKey = group.find(r => r.license_key)?.license_key;
     return `
       <tr>
         <td style="font-weight:600;">${escHtml(LIC_PRODUCT_LABEL[product] || product || '—')}</td>
         ${qtyCells}
         ${dateCells}
+        ${licenseKeyCell(licenseKey)}
         <td style="white-space:nowrap;">
           <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="editLicenseGroup('${escHtml(contractId)}','${productArg}')">수정</button>
           <button class="btn btn-ghost btn-sm" style="font-size:11px;color:#e53e3e;" onclick='deleteLicenseGroup(${JSON.stringify(rowIds)},${JSON.stringify(filePaths)})'>삭제</button>
@@ -5261,7 +5288,7 @@ function renderLicenseTable(licenses) {
       </tr>`;
   }).join('');
   return `<div class="tbl-scroll"><table class="tbl tbl-compact">
-    <thead><tr><th>제품정보</th>${LICENSE_TYPES.map(t => `<th style="text-align:center;">${t}</th>`).join('')}<th>시작일</th><th>만료일</th><th>갱신일</th><th>액션</th></tr></thead>
+    <thead><tr><th>제품정보</th>${LICENSE_TYPES.map(t => `<th style="text-align:center;">${t}</th>`).join('')}<th>시작일</th><th>만료일</th><th>갱신일</th><th>라이선스 키</th><th>액션</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
 }
@@ -5543,6 +5570,7 @@ function openLicenseModal(contractId) {
   document.getElementById('btn-submit-license').textContent  = '등록';
   document.getElementById('lic-company-id').value = selectedCompanyId;
   document.getElementById('lic-note').value = '';
+  document.getElementById('lic-key').value  = '';
   document.getElementById('lic-product').value  = '';
   LICENSE_TYPES.forEach(t => { const el = document.getElementById('lic-qty-' + t); if (el) el.value = ''; });
   LICENSE_DATE_FIELDS.forEach(f => { const el = document.getElementById(f.el); if (el) el.value = ''; });
@@ -5562,6 +5590,7 @@ function editLicenseGroup(contractId, productInfo) {
   document.getElementById('lic-company-id').value = group[0].company_id;
   document.getElementById('lic-product').value    = productInfo;
   document.getElementById('lic-note').value       = (group.find(l => l.note)?.note) || '';
+  document.getElementById('lic-key').value        = (group.find(l => l.license_key)?.license_key) || '';
   // 기간은 그룹이 공유하는 값이라 비고와 동일하게 그룹 내 첫 유효값을 채운다.
   LICENSE_DATE_FIELDS.forEach(f => {
     const el = document.getElementById(f.el);
@@ -5583,6 +5612,8 @@ async function submitLicense() {
   if (!product) { showToast('제품정보는 필수입니다.', true); return; }
   const contractId = document.getElementById('lic-contract')?.value || null;
   const note       = document.getElementById('lic-note').value.trim() || null;
+  // 키도 기간·비고와 같이 제품 그룹 공통 값이라 그룹 내 모든 행에 같은 값이 저장된다.
+  const licenseKey = document.getElementById('lic-key').value.trim() || null;
 
   // 기간은 제품 그룹 전체가 같은 값을 쓴다. 비운 칸은 null로 저장해 "미입력"으로 남긴다.
   const dates = {};
@@ -5613,6 +5644,7 @@ async function submitLicense() {
     const payload = {
       company_id: companyId, contract_id: contractId,
       product_info: product, license_type: t, status: '활성', quantity: qty, note,
+      license_key: licenseKey,
       ...dates,
     };
     let error;
