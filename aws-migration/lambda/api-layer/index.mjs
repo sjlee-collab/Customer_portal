@@ -629,12 +629,28 @@ async function adminResetPassword(body, event) {
     return json(403, { error: '내부 직원 계정의 비밀번호는 관리자만 초기화할 수 있습니다.' });
   }
 
+  // 안내 메일에 "직접 새 비밀번호 설정" 링크를 같이 넣어주려고 토큰을 새로 발급한다.
+  // 관리자가 정해준 비밀번호를 쓰든, 링크로 본인이 정하든 둘 다 가능하게 열어둔다.
+  const token = randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + INVITE_TOKEN_TTL_MS).toISOString();
   await query(
-    'update users set password=$1, reset_token=null, reset_token_expires_at=null where id=$2',
-    [hashPassword(newPassword), target.id]);
+    'update users set password=$1, reset_token=$2, reset_token_expires_at=$3 where id=$4',
+    [hashPassword(newPassword), token, expiresAt, target.id]);
   // 누가 누구 비밀번호를 바꿨는지는 남겨야 사후 추적이 된다(별도 감사 테이블은 아직 없음).
   console.log(`[admin-reset] by=${authz.userId} role=${authz.role} target=${target.email}`);
-  return json(200, { ok: true, name: target.name, email: target.email });
+
+  // 메일이 실패해도 비밀번호는 이미 바뀌었으므로 되돌리지 않는다. 대신 발송 여부를
+  // 응답에 담아 관리자가 "직접 안내해야 하는지"를 화면에서 알 수 있게 한다.
+  let emailSent = false;
+  try {
+    const r = await notifyEmail({
+      type: 'PASSWORD_ADMIN_RESET', toEmail: target.email, userName: target.name, token, validDays: 7,
+    });
+    emailSent = !!r?.ok && (r.sent ?? 0) > 0;
+  } catch (e) {
+    console.error('[admin-reset] 안내 메일 발송 실패', e);
+  }
+  return json(200, { ok: true, name: target.name, email: target.email, emailSent });
 }
 
 // ── POST /auth/reset-password ──

@@ -1390,6 +1390,7 @@ textarea{resize:vertical;min-height:100px;}
                 <option value="overdue">지연 요청</option>
                 <option value="account_invite">계정 초대</option>
                 <option value="password_reset">비밀번호 재설정</option>
+                <option value="password_admin_reset">비밀번호 초기화(관리자)</option>
               </select></th>
               <th><select id="notify-filter-account" onchange="loadNotifyLog()" class="th-filter">
                 <option value="">계정유형</option>
@@ -5825,8 +5826,9 @@ async function loadNotifyLog() {
     internal_sales:   '내부 영업 알림',
     urgent:           '긴급 요청',
     overdue:          '지연 요청',
-    account_invite:   '계정 초대',
-    password_reset:   '비밀번호 재설정',
+    account_invite:       '계정 초대',
+    password_reset:       '비밀번호 재설정',
+    password_admin_reset: '비밀번호 초기화(관리자)',
   };
 
   // 계정유형은 수신자 이메일 도메인이 아니라 users.role로 판정한다.
@@ -6204,21 +6206,26 @@ async function resetUserPassword(id, name) {
   const newPassword = pw.trim();
   if (newPassword.length < 8) { showToast('비밀번호는 8자 이상이어야 합니다.', true); return; }
 
+  let emailSent = false;
   try {
     const res = await fetch(`${API_BASE}/auth/admin-reset-password`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({ userId: id, newPassword }),
     });
+    const data = await res.json().catch(() => null);
     if (!res.ok) {
-      const data = await res.json().catch(() => null);
       showToast(data?.error || '비밀번호 초기화에 실패했습니다.', true);
       return;
     }
+    emailSent = !!data?.emailSent;
   } catch (_) {
     showToast('비밀번호 초기화에 실패했습니다. 잠시 후 다시 시도해주세요.', true);
     return;
   }
-  showToast('✅ ' + name + ' 비밀번호를 초기화했습니다. 사용자에게 새 비밀번호를 안내해주세요.');
+  // 메일이 나갔어도 새 비밀번호는 본문에 없으므로, 관리자가 직접 알려줘야 하는 건 마찬가지다.
+  showToast(emailSent
+    ? '✅ ' + name + ' 비밀번호를 초기화하고 안내 메일을 보냈습니다. 새 비밀번호는 직접 알려주세요.'
+    : '⚠️ ' + name + ' 비밀번호는 초기화됐으나 안내 메일 발송에 실패했습니다. 사용자에게 직접 안내해주세요.', !emailSent);
 }
 
 async function deleteUser(id, name) {
