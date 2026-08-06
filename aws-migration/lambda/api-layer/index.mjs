@@ -607,6 +607,36 @@ async function inviteUser(body, event) {
   return json(200, { ok: true });
 }
 
+// ── POST /auth/admin-reset-password ──
+// 관리자가 사용자 비밀번호를 직접 초기화한다. 초대/재설정 메일을 못 받는 고객을
+// 전화로 응대할 때 쓴다. 비밀번호는 해시로만 저장하고, 평문은 호출한 화면에만 남는다.
+async function adminResetPassword(body, event) {
+  const authz = getAuthz(event);
+  if (!(await hasPermission(authz.role, 'user_manage'))) {
+    return json(403, { error: '사용자 관리 권한이 필요합니다' });
+  }
+  const { userId, newPassword } = body;
+  if (!userId || !newPassword) return json(400, { error: 'userId, newPassword는 필수입니다' });
+  if (newPassword.length < 8) return json(400, { error: '비밀번호는 8자 이상이어야 합니다.' });
+
+  const targets = await query('select id, name, email, role from users where id=$1', [userId]);
+  const target = targets[0];
+  if (!target) return json(404, { error: '존재하지 않는 사용자입니다.' });
+
+  // 권한 상승 차단 — user_manage를 가진 비관리자(예: 영업)가 관리자·내부직원 계정의
+  // 비밀번호를 갈아끼워 그 계정으로 로그인하는 경로를 막는다. 고객 계정 초기화만 허용.
+  if (target.role !== 'customer' && authz.role !== 'admin') {
+    return json(403, { error: '내부 직원 계정의 비밀번호는 관리자만 초기화할 수 있습니다.' });
+  }
+
+  await query(
+    'update users set password=$1, reset_token=null, reset_token_expires_at=null where id=$2',
+    [hashPassword(newPassword), target.id]);
+  // 누가 누구 비밀번호를 바꿨는지는 남겨야 사후 추적이 된다(별도 감사 테이블은 아직 없음).
+  console.log(`[admin-reset] by=${authz.userId} role=${authz.role} target=${target.email}`);
+  return json(200, { ok: true, name: target.name, email: target.email });
+}
+
 // ── POST /auth/reset-password ──
 async function resetPassword(body) {
   const { token, newPassword } = body;
@@ -721,6 +751,9 @@ export const handler = async (event) => {
     }
     if (method === 'POST' && path === '/auth/invite') {
       return await inviteUser(body, event);
+    }
+    if (method === 'POST' && path === '/auth/admin-reset-password') {
+      return await adminResetPassword(body, event);
     }
     if (method === 'POST' && path === '/tickets') {
       return await createTicket(body, event);

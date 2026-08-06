@@ -6094,6 +6094,7 @@ function renderUsers(users, tbodyId) {
         <td style="white-space:nowrap;">
           <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="toggleUserActive('${u.id}',${u.is_active})">${u.is_active ? '비활성화' : '활성화'}</button>
           <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick='openEditUser(${escHtml(JSON.stringify(u).replace(/'/g,"&#39;"))})'>수정</button>
+          <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="resetUserPassword('${u.id}','${escHtml(u.name)}')">비밀번호 초기화</button>
           <button class="btn btn-ghost btn-sm" style="font-size:11px;color:var(--red);" onclick="deleteUser('${u.id}','${escHtml(u.name)}')">삭제</button>
         </td>
       </tr>`;
@@ -6191,6 +6192,33 @@ async function toggleUserActive(id, current) {
   const { error } = await sb.from('users').update({ is_active: !current }).eq('id', id);
   if (error) { showToast('변경 실패: ' + error.message, true); return; }
   await loadUsers();
+}
+
+// 관리자가 사용자 비밀번호를 직접 초기화한다 — 초대/재설정 메일을 못 받는 고객을
+// 전화로 응대할 때 쓴다. 기본값을 그대로 쓰거나 다른 값을 입력할 수 있다.
+const DEFAULT_RESET_PASSWORD = 'bigxdata1234!';
+
+async function resetUserPassword(id, name) {
+  const pw = prompt(name + ' 사용자의 비밀번호를 초기화합니다.\n설정할 비밀번호를 입력하세요 (8자 이상).', DEFAULT_RESET_PASSWORD);
+  if (pw === null) return;                       // 취소
+  const newPassword = pw.trim();
+  if (newPassword.length < 8) { showToast('비밀번호는 8자 이상이어야 합니다.', true); return; }
+
+  try {
+    const res = await fetch(`${API_BASE}/auth/admin-reset-password`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ userId: id, newPassword }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      showToast(data?.error || '비밀번호 초기화에 실패했습니다.', true);
+      return;
+    }
+  } catch (_) {
+    showToast('비밀번호 초기화에 실패했습니다. 잠시 후 다시 시도해주세요.', true);
+    return;
+  }
+  showToast('✅ ' + name + ' 비밀번호를 초기화했습니다. 사용자에게 새 비밀번호를 안내해주세요.');
 }
 
 async function deleteUser(id, name) {
