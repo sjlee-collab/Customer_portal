@@ -718,6 +718,10 @@ async function runLicenseExpiryNotice(event) {
   const rows = await query(
     `select c.name as company_name,
             ct.contract_name,
+            ct.bixs_contact,
+            ct.status as contract_status,
+            to_char(ct.start_date, 'YYYY-MM-DD') as contract_start,
+            to_char(ct.end_date,   'YYYY-MM-DD') as contract_end,
             l.product_info,
             to_char(l.end_date,     'YYYY-MM-DD') as end_date,
             to_char(l.renewal_date, 'YYYY-MM-DD') as renewal_date,
@@ -729,7 +733,9 @@ async function runLicenseExpiryNotice(event) {
       where l.status = '활성'
         and l.quantity is not null and l.quantity > 0
         and (l.end_date = $1 or l.renewal_date = $1)
-      group by c.name, ct.contract_name, l.product_info, l.end_date, l.renewal_date
+      group by c.name, ct.contract_name, ct.bixs_contact, ct.status,
+               ct.start_date, ct.end_date,
+               l.product_info, l.end_date, l.renewal_date
       order by c.name, l.product_info`,
     [targetDate]
   );
