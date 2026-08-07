@@ -607,6 +607,28 @@ async function inviteUser(body, event) {
   return json(200, { ok: true });
 }
 
+// ── GET /my/account-manager ──
+// 로그인한 사용자가 자기 고객사의 담당영업 이름·이메일만 받아간다.
+//
+// 범용 /data/users로는 못 가져온다 — 고객 계정이 users를 조회하면 본인 행이 아닌 한
+// 이메일이 지워져서 나온다(전체 직원 이메일 수집을 막는 장치). 그 장치를 풀지 않고,
+// "자기 회사 담당자 한 명"만 서버가 짚어서 내려주는 좁은 경로를 따로 둔다.
+async function getMyAccountManager(event) {
+  const authz = getAuthz(event);
+  if (!authz.companyId) return json(200, { name: null, email: null });
+
+  const rows = await query(
+    `select c.account_manager as name, u.email
+       from companies c
+       left join users u on u.name = c.account_manager and u.is_active = true
+      where c.id = $1`,
+    [authz.companyId]
+  );
+  const row = rows[0];
+  if (!row?.name) return json(200, { name: null, email: null });
+  return json(200, { name: row.name, email: row.email || null });
+}
+
 // ── POST /auth/admin-reset-password ──
 // 관리자가 사용자를 대신해 비밀번호 재설정을 걸어준다. 관리자가 비밀번호를 정해주지
 // 않고, "비밀번호를 잊으셨나요?"와 똑같은 재설정 메일만 보낸다 — 새 비밀번호는 본인만
@@ -824,6 +846,9 @@ export const handler = async (event) => {
     }
     if (method === 'POST' && path === '/auth/invite') {
       return await inviteUser(body, event);
+    }
+    if (method === 'GET' && path === '/my/account-manager') {
+      return await getMyAccountManager(event);
     }
     if (method === 'POST' && path === '/auth/admin-reset-password') {
       return await adminResetPassword(body, event);
