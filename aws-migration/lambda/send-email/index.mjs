@@ -100,17 +100,21 @@ function layout(subtitle, body) {
   return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><style>
   body{margin:0;padding:0;background:#f4f6f8;font-family:'Malgun Gothic',sans-serif;font-size:14px;color:#1a1a2e;}
   .wrap{max-width:600px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08);}
-  .hd{background:#2d3a8c;padding:24px 32px;} .hd-title{color:#fff;font-size:18px;font-weight:700;margin:0;} .hd-sub{color:#a8b4e8;font-size:12px;margin-top:4px;}
+  .hd{background:#534AB7;padding:22px 32px;} .hd-title{color:#fff;font-size:18px;font-weight:700;margin:0;} .hd-sub{color:#CFCBF3;font-size:12px;margin-top:4px;}
+  /* 로고 마크 — 이미지가 아니라 사각형+글자라 이미지 차단과 무관하게 항상 그려진다.
+     세로 가운데 정렬은 flex 대신 line-height로 한다(Outlook 데스크톱은 flex를 무시한다).
+     Outlook에서는 border-radius도 무시돼 정사각형으로 보이는데, 그대로 둬도 무방하다. */
+  .mark{width:36px;height:36px;border-radius:9px;background:#ffffff;color:#534AB7;font-size:20px;font-weight:800;line-height:36px;text-align:center;}
   .bd{padding:28px 32px;} .lbl{font-size:13px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;}
   table.info{width:100%;border-collapse:collapse;} table.info td{padding:9px 12px;font-size:13px;border-bottom:1px solid #f0f0f0;}
   table.info td:first-child{color:#6b7280;width:130px;white-space:nowrap;} table.info td:last-child{color:#1a1a2e;font-weight:500;}
   .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;}
   .b-green{background:#d1fae5;color:#065f46;} .b-amber{background:#fef3c7;color:#92400e;} .b-red{background:#fee2e2;color:#991b1b;} .b-gray{background:#f3f4f6;color:#374151;}
-  .btn{display:inline-block;margin-top:20px;padding:11px 24px;background:#2d3a8c;color:#fff!important;border-radius:6px;text-decoration:none;font-size:13px;font-weight:700;}
+  .btn{display:inline-block;margin-top:20px;padding:11px 24px;background:#534AB7;color:#fff!important;border-radius:6px;text-decoration:none;font-size:13px;font-weight:700;}
   .alert-box{margin:0 0 20px;padding:14px 16px;border-radius:8px;font-size:13px;line-height:1.6;}
   .alert-amber{background:#fffbeb;border-left:4px solid #f59e0b;color:#92400e;} .alert-green{background:#f0fdf4;border-left:4px solid #22c55e;color:#166534;} .alert-red{background:#fff1f2;border-left:4px solid #ef4444;color:#991b1b;}
   .ft{background:#f9fafb;padding:16px 32px;font-size:11px;color:#9ca3af;text-align:center;border-top:1px solid #f0f0f0;}
-</style></head><body><div class="wrap"><div class="hd"><div class="hd-title">빅스데이터 고객지원 포탈</div><div class="hd-sub">${subtitle}</div></div><div class="bd">${body}</div><div class="ft">본 메일은 발신 전용입니다. 문의는 고객지원 포탈을 이용해주세요.<br>© 빅스데이터 주식회사</div></div></body></html>`;
+</style></head><body><div class="wrap"><div class="hd"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding-right:12px;vertical-align:middle;"><div class="mark" style="width:36px;height:36px;border-radius:9px;background:#ffffff;color:#534AB7;font-size:20px;font-weight:800;line-height:36px;text-align:center;">B</div></td><td style="vertical-align:middle;"><div class="hd-title" style="color:#fff;font-size:18px;font-weight:700;">빅스데이터 고객지원 포탈</div><div class="hd-sub" style="color:#CFCBF3;font-size:12px;margin-top:4px;">${subtitle}</div></td></tr></table></div><div class="bd">${body}</div><div class="ft">본 메일은 발신 전용입니다. 문의는 고객지원 포탈을 이용해주세요.<br>© 빅스데이터 주식회사</div></div></body></html>`;
 }
 
 function portalLinkBtn(ticketNumber, label) {
