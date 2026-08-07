@@ -170,6 +170,13 @@ textarea{resize:vertical;min-height:100px;}
 .dlc-pill-viewer{background:#FEF3E2;color:#B5690A;}
 .dlc-pill-dm{background:#FCEBEB;color:#B23B3B;}
 .dlc-pill-am{background:#E8F0FE;color:#2A5DB0;}
+/* 제품이 여러 개일 때 카드를 넘겨보는 화살표 — 제품이 하나면 통째로 숨긴다. */
+.dlc-pg{width:16px;height:16px;padding:0;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-size:10px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.dlc-pg:hover{background:var(--accent-l);color:var(--accent);border-color:var(--accent-m);}
+.dlc-pgn{font-size:9px;font-weight:700;color:var(--faint);font-variant-numeric:tabular-nums;}
+.dlc-dots{display:flex;gap:3px;justify-content:center;padding:5px 0 7px;}
+.dlc-dot{width:4px;height:4px;border-radius:99px;background:var(--border-md);}
+.dlc-dot.on{background:var(--accent);}
 
 /* ── 계약별 라이선스 접기/펼치기 (요약 칩) ── */
 .clg-bar{display:flex;align-items:center;gap:10px;padding:9px 14px;border-top:1px dashed var(--border-md);cursor:pointer;flex-wrap:wrap;}
@@ -615,7 +622,14 @@ textarea{resize:vertical;min-height:100px;}
         <div id="dash-license-detail" class="stat" style="display:none;padding:0;overflow:hidden;">
           <div style="padding:8px 12px 6px;display:flex;align-items:center;justify-content:space-between;gap:6px;">
             <span id="dlc-product" style="font-size:11px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
-            <span id="dlc-status" style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;flex-shrink:0;"></span>
+            <span style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+              <span id="dlc-pager" style="display:none;align-items:center;gap:4px;">
+                <button class="dlc-pg" onclick="dlcStep(-1)" aria-label="이전 제품">‹</button>
+                <span id="dlc-pgn" class="dlc-pgn"></span>
+                <button class="dlc-pg" onclick="dlcStep(1)" aria-label="다음 제품">›</button>
+              </span>
+              <span id="dlc-status" style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;flex-shrink:0;"></span>
+            </span>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--border);">
             <div style="padding:10px 12px;border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;">
@@ -641,8 +655,7 @@ textarea{resize:vertical;min-height:100px;}
               </div>
             </div>
           </div>
-          <span id="dlc-start" style="display:none;"></span>
-          <span id="dlc-end" style="display:none;"></span>
+          <div id="dlc-dots" class="dlc-dots" style="display:none;"></div>
         </div>
         <!-- 내부 전용 오늘 신규요청 카드 -->
         <div id="dash-today-stat" class="stat dash-recent-kpi-card" data-filter="today" style="display:none;cursor:pointer;" onclick="toggleDashRecentFilter('today')">
@@ -3965,6 +3978,44 @@ async function deleteNotice(id, title) {
   if (noticeModal && noticeModal.style.display !== 'none') openAllNoticesModal();
 }
 
+// 고객 대시보드 라이선스 카드 — 제품별로 한 장씩, 화살표로 넘겨본다.
+// 제품이 하나면 화살표와 점을 숨겨 종전과 같은 모습이 된다.
+let _dlcProducts = [];
+let _dlcIndex = 0;
+
+function renderDlcCard() {
+  const p = _dlcProducts[_dlcIndex];
+  if (!p) return;
+  const fmt = d => d ? d.slice(2, 10) : '—';
+  document.getElementById('dlc-product').textContent = p.label;
+  const dd = document.getElementById('dlc-days');
+  dd.textContent  = p.daysLeft ?? '—';
+  dd.style.color  = p.daysLeft === null ? 'var(--faint)'
+                  : p.daysLeft <= 30 ? '#dc2626'
+                  : p.daysLeft <= 60 ? '#d97706' : '#059669';
+  document.getElementById('dlc-type').innerHTML = p.typeHtml;
+  document.getElementById('dlc-qty').innerHTML  = p.qtyHtml;
+  document.getElementById('dlc-daterange').textContent = `${fmt(p.start)} · ${fmt(p.end)}`;
+
+  const multi = _dlcProducts.length > 1;
+  const pager = document.getElementById('dlc-pager');
+  const dots  = document.getElementById('dlc-dots');
+  if (pager) pager.style.display = multi ? 'flex' : 'none';
+  if (dots)  dots.style.display  = multi ? 'flex' : 'none';
+  if (multi) {
+    document.getElementById('dlc-pgn').textContent = `${_dlcIndex + 1}/${_dlcProducts.length}`;
+    dots.innerHTML = _dlcProducts
+      .map((_, i) => `<span class="dlc-dot${i === _dlcIndex ? ' on' : ''}"></span>`).join('');
+  }
+}
+
+// 끝에서 다시 처음으로 돌아온다 — 제품이 2~3개뿐이라 막다른 끝이 있으면 오히려 불편하다.
+function dlcStep(delta) {
+  if (_dlcProducts.length < 2) return;
+  _dlcIndex = (_dlcIndex + delta + _dlcProducts.length) % _dlcProducts.length;
+  renderDlcCard();
+}
+
 async function loadDashboard() {
   if (!sb || !currentUser) return;
   loadNotices();
@@ -3989,7 +4040,7 @@ async function loadDashboard() {
       if (role === 'customer') {
         // 고객사 전체 계약을 대상으로 조회 (특정 계약에만 매핑된 사용자여도 회사 전체 기준으로 합산)
         const { data: lics } = await sb.from('company_licenses')
-          .select('product_info, license_type, quantity, status, contract_id, company_contracts:contract_id(start_date, end_date)')
+          .select('product_info, license_type, quantity, status, contract_id, start_date, end_date, company_contracts:contract_id(start_date, end_date)')
           .eq('status', '활성')
           .eq('company_id', companyId);
 
@@ -4012,42 +4063,14 @@ async function loadDashboard() {
             mgrEmail = mu?.email || '';
           }
 
-          // 여러 계약이 동시에 걸쳐 있으면 만료가 가장 임박한 계약을 대표 날짜로 표시
-          let nearestDates = null, nearestDiff = Infinity;
-          current.forEach(l => {
-            const end = l.company_contracts?.end_date;
-            if (!end) return;
-            const diff = Math.abs(new Date(end) - new Date());
-            if (diff < nearestDiff) { nearestDiff = diff; nearestDates = l.company_contracts; }
+          // 남은 일자는 라이선스 자체 만료일을 먼저 쓰고, 없으면 계약 종료일로 대체한다 —
+          // 계약 기간과 라이선스 기간은 다를 수 있어서, 계약만 보면 실제 만료를 놓친다.
+          const licDates = (l) => ({
+            start: (l.start_date || l.company_contracts?.start_date || '').slice(0, 10) || null,
+            end:   (l.end_date   || l.company_contracts?.end_date   || '').slice(0, 10) || null,
           });
-          const contractDates = nearestDates || {};
-          const daysLeft = daysUntil(contractDates.end_date);
-          const daysColor = daysLeft === null ? 'var(--faint)' : daysLeft <= 30 ? '#dc2626' : daysLeft <= 60 ? '#d97706' : '#059669';
 
-          // 제품명: 한 제품만 쓰면 그대로, 여러 제품이 섞여 있으면 "여러 제품"
-          const products = [...new Set(current.map(l => l.product_info).filter(Boolean))];
-          document.getElementById('dlc-product').textContent = products.length <= 1
-            ? (LIC_PRODUCT_LABEL[products[0]] || products[0] || '—')
-            : '여러 제품';
-
-          const sc = document.getElementById('dlc-status');
-          sc.textContent = '활성';
-          sc.style.background = '#ecfdf5';
-          sc.style.color      = '#059669';
-          const dd = document.getElementById('dlc-days');
-          dd.textContent = daysLeft ?? '—'; dd.style.color = daysColor;
-
-          // 라이선스형태: Core면 "Core", Creator/Explorer/Viewer가 있으면 "역할기반" 배지
           const ROLE_BASED_TYPES = ['Creator', 'Explorer', 'Viewer'];
-          const hasCore = current.some(l => l.license_type === 'Core');
-          const hasRoleBased = current.some(l => ROLE_BASED_TYPES.includes(l.license_type));
-          document.getElementById('dlc-type').innerHTML = hasCore
-            ? `<span class="dlc-type-badge">Core</span>`
-            : hasRoleBased
-              ? `<span class="dlc-type-badge">역할기반</span>`
-              : (current[0]?.license_type ? escHtml(current[0].license_type) : '—');
-
-          // 라이선스 수량: 현재 활성인 계약 전체에서 role별로 합산한 알약 (예: C6 · E6 · V7)
           const ROLE_PILL = {
             Core:     { abbr: 'Co', cls: 'dlc-pill-core' },
             Creator:  { abbr: 'C',  cls: 'dlc-pill-creator' },
@@ -4057,26 +4080,73 @@ async function loadDashboard() {
             AM:       { abbr: 'AM', cls: 'dlc-pill-am' },
           };
           const ROLE_ORDER = ['Core', 'Creator', 'Explorer', 'Viewer', 'DM', 'AM'];
-          const qtyByType = {};
-          current.forEach(l => {
-            if (l.license_type && l.quantity != null) qtyByType[l.license_type] = (qtyByType[l.license_type] || 0) + l.quantity;
-          });
-          const pillsHtml = ROLE_ORDER
-            .filter(t => qtyByType[t] && ROLE_PILL[t])
-            .map(t => `<span class="dlc-pill ${ROLE_PILL[t].cls}">${ROLE_PILL[t].abbr}${qtyByType[t]}</span>`)
-            .join('');
-          document.getElementById('dlc-qty').innerHTML = pillsHtml
-            ? `<span class="dlc-pills">${pillsHtml}</span>`
-            : '—';
 
-          const fmt = d => d ? d.slice(2,10) : '—';
-          const distinctContracts = new Set(current.map(l => l.contract_id)).size;
-          const contractSuffix = distinctContracts > 1 ? ` 외 ${distinctContracts - 1}건` : '';
-          document.getElementById('dlc-daterange').textContent = `${fmt(contractDates.start_date)} · ${fmt(contractDates.end_date)}${contractSuffix}`;
+          // 제품을 넘나들며 수량을 합치면 어느 제품에 몇 개인지 알 수 없어진다 — 제품별로 나눈다.
+          const byProduct = new Map();
+          current.forEach(l => {
+            const key = l.product_info || '';
+            if (!byProduct.has(key)) byProduct.set(key, []);
+            byProduct.get(key).push(l);
+          });
+
+          _dlcProducts = [...byProduct.entries()].map(([product, group]) => {
+            // 같은 제품이 여러 계약에 걸쳐 있을 수 있어, 가장 먼저 끝나는 쪽을 대표로 삼는다.
+            let rep = null;
+            group.forEach(l => {
+              const d = licDates(l);
+              if (!d.end) return;
+              if (!rep || d.end < rep.end) rep = d;
+            });
+            rep = rep || { start: null, end: null };
+
+            const hasCore     = group.some(l => l.license_type === 'Core');
+            const hasRoleBased = group.some(l => ROLE_BASED_TYPES.includes(l.license_type));
+            const typeHtml = hasCore
+              ? `<span class="dlc-type-badge">Core</span>`
+              : hasRoleBased
+                ? `<span class="dlc-type-badge">역할기반</span>`
+                : (group[0]?.license_type ? escHtml(group[0].license_type) : '—');
+
+            const qtyByType = {};
+            group.forEach(l => {
+              if (l.license_type && l.quantity != null) qtyByType[l.license_type] = (qtyByType[l.license_type] || 0) + l.quantity;
+            });
+            const pills = ROLE_ORDER
+              .filter(t => qtyByType[t] && ROLE_PILL[t])
+              .map(t => `<span class="dlc-pill ${ROLE_PILL[t].cls}">${ROLE_PILL[t].abbr}${qtyByType[t]}</span>`)
+              .join('');
+
+            return {
+              label:    LIC_PRODUCT_LABEL[product] || product || '—',
+              daysLeft: daysUntil(rep.end),
+              typeHtml,
+              qtyHtml:  pills ? `<span class="dlc-pills">${pills}</span>` : '—',
+              start:    rep.start,
+              end:      rep.end,
+            };
+          });
+
+          // 한 번에 한 제품만 보이므로 순서가 곧 눈에 띄는 순서다 — 만료가 임박한 제품을 첫 장에 둔다.
+          _dlcProducts.sort((a, b) => (a.daysLeft ?? Infinity) - (b.daysLeft ?? Infinity));
+          _dlcIndex = 0;
+          renderDlcCard();
+
+          const sc = document.getElementById('dlc-status');
+          sc.textContent = '활성';
+          sc.style.background = '#ecfdf5';
+          sc.style.color      = '#059669';
+
           const me = document.getElementById('dlc-manager');
           me.innerHTML = `<span style="font-weight:700;color:var(--accent);white-space:nowrap;">${escHtml(coRow?.account_manager || '—')}</span>${mgrEmail ? `<span style="font-size:9px;font-weight:400;color:var(--muted);white-space:nowrap;">${escHtml(mgrEmail)}</span>` : ''}`;
           detail.style.display = '';
         } else if (detail) {
+          // 넘겨볼 제품이 없으므로 화살표·점도 같이 숨긴다(이전 계정의 상태가 남지 않게).
+          _dlcProducts = [];
+          _dlcIndex = 0;
+          const pager = document.getElementById('dlc-pager');
+          const dots  = document.getElementById('dlc-dots');
+          if (pager) pager.style.display = 'none';
+          if (dots)  dots.style.display  = 'none';
           document.getElementById('dlc-product').textContent = '라이선스 정보 없음';
           const sc = document.getElementById('dlc-status');
           sc.textContent = '';
