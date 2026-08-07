@@ -700,6 +700,43 @@ async function runContractExpiryBatch() {
   return json(200, { updated: updated.length, contracts: updated.map(c => c.contract_name) });
 }
 
+// ── EventBridge Scheduler가 매일 09:00 KST에 {"task":"license_expiry_notice"} 페이로드로 직접 호출 ──
+// 라이선스 만료일/갱신일 정확히 7일 전에 공통 채널로 한 번 알린다.
+//
+// 라이선스는 유형(Creator/Viewer/…)마다 행이 따로 있고 날짜는 제품 그룹이 공유하므로,
+// 그대로 조회하면 한 제품에 알림이 6번 간다 — 제품 그룹 단위로 묶어 한 건으로 보낸다.
+//
+// payload에 date를 넣으면 그 날짜를 "7일 뒤 기준일"로 삼는다. 배치가 실패한 날의 건을
+// 나중에 다시 보내거나, 발송 테스트를 할 때 쓴다(직접 호출 전용 — HTTP 요청으로는
+// event.task 자체가 설정되지 않아 이 경로에 닿지 않는다).
+async function runLicenseExpiryNotice(event) {
+  const targetDate = event?.date
+    || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  const rows = await query(
+    `select c.name as company_name,
+            ct.contract_name,
+            l.product_info,
+            l.end_date,
+            l.renewal_date,
+            string_agg(l.license_type || ' ' || l.quantity, ', '
+                       order by l.license_type) as quantities
+       from company_licenses l
+       join companies c on c.id = l.company_id
+       left join company_contracts ct on ct.id = l.contract_id
+      where l.status = '활성'
+        and l.quantity is not null and l.quantity > 0
+        and (l.end_date = $1 or l.renewal_date = $1)
+      group by c.name, ct.contract_name, l.product_info, l.end_date, l.renewal_date
+      order by c.name, l.product_info`,
+    [targetDate]
+  );
+
+  // 대상이 없으면 채널에 아무것도 보내지 않는다 — 매일 "0건" 메시지는 소음이다.
+  if (rows.length) await notifySlack({ type: 'LICENSE_EXPIRY', targetDate, licenses: rows });
+  return json(200, { targetDate, notified: rows.length });
+}
+
 // 자기 자신에게 비동기(Event)로 재호출됐을 때 처리할 알림 작업 — kind별 디스패치
 const DEFERRED_HANDLERS = {
   create: (job) => notifyForCreate(job.ticketId),
@@ -726,6 +763,15 @@ export const handler = async (event) => {
       return await runOverdueBatch();
     } catch (err) {
       console.error('[overdue_batch 오류]', err);
+      return json(500, { error: String(err) });
+    }
+  }
+
+  if (event.task === 'license_expiry_notice') {
+    try {
+      return await runLicenseExpiryNotice(event);
+    } catch (err) {
+      console.error('[license_expiry_notice 오류]', err);
       return json(500, { error: String(err) });
     }
   }
