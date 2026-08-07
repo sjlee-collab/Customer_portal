@@ -8,7 +8,7 @@
 // 입력 payload 형태:
 // {
 //   type: 'TICKET_INSERT' | 'TICKET_ASSIGNED' | 'TICKET_STATUS' | 'TICKET_OVERDUE'
-//       | 'TICKET_REPLY' | 'OVERDUE_BATCH' | 'CONNECTION_TEST',
+//       | 'TICKET_REPLY' | 'OVERDUE_BATCH' | 'LICENSE_EXPIRY' | 'CONNECTION_TEST',
 //   ticket: { id, ticket_number, title, category, priority, created_at, due_date, status },
 //   companyName, requesterName, assigneeName,
 //   prevAssigneeName,          // TICKET_ASSIGNED 용
@@ -16,6 +16,8 @@
 //   attachmentFileNames: string[],   // TICKET_INSERT 용
 //   overdueDays,                     // TICKET_OVERDUE / OVERDUE_BATCH 항목별
 //   tickets: [{ ticket, companyName, requesterName, assigneeName, overdueDays }]  // OVERDUE_BATCH 전용
+//   targetDate, licenses: [{ company_name, contract_name, product_info, end_date, renewal_date, quantities }]
+//                                                                                 // LICENSE_EXPIRY 전용
 // }
 //
 // 출력: { ok: true, results: [{ channel:'slack', eventType, recipient, ticketId, status, errorMessage }] }
@@ -107,6 +109,31 @@ async function handleOverdueBatch(payload, results) {
       results
     );
   }));
+}
+
+// 라이선스 만료/갱신 7일 전 알림 — 공통 채널에만 보낸다.
+// 건수가 많을 수 있어 티켓 배치처럼 건별로 쪼개지 않고 한 메시지에 모아 보낸다.
+// 만료일과 갱신일이 둘 다 대상일이면 한 줄에 같이 적어 중복 발송을 피한다.
+async function handleLicenseExpiry(payload, results) {
+  const licenses = payload.licenses || [];
+  if (!licenses.length) return;
+
+  const lines = licenses.map((l) => {
+    const where = l.contract_name ? `${l.company_name} — ${l.contract_name}` : l.company_name;
+    const dates = [
+      l.end_date     ? `만료일 ${String(l.end_date).slice(0, 10)}`     : null,
+      l.renewal_date ? `갱신일 ${String(l.renewal_date).slice(0, 10)}` : null,
+    ].filter(Boolean).join(' · ');
+    const qty = l.quantities ? ` (${l.quantities})` : '';
+    return `• *${where}*\n   ${l.product_info}${qty}\n   ${dates}`;
+  });
+
+  await sendSlack(
+    SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', null, 'license_expiry',
+    `⏰ *라이선스 만료/갱신 7일 전* — ${payload.targetDate} 기준 ${licenses.length}건`,
+    lines.join('\n'),
+    results
+  );
 }
 
 async function handleTicketInsert(payload, results) {
@@ -211,6 +238,7 @@ export const handler = async (event) => {
   switch (payload.type) {
     case 'CONNECTION_TEST': await handleConnectionTest(results); break;
     case 'OVERDUE_BATCH':    await handleOverdueBatch(payload, results); break;
+    case 'LICENSE_EXPIRY':   await handleLicenseExpiry(payload, results); break;
     case 'TICKET_INSERT':    await handleTicketInsert(payload, results); break;
     case 'TICKET_ASSIGNED':  await handleTicketAssigned(payload, results); break;
     case 'TICKET_STATUS':    await handleTicketStatus(payload, results); break;
