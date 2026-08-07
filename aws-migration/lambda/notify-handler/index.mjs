@@ -113,24 +113,35 @@ async function handleOverdueBatch(payload, results) {
 
 // 라이선스 만료/갱신 7일 전 알림 — 공통 채널에만 보낸다.
 // 건수가 많을 수 있어 티켓 배치처럼 건별로 쪼개지 않고 한 메시지에 모아 보낸다.
-// 만료일과 갱신일이 둘 다 대상일이면 한 줄에 같이 적어 중복 발송을 피한다.
+//
+// 만료일과 갱신일은 서로 다른 날일 수 있다. 그래서 각 날짜가 따로 D-7을 맞고, 그때마다
+// 알림이 간다 — 어느 날짜 때문에 온 알림인지 밝히지 않으면, 한참 뒤인 다른 날짜까지
+// 임박한 것처럼 읽힌다. 이번에 걸린 날짜는 앞줄에, 나머지는 참고로 뒷줄에 적는다.
+// 두 날짜가 같은 날이면 한 줄에 같이 적혀 중복 발송이 되지 않는다.
+const licenseDay = (v) => (v ? String(v).slice(0, 10) : null);
+
 async function handleLicenseExpiry(payload, results) {
   const licenses = payload.licenses || [];
   if (!licenses.length) return;
+  const target = payload.targetDate;
 
   const lines = licenses.map((l) => {
     const where = l.contract_name ? `${l.company_name} — ${l.contract_name}` : l.company_name;
-    const dates = [
-      l.end_date     ? `만료일 ${String(l.end_date).slice(0, 10)}`     : null,
-      l.renewal_date ? `갱신일 ${String(l.renewal_date).slice(0, 10)}` : null,
-    ].filter(Boolean).join(' · ');
+    const endDay = licenseDay(l.end_date);
+    const renDay = licenseDay(l.renewal_date);
+
+    const hit = [], rest = [];
+    if (endDay) (endDay === target ? hit : rest).push(`만료일 ${endDay}`);
+    if (renDay) (renDay === target ? hit : rest).push(`갱신일 ${renDay}`);
+
     const qty = l.quantities ? ` (${l.quantities})` : '';
-    return `• *${where}*\n   ${l.product_info}${qty}\n   ${dates}`;
+    const restLine = rest.length ? `\n   _(참고 — ${rest.join(' · ')})_` : '';
+    return `• *${where}*\n   ${l.product_info}${qty}\n   *${hit.join(' · ')}* 까지 7일${restLine}`;
   });
 
   await sendSlack(
     SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', null, 'license_expiry',
-    `⏰ *라이선스 만료/갱신 7일 전* — ${payload.targetDate} 기준 ${licenses.length}건`,
+    `⏰ *라이선스 만료/갱신 7일 전* — ${target} 기준 ${licenses.length}건`,
     lines.join('\n'),
     results
   );
