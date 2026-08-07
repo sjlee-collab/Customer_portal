@@ -131,13 +131,27 @@ async function handleLicenseExpiry(payload, results) {
   const isEnd = (payload.kind || 'end') === 'end';
 
   const lines = licenses.map((l) => {
-    const where = l.contract_name ? `${l.company_name} — ${l.contract_name}` : l.company_name;
     const hitDay  = licenseDay(isEnd ? l.end_date : l.renewal_date);
     const restDay = licenseDay(isEnd ? l.renewal_date : l.end_date);
 
+    // 담당영업(계약의 bixs_contact)이 있으면 채널에서 바로 호명할 수 있게 첫 줄에 붙인다.
+    const head = [`*${l.company_name}*`, l.bixs_contact ? `담당영업 *${l.bixs_contact}*` : null]
+      .filter(Boolean).join(' · ');
+
+    // 계약 미지정 라이선스는 계약 줄 자체를 생략한다.
+    // 계약기간은 "계약은 남았는데 라이선스만 먼저 끝나는 건"을 구분하는 근거라 같이 적는다.
+    let contractLine = '';
+    if (l.contract_name) {
+      const period = l.contract_start && l.contract_end ? `${l.contract_start} ~ ${l.contract_end}`
+                   : l.contract_start ? `${l.contract_start} ~`
+                   : l.contract_end   ? `~ ${l.contract_end}` : null;
+      const meta = [l.contract_status, period].filter(Boolean).join(', ');
+      contractLine = `\n   계약 *${l.contract_name}*${meta ? ` (${meta})` : ''}`;
+    }
+
     const qty = l.quantities ? ` (${l.quantities})` : '';
     const restLine = restDay ? `\n   _(참고 — ${kind.secondary} ${restDay})_` : '';
-    return `• *${where}*\n   ${l.product_info}${qty}\n   *${kind.primary} ${hitDay}* 까지 7일${restLine}`;
+    return `• ${head}${contractLine}\n   ${l.product_info}${qty}\n   *${kind.primary} ${hitDay}* 까지 7일${restLine}`;
   });
 
   await sendSlack(
