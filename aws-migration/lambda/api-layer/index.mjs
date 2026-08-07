@@ -713,12 +713,14 @@ async function runLicenseExpiryNotice(event) {
   const targetDate = event?.date
     || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
+  // 날짜는 to_char로 문자열로 받는다 — date 컬럼을 그대로 두면 JS Date로 올라와
+  // 문자열 비교가 깨지고, 직렬화 과정의 타임존에 따라 하루 밀릴 수 있다.
   const rows = await query(
     `select c.name as company_name,
             ct.contract_name,
             l.product_info,
-            l.end_date,
-            l.renewal_date,
+            to_char(l.end_date,     'YYYY-MM-DD') as end_date,
+            to_char(l.renewal_date, 'YYYY-MM-DD') as renewal_date,
             string_agg(l.license_type || ' ' || l.quantity, ', '
                        order by l.license_type) as quantities
        from company_licenses l
@@ -732,9 +734,15 @@ async function runLicenseExpiryNotice(event) {
     [targetDate]
   );
 
-  // 대상이 없으면 채널에 아무것도 보내지 않는다 — 매일 "0건" 메시지는 소음이다.
-  if (rows.length) await notifySlack({ type: 'LICENSE_EXPIRY', targetDate, licenses: rows });
-  return json(200, { targetDate, notified: rows.length });
+  // 만료 건과 갱신 건은 챙길 사람도 후속 조치도 달라서 메시지를 나눠 보낸다.
+  // 두 날짜가 같은 날인 라이선스는 양쪽에 모두 들어간다 — 실제로 기한이 둘 다 걸린 것이다.
+  const endRows   = rows.filter(r => r.end_date === targetDate);
+  const renewRows = rows.filter(r => r.renewal_date === targetDate);
+
+  // 해당 종류가 0건이면 그 메시지는 보내지 않는다 — 매일 "0건" 알림은 소음이다.
+  if (endRows.length)   await notifySlack({ type: 'LICENSE_EXPIRY', kind: 'end',     targetDate, licenses: endRows });
+  if (renewRows.length) await notifySlack({ type: 'LICENSE_EXPIRY', kind: 'renewal', targetDate, licenses: renewRows });
+  return json(200, { targetDate, expiring: endRows.length, renewing: renewRows.length });
 }
 
 // 자기 자신에게 비동기(Event)로 재호출됐을 때 처리할 알림 작업 — kind별 디스패치

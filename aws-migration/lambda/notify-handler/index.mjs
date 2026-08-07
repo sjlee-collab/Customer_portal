@@ -112,36 +112,38 @@ async function handleOverdueBatch(payload, results) {
 }
 
 // 라이선스 만료/갱신 7일 전 알림 — 공통 채널에만 보낸다.
-// 건수가 많을 수 있어 티켓 배치처럼 건별로 쪼개지 않고 한 메시지에 모아 보낸다.
+// 건수가 많을 수 있어 티켓 배치처럼 건별로 쪼개지 않고 한 종류를 한 메시지에 모아 보낸다.
 //
-// 만료일과 갱신일은 서로 다른 날일 수 있다. 그래서 각 날짜가 따로 D-7을 맞고, 그때마다
-// 알림이 간다 — 어느 날짜 때문에 온 알림인지 밝히지 않으면, 한참 뒤인 다른 날짜까지
-// 임박한 것처럼 읽힌다. 이번에 걸린 날짜는 앞줄에, 나머지는 참고로 뒷줄에 적는다.
-// 두 날짜가 같은 날이면 한 줄에 같이 적혀 중복 발송이 되지 않는다.
+// 만료 건과 갱신 건은 kind로 나뉘어 각각 따로 호출된다. 두 날짜는 서로 다른 날일 수
+// 있어서, 이번에 걸린 날짜를 앞세우고 나머지 날짜는 참고로 뒤에 적는다 — 그러지 않으면
+// 한참 뒤인 다른 날짜까지 임박한 것처럼 읽힌다.
 const licenseDay = (v) => (v ? String(v).slice(0, 10) : null);
+const LICENSE_KIND = {
+  end:     { header: '⏰ *라이선스 만료 7일 전*',      primary: '만료일', secondary: '갱신일' },
+  renewal: { header: '🔁 *라이선스 갱신 기한 7일 전*', primary: '갱신일', secondary: '만료일' },
+};
 
 async function handleLicenseExpiry(payload, results) {
   const licenses = payload.licenses || [];
   if (!licenses.length) return;
   const target = payload.targetDate;
+  const kind = LICENSE_KIND[payload.kind] || LICENSE_KIND.end;
+  const isEnd = (payload.kind || 'end') === 'end';
 
   const lines = licenses.map((l) => {
     const where = l.contract_name ? `${l.company_name} — ${l.contract_name}` : l.company_name;
-    const endDay = licenseDay(l.end_date);
-    const renDay = licenseDay(l.renewal_date);
-
-    const hit = [], rest = [];
-    if (endDay) (endDay === target ? hit : rest).push(`만료일 ${endDay}`);
-    if (renDay) (renDay === target ? hit : rest).push(`갱신일 ${renDay}`);
+    const hitDay  = licenseDay(isEnd ? l.end_date : l.renewal_date);
+    const restDay = licenseDay(isEnd ? l.renewal_date : l.end_date);
 
     const qty = l.quantities ? ` (${l.quantities})` : '';
-    const restLine = rest.length ? `\n   _(참고 — ${rest.join(' · ')})_` : '';
-    return `• *${where}*\n   ${l.product_info}${qty}\n   *${hit.join(' · ')}* 까지 7일${restLine}`;
+    const restLine = restDay ? `\n   _(참고 — ${kind.secondary} ${restDay})_` : '';
+    return `• *${where}*\n   ${l.product_info}${qty}\n   *${kind.primary} ${hitDay}* 까지 7일${restLine}`;
   });
 
   await sendSlack(
-    SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', null, 'license_expiry',
-    `⏰ *라이선스 만료/갱신 7일 전* — ${target} 기준 ${licenses.length}건`,
+    SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', null,
+    isEnd ? 'license_expiry' : 'license_renewal',
+    `${kind.header} — ${target} 기준 ${licenses.length}건`,
     lines.join('\n'),
     results
   );
