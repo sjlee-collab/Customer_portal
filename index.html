@@ -638,8 +638,8 @@ textarea{resize:vertical;min-height:100px;}
               <div id="dlc-days" style="font-size:36px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em;"></div>
               <div style="font-size:9px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.05em;">남은 일자</div>
             </div>
-            <div style="padding:8px 11px;display:flex;flex-direction:column;gap:5px;">
-              <div style="display:flex;justify-content:space-between;align-items:baseline;gap:4px;">
+            <div style="padding:8px 11px;display:flex;flex-direction:column;gap:5px;min-width:0;">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;gap:4px;min-width:0;">
                 <span style="font-size:9px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;flex-shrink:0;">라이선스 수량</span>
                 <span id="dlc-qty" style="font-size:10px;font-weight:600;color:var(--text);text-align:right;"></span>
               </div>
@@ -647,9 +647,9 @@ textarea{resize:vertical;min-height:100px;}
                 <span style="font-size:9px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;flex-shrink:0;">시작·종료</span>
                 <span id="dlc-daterange" style="font-size:9px;font-weight:600;color:var(--text);text-align:right;font-variant-numeric:tabular-nums;"></span>
               </div>
-              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:4px;">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:4px;min-width:0;">
                 <span style="font-size:9px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;flex-shrink:0;padding-top:1px;">담당</span>
-                <span id="dlc-manager" style="font-size:10px;font-weight:600;color:var(--accent);text-align:right;display:flex;align-items:baseline;gap:5px;flex-wrap:nowrap;"></span>
+                <span id="dlc-manager" style="font-size:10px;font-weight:600;color:var(--accent);text-align:right;display:flex;align-items:baseline;gap:5px;flex-wrap:nowrap;min-width:0;overflow:hidden;"></span>
               </div>
             </div>
           </div>
@@ -4059,12 +4059,18 @@ async function loadDashboard() {
 
         const detail = document.getElementById('dash-license-detail');
         if (current.length && detail) {
-          const { data: coRow } = await sb.from('companies').select('account_manager').eq('id', companyId).single();
-          let mgrEmail = '';
-          if (coRow?.account_manager) {
-            const { data: mu } = await sb.from('users').select('email').eq('name', coRow.account_manager).eq('is_active', true).single();
-            mgrEmail = mu?.email || '';
-          }
+          // 담당영업 이름·이메일은 전용 엔드포인트로 받는다. 범용 users 조회로는 안 되는데,
+          // 고객 계정이 users를 읽으면 본인 행이 아닌 한 이메일이 지워져서 내려오기 때문이다
+          // (전체 직원 이메일 수집을 막는 장치). 실패해도 카드는 그려야 하므로 이름만 비운다.
+          let mgrName = '', mgrEmail = '';
+          try {
+            const res = await fetch(`${API_BASE}/my/account-manager`, { headers: { ...authHeaders() } });
+            if (res.ok) {
+              const d = await res.json();
+              mgrName  = d?.name  || '';
+              mgrEmail = d?.email || '';
+            }
+          } catch (_) { /* 담당자 표시만 비고 나머지는 그대로 그린다 */ }
 
           // 남은 일자는 라이선스 자체 만료일을 먼저 쓰고, 없으면 계약 종료일로 대체한다 —
           // 계약 기간과 라이선스 기간은 다를 수 있어서, 계약만 보면 실제 만료를 놓친다.
@@ -4138,7 +4144,13 @@ async function loadDashboard() {
           sc.style.color      = '#059669';
 
           const me = document.getElementById('dlc-manager');
-          me.innerHTML = `<span style="font-weight:700;color:var(--accent);white-space:nowrap;">${escHtml(coRow?.account_manager || '—')}</span>${mgrEmail ? `<span style="font-size:9px;font-weight:400;color:var(--muted);white-space:nowrap;">${escHtml(mgrEmail)}</span>` : ''}`;
+          // 이름은 항상 온전히 보이게 두고, 자리가 모자라면 이메일 쪽만 말줄임한다.
+          // 잘렸을 때를 대비해 title에 전체 주소를 담는다.
+          me.innerHTML =
+            `<span style="font-weight:700;color:var(--accent);white-space:nowrap;flex-shrink:0;">${escHtml(mgrName || '—')}</span>` +
+            (mgrEmail
+              ? `<span title="${escHtml(mgrEmail)}" style="font-size:9px;font-weight:400;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;">${escHtml(mgrEmail)}</span>`
+              : '');
           detail.style.display = '';
         } else if (detail) {
           // 넘겨볼 제품이 없으므로 화살표·점도 같이 숨긴다(이전 계정의 상태가 남지 않게).
