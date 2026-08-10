@@ -1648,7 +1648,6 @@ textarea{resize:vertical;min-height:100px;}
         <div class="form-group"><label>이메일</label><input id="mp-email" type="email" placeholder="이메일" readonly style="background:var(--surface2);color:var(--muted);"></div>
         <div class="form-group"><label>소속</label><input id="mp-company" type="text" placeholder="회사명" readonly style="background:var(--surface2);color:var(--muted);"></div>
         <div class="form-group"><label>연락처</label><input id="mp-phone" type="tel" placeholder="010-0000-0000" oninput="this.value=this.value.replace(/[^0-9-]/g,'')"></div>
-        <div class="form-group"><label>부서</label><input id="mp-dept" type="text" placeholder="부서명"></div>
       </div>
       <!-- 비밀번호 변경 -->
       <div style="border-top:1px solid var(--border);padding-top:16px;">
@@ -2788,7 +2787,6 @@ async function openMyPage() {
   document.getElementById('mp-email').value   = currentUser.email   || '';
   document.getElementById('mp-company').value = currentUser.company || '';
   document.getElementById('mp-phone').value   = currentUser.phone   || '';
-  document.getElementById('mp-dept').value    = '';
   // 계정 전환 후 이전 사용자가 남겨둔 입력값이 그대로 제출되지 않도록 매번 초기화
   ['mp-pw-current','mp-pw-new','mp-pw-confirm'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const pwErr = document.getElementById('mp-pw-error');
@@ -2802,10 +2800,9 @@ async function openMyPage() {
 
   // 연락처/부서는 currentUser에 없을 수 있어 DB에서 최신값을 다시 조회해 채움
   if (sb && currentUser.id) {
-    const { data: u } = await sb.from('users').select('phone, department').eq('id', currentUser.id).single();
+    const { data: u } = await sb.from('users').select('phone').eq('id', currentUser.id).single();
     if (u) {
       document.getElementById('mp-phone').value = u.phone || '';
-      document.getElementById('mp-dept').value  = u.department || '';
     }
   }
 }
@@ -2813,7 +2810,6 @@ async function openMyPage() {
 async function saveMyPage() {
   const name      = document.getElementById('mp-name').value.trim();
   const phone     = document.getElementById('mp-phone').value.trim();
-  const dept      = document.getElementById('mp-dept').value.trim();
   const pwCurrent = document.getElementById('mp-pw-current').value;
   const pwNew     = document.getElementById('mp-pw-new').value;
   const pwConfirm = document.getElementById('mp-pw-confirm').value;
@@ -2854,7 +2850,6 @@ async function saveMyPage() {
     if (sb && currentUser.id) {
       const payload = { name };
       if (phone) payload.phone = phone;
-      if (dept)  payload.department = dept;
       const { error } = await sb.from('users').update(payload).eq('id', currentUser.id);
       if (error) { alert('저장 중 오류가 발생했습니다: ' + error.message); return; }
 
