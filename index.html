@@ -619,11 +619,8 @@ textarea{resize:vertical;min-height:100px;}
       <div class="stats">
         <!-- 고객 전용 라이선스 카드 (첫 번째 열) — B안 수정 -->
         <div id="dash-license-detail" class="stat" style="display:none;padding:0;overflow:hidden;">
-          <div style="padding:8px 12px 6px;display:flex;align-items:flex-start;justify-content:space-between;gap:6px;">
-            <span style="min-width:0;">
-              <span id="dlc-product" style="font-size:11px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;"></span>
-              <span id="dlc-contract" style="font-size:9.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;margin-top:2px;"></span>
-            </span>
+          <div style="padding:8px 12px 6px;display:flex;align-items:center;justify-content:space-between;gap:6px;">
+            <span id="dlc-title" style="font-size:11px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;"></span>
             <span style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
               <span id="dlc-pager" style="display:none;align-items:center;gap:4px;">
                 <button class="dlc-pg" onclick="dlcStep(-1)" aria-label="이전 제품">‹</button>
@@ -639,8 +636,12 @@ textarea{resize:vertical;min-height:100px;}
               <div style="font-size:9px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.05em;">남은 일자</div>
             </div>
             <div style="padding:8px 11px;display:flex;flex-direction:column;gap:5px;min-width:0;">
+              <div id="dlc-product-row" style="display:flex;justify-content:space-between;align-items:baseline;gap:4px;min-width:0;">
+                <span style="font-size:9px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;flex-shrink:0;">제품</span>
+                <span id="dlc-product" style="font-size:10px;font-weight:600;color:var(--text);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;"></span>
+              </div>
               <div style="display:flex;justify-content:space-between;align-items:baseline;gap:4px;min-width:0;">
-                <span style="font-size:9px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;flex-shrink:0;">라이선스 수량</span>
+                <span style="font-size:9px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;flex-shrink:0;">수량</span>
                 <span id="dlc-qty" style="font-size:10px;font-weight:600;color:var(--text);text-align:right;"></span>
               </div>
               <div style="display:flex;justify-content:space-between;align-items:baseline;gap:4px;">
@@ -3985,13 +3986,19 @@ function renderDlcCard() {
   const p = _dlcProducts[_dlcIndex];
   if (!p) return;
   const fmt = d => d ? d.slice(2, 10) : '—';
-  document.getElementById('dlc-product').textContent = p.label;
-  // 계약 미지정 라이선스는 계약명 줄 자체를 비운다. 계약명이 길면 말줄임되므로
-  // title에 전체 이름을 넣어 마우스를 올리면 확인할 수 있게 한다.
-  const ct = document.getElementById('dlc-contract');
-  ct.textContent = p.contractName || '';
-  ct.title       = p.contractName || '';
-  ct.style.display = p.contractName ? 'block' : 'none';
+  // 제목은 계약명을 쓴다 — 계약명이 길어서 좁은 부제목 줄에 두면 심하게 잘린다.
+  // 계약 미지정 라이선스는 쓸 계약명이 없으므로 제품명을 제목으로 올리고,
+  // 그 경우 아래 "제품" 행은 같은 이름을 두 번 보여주게 되므로 숨긴다.
+  // 둘 다 잘릴 수 있어 title에 전체 이름을 담아 마우스로 확인할 수 있게 한다.
+  const hasContract = !!p.contractName;
+  const title = document.getElementById('dlc-title');
+  title.textContent = hasContract ? p.contractName : p.label;
+  title.title       = title.textContent;
+  const prow = document.getElementById('dlc-product-row');
+  prow.style.display = hasContract ? 'flex' : 'none';
+  const prod = document.getElementById('dlc-product');
+  prod.textContent = p.label;
+  prod.title       = p.label;
   const dd = document.getElementById('dlc-days');
   dd.textContent  = p.daysLeft ?? '—';
   dd.style.color  = p.daysLeft === null ? 'var(--faint)'
@@ -4160,8 +4167,9 @@ async function loadDashboard() {
           const dots  = document.getElementById('dlc-dots');
           if (pager) pager.style.display = 'none';
           if (dots)  dots.style.display  = 'none';
-          document.getElementById('dlc-product').textContent = '라이선스 정보 없음';
-          document.getElementById('dlc-contract').style.display = 'none';
+          document.getElementById('dlc-title').textContent = '라이선스 정보 없음';
+          document.getElementById('dlc-title').title = '';
+          document.getElementById('dlc-product-row').style.display = 'none';
           const sc = document.getElementById('dlc-status');
           sc.textContent = '';
           sc.style.background = 'transparent';
