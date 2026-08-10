@@ -6,7 +6,7 @@
 <title>고객지원 포탈 — 화면 설계</title>
 <style>
 :root {
-  --bg:        #f1efe8;
+  --bg:        #ffffff;
   --surface:   #ffffff;
   --surface2:  #f8f7f4;
   --border:        rgba(0,0,0,.09);
@@ -31,15 +31,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Ne
 /* ── layout shell ── */
 .shell{display:flex;flex-direction:column;height:100vh;}
 
-/* ── top bar ── */
-.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;gap:16px;height:52px;flex-shrink:0;}
-.logo{width:28px;height:28px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;}
-.site-name{font-size:14px;font-weight:700;color:var(--text);}
-.view-toggle{margin-left:auto;display:flex;background:var(--bg);border-radius:99px;padding:3px;gap:2px;}
-.vt-btn{padding:4px 14px;border-radius:99px;font-size:12px;font-weight:600;border:none;cursor:pointer;color:var(--muted);background:transparent;transition:.15s;}
-.vt-btn.active{background:var(--surface);color:var(--accent);box-shadow:0 1px 4px rgba(0,0,0,.1);}
-.user-chip{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);cursor:pointer;padding:5px 10px;border-radius:var(--r-md);transition:.12s;}
-.user-chip:hover{background:var(--surface2);}
+/* ── top bar ── (2R 시안: 로그인 좌측 패널 톤의 진보라 바) */
+.topbar{background:var(--accent-d);border-bottom:none;padding:0 24px;display:flex;align-items:center;gap:16px;height:52px;flex-shrink:0;color:#fff;}
+.logo{width:26px;height:26px;background:transparent;border:1.5px solid #fff;border-radius:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:800;}
+.site-name{font-size:14px;font-weight:700;color:#fff;}
+.view-toggle{margin-left:auto;display:flex;background:rgba(255,255,255,.14);border-radius:99px;padding:3px;gap:2px;}
+.vt-btn{padding:4px 14px;border-radius:99px;font-size:12px;font-weight:600;border:none;cursor:pointer;color:rgba(255,255,255,.75);background:transparent;transition:.15s;}
+.vt-btn.active{background:var(--surface);color:var(--accent-d);box-shadow:0 1px 4px rgba(0,0,0,.1);}
+.user-chip{display:flex;align-items:center;gap:7px;font-size:12px;color:rgba(255,255,255,.85);cursor:pointer;padding:5px 10px;border-radius:var(--r-md);transition:.12s;}
+.user-chip:hover{background:rgba(255,255,255,.12);}
 .user-dropdown{position:relative;}
 .user-menu{display:none;position:absolute;top:calc(100% + 8px);right:0;width:220px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:200;overflow:hidden;}
 .user-menu.open{display:block;}
@@ -52,7 +52,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Ne
 /* ── nav tabs ── */
 .navtabs{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;display:flex;gap:2px;flex-shrink:0;}
 .nt{padding:10px 16px;font-size:13px;font-weight:500;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;transition:.12s;}
-.nt.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:700;}
+.nt.active{color:var(--accent-d);border-bottom-color:var(--accent-d);font-weight:700;}
 .nt:hover:not(.active){color:var(--text);}
 
 /* ── body area ── */
@@ -77,22 +77,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Ne
 #p-customers.active .tbl-scroll.list-scroll{overflow-y:auto;}
 
 /* ── cards ── */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px 24px;margin-bottom:16px;}
+.card{background:var(--surface);border:1px solid var(--border-md);border-radius:var(--r-lg);padding:20px 24px;margin-bottom:16px;}
 /* CSS Grid 자식 요소가 nowrap 텍스트 때문에 트랙을 밀어내지 않도록 방지 */
 #lib-files-grid > *{min-width:0;}
-.card-title{font-size:14px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.card-title{font-size:11px;font-weight:800;color:#000;text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
 .card-title svg{opacity:.55;}
 
 /* ── badge ── */
-.badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600;white-space:nowrap;}
-.b-accent{background:var(--accent-l);color:var(--accent-d);}
+.badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:0;font-size:11px;font-weight:600;white-space:nowrap;}
+.b-accent{background:var(--accent-d);color:#fff;}
 .b-green{background:var(--green-l);color:var(--green-d);}
 .b-amber{background:var(--amber-l);color:var(--amber-d);}
 .b-red{background:var(--red-l);color:var(--red-d);}
 .b-gray{background:#f1efe8;color:#444;}
 
 /* ── buttons ── */
-.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:var(--r-md);font-size:13px;font-weight:600;border:none;cursor:pointer;transition:.15s;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:0;font-size:13px;font-weight:600;letter-spacing:.02em;border:none;cursor:pointer;transition:.15s;}
 .btn-primary{background:var(--accent);color:#fff;}
 .btn-primary:hover{background:var(--accent-d);}
 .btn-outline{background:transparent;color:var(--accent);border:1px solid var(--accent-m);}
@@ -115,7 +115,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Ne
 label{font-size:12px;font-weight:600;color:var(--muted);}
 label .req{color:var(--red);margin-left:2px;}
 input[type=text],input[type=email],input[type=password],input[type=date],select,textarea{
-  width:100%;padding:9px 12px;border:1px solid var(--border-md);border-radius:var(--r-md);
+  width:100%;padding:9px 12px;border:1px solid var(--border-md);border-radius:0;
   font-size:13px;font-family:inherit;background:var(--surface);color:var(--text);
   transition:.12s;outline:none;
 }
@@ -134,15 +134,16 @@ textarea{resize:vertical;min-height:100px;}
 .tbl{width:100%;border-collapse:collapse;}
 .tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
 .list-scroll{max-height:560px;overflow-y:auto;}
-.list-scroll thead th{position:sticky;top:0;background:var(--surface);z-index:3;will-change:transform;backface-visibility:hidden;}
-.tbl th{font-size:11px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.5px;padding:8px 12px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;}
-.th-filter{font-size:11px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.5px;border:none;background:transparent;cursor:pointer;padding:0;margin:0;width:100%;appearance:auto;-webkit-appearance:auto;}
+.list-scroll thead th{position:sticky;top:0;background:#F6F5F2;z-index:3;will-change:transform;backface-visibility:hidden;}
+.tbl th{font-size:11px;font-weight:800;color:#000;background:#F6F5F2;text-transform:uppercase;letter-spacing:.5px;padding:9px 12px;border-bottom:2px solid rgba(0,0,0,.55);text-align:left;white-space:nowrap;}
+.th-filter{font-size:11px;font-weight:800;color:#000;text-transform:uppercase;letter-spacing:.5px;border:none;background:transparent;cursor:pointer;padding:0;margin:0;width:100%;appearance:auto;-webkit-appearance:auto;}
 .tbl td{padding:11px 12px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;white-space:nowrap;}
 .tbl tr:last-child td{border-bottom:none;}
 .tbl-compact th{padding:6px 14px;font-size:10px;}
 .tbl-compact td{padding:6px 14px;font-size:12.5px;}
-.tbl tr:hover td{background:var(--surface2);cursor:pointer;}
-.company-detail-row:hover td{background:inherit !important;cursor:default !important;}
+/* 2R 시안: 행 호버 = 진보라 채움 + 흰 글자 반전 */
+.tbl tr:hover td{background:var(--accent-d);color:#fff;cursor:pointer;}
+.company-detail-row:hover td{background:inherit !important;color:inherit !important;cursor:default !important;}
 .ticket-row.open td{background:var(--accent-l);border-top:1px solid var(--accent);border-bottom:none;}
 .ticket-row .row-arrow{display:inline-block;font-size:11px;color:var(--faint);margin-left:6px;transition:transform .15s;}
 .ticket-row.open .row-arrow{transform:rotate(180deg);color:var(--accent);}
@@ -151,11 +152,11 @@ textarea{resize:vertical;min-height:100px;}
 .ticket-detail-row.detail-open td{padding:14px 14px 14px 20px;background:var(--surface);border-right:1px solid var(--accent);border-bottom:1px solid var(--accent);border-bottom-left-radius:8px;border-bottom-right-radius:8px;background-image:linear-gradient(var(--accent),var(--accent));background-repeat:no-repeat;background-size:8px 100%;background-position:left top;}
 .ticket-detail-row.detail-open .card{border:none;border-radius:0;margin-bottom:0;}
 .company-row.open td{background:var(--accent-l);}
-.ticket-detail-row:hover td{background:inherit !important;cursor:default !important;}
+.ticket-detail-row:hover td{background:inherit !important;color:inherit !important;cursor:default !important;}
 /* 위 hover 규칙의 background:inherit !important가 상세 영역의 왼쪽 컬러 레일(background-image)까지
    지워버려서, 마우스를 올리면 레일이 사라지는 문제가 있었음 → detail-open 상태에서는 더 높은
    특이도로 배경/레일을 다시 지정해 hover 중에도 유지되도록 처리 */
-.ticket-detail-row.detail-open:hover td{background:var(--surface) !important;background-image:linear-gradient(var(--accent),var(--accent)) !important;background-repeat:no-repeat !important;background-size:8px 100% !important;background-position:left top !important;cursor:default !important;}
+.ticket-detail-row.detail-open:hover td{background:var(--surface) !important;background-image:linear-gradient(var(--accent),var(--accent)) !important;background-repeat:no-repeat !important;background-size:8px 100% !important;background-position:left top !important;color:inherit !important;cursor:default !important;}
 .ticket-detail-row td{white-space:normal;}
 .ticket-detail-row td>div{width:100%;box-sizing:border-box;}
 .tbl-fit{table-layout:fixed;}
@@ -208,7 +209,7 @@ textarea{resize:vertical;min-height:100px;}
 .tbl-ellipsis{overflow:hidden;text-overflow:ellipsis;white-space:nowrap !important;}
 
 /* ── 표 헤더 클릭 필터 ── */
-.th-filter-btn{display:flex;align-items:center;gap:5px;width:100%;padding:8px 12px;background:none;border:none;cursor:pointer;font:inherit;font-size:11px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;}
+.th-filter-btn{display:flex;align-items:center;gap:5px;width:100%;padding:9px 12px;background:none;border:none;cursor:pointer;font:inherit;font-size:11px;font-weight:800;color:#000;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;}
 .th-filter-btn:hover{color:var(--text);}
 .th-filter-btn.active{color:var(--accent);}
 .th-filter-caret{font-size:9px;transition:transform .12s;}
@@ -243,8 +244,8 @@ textarea{resize:vertical;min-height:100px;}
 
 /* ── stats row ── */
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
-.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px 20px;}
-.stat-label{font-size:11px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;}
+.stat{background:var(--surface);border:1px solid var(--border-md);border-radius:var(--r-lg);padding:16px 20px;}
+.stat-label{font-size:11px;font-weight:700;color:#000;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;}
 .stat-val{font-size:24px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums;}
 .stat-sub{font-size:11px;color:var(--faint);margin-top:3px;}
 
@@ -266,15 +267,15 @@ textarea{resize:vertical;min-height:100px;}
 
 /* ── section header ── */
 .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
-.section-title{font-size:16px;font-weight:800;}
+.section-title{font-size:16px;font-weight:800;color:#000;}
 .section-sub{font-size:13px;color:var(--muted);margin-top:2px;}
 
 /* ── filter bar ── */
 .filter-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
-.filter-chip{padding:5px 14px;border-radius:99px;font-size:12px;font-weight:600;border:1px solid var(--border-md);background:var(--surface);color:var(--muted);cursor:pointer;transition:.12s;}
-.filter-chip.active{background:var(--accent-l);color:var(--accent-d);border-color:var(--accent-m);}
+.filter-chip{padding:5px 14px;border-radius:0;font-size:12px;font-weight:600;border:1px solid var(--border-md);background:var(--surface);color:var(--muted);cursor:pointer;transition:.12s;}
+.filter-chip.active{background:var(--accent);color:#fff;border-color:var(--accent);}
 .filter-chip:hover:not(.active){background:var(--surface2);}
-.search-box{flex:1;min-width:200px;padding:7px 12px;border:1px solid var(--border-md);border-radius:var(--r-md);font-size:13px;font-family:inherit;outline:none;}
+.search-box{flex:1;min-width:200px;padding:7px 12px;border:1px solid var(--border-md);border-radius:0;font-size:13px;font-family:inherit;outline:none;}
 .search-box:focus{border-color:var(--accent);}
 
 /* ── reply box ── */
@@ -350,7 +351,7 @@ textarea{resize:vertical;min-height:100px;}
   .nav-toggle{
     display:flex;align-items:center;justify-content:center;
     width:32px;height:32px;border:none;background:none;cursor:pointer;
-    color:var(--text);font-size:20px;flex-shrink:0;
+    color:#fff;font-size:20px;flex-shrink:0;
   }
   .nav-backdrop.open{
     display:block;position:fixed;inset:0;z-index:299;
@@ -574,10 +575,10 @@ textarea{resize:vertical;min-height:100px;}
       <!-- 사용자 드롭다운 -->
       <div class="user-dropdown" id="user-dropdown">
         <div class="user-chip" onclick="toggleUserMenu()">
-          <div id="topbar-company" style="display:none;background:var(--accent-l);border:1px solid var(--accent-m);border-radius:99px;padding:2px 10px;font-size:12px;font-weight:600;color:var(--accent-d);"></div>
-          <span id="topbar-role" style="font-size:11px;padding:2px 7px;border-radius:99px;background:var(--accent-l);color:var(--accent-d);font-weight:600;display:none;"></span>
+          <div id="topbar-company" style="display:none;background:transparent;border:1px solid rgba(255,255,255,.45);border-radius:0;padding:2px 10px;font-size:12px;font-weight:600;color:#fff;"></div>
+          <span id="topbar-role" style="font-size:11px;padding:2px 8px;border-radius:0;border:1px solid rgba(255,255,255,.45);background:transparent;color:#fff;font-weight:700;letter-spacing:.05em;display:none;"></span>
           <span id="topbar-name">사용자</span>
-          <span style="font-size:10px;color:var(--muted);margin-left:2px;">▾</span>
+          <span style="font-size:10px;color:rgba(255,255,255,.75);margin-left:2px;">▾</span>
         </div>
         <div class="user-menu" id="user-menu">
           <div class="user-menu-header">
