@@ -7685,11 +7685,14 @@ function renderLibFiles() {
     return;
   }
 
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
+  // NEW 배지는 "오늘 등록분"에만 붙는다 — 자정이 지나면 사라진다.
+  // 등록 시각으로부터 24시간이 아니라 자정 기준이라, 어제 늦게 올린 자료도 오늘 아침엔 빠진다.
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
 
   tbody.innerHTML = list.map(d => {
     const isPublic = d.is_public !== false;
-    const isNew = d.created_at && new Date(d.created_at) > thirtyDaysAgo;
+    const isNew = d.created_at && new Date(d.created_at) >= todayStart;
     const privateBadge = isAdmin && !isPublic ? '<span class="badge b-red" style="font-size:10px;margin-left:6px;">비공개</span>' : '';
     const newBadge = isNew ? '<span class="badge b-accent" style="font-size:10px;margin-left:6px;">NEW</span>' : '';
     return `<tr${isAdmin && !isPublic ? ' style="background:rgba(220,38,38,.05);"' : ''}>
