@@ -76,6 +76,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Ne
 #p-my-requests.active .tbl-scroll.list-scroll,
 #p-customers.active .tbl-scroll.list-scroll{overflow-y:auto;}
 
+/* 사용자 관리도 고객사 관리와 같은 flex 방식으로 높이를 채운다 — 표 아래 페이지네이션 바가
+   화면 밖으로 밀리지 않게 하려면 스크롤 영역이 남는 공간만 차지해야 한다.
+   고객/내부 탭 패널이 한 겹 더 있어서 패널까지 flex 사슬에 넣는다.
+   (숨은 패널은 인라인 display:none이 이 규칙보다 우선하므로 그대로 감춰진다.) */
+.body>#p-users.active{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;}
+#p-users.active>#users-panel-customer,
+#p-users.active>#users-panel-internal{flex:1;display:flex;flex-direction:column;min-height:0;}
+#p-users.active>div>.card{flex:1;display:flex;flex-direction:column;min-height:0;margin-bottom:0;}
+#p-users.active .list-scroll{flex:1;min-height:0;max-height:none;overflow-y:auto;}
+#p-users.active .tbl-scroll.list-scroll{overflow-y:auto;}
+
 /* ── cards ── */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px 24px;margin-bottom:16px;}
 /* CSS Grid 자식 요소가 nowrap 텍스트 때문에 트랙을 밀어내지 않도록 방지 */
@@ -1323,6 +1334,15 @@ textarea{resize:vertical;min-height:100px;}
                 <tr><td colspan="8" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
               </tbody>
             </table></div>
+            <div style="padding:12px 18px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:flex-end;gap:10px;background:var(--surface2);flex-shrink:0;">
+              <span style="font-size:12px;color:var(--muted);margin-right:auto;" id="usr-page-total-customer"></span>
+              <button class="btn btn-outline btn-sm" onclick="changeUsrPage(-1)">← 이전</button>
+              <div style="display:flex;align-items:center;gap:6px;font-size:12px;">
+                <input type="text" id="usr-page-input-customer" value="1" inputmode="numeric" style="width:34px;text-align:center;border:1px solid var(--accent);border-radius:7px;padding:4px 2px;font-size:12px;font-variant-numeric:tabular-nums;outline:none;box-shadow:0 0 0 3px var(--accent-l);" onkeydown="if(event.key==='Enter')jumpUsrPage(this.value)">
+                <span>/ <span id="usr-page-count-customer">1</span> 페이지</span>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="changeUsrPage(1)">다음 →</button>
+            </div>
           </div>
         </div>
 
@@ -1343,6 +1363,15 @@ textarea{resize:vertical;min-height:100px;}
                 <tr><td colspan="7" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
               </tbody>
             </table></div>
+            <div style="padding:12px 18px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:flex-end;gap:10px;background:var(--surface2);flex-shrink:0;">
+              <span style="font-size:12px;color:var(--muted);margin-right:auto;" id="usr-page-total-internal"></span>
+              <button class="btn btn-outline btn-sm" onclick="changeUsrPage(-1)">← 이전</button>
+              <div style="display:flex;align-items:center;gap:6px;font-size:12px;">
+                <input type="text" id="usr-page-input-internal" value="1" inputmode="numeric" style="width:34px;text-align:center;border:1px solid var(--accent);border-radius:7px;padding:4px 2px;font-size:12px;font-variant-numeric:tabular-nums;outline:none;box-shadow:0 0 0 3px var(--accent-l);" onkeydown="if(event.key==='Enter')jumpUsrPage(this.value)">
+                <span>/ <span id="usr-page-count-internal">1</span> 페이지</span>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="changeUsrPage(1)">다음 →</button>
+            </div>
           </div>
         </div>
       </div>
@@ -6445,8 +6474,26 @@ function switchUsersTab(tab) {
   applyUserFilter();
 }
 
+// 고객 계정이 240명을 넘어 한 화면에 다 뿌리면 스크롤이 길어진다. 고객사 관리와 같은 방식으로
+// 20건씩 나눈다. 고객/내부 탭은 필터가 서로 독립적이라 페이지 위치도 탭별로 따로 기억한다.
+let usrPage = { customer: 1, internal: 1 };
+let usrLastFilterKey = { customer: null, internal: null };
+const USR_PAGE_SIZE = 20;
+
+function changeUsrPage(delta) {
+  usrPage[currentUsersTab] += delta;
+  applyUserFilter();
+}
+
+function jumpUsrPage(val) {
+  const n = parseInt(val, 10);
+  if (!isNaN(n)) usrPage[currentUsersTab] = n;
+  applyUserFilter();
+}
+
 function applyUserFilter() {
   const isCustomer = currentUsersTab === 'customer';
+  const tab = currentUsersTab;
   const searchId = isCustomer ? 'user-search-customer' : 'user-search-internal';
   const q = (document.getElementById(searchId)?.value || '').trim().toLowerCase();
   let scoped = allUsers.filter(u => isCustomer ? u.role === 'customer' : u.role !== 'customer');
@@ -6463,7 +6510,23 @@ function applyUserFilter() {
   if (countEl) {
     countEl.textContent = q ? `총 ${scoped.length}명 중 ${filtered.length}명 검색됨` : `${scoped.length}명`;
   }
-  renderUsers(filtered, isCustomer ? 'users-tbody-customer' : 'users-tbody-internal');
+
+  // 검색어/필터가 실제로 바뀐 경우에만 1페이지로 리셋 (저장 후 재조회 등에는 현재 페이지 유지)
+  const filterKey = JSON.stringify([q, isCustomer ? userCompanyFilter : userRoleFilter]);
+  if (filterKey !== usrLastFilterKey[tab]) { usrPage[tab] = 1; usrLastFilterKey[tab] = filterKey; }
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / USR_PAGE_SIZE));
+  usrPage[tab] = Math.min(Math.max(1, usrPage[tab]), totalPages);
+  const pageItems = filtered.slice((usrPage[tab] - 1) * USR_PAGE_SIZE, usrPage[tab] * USR_PAGE_SIZE);
+
+  const totalEl = document.getElementById(`usr-page-total-${tab}`);
+  if (totalEl) totalEl.textContent = `총 ${filtered.length}명`;
+  const pageInput = document.getElementById(`usr-page-input-${tab}`);
+  if (pageInput) pageInput.value = usrPage[tab];
+  const pageCount = document.getElementById(`usr-page-count-${tab}`);
+  if (pageCount) pageCount.textContent = totalPages;
+
+  renderUsers(pageItems, isCustomer ? 'users-tbody-customer' : 'users-tbody-internal');
 }
 
 function renderUsers(users, tbodyId) {
