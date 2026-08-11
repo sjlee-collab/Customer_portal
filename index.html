@@ -5549,13 +5549,13 @@ function renderContractLicenseGroups() {
   const activeUnitIds = [...new Set(activeContracts.map(ct => ct.unit_id).filter(Boolean))];
   const groupByOrg = activeUnitIds.length > 1;
 
-  // 조직 헤더에 표시할 라이선스 합계. Add-on은 수량이 더해지는 게 맞지만 DM/AM 같은 관리
-  // 항목은 본계약·추가구매에 각각 1로 잡혀 합산하면 실제보다 커지므로 좌석 유형만 더한다.
-  const SEAT_TYPES = ['Core', 'Creator', 'Explorer', 'Viewer'];
+  // 조직 헤더에 표시할 라이선스 합계 — 좌석(Core/Creator/Explorer/Viewer)과 DM/AM 모두
+  // 계약별 수량을 그대로 더한다. 본계약과 추가구매(Add-on)에 DM/AM이 각각 잡혀 있으면
+  // 합계도 그만큼 커지는데, 계약서상 수량을 있는 그대로 보여주는 게 기준이다.
   const orgSeatChips = (cts) => {
     const tot = new Map();
     cts.forEach(ct => (licensesByContract.get(ct.id) || []).forEach(l => {
-      if (!SEAT_TYPES.includes(l.license_type)) return;
+      if (!l.license_type) return;
       tot.set(l.license_type, (tot.get(l.license_type) || 0) + (Number(l.quantity) || 0));
     }));
     return [...tot.entries()]
