@@ -70,3 +70,24 @@ export async function query(sql, params = []) {
     return rows;
   }
 }
+
+// 여러 쓰기를 한 트랜잭션으로 묶는다 — 콜백이 던지면 전부 ROLLBACK 된다.
+// 콜백은 트랜잭션 전용 client에 묶인 q(sql, params)=>rows 를 받는다. 이걸로 실행한 쿼리만
+// 같은 트랜잭션에 포함된다(전역 query()는 풀의 다른 커넥션을 쓸 수 있으므로 섞지 말 것).
+// 인증 회전 재시도는 트랜잭션 도중엔 하지 않는다(부분 커밋을 피하기 위해) — 회전은 드물고
+// 실패 시 다음 호출에서 자연히 복구된다.
+export async function withTransaction(fn) {
+  const client = await (await getPool()).connect();
+  const q = async (sql, params = []) => (await client.query(sql, params)).rows;
+  try {
+    await client.query('BEGIN');
+    const result = await fn(q);
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (_) {}
+    throw err;
+  } finally {
+    client.release();
+  }
+}

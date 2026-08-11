@@ -9,7 +9,7 @@
 
 import { randomBytes, createHash, scryptSync, timingSafeEqual } from 'node:crypto';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
-import { query } from './db.mjs';
+import { query, withTransaction } from './db.mjs';
 import { notifySlack, notifyEmail } from './notify.mjs';
 import { signToken } from './jwt.mjs';
 
@@ -90,7 +90,10 @@ async function getCompanyName(companyId) {
 
 async function getUser(userId) {
   if (!userId) return null;
-  const rows = await query('select id, name, email, role, company_id, contract_id from users where id=$1', [userId]);
+  const rows = await query(
+    `select id, name, email, role, company_id, contract_id, unit_id,
+            array(select unit_id from user_org_units where user_id=users.id) as unit_ids
+     from users where id=$1`, [userId]);
   return rows[0] ?? null;
 }
 
@@ -100,7 +103,8 @@ async function getUser(userId) {
 // 답글주입·내부메모작성·사칭이 전부 가능했다(실제 테스트로 확인).
 function getAuthz(event) {
   const a = event.requestContext?.authorizer?.lambda || {};
-  return { role: a.role || null, userId: a.userId || null, companyId: a.companyId || null, contractId: a.contractId || null };
+  const unitIds = typeof a.unitIds === 'string' && a.unitIds ? a.unitIds.split(',').filter(Boolean) : [];
+  return { role: a.role || null, userId: a.userId || null, companyId: a.companyId || null, contractId: a.contractId || null, unitIds };
 }
 
 const STAFF_ROLES = new Set(['admin', 'sales', 'tech_support', 'education']);
@@ -122,9 +126,10 @@ async function hasPermission(role, featureKey) {
 async function ticketBelongsToRequester(ticketId, authz) {
   if (STAFF_ROLES.has(authz.role)) return true;
   if (!ticketId) return false;
-  const { role, userId, companyId, contractId } = authz;
+  const { role, userId, companyId, contractId, unitIds } = authz;
   let sql, params;
   if (role === 'internal') { sql = 'select 1 from tickets where id=$1 and created_by=$2'; params = [ticketId, userId]; }
+  else if (unitIds?.length) { sql = 'select 1 from tickets where id=$1 and (unit_id = any($2::uuid[]) or created_by=$3)'; params = [ticketId, unitIds, userId]; }
   else if (contractId)     { sql = 'select 1 from tickets where id=$1 and contract_id=$2'; params = [ticketId, contractId]; }
   else if (companyId)      { sql = 'select 1 from tickets where id=$1 and company_id=$2'; params = [ticketId, companyId]; }
   else return false;
@@ -137,6 +142,9 @@ async function ticketBelongsToRequester(ticketId, authz) {
 // 둘 중 하나라도 계약이 지정 안 된 경우(null, 회사 전체 공유)는 막지 않는다.
 function isNotifiableRequester(requester, ticket) {
   if (!requester?.email) return false;
+  // 조직 기준: 티켓의 조직이 요청자의 배정 목록에 없으면(조직 이동 후) 옛 조직 티켓 메일 차단
+  if (ticket.unit_id && Array.isArray(requester.unit_ids) && requester.unit_ids.length
+      && !requester.unit_ids.includes(ticket.unit_id)) return false;
   if (ticket.contract_id && requester.contract_id && requester.contract_id !== ticket.contract_id) return false;
   return true;
 }
@@ -188,6 +196,23 @@ async function createTicket(body, event) {
   const company_id = requester.company_id ?? null;
   const contract_id = requester.contract_id ?? null;
 
+  // 조직 스냅샷 — body로 unit_id를 받되(다중 조직 사용자의 "요청 조직" 선택),
+  // 반드시 본인 배정 목록(user_org_units)에 있는 조직만 허용한다. 없으면 대표 조직.
+  const myUnits = Array.isArray(requester.unit_ids) ? requester.unit_ids : [];
+  let unit_id = requester.unit_id ?? null;
+  if (body.unit_id) {
+    if (!myUnits.includes(body.unit_id) && !STAFF_ROLES.has(authz.role)) {
+      return json(403, { error: '배정되지 않은 조직으로는 요청을 등록할 수 없습니다' });
+    }
+    unit_id = body.unit_id;
+  }
+  let unit_name = null;
+  if (unit_id) {
+    const u = await query('select unit_name from org_units where id=$1', [unit_id]);
+    unit_name = u[0]?.unit_name ?? null;
+    if (!unit_name) unit_id = null; // 존재하지 않는 조직 id 방어
+  }
+
   let assignedTo = null, assignedToName = null;
   const defaultAssignee = DEFAULT_ASSIGNEE_BY_CATEGORY[category];
   if (defaultAssignee) {
@@ -208,10 +233,10 @@ async function createTicket(body, event) {
   const companyName = await getCompanyName(company_id);
 
   const inserted = await query(
-    `insert into tickets (title, category, description, status, priority, product, created_by, created_by_name, company_id, company_name, contract_id, assigned_to, assigned_to_name)
-     values ($1,$2,$3,'received',$4,$5,$6,$7,$8,$9,$10,$11,$12)
+    `insert into tickets (title, category, description, status, priority, product, created_by, created_by_name, company_id, company_name, contract_id, unit_id, unit_name, assigned_to, assigned_to_name)
+     values ($1,$2,$3,'received',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
      returning *`,
-    [title, category, description ?? null, priority, product ?? null, created_by, requester.name, company_id ?? null, companyName, contract_id ?? null, assignedTo, assignedToName]
+    [title, category, description ?? null, priority, product ?? null, created_by, requester.name, company_id ?? null, companyName, contract_id ?? null, unit_id, unit_name, assignedTo, assignedToName]
   );
   const ticket = inserted[0];
 
@@ -411,31 +436,36 @@ async function manageTicket(ticketId, body, event) {
 
   const nextStatus = status ?? prevStatus;
   const nextCategory = category ?? prev.category;
-  const updated = await query(
-    `update tickets set category=$1, status=$2, assigned_to=$3, assigned_to_name=$4, due_date=$5, updated_at=now() where id=$6 returning *`,
-    [nextCategory, nextStatus, assigned_to ?? null, assignedToName, due_date ?? null, ticketId]
-  );
-  const ticket = updated[0];
-
   const statusChanged = nextStatus !== prevStatus;
   const assigneeChanged = (assigned_to ?? null) !== (prevAssigneeId ?? null);
+  // 이전 담당자 이름은 트랜잭션 밖에서 미리 조회한다(트랜잭션 client와 섞지 않기 위해).
+  const prevAssigneeName = assigneeChanged && prevAssigneeId ? (await getUser(prevAssigneeId))?.name ?? '미배정' : '미배정';
 
-  if (statusChanged) {
-    await query(
-      `insert into ticket_history (ticket_id, action, note, changed_by, changed_by_name) values ($1,'status_changed',$2,$3,$4)`,
-      [ticketId, `${STATUS_KO[prevStatus] ?? prevStatus} → ${STATUS_KO[nextStatus] ?? nextStatus}`, changed_by ?? null, changed_by_name ?? null]
+  // 티켓 수정과 이력·메모 기록을 한 트랜잭션으로 묶는다 — 예전에는 tickets UPDATE가 먼저
+  // 커밋된 뒤 ticket_history/memo INSERT가 따로 실행돼, 뒤 단계가 실패하면 상태만 바뀌고
+  // 이력은 안 남는 부분 반영이 생겼다(감사추적 누락). 이제 하나라도 실패하면 전부 롤백된다.
+  const ticket = await withTransaction(async (q) => {
+    const updated = await q(
+      `update tickets set category=$1, status=$2, assigned_to=$3, assigned_to_name=$4, due_date=$5, updated_at=now() where id=$6 returning *`,
+      [nextCategory, nextStatus, assigned_to ?? null, assignedToName, due_date ?? null, ticketId]
     );
-  }
-  if (assigneeChanged) {
-    const prevAssignee = await getUser(prevAssigneeId);
-    await query(
-      `insert into ticket_history (ticket_id, action, note, changed_by, changed_by_name) values ($1,$2,$3,$4,$5)`,
-      [ticketId, prevAssigneeId ? 'reassigned' : 'assigned', `${prevAssignee?.name ?? '미배정'} → ${assignedToName ?? '미배정'}`, changed_by ?? null, changed_by_name ?? null]
-    );
-  }
-  if (memo) {
-    await query(`insert into ticket_memos (ticket_id, note, changed_by) values ($1,$2,$3)`, [ticketId, memo, changed_by ?? null]);
-  }
+    if (statusChanged) {
+      await q(
+        `insert into ticket_history (ticket_id, action, note, changed_by, changed_by_name) values ($1,'status_changed',$2,$3,$4)`,
+        [ticketId, `${STATUS_KO[prevStatus] ?? prevStatus} → ${STATUS_KO[nextStatus] ?? nextStatus}`, changed_by ?? null, changed_by_name ?? null]
+      );
+    }
+    if (assigneeChanged) {
+      await q(
+        `insert into ticket_history (ticket_id, action, note, changed_by, changed_by_name) values ($1,$2,$3,$4,$5)`,
+        [ticketId, prevAssigneeId ? 'reassigned' : 'assigned', `${prevAssigneeName} → ${assignedToName ?? '미배정'}`, changed_by ?? null, changed_by_name ?? null]
+      );
+    }
+    if (memo) {
+      await q(`insert into ticket_memos (ticket_id, note, changed_by) values ($1,$2,$3)`, [ticketId, memo, changed_by ?? null]);
+    }
+    return updated[0];
+  });
 
   if (statusChanged || assigneeChanged) {
     await deferNotify('manage', {
@@ -482,7 +512,7 @@ async function login(body) {
   if (!email || !password) return json(400, { error: 'email, password는 필수입니다' });
 
   const rows = await query(
-    'select id, name, role, company_id, contract_id, phone, is_active, password from users where email=$1',
+    'select id, name, role, company_id, contract_id, unit_id, phone, is_active, password from users where email=$1',
     [email]
   );
   const user = rows[0];
@@ -500,8 +530,11 @@ async function login(body) {
   }
 
   const companyName = await getCompanyName(user.company_id);
+  // 배정 조직 목록 — JWT에 실어 data-api 테넌트 필터(unit_id = ANY)가 쓰게 한다
+  const unitRows = await query('select unit_id from user_org_units where user_id=$1', [user.id]);
+  const unitIds = unitRows.map(r => r.unit_id);
   const token = signToken(
-    { sub: user.id, role: user.role, company_id: user.company_id || null, contract_id: user.contract_id || null },
+    { sub: user.id, role: user.role, company_id: user.company_id || null, contract_id: user.contract_id || null, unit_ids: unitIds },
     JWT_SECRET, TOKEN_TTL_SECONDS
   );
   return json(200, {
@@ -509,6 +542,7 @@ async function login(body) {
     user: {
       id: user.id, name: user.name, role: user.role,
       company_id: user.company_id || null, contract_id: user.contract_id || null,
+      unit_id: user.unit_id || null, unit_ids: unitIds,
       phone: user.phone || '', company: companyName === '-' ? '' : companyName,
     },
   });
@@ -709,11 +743,14 @@ async function runOverdueBatch() {
   return json(200, { processed: items.length });
 }
 
-// ── EventBridge Scheduler가 매일 09:00 KST에 {"task":"expire_contracts"} 페이로드로 직접 호출 ──
+// ── EventBridge Scheduler가 매일 00:01 KST에 {"task":"expire_contracts"} 페이로드로 직접 호출 ──
 // 계약상태(진행중/만료 등)는 화면에서 수동으로만 바뀌는 값이라, 종료일이 지나도 자동으로
 // "만료"로 안 바뀌는 문제가 있었음 — 매일 종료일 지난 "진행중" 계약을 "만료"로 정리한다.
+// 기준일은 반드시 KST로 계산한다 — 예전엔 new Date().toISOString()(UTC)로 오늘을 구했는데,
+// 이 배치는 00:01 KST(=전날 15:01 UTC)에 돌기 때문에 "오늘"이 하루 전 날짜로 잡혀서
+// 종료일 당일 계약이 하루 늦게 만료 처리됐다. UTC에 9시간을 더해 KST 달력 날짜를 구한다.
 async function runContractExpiryBatch() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const updated = await query(
     `update company_contracts set status='만료', updated_at=now()
      where status='진행중' and end_date < $1

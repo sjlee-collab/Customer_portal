@@ -30,7 +30,7 @@ const SLACK_WEBHOOK_EDU    = process.env.SLACK_WEBHOOK_EDU || '';
 const PORTAL_URL           = process.env.PORTAL_URL || 'https://support.bigxdata.io';
 
 const STATUS_KO = {
-  received: '접수', classifying: '분류 중', in_progress: '처리 중',
+  received: '접수', classifying: '분류 중', assigned: '담당자 배정', in_progress: '처리 중',
   pending_customer: '고객 확인 필요', on_hold: '보류', completed: '완료', cancelled: '취소',
 };
 const CATEGORY_KO = {
