@@ -202,8 +202,17 @@ textarea{resize:vertical;min-height:100px;}
 .combo-panel{position:absolute;top:100%;left:0;right:0;margin-top:4px;background:var(--surface);border:1px solid var(--border-md);border-radius:var(--r-md);box-shadow:0 8px 24px rgba(0,0,0,.14);max-height:220px;overflow-y:auto;z-index:50;display:none;}
 .combo-panel.open{display:block;}
 .combo-item{padding:8px 12px;font-size:13px;cursor:pointer;}
-.combo-item:hover{background:var(--surface2);}
+.combo-item:hover,.combo-item.active{background:var(--surface2);}
 .combo-empty{padding:10px 12px;font-size:12px;color:var(--faint);}
+/* 필터용 콤보 — 위 고객사 검색 콤보를 목록 필터에 재사용. 옵션에 건수를 함께 보여준다. */
+.combo-item{display:flex;justify-content:space-between;align-items:center;gap:10px;}
+.combo-item.combo-all{font-weight:700;border-bottom:1px solid var(--border);}
+.combo-item .combo-n{font-size:11px;color:var(--faint);flex-shrink:0;}
+.combo-item mark{background:#fff3a3;color:inherit;border-radius:2px;padding:0 1px;font-weight:700;}
+.combo-hint{position:sticky;top:0;padding:6px 12px;font-size:11px;color:var(--faint);background:var(--surface2);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:8px;}
+.combo-hint b{color:var(--accent);}
+.filter-combo{position:relative;max-width:240px;flex:1 1 200px;}
+.filter-combo .search-box{width:100%;}
 .tbl-fit td{white-space:normal;overflow:hidden;}
 .tbl-ellipsis{overflow:hidden;text-overflow:ellipsis;white-space:nowrap !important;}
 
@@ -1278,7 +1287,13 @@ textarea{resize:vertical;min-height:100px;}
         <div id="users-panel-customer">
           <div class="filter-bar">
             <input class="search-box" id="user-search-customer" placeholder="이름, 이메일 검색..." oninput="applyUserFilter()">
-            <select class="search-box" id="user-company-select" style="max-width:240px;" onchange="setUserCompanyFilter(this.value)"></select>
+            <div class="filter-combo">
+              <input class="search-box" id="user-company-search" placeholder="전체 고객사" autocomplete="off"
+                oninput="renderUserCompanyFilterCombo(this.value)"
+                onfocus="openUserCompanyFilterCombo()"
+                onkeydown="onUserCompanyFilterKey(event)">
+              <div class="combo-panel" id="user-company-panel"></div>
+            </div>
           </div>
           <div class="card" style="padding:0;overflow:hidden;">
             <div class="tbl-scroll list-scroll"><table class="tbl">
@@ -6154,10 +6169,14 @@ async function loadUsers() {
   applyUserFilter();
 }
 
+// 고객사가 200개사를 넘어 네이티브 select로는 스크롤로 찾아야 했다. 게다가 select의 타이핑
+// 검색은 "앞글자"만 맞아서 "은행"을 쳐도 "경남은행"이 안 잡혔다. 사용자 모달의 고객사 검색
+// 콤보(combo-panel)를 필터에도 재사용해 이름 어느 부분이든 부분 일치로 찾게 한다.
+let _userFilterCompanies = [];   // [{id, name, n}] — 이름순
+let _userFilterShown = [];       // 현재 패널에 렌더된 목록(키보드 이동 대상)
+let _userFilterIdx = -1;         // 키보드 하이라이트 위치
+
 function populateUserCompanyFilter() {
-  const sel = document.getElementById('user-company-select');
-  if (!sel) return;
-  // 고객사가 수백 개라 칩 나열 대신 검색 가능한 드롭다운으로 표시(네이티브 select는 타이핑 검색 지원).
   // 고객 계정 수를 함께 보여줘 어느 회사에 사용자가 많은지 한눈에 파악되게 한다.
   const counts = new Map();
   allUsers.forEach(u => {
@@ -6165,19 +6184,110 @@ function populateUserCompanyFilter() {
     const c = counts.get(u.company_id) || { name: u.company.name, n: 0 };
     c.n++; counts.set(u.company_id, c);
   });
-  const sorted = [...counts.entries()].sort((a, b) => a[1].name.localeCompare(b[1].name, 'ko'));
+  _userFilterCompanies = [...counts.entries()]
+    .map(([id, c]) => ({ id, name: c.name, n: c.n }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+  // 필터로 잡아둔 고객사가 목록에서 사라졌으면(계정 삭제 등) 필터를 해제한다.
   if (userCompanyFilter && !counts.has(userCompanyFilter)) userCompanyFilter = '';
-  sel.innerHTML = `<option value="">전체 고객사 (${sorted.length}개사)</option>` +
-    sorted.map(([id, c]) => `<option value="${id}">${escHtml(c.name)} (${c.n})</option>`).join('');
-  sel.value = userCompanyFilter || '';
+  syncUserCompanyFilterInput();
 }
 
-function setUserCompanyFilter(companyId) {
+// 입력칸의 표시 상태를 현재 선택에 맞춘다 — 선택 없으면 비우고 placeholder로 안내.
+function syncUserCompanyFilterInput() {
+  const inp = document.getElementById('user-company-search');
+  if (!inp) return;
+  const sel = _userFilterCompanies.find(c => c.id === userCompanyFilter);
+  inp.value = sel ? sel.name : '';
+  inp.placeholder = `전체 고객사 (${_userFilterCompanies.length}개사)`;
+}
+
+function openUserCompanyFilterCombo() {
+  // 포커스 시 입력칸을 비워 바로 타이핑할 수 있게 한다(현재 선택은 placeholder로 남김).
+  const inp = document.getElementById('user-company-search');
+  if (inp) {
+    const sel = _userFilterCompanies.find(c => c.id === userCompanyFilter);
+    if (sel) { inp.value = ''; inp.placeholder = sel.name; }
+  }
+  renderUserCompanyFilterCombo('');
+}
+
+function closeUserCompanyFilterCombo() {
+  document.getElementById('user-company-panel')?.classList.remove('open');
+  _userFilterIdx = -1;
+  syncUserCompanyFilterInput();
+}
+
+// 검색어와 일치하는 구간을 <mark>로 감싼다. 정규식 대신 indexOf로 찾아 특수문자 이스케이프 불필요.
+function highlightMatch(name, q) {
+  if (!q) return escHtml(name);
+  const i = name.toLowerCase().indexOf(q);
+  if (i === -1) return escHtml(name);
+  return escHtml(name.slice(0, i)) + '<mark>' + escHtml(name.slice(i, i + q.length)) + '</mark>' + escHtml(name.slice(i + q.length));
+}
+
+function renderUserCompanyFilterCombo(query) {
+  const panel = document.getElementById('user-company-panel');
+  if (!panel) return;
+  const q = (query || '').trim().toLowerCase();
+  const list = q ? _userFilterCompanies.filter(c => c.name.toLowerCase().includes(q)) : _userFilterCompanies;
+  _userFilterShown = list;
+  _userFilterIdx = -1;
+
+  // "전체 고객사"는 검색 중에도 맨 위에 남겨 필터 해제를 항상 가능하게 한다.
+  const allRow = `<div class="combo-item combo-all" onmousedown="selectUserCompanyFilter('')">
+      <span>전체 고객사</span><span class="combo-n">${_userFilterCompanies.length}개사</span></div>`;
+  const hint = q
+    ? `<div class="combo-hint"><span><b>${list.length}개사</b> 표시 중</span><span>전체 ${_userFilterCompanies.length}개사</span></div>`
+    : '';
+
+  if (q && !list.length) {
+    panel.innerHTML = hint + allRow + '<div class="combo-empty">일치하는 고객사가 없습니다.</div>';
+  } else {
+    panel.innerHTML = hint + allRow + list.map((c, i) => `
+      <div class="combo-item" data-idx="${i}" onmousedown="selectUserCompanyFilter('${c.id}')">
+        <span>${highlightMatch(c.name, q)}</span><span class="combo-n">${c.n}</span>
+      </div>`).join('');
+  }
+  panel.classList.add('open');
+}
+
+function selectUserCompanyFilter(companyId) {
   userCompanyFilter = companyId;
-  const sel = document.getElementById('user-company-select');
-  if (sel && sel.value !== companyId) sel.value = companyId;
+  closeUserCompanyFilterCombo();
   applyUserFilter();
 }
+
+// ↑↓ 이동 / Enter 선택 / Esc 닫기
+function onUserCompanyFilterKey(e) {
+  const panel = document.getElementById('user-company-panel');
+  if (e.key === 'Escape') { closeUserCompanyFilterCombo(); return; }
+  if (!panel?.classList.contains('open')) return;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (!_userFilterShown.length) return;
+    _userFilterIdx = e.key === 'ArrowDown'
+      ? Math.min(_userFilterIdx + 1, _userFilterShown.length - 1)
+      : Math.max(_userFilterIdx - 1, 0);
+    panel.querySelectorAll('.combo-item[data-idx]').forEach(el => {
+      const on = Number(el.dataset.idx) === _userFilterIdx;
+      el.classList.toggle('active', on);
+      if (on) el.scrollIntoView({ block: 'nearest' });
+    });
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    const pick = _userFilterShown[_userFilterIdx] || (_userFilterShown.length === 1 ? _userFilterShown[0] : null);
+    if (pick) selectUserCompanyFilter(pick.id);
+  }
+}
+
+// 바깥을 클릭하면 닫는다 — 모달의 u-company-panel과 같은 방식.
+document.addEventListener('click', (e) => {
+  const panel = document.getElementById('user-company-panel');
+  if (panel?.classList.contains('open')
+      && !e.target.closest('#user-company-search') && !e.target.closest('#user-company-panel')) {
+    closeUserCompanyFilterCombo();
+  }
+});
 
 function setUserRoleFilter(role, el) {
   userRoleFilter = role;
