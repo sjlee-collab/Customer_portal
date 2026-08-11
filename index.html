@@ -198,6 +198,20 @@ textarea{resize:vertical;min-height:100px;}
 .clg-section-body{overflow:hidden;max-height:0;transition:max-height .25s ease;}
 .clg-section-body.open{max-height:5000px;}
 
+/* ── 조직(사업부/팀/부서) 단위 계약 묶음 ── */
+/* 계약이 많은 고객사(예: 삼성전자_MX 15건)는 평평히 나열하면 어느 사업부 건인지
+   계약명을 읽어야 알 수 있다. company_contracts.unit_id로 묶어 조직별로 접어 보여준다. */
+.og-group{border:1px solid var(--border-md);border-radius:var(--r-md);margin-bottom:10px;overflow:hidden;}
+.og-head{display:flex;align-items:center;gap:9px;padding:9px 13px;background:var(--accent-l);cursor:pointer;flex-wrap:wrap;}
+.og-head:hover{background:rgba(83,74,183,.2);}
+.og-no{font-family:ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;font-size:10px;color:var(--muted);border:1px solid var(--border-md);border-radius:4px;padding:1px 5px;background:var(--surface);flex:none;}
+.og-name{font-size:13px;font-weight:800;color:var(--accent-d);}
+.og-count{background:var(--surface);color:var(--muted);border-radius:99px;padding:1px 8px;font-size:10.5px;font-weight:700;}
+.og-sum{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto;}
+.og-head.open .clg-arrow-icon{transform:rotate(180deg);}
+.og-body{overflow:hidden;max-height:0;transition:max-height .25s ease;padding:0 10px;}
+.og-body.open{max-height:6000px;padding:10px;}
+
 /* ── 고객사 검색 콤보박스 ── */
 .combo-panel{position:absolute;top:100%;left:0;right:0;margin-top:4px;background:var(--surface);border:1px solid var(--border-md);border-radius:var(--r-md);box-shadow:0 8px 24px rgba(0,0,0,.14);max-height:220px;overflow-y:auto;z-index:50;display:none;}
 .combo-panel.open{display:block;}
@@ -5300,12 +5314,22 @@ function handleContractFileDrop(files) {
 
 let _selectedCompanyContracts = [];
 let _selectedCompanyLicenses  = [];
+let _selectedCompanyOrgUnits  = [];
 
 async function fetchCompanyContracts() {
   if (!selectedCompanyId) return;
   if (!sb) { _selectedCompanyContracts = []; return; }
   const { data } = await sb.from('company_contracts').select('*').eq('company_id', selectedCompanyId).order('end_date', { ascending: false });
   _selectedCompanyContracts = data || [];
+}
+
+// 계약을 조직(사업부/팀/부서)별로 묶어 보여주기 위해 조직명을 함께 가져온다.
+// 계약에는 unit_id만 있고 이름이 없어서 이 목록으로 매핑한다.
+async function fetchCompanyOrgUnits() {
+  if (!selectedCompanyId) return;
+  if (!sb) { _selectedCompanyOrgUnits = []; return; }
+  const { data } = await sb.from('org_units').select('id, unit_no, unit_name').eq('company_id', selectedCompanyId).order('unit_no');
+  _selectedCompanyOrgUnits = data || [];
 }
 
 async function fetchCompanyLicenses() {
@@ -5328,7 +5352,7 @@ async function loadCompanyLicenses() {
 // 고객사 아코디언을 처음 펼칠 때는 계약/라이선스를 동시에 가져와 한 번만 렌더링한다.
 // (따로 로드하면 계약만 먼저 그려졌다가 라이선스 도착 시 전체가 다시 그려져 화면이 튀는 문제가 있었음)
 async function loadCompanyContractsAndLicenses() {
-  await Promise.all([fetchCompanyContracts(), fetchCompanyLicenses()]);
+  await Promise.all([fetchCompanyContracts(), fetchCompanyLicenses(), fetchCompanyOrgUnits()]);
   renderContractLicenseGroups();
 }
 
@@ -5450,6 +5474,13 @@ function toggleContractSection(barEl) {
   if (arrow) arrow.firstChild.textContent = open ? '접기 ' : '펼치기 ';
 }
 
+function toggleOrgGroup(headEl) {
+  const open = headEl.classList.toggle('open');
+  headEl.nextElementSibling.classList.toggle('open');
+  const arrow = headEl.querySelector('.clg-arrow');
+  if (arrow) arrow.firstChild.textContent = open ? '접기 ' : '펼치기 ';
+}
+
 function renderContractLicenseGroups() {
   const container = document.getElementById('contract-license-groups');
   if (!container) return;
@@ -5511,7 +5542,67 @@ function renderContractLicenseGroups() {
   const activeContracts  = contracts.filter(ct => ct.status !== '만료');
   const expiredContracts = contracts.filter(ct => ct.status === '만료');
 
-  const activeHtml = activeContracts.map(renderContractCard).join('');
+  // ── 조직(사업부/팀/부서)별로 묶기 ──
+  // 조직이 2개 이상일 때만 묶는다 — 1개뿐인 고객사에서 그룹 헤더는 한 겹 더 눌러야 하는
+  // 군더더기가 되므로 기존처럼 계약을 바로 나열한다.
+  const unitById = new Map(_selectedCompanyOrgUnits.map(u => [u.id, u]));
+  const activeUnitIds = [...new Set(activeContracts.map(ct => ct.unit_id).filter(Boolean))];
+  const groupByOrg = activeUnitIds.length > 1;
+
+  // 조직 헤더에 표시할 라이선스 합계. Add-on은 수량이 더해지는 게 맞지만 DM/AM 같은 관리
+  // 항목은 본계약·추가구매에 각각 1로 잡혀 합산하면 실제보다 커지므로 좌석 유형만 더한다.
+  const SEAT_TYPES = ['Core', 'Creator', 'Explorer', 'Viewer'];
+  const orgSeatChips = (cts) => {
+    const tot = new Map();
+    cts.forEach(ct => (licensesByContract.get(ct.id) || []).forEach(l => {
+      if (!SEAT_TYPES.includes(l.license_type)) return;
+      tot.set(l.license_type, (tot.get(l.license_type) || 0) + (Number(l.quantity) || 0));
+    }));
+    return [...tot.entries()]
+      .sort((a, b) => CLG_TYPE_ORDER.indexOf(a[0]) - CLG_TYPE_ORDER.indexOf(b[0]))
+      .map(([t, n]) => `<span class="clg-chip ${CLG_PILL_CLASS[t] || ''}">${escHtml(t)} <b>${n.toLocaleString()}</b></span>`)
+      .join('');
+  };
+
+  const renderOrgGroup = (unitId, cts, openByDefault) => {
+    const u = unitById.get(unitId);
+    const label = u
+      ? `<span class="og-no">${escHtml(u.unit_no)}</span><span class="og-name">${escHtml(u.unit_name)}</span>`
+      : '<span class="og-name" style="color:var(--muted);">조직 미지정</span>';
+    return `
+    <div class="og-group">
+      <div class="og-head${openByDefault ? ' open' : ''}" onclick="toggleOrgGroup(this)">
+        ${label}
+        <span class="og-count">계약 ${cts.length}건</span>
+        <span class="og-sum">${orgSeatChips(cts)}</span>
+        <span class="clg-arrow">${openByDefault ? '접기 ' : '펼치기 '}<span class="clg-arrow-icon">▾</span></span>
+      </div>
+      <div class="og-body${openByDefault ? ' open' : ''}">${cts.map(renderContractCard).join('')}</div>
+    </div>`;
+  };
+
+  let activeHtml;
+  if (groupByOrg) {
+    const byUnit = new Map();
+    activeContracts.forEach(ct => {
+      const k = ct.unit_id || '';
+      if (!byUnit.has(k)) byUnit.set(k, []);
+      byUnit.get(k).push(ct);
+    });
+    // 계약이 많은 조직을 위로, 조직 미지정은 항상 맨 아래로.
+    const ordered = [...byUnit.entries()].sort((a, b) => {
+      if (!a[0]) return 1;
+      if (!b[0]) return -1;
+      if (b[1].length !== a[1].length) return b[1].length - a[1].length;
+      return (unitById.get(a[0])?.unit_no || '').localeCompare(unitById.get(b[0])?.unit_no || '');
+    });
+    // 조직이 몇 개뿐이면 다 펼쳐두는 게 편하고, 많으면 접어서 목록을 훑게 한다.
+    const openAll = ordered.length <= 3;
+    activeHtml = `<div style="font-size:11.5px;color:var(--faint);margin-bottom:8px;">조직 ${ordered.length}개 · 계약 ${activeContracts.length}건</div>`
+      + ordered.map(([uid, cts]) => renderOrgGroup(uid, cts, openAll)).join('');
+  } else {
+    activeHtml = activeContracts.map(renderContractCard).join('');
+  }
   const expiredHtml = expiredContracts.length ? `
     <div class="clg-section-toggle" onclick="toggleContractSection(this)">
       <span class="badge b-gray">만료</span>
