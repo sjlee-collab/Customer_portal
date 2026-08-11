@@ -701,7 +701,8 @@ async function runOverdueBatch() {
     const requester = await getUser(ticket.created_by);
     const assignee = await getUser(ticket.assigned_to);
     const overdueDays = Math.floor((Date.now() - new Date(ticket.due_date).getTime()) / (24 * 60 * 60 * 1000));
-    items.push({ ticket, companyName, requesterName: requester?.name, assigneeName: assignee?.name ?? '미배정', overdueDays });
+    // 계정이 삭제되면 FK(created_by/assigned_to)는 null이 되므로, 티켓에 남긴 이름 스냅샷으로 폴백한다
+    items.push({ ticket, companyName, requesterName: requester?.name ?? ticket.created_by_name, assigneeName: assignee?.name ?? ticket.assigned_to_name ?? '미배정', overdueDays });
   }
 
   if (items.length) await notifySlack({ type: 'OVERDUE_BATCH', tickets: items });

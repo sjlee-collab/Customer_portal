@@ -61,7 +61,7 @@
 - **Frontend:** 바닐라 JS, 단일 HTML 파일 SPA (Supabase 클라이언트 제거 완료, AWS API Gateway 직접 호출)
 - **DB:** Amazon RDS (PostgreSQL 18.3)
 - **API:** API Gateway + Lambda (`data-api`=범용 CRUD, `api-layer`=알림 연계 액션, `storage-api`=S3 업로드, `notify-handler`/`send-email`=알림·메일 발송)
-- **자동화:** 지연 티켓 알림(`overdue_batch`) — Lambda 태스크 코드는 작성됨(`api-layer`), **EventBridge Scheduler 규칙 등록은 아직 미완료** (기존 Supabase pg_cron 방식 이관 중, 대기 중 작업 참고)
+- **자동화:** EventBridge Scheduler 3개가 매일 KST 09:00에 `api-layer` Lambda를 직접 호출 — `daily-overdue-ticket-check`(`overdue_batch`, 지연 티켓 Slack 알림), `daily-license-expiry-notice`(`license_expiry_notice`), `daily-contract-expiry-check`(`expire_contracts`). 레거시 Supabase pg_cron 잡 2개는 중복 알람을 일으켜 2026-08-11에 모두 제거함(unschedule) — 레거시 쪽에는 더 이상 크론 없음.
 
 ## Slack 웹훅 환경변수
 
@@ -84,7 +84,6 @@
 ## 대기 중 작업
 
 - 노션 기술지원 내역 → 포탈 배치 연동 (노션 DB 구조 확인 필요)
-- 지연 알림 자동화 — EventBridge Scheduler 규칙 등록 (pg_cron 이관 마무리)
 - **안 쓰는 DB 컬럼 정리** (2026-07-31 조사):
-  - 코드/데이터 모두 없어 삭제 안전: `companies.email_domain/industry/notes/environment_info`, `company_contracts.document_url`, `tickets.internal_memo/salesforce_case_id`, `company_licenses.license_key`, `log_integration.reference_id`
+  - 코드/데이터 모두 없어 삭제 안전: `companies.email_domain/industry/notes/environment_info`, `company_contracts.document_url`, `tickets.internal_memo/salesforce_case_id`, `log_integration.reference_id` (~~`company_licenses.license_key`~~ — 2026-08-06 라이선스 키 입력 기능 추가로 이제 사용 중, 삭제 금지)
   - 코드에서는 안 쓰지만 실데이터 있어 검토 필요: `log_notification.notification_type`, `content_documents.file_type`, `users.division`(내부 직원 소속— 화면 노출 검토 여지 있음)
