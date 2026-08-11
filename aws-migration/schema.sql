@@ -5,11 +5,11 @@
 -- 순서: 전체 테이블 생성(FK 없이) → 마지막에 FK 일괄 추가 (순환 참조 회피)
 --
 -- [2026-08-11 추가] 조직(org_units / user_org_units)과 users.unit_id, tickets.unit_id/unit_name은
--- 기능 구현 시 운영 DB에 직접 반영되어 이 파일에 빠져 있었다. 운영 DB의 실제 컬럼을 조회해서
--- 뒤늦게 채워넣은 것이므로, 컬럼 구성은 실제와 일치하지만 제약조건(PK/unique/FK on delete)은
--- 운영 DB와 다를 수 있다 — 새 환경에 적용하기 전 아래 쿼리로 대조할 것.
+-- 기능 구현 시 운영 DB에 직접 반영되어 이 파일에 빠져 있었다. 운영 DB를 조회해 뒤늦게 채워넣었고,
+-- user_org_units의 제약조건은 pg_constraint로 실제 대조해서 일치를 확인했다(PK/FK ON DELETE CASCADE).
+-- org_units 쪽 제약조건은 대조하지 않았으므로 새 환경 적용 전 아래 쿼리로 확인할 것.
 --   select conname, pg_get_constraintdef(oid) from pg_constraint
---    where conrelid in ('public.org_units'::regclass, 'public.user_org_units'::regclass);
+--    where conrelid = 'public.org_units'::regclass;
 -- ============================================================
 
 -- ── 1. companies ──
@@ -301,10 +301,13 @@ create table public.user_org_units (
   unit_id     uuid not null,
   is_primary  boolean not null default false,
   created_at  timestamptz not null default now(),
-  primary key (user_id, unit_id)
+  id          uuid not null default gen_random_uuid(),
+  primary key (user_id, unit_id),
+  unique (id)
 );
 comment on table public.user_org_units is '사용자-조직 다중 배정. 요청 조회 범위는 배정된 조직 전체 + 본인이 등록한 요청.';
 comment on column public.user_org_units.is_primary is '대표 조직. 요청 등록 시 기본으로 선택되는 조직.';
+comment on column public.user_org_units.id is '행 지목용 대리키. 실제 유일성은 (user_id, unit_id) 복합 PK가 보장한다. data-api의 PATCH/DELETE가 /data/:table/:id 경로만 지원해서 추가됨(add-user-org-units-id.sql).';
 
 -- ============================================================
 -- 외래키 일괄 추가 (순환 참조 회피를 위해 테이블 생성 후 한번에)
