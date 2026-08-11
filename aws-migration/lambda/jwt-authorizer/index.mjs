@@ -21,6 +21,9 @@ export const handler = async (event) => {
       role: payload.role || '',
       companyId: payload.company_id || '',
       contractId: payload.contract_id || '',
+      // 조직 도입: 배정된 조직 id 목록. authorizer context 값은 문자열만 허용되므로
+      // 콤마로 이어 전달한다. 구토큰(unit_ids 없음)은 빈 문자열 → 하위 필터가 contract/company로 폴백.
+      unitIds: Array.isArray(payload.unit_ids) ? payload.unit_ids.join(',') : '',
     },
   };
 };

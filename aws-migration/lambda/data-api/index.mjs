@@ -33,6 +33,7 @@ const ALLOWED_TABLES = new Set([
   'companies', 'company_contracts', 'company_licenses', 'users', 'tickets',
   'log_notification', 'content_documents', 'ticket_history', 'log_integration',
   'ticket_replies', 'ticket_memos', 'ticket_attachments', 'content_notices', 'role_permissions',
+  'org_units', 'user_org_units',
 ]);
 
 // 이 컬럼들은 select=* 나 명시적 요청과 무관하게 응답에서 절대 내려주지 않는다.
@@ -64,6 +65,11 @@ function assertNoBlockedWrite(table, cols) {
 const STAFF_ONLY_TABLES = {
   ticket_memos: new Set(['tech_support', 'sales', 'education', 'admin']),
   log_integration: new Set(['tech_support', 'sales', 'education', 'admin']),
+  // 조직/조직배정은 관리자 화면 전용. 고객이 user_org_units에 자기 행을 끼워 넣으면
+  // 다른 조직 열람 권한 상승이 되므로 읽기까지 통째로 스태프 전용으로 막는다
+  // (고객 화면에 필요한 조직 정보는 tickets.unit_name 스냅샷과 로그인 응답으로 충분).
+  org_units: new Set(['tech_support', 'sales', 'education', 'admin']),
+  user_org_units: new Set(['tech_support', 'sales', 'education', 'admin']),
 };
 
 function assertTableAccess(table, event) {
@@ -141,14 +147,17 @@ const SELF_EDITABLE_USER_COLUMNS = new Set(['name', 'phone', 'department', 'last
 
 function getAuthz(event) {
   const a = event.requestContext?.authorizer?.lambda || {};
-  return { role: a.role || null, userId: a.userId || null, companyId: a.companyId || null, contractId: a.contractId || null };
+  // unitIds: authorizer가 콤마로 이어 보낸 배정 조직 id 목록 (구토큰은 빈 값 → 폴백 경로)
+  const unitIds = typeof a.unitIds === 'string' && a.unitIds
+    ? a.unitIds.split(',').filter(Boolean) : [];
+  return { role: a.role || null, userId: a.userId || null, companyId: a.companyId || null, contractId: a.contractId || null, unitIds };
 }
 
 // GET에 항상 덧붙이는 행 단위 제한. 반환값 { sql, params } 를 whereClauses에 AND로 추가한다.
 // admin/스태프(sales·tech_support·education)는 대부분 제한이 없다 — 여러 고객사의 요청을
 // 함께 처리하는 게 원래 업무라 여기서까지 좁히면 화면이 깨진다.
 async function tenantRowFilterSql(table, authz, paramOffset, qs) {
-  const { role, userId, companyId, contractId } = authz;
+  const { role, userId, companyId, contractId, unitIds } = authz;
 
   // 자료실 비공개 문서는 library_manage 권한이 있어야 볼 수 있다(화면과 동일한 기준 —
   // library_manage는 기본값이 admin만이지만 다른 역할에 커스터마이징될 수 있으므로
@@ -179,6 +188,14 @@ async function tenantRowFilterSql(table, authz, paramOffset, qs) {
     if (role === 'internal') {
       return userId ? { sql: `"created_by" = $${paramOffset}`, params: [userId] } : { sql: '1=0', params: [] };
     }
+    // 조직 기반 격리 (신토큰): 배정된 조직들의 티켓 + 본인이 만든 티켓.
+    // created_by를 OR로 함께 열어두는 이유 — 조직 배정 전에 만들어진 자기 티켓(unit_id null)이
+    // 목록에서 사라지지 않게 하기 위함.
+    if (unitIds.length) {
+      return userId
+        ? { sql: `("unit_id" = any($${paramOffset}::uuid[]) or "created_by" = $${paramOffset + 1})`, params: [unitIds, userId] }
+        : { sql: `"unit_id" = any($${paramOffset}::uuid[])`, params: [unitIds] };
+    }
     if (contractId) return { sql: `"contract_id" = $${paramOffset}`, params: [contractId] };
     if (companyId) return { sql: `"company_id" = $${paramOffset}`, params: [companyId] };
     // 회사·계약이 둘 다 없는 고객(예: 소속 미지정 계정)은 예전엔 1=0으로 자기 티켓조차 못 봤다
@@ -196,6 +213,11 @@ async function tenantRowFilterSql(table, authz, paramOffset, qs) {
       return userId
         ? { sql: `"ticket_id" in (select id from tickets where created_by = $${paramOffset})`, params: [userId] }
         : { sql: '1=0', params: [] };
+    }
+    if (unitIds.length) {
+      return userId
+        ? { sql: `"ticket_id" in (select id from tickets where unit_id = any($${paramOffset}::uuid[]) or created_by = $${paramOffset + 1})`, params: [unitIds, userId] }
+        : { sql: `"ticket_id" in (select id from tickets where unit_id = any($${paramOffset}::uuid[]))`, params: [unitIds] };
     }
     if (contractId) return { sql: `"ticket_id" in (select id from tickets where contract_id = $${paramOffset})`, params: [contractId] };
     if (companyId) return { sql: `"ticket_id" in (select id from tickets where company_id = $${paramOffset})`, params: [companyId] };
@@ -228,9 +250,10 @@ const TICKET_SCOPED_TABLES = new Set(['ticket_replies', 'ticket_attachments', 't
 async function ticketBelongsToRequester(ticketId, authz) {
   if (STAFF_ROLES.has(authz.role)) return true;
   if (!ticketId) return false;
-  const { role, userId, companyId, contractId } = authz;
+  const { role, userId, companyId, contractId, unitIds } = authz;
   let sql, params;
   if (role === 'internal') { sql = 'select 1 from tickets where id=$1 and created_by=$2'; params = [ticketId, userId]; }
+  else if (unitIds?.length) { sql = 'select 1 from tickets where id=$1 and (unit_id = any($2::uuid[]) or created_by=$3)'; params = [ticketId, unitIds, userId]; }
   else if (contractId)     { sql = 'select 1 from tickets where id=$1 and contract_id=$2'; params = [ticketId, contractId]; }
   else if (companyId)      { sql = 'select 1 from tickets where id=$1 and company_id=$2'; params = [ticketId, companyId]; }
   else return false;
@@ -310,6 +333,7 @@ const EMBED_TABLE_MAP = {
   company_id: 'companies',
   contract_id: 'company_contracts',
   ticket_id: 'tickets',
+  unit_id: 'org_units',
 };
 
 const IDENT_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;

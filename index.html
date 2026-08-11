@@ -1283,7 +1283,7 @@ textarea{resize:vertical;min-height:100px;}
           </div>
           <div class="card" style="padding:0;overflow:hidden;">
             <div class="tbl-scroll list-scroll"><table class="tbl">
-              <thead><tr><th>이름</th><th>계약</th><th>이메일</th><th>고객사</th><th>사용자 유형</th><th>최근 로그인</th><th>상태</th><th>액션</th></tr></thead>
+              <thead><tr><th>이름</th><th>조직</th><th>이메일</th><th>고객사</th><th>사용자 유형</th><th>최근 로그인</th><th>상태</th><th>액션</th></tr></thead>
               <tbody id="users-tbody-customer">
                 <tr><td colspan="8" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
               </tbody>
@@ -2118,7 +2118,7 @@ textarea{resize:vertical;min-height:100px;}
         </div>
         <div class="form-group">
           <label>사용자 유형 <span class="req">*</span></label>
-          <select id="u-role">
+          <select id="u-role" onchange="loadOrgChecklist(document.getElementById('u-company').value)">
             <option value="customer">고객 (customer)</option>
             <option value="internal">내부 일반 (internal)</option>
             <option value="tech_support">기술지원 (tech_support)</option>
@@ -2135,18 +2135,16 @@ textarea{resize:vertical;min-height:100px;}
           <div class="combo-panel" id="u-company-panel"></div>
         </div>
         <div class="form-group">
-          <label>계약 <span style="font-size:11px;color:var(--faint);">(사업부 등으로 계약이 나뉜 경우에만)</span></label>
-          <select id="u-contract" disabled>
-            <option value="">전체 (계약 미지정)</option>
-          </select>
-        </div>
-        <div class="form-group">
           <label>전화번호</label>
           <input type="tel" id="u-phone" placeholder="010-0000-0000" oninput="this.value=this.value.replace(/[^0-9-]/g,'')">
         </div>
-        <div class="form-group">
-          <label>부서</label>
-          <input type="text" id="u-dept" placeholder="IT팀">
+        <div class="form-group" id="u-org-group" style="grid-column:1 / -1;">
+          <label>조직 <span class="req" id="u-org-req">*</span>
+            <span style="font-size:11px;color:var(--faint);">체크 = 배정 · ▸ 계약 내역 · ◉ 대표(요청 등록 기본값)</span>
+          </label>
+          <div id="u-org-list" style="border:1px solid var(--border);border-radius:var(--r-md);max-height:260px;overflow:auto;font-size:13px;background:var(--surface);">
+            <div style="padding:14px;color:var(--faint);text-align:center;">고객사를 먼저 선택하세요.</div>
+          </div>
         </div>
       </div>
     </div>
@@ -2660,6 +2658,12 @@ async function doLogin() {
 
 async function enterApp(email, acct, isRestore) {
   currentUser = { email, ...acct };
+  // 배정 조직 목록은 JWT 클레임(unit_ids)에서 읽는다 — 로그인/복구 어느 경로든 토큰 하나로 일관.
+  // (user_org_units는 스태프 전용이라 고객이 직접 조회할 수 없으므로 토큰에서 가져온다.)
+  try {
+    const p = JSON.parse(atob((acct.token || '').split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    currentUser.unit_ids = Array.isArray(p.unit_ids) ? p.unit_ids : [];
+  } catch (_) { currentUser.unit_ids = []; }
   setAuthToken(acct.token);
   _authExpiredHandled = false;
 
@@ -4034,11 +4038,15 @@ async function loadDashboard() {
   if (role === 'customer' || role === 'internal') {
     const companyId  = currentUser.company_id;
     const contractId = currentUser.contract_id;
+    const unitIds    = currentUser.unit_ids || [];
     const userId     = currentUser.id;
-    // internal: 본인이 올린 것만 / customer: 계약 단위(지정 시) 또는 소속 고객사 전체
+    // internal: 본인이 올린 것만 / customer: 배정 조직(신규) → 계약 → 고객사 → 본인작성 순 폴백
     const applyFilter = (q) => role === 'internal'
       ? (userId ? q.eq('created_by', userId) : q)
-      : (contractId ? q.eq('contract_id', contractId) : companyId ? q.eq('company_id', companyId) : userId ? q.eq('created_by', userId) : q);
+      : (unitIds.length ? q.in('unit_id', unitIds)
+        : contractId ? q.eq('contract_id', contractId)
+        : companyId ? q.eq('company_id', companyId)
+        : userId ? q.eq('created_by', userId) : q);
 
     // 라이선스
     if (companyId) {
@@ -4457,6 +4465,8 @@ async function loadTickets() {
   if (DEMO_COMPANY_ID) query = query.eq('company_id', DEMO_COMPANY_ID);
   else if (currentUser?.role === 'internal' && currentUser?.id) {
     query = query.eq('created_by', currentUser.id);
+  } else if (currentUser?.role === 'customer' && currentUser?.unit_ids?.length) {
+    query = query.in('unit_id', currentUser.unit_ids);
   } else if (currentUser?.role === 'customer' && currentUser?.contract_id) {
     query = query.eq('contract_id', currentUser.contract_id);
   } else if (currentUser?.role === 'customer' && currentUser?.company_id) {
@@ -6110,7 +6120,7 @@ async function loadUsers() {
 
   const { data, error } = await sb
     .from('users')
-    .select('*, company:company_id(name), contract:contract_id(contract_name,status)')
+    .select('*, company:company_id(name), unit:unit_id(unit_no,unit_name)')
     .order('name')
     .limit(1000);
 
@@ -6202,13 +6212,13 @@ function renderUsers(users, tbodyId) {
     const activeHtml = u.is_active
       ? '<span class="badge b-green">활성</span>'
       : '<span class="badge b-gray">비활성</span>';
-    const contractHtml = u.contract
-      ? `${escHtml(u.contract.contract_name)} <span class="badge ${RD_CONTRACT_STATUS_BADGE[u.contract.status] || 'b-gray'}">${escHtml(u.contract.status || '—')}</span>`
-      : '<span style="color:var(--faint);">계약 미지정</span>';
+    const orgHtml = u.unit
+      ? `<span style="font-family:monospace;font-size:10px;color:var(--muted);border:1px solid var(--border);border-radius:4px;padding:1px 5px;">${escHtml(u.unit.unit_no)}</span> ${escHtml(u.unit.unit_name)}`
+      : '<span style="color:var(--faint);">조직 미지정</span>';
     return `
       <tr>
         <td style="font-weight:600;">${escHtml(u.name)}</td>
-        ${isCustomerTable ? `<td style="font-size:12px;">${contractHtml}</td>` : ''}
+        ${isCustomerTable ? `<td style="font-size:12px;">${orgHtml}</td>` : ''}
         <td style="font-size:12px;color:var(--muted);">${escHtml(u.email)}</td>
         <td style="font-size:12px;">${escHtml(companyName)}</td>
         <td><span class="badge ${roleBadge}">${roleLabel}</span></td>
@@ -6228,12 +6238,16 @@ function openNewUser() {
   document.getElementById('modal-user-title').textContent = '사용자 추가';
   document.querySelector('#modal-user .btn-primary').textContent = '추가';
   document.getElementById('u-id').value = '';
+  document.getElementById('u-name').value = '';
+  document.getElementById('u-email').value = '';
+  document.getElementById('u-phone').value = '';
+  document.getElementById('u-role').value = 'customer';
   document.getElementById('u-company').dataset.pending = '';
-  document.getElementById('u-contract').dataset.pending = '';
+  _orgAssigned = new Set(); _orgPrimary = null; _orgExpanded = new Set();
   openModal('modal-user');
 }
 
-function openEditUser(u) {
+async function openEditUser(u) {
   document.getElementById('modal-user-title').textContent = '사용자 수정';
   document.querySelector('#modal-user .btn-primary').textContent = '저장';
   document.getElementById('u-id').value = u.id;
@@ -6241,9 +6255,14 @@ function openEditUser(u) {
   document.getElementById('u-email').value = u.email || '';
   document.getElementById('u-role').value = u.role || 'customer';
   document.getElementById('u-company').dataset.pending = u.company_id || '';
-  document.getElementById('u-contract').dataset.pending = u.contract_id || '';
   document.getElementById('u-phone').value = u.phone || '';
-  document.getElementById('u-dept').value = u.department || '';
+  // 기존 조직 배정 로드 (openModal → populateCompanySelect → loadOrgChecklist가 이 상태를 쓴다)
+  _orgAssigned = new Set(); _orgPrimary = null; _orgExpanded = new Set();
+  if (u.role === 'customer' && sb) {
+    const { data: mem } = await sb.from('user_org_units').select('unit_id, is_primary').eq('user_id', u.id);
+    (mem || []).forEach(m => { _orgAssigned.add(m.unit_id); if (m.is_primary) _orgPrimary = m.unit_id; });
+    if (!_orgPrimary && u.unit_id) _orgPrimary = u.unit_id;
+  }
   openModal('modal-user');
 }
 
@@ -6262,28 +6281,43 @@ async function submitUser() {
   const btn = document.querySelector('#modal-user .btn-primary');
   if (btn) { btn.disabled = true; btn.textContent = id ? '저장 중...' : '추가 중...'; }
 
-  const payload = { name, email, role };
-  const company_id  = document.getElementById('u-company')?.value;
-  const contract_id = document.getElementById('u-contract')?.value;
+  const company_id = document.getElementById('u-company')?.value;
   const phone = document.getElementById('u-phone')?.value?.trim();
-  const dept  = document.getElementById('u-dept')?.value?.trim();
-  payload.company_id  = company_id || null;
-  payload.contract_id = contract_id || null;
-  if (phone) payload.phone = phone;
-  if (dept)  payload.department = dept;
+  const isCustomer = role === 'customer';
 
-  let error;
+  // 고객이면서 조직이 존재하는 회사인데 하나도 배정 안 했으면 막는다
+  if (isCustomer && _orgUnits.length && _orgAssigned.size === 0) {
+    if (btn) { btn.disabled = false; btn.textContent = id ? '저장' : '추가'; }
+    showToast('조직을 최소 1개 배정해주세요.', true);
+    return;
+  }
+
+  const payload = { name, email, role };
+  payload.company_id = company_id || null;
+  // 대표 조직을 users.unit_id로 저장(하위호환·기본 스코프). 고객 아니면 조직 없음.
+  payload.unit_id = (isCustomer && _orgPrimary) ? _orgPrimary : null;
+  if (phone) payload.phone = phone;
+
+  let error, userId = id;
   if (id) {
     ({ error } = await sb.from('users').update(payload).eq('id', id));
   } else {
     ({ error } = await sb.from('users').insert(payload));
   }
-  if (btn) { btn.disabled = false; btn.textContent = id ? '저장' : '추가'; }
   if (error) {
+    if (btn) { btn.disabled = false; btn.textContent = id ? '저장' : '추가'; }
     const msg = error.code === '23505' ? '이미 등록된 이메일입니다.' : (id ? '수정' : '추가') + ' 실패: ' + error.message;
     showToast(msg, true);
     return;
   }
+  // 신규 계정은 방금 만든 행의 id를 이메일로 다시 찾는다
+  if (!userId) {
+    const { data: row } = await sb.from('users').select('id').eq('email', email).limit(1);
+    userId = row?.[0]?.id;
+  }
+  // 조직 배정 동기화 (고객이면 배정 집합, 아니면 전부 해제)
+  if (userId) await syncUserOrgs(userId, isCustomer ? _orgAssigned : new Set(), isCustomer ? _orgPrimary : null);
+  if (btn) { btn.disabled = false; btn.textContent = id ? '저장' : '추가'; }
 
   document.getElementById('modal-user-title').textContent = '사용자 추가';
   document.querySelector('#modal-user .btn-primary').textContent = '추가';
@@ -6358,18 +6392,23 @@ async function deleteUser(id, name) {
 
 
 let _userCompanyOptions = [];
+// 사용자 폼 조직 배정 상태
+let _orgUnits = [];          // [{id, unit_no, unit_name}]
+let _orgContracts = {};      // unitId -> [{contract_name, status}]
+let _orgAssigned = new Set();
+let _orgPrimary = null;
+let _orgExpanded = new Set();
+
 async function populateCompanySelect(selectedId) {
   const hidden = document.getElementById('u-company');
   if (!hidden || !sb) return;
   const { data } = await sb.from('companies').select('id, name').order('name').limit(1000);
-  if (!data) return;
-  _userCompanyOptions = [{ id: '', name: '빅스데이터' }, ...data];
+  _userCompanyOptions = [{ id: '', name: '빅스데이터' }, ...(data || [])];
   const selected = _userCompanyOptions.find(c => c.id === (selectedId || '')) || _userCompanyOptions[0];
   hidden.value = selected.id;
   const searchEl = document.getElementById('u-company-search');
   if (searchEl) searchEl.value = selected.name;
-  const contractSel = document.getElementById('u-contract');
-  await populateContractSelect(hidden.value, contractSel?.dataset.pending);
+  await loadOrgChecklist(hidden.value);
 }
 
 function renderCompanyCombo(query) {
@@ -6389,7 +6428,9 @@ function selectUserCompany(id) {
   document.getElementById('u-company').value = company.id;
   document.getElementById('u-company-search').value = company.name;
   document.getElementById('u-company-panel').classList.remove('open');
-  populateContractSelect(company.id);
+  // 회사가 바뀌면 이전 조직 배정은 무효 — 초기화 후 다시 로드
+  _orgAssigned = new Set(); _orgPrimary = null; _orgExpanded = new Set();
+  loadOrgChecklist(company.id);
 }
 
 document.addEventListener('click', (e) => {
@@ -6399,24 +6440,93 @@ document.addEventListener('click', (e) => {
   }
 });
 
-async function populateContractSelect(companyId, selectedId) {
-  const sel = document.getElementById('u-contract');
-  if (!sel) return;
+// 선택된 고객사의 조직 목록 + 조직별 계약을 불러와 체크리스트를 렌더한다.
+// 조직 개념은 고객(customer)에게만 의미가 있으므로 그 외 역할은 조직 섹션을 숨긴다.
+async function loadOrgChecklist(companyId) {
+  const box = document.getElementById('u-org-list');
+  const grp = document.getElementById('u-org-group');
+  const role = document.getElementById('u-role')?.value;
+  const isCustomer = role === 'customer';
+  if (grp) grp.style.display = isCustomer ? '' : 'none';
+  if (!box || !isCustomer) { _orgUnits = []; return; }
   if (!companyId || !sb) {
-    sel.innerHTML = '<option value="">전체 (계약 미지정)</option>';
-    sel.disabled = true;
+    box.innerHTML = '<div style="padding:14px;color:var(--faint);text-align:center;">고객사를 먼저 선택하세요.</div>';
+    _orgUnits = []; return;
+  }
+  box.innerHTML = '<div style="padding:14px;color:var(--faint);text-align:center;">조직 불러오는 중...</div>';
+  const [{ data: units }, { data: cts }] = await Promise.all([
+    sb.from('org_units').select('id, unit_no, unit_name').eq('company_id', companyId).order('unit_no'),
+    sb.from('company_contracts').select('contract_name, status, unit_id').eq('company_id', companyId).order('contract_name'),
+  ]);
+  _orgUnits = units || [];
+  _orgContracts = {};
+  (cts || []).forEach(c => { if (c.unit_id) (_orgContracts[c.unit_id] ??= []).push(c); });
+  // 조직이 1개뿐이면 자동 배정(+대표) — 배정이 비어있을 때만
+  if (_orgUnits.length === 1 && _orgAssigned.size === 0) {
+    _orgAssigned = new Set([_orgUnits[0].id]); _orgPrimary = _orgUnits[0].id;
+  }
+  if (_orgPrimary && !_orgAssigned.has(_orgPrimary)) _orgPrimary = null;
+  if (!_orgPrimary && _orgAssigned.size) _orgPrimary = [..._orgAssigned][0];
+  renderOrgChecklist();
+}
+
+function renderOrgChecklist() {
+  const box = document.getElementById('u-org-list');
+  if (!box) return;
+  if (!_orgUnits.length) {
+    box.innerHTML = '<div style="padding:14px;color:var(--faint);text-align:center;">이 고객사에 등록된 조직이 없습니다.</div>';
     return;
   }
-  const { data } = await sb.from('company_contracts').select('id, contract_name').eq('company_id', companyId).order('contract_name');
-  const contracts = data || [];
-  if (!contracts.length) {
-    sel.innerHTML = '<option value="">전체 (계약 미지정)</option>';
-    sel.disabled = true;
-    return;
+  const single = _orgUnits.length === 1;
+  box.innerHTML = _orgUnits.map((u, i) => {
+    const on = _orgAssigned.has(u.id);
+    const isPri = _orgPrimary === u.id;
+    const cts = _orgContracts[u.id] || [];
+    const expanded = _orgExpanded.has(u.id);
+    const cb = `<span style="width:16px;height:16px;border:1.5px solid ${on ? 'var(--accent)' : 'var(--border)'};background:${on ? 'var(--accent)' : 'transparent'};color:#fff;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;flex:none;">${on ? '✓' : ''}</span>`;
+    const radio = on
+      ? `<span title="대표 조직으로 지정" onclick="event.stopPropagation();setOrgPrimary('${u.id}')" style="width:15px;height:15px;border:1.5px solid var(--accent);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex:none;cursor:pointer;">${isPri ? '<span style="width:7px;height:7px;border-radius:50%;background:var(--accent);"></span>' : ''}</span>`
+      : '<span style="width:15px;flex:none;"></span>';
+    const exp = cts.length
+      ? `<span onclick="event.stopPropagation();toggleOrgExpand('${u.id}')" style="font-size:11px;color:var(--faint);flex:none;cursor:pointer;white-space:nowrap;">${expanded ? '▾' : '▸'} ${cts.length}계약</span>`
+      : '<span style="flex:none;"></span>';
+    const ctRows = expanded ? cts.map(c => `<div style="padding:5px 12px 5px 46px;font-family:monospace;font-size:11px;color:var(--muted);border-top:1px dashed var(--border);">${escHtml(c.contract_name)}</div>`).join('') : '';
+    return `<div>
+      <div style="display:flex;align-items:center;gap:9px;padding:8px 12px;${i ? 'border-top:1px solid var(--border);' : ''}${on ? 'background:var(--surface-2,rgba(124,92,255,.06));' : ''}cursor:${single ? 'default' : 'pointer'};" ${single ? '' : `onclick="toggleOrg('${u.id}')"`}>
+        ${cb}
+        <span style="font-family:monospace;font-size:10px;color:var(--muted);border:1px solid var(--border);border-radius:4px;padding:1px 5px;flex:none;">${escHtml(u.unit_no)}</span>
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(u.unit_name)}</span>
+        ${exp}
+        ${radio}
+      </div>${ctRows}
+    </div>`;
+  }).join('');
+}
+
+function toggleOrg(id) {
+  if (_orgAssigned.has(id)) {
+    _orgAssigned.delete(id);
+    if (_orgPrimary === id) _orgPrimary = [..._orgAssigned][0] || null;
+  } else {
+    _orgAssigned.add(id);
+    if (!_orgPrimary) _orgPrimary = id;
   }
-  sel.disabled = false;
-  sel.innerHTML = contracts.map(c => `<option value="${c.id}">${escHtml(c.contract_name)}</option>`).join('');
-  sel.value = selectedId || contracts[0].id;
+  renderOrgChecklist();
+}
+function setOrgPrimary(id) { if (_orgAssigned.has(id)) { _orgPrimary = id; renderOrgChecklist(); } }
+function toggleOrgExpand(id) { if (_orgExpanded.has(id)) _orgExpanded.delete(id); else _orgExpanded.add(id); renderOrgChecklist(); }
+
+// user_org_units(N:M)를 폼 상태에 맞춰 동기화 — 관리자(스태프)만 이 테이블에 쓸 수 있다(백엔드 강제).
+async function syncUserOrgs(userId, assigned, primaryId) {
+  const { data: existing } = await sb.from('user_org_units').select('id, unit_id, is_primary').eq('user_id', userId);
+  const ex = existing || [];
+  for (const m of ex) if (!assigned.has(m.unit_id)) await sb.from('user_org_units').delete().eq('id', m.id);
+  for (const unitId of assigned) {
+    const cur = ex.find(m => m.unit_id === unitId);
+    const isPri = unitId === primaryId;
+    if (!cur) await sb.from('user_org_units').insert({ user_id: userId, unit_id: unitId, is_primary: isPri });
+    else if (cur.is_primary !== isPri) await sb.from('user_org_units').update({ is_primary: isPri }).eq('id', cur.id);
+  }
 }
 
 function getSampleTickets() {
@@ -7028,7 +7138,7 @@ async function selectRdTicket(idx, directTicket) {
   // ── 백그라운드: description·created_by 등 전체 필드 재조회 ──
   if (sb) {
     const { data } = await sb.from('tickets')
-      .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, created_by, contract_id, assigned_to, assigned_to_name, company_name, created_by_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
+      .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, created_by, contract_id, unit_id, unit_name, assigned_to, assigned_to_name, company_name, created_by_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
       .eq('id', selectedId).single();
     if (data && rdTicket.id === selectedId) {
       rdTicket = data;
@@ -7036,17 +7146,24 @@ async function selectRdTicket(idx, directTicket) {
       if (dueDateValue) dueDateValue.textContent = rdTicket.due_date ? rdTicket.due_date.slice(0, 10) : '—';
       const isOwner = currentUser && rdTicket.created_by === currentUser.id;
       if (ownerEditBtn) ownerEditBtn.style.display = isOwner ? '' : 'none';
-      await renderRdContract(rdTicket.contract_id, contractValueEl);
+      await renderRdContract(rdTicket, contractValueEl);
     }
   }
 }
 
-// 요청 등록 시점에 스냅샷된 계약(tickets.contract_id)의 이름/상태를 사이드바에 표시
+// 요청 등록 시점에 스냅샷된 조직(tickets.unit_name)/계약(contract_id)을 사이드바에 표시.
+// 조직 스냅샷이 있으면 조직명을 우선 보여주고(신규 조직 기반 티켓), 없으면 기존 계약을 보여준다.
 const RD_CONTRACT_STATUS_BADGE = { 진행중:'b-accent', 완료:'b-green', 협의중:'b-amber', 해지:'b-red', 만료:'b-gray' };
-async function renderRdContract(contractId, el) {
+async function renderRdContract(ticket, el) {
   if (!el) return;
+  if (ticket && ticket.unit_name) {
+    el.textContent = ticket.unit_name;
+    el.style.color = 'var(--text)';
+    return;
+  }
+  const contractId = ticket && ticket.contract_id;
   if (!contractId || !sb) {
-    el.textContent = '계약 미지정';
+    el.textContent = '미지정';
     el.style.color = 'var(--faint)';
     return;
   }
