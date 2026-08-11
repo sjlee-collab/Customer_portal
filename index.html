@@ -1278,8 +1278,7 @@ textarea{resize:vertical;min-height:100px;}
         <div id="users-panel-customer">
           <div class="filter-bar">
             <input class="search-box" id="user-search-customer" placeholder="이름, 이메일 검색..." oninput="applyUserFilter()">
-            <span class="filter-chip active" onclick="setUserCompanyFilter('',this)">전체</span>
-            <span id="user-company-chips" style="display:contents;"></span>
+            <select class="search-box" id="user-company-select" style="max-width:240px;" onchange="setUserCompanyFilter(this.value)"></select>
           </div>
           <div class="card" style="padding:0;overflow:hidden;">
             <div class="tbl-scroll list-scroll"><table class="tbl">
@@ -1736,6 +1735,11 @@ textarea{resize:vertical;min-height:100px;}
           <label>연락처</label>
           <input type="text" id="nw-contact" class="auto-field" readonly>
           <div class="form-hint">마이페이지에서 변경 가능</div>
+        </div>
+        <div class="form-group span2" id="nw-org-group" style="display:none;">
+          <label>요청 조직 <span class="req">*</span></label>
+          <select id="nw-org"></select>
+          <div class="form-hint">여러 조직을 담당하고 있어, 이 요청이 어느 조직 건인지 선택해 주세요.</div>
         </div>
       </div>
       <div style="background:var(--surface2);border-radius:var(--r-md);padding:12px;margin-top:16px;font-size:12px;color:var(--muted);">
@@ -2653,7 +2657,7 @@ async function doLogin() {
 
   errEl.style.display = 'none';
   const u = data.user;
-  enterApp(email, { id: u.id, role: u.role, name: u.name, company_id: u.company_id || null, contract_id: u.contract_id || null, company: u.company || '', phone: u.phone || '', token: data.token });
+  enterApp(email, { id: u.id, role: u.role, name: u.name, company_id: u.company_id || null, contract_id: u.contract_id || null, company: u.company || '', phone: u.phone || '', units: u.units || [], token: data.token });
 }
 
 async function enterApp(email, acct, isRestore) {
@@ -3782,6 +3786,19 @@ function openModal(id) {
     const contactEl = document.getElementById('nw-contact');
     if (companyEl && currentUser) companyEl.value = currentUser.company || '';
     if (contactEl && currentUser) contactEl.value = currentUser.phone || '';
+    // 요청 조직 선택기: 조직 2개 이상 배정된 고객에게만 노출(1개면 서버가 대표로 자동 스냅샷)
+    const orgGroup = document.getElementById('nw-org-group');
+    const orgSel = document.getElementById('nw-org');
+    const units = (currentUser?.units) || [];
+    if (orgGroup && orgSel) {
+      if (currentUser?.role === 'customer' && units.length >= 2) {
+        orgSel.innerHTML = units.map(u => `<option value="${u.id}">${escHtml(u.unit_no)} · ${escHtml(u.unit_name)}</option>`).join('');
+        orgSel.value = (units.find(u => u.is_primary) || units[0]).id;
+        orgGroup.style.display = '';
+      } else {
+        orgGroup.style.display = 'none';
+      }
+    }
   }
   if (id === 'modal-doc') {
     if (!document.getElementById('d-id').value) {
@@ -4741,6 +4758,10 @@ async function submitRequest() {
   if (currentUser?.company_id)  payload.company_id = currentUser.company_id;
   else if (DEMO_COMPANY_ID)     payload.company_id = DEMO_COMPANY_ID;
   if (currentUser?.contract_id) payload.contract_id = currentUser.contract_id;
+  // 요청 조직 — 다중 조직 사용자가 고른 값만 전송. 단일/미노출이면 서버가 대표 조직으로 스냅샷.
+  const orgGroup = document.getElementById('nw-org-group');
+  const orgSel = document.getElementById('nw-org');
+  if (orgGroup && orgGroup.style.display !== 'none' && orgSel?.value) payload.unit_id = orgSel.value;
 
   const { data, error } = await apiCreateTicket(payload);
 
@@ -6134,23 +6155,27 @@ async function loadUsers() {
 }
 
 function populateUserCompanyFilter() {
-  const wrap = document.getElementById('user-company-chips');
-  if (!wrap) return;
-  const companies = new Map();
-  allUsers.forEach(u => { if (u.company_id && u.company?.name) companies.set(u.company_id, u.company.name); });
-  const sorted = [...companies.entries()].sort((a, b) => a[1].localeCompare(b[1], 'ko'));
-  if (userCompanyFilter && !sorted.some(([id]) => id === userCompanyFilter)) userCompanyFilter = '';
-  wrap.innerHTML = sorted.map(([id, name]) =>
-    `<span class="filter-chip${id === userCompanyFilter ? ' active' : ''}" onclick="setUserCompanyFilter('${id}',this)">${escHtml(name)}</span>`
-  ).join('');
-  const allChip = wrap.previousElementSibling;
-  if (allChip) allChip.classList.toggle('active', !userCompanyFilter);
+  const sel = document.getElementById('user-company-select');
+  if (!sel) return;
+  // 고객사가 수백 개라 칩 나열 대신 검색 가능한 드롭다운으로 표시(네이티브 select는 타이핑 검색 지원).
+  // 고객 계정 수를 함께 보여줘 어느 회사에 사용자가 많은지 한눈에 파악되게 한다.
+  const counts = new Map();
+  allUsers.forEach(u => {
+    if (u.role !== 'customer' || !u.company_id || !u.company?.name) return;
+    const c = counts.get(u.company_id) || { name: u.company.name, n: 0 };
+    c.n++; counts.set(u.company_id, c);
+  });
+  const sorted = [...counts.entries()].sort((a, b) => a[1].name.localeCompare(b[1].name, 'ko'));
+  if (userCompanyFilter && !counts.has(userCompanyFilter)) userCompanyFilter = '';
+  sel.innerHTML = `<option value="">전체 고객사 (${sorted.length}개사)</option>` +
+    sorted.map(([id, c]) => `<option value="${id}">${escHtml(c.name)} (${c.n})</option>`).join('');
+  sel.value = userCompanyFilter || '';
 }
 
-function setUserCompanyFilter(companyId, el) {
+function setUserCompanyFilter(companyId) {
   userCompanyFilter = companyId;
-  document.querySelectorAll('#users-panel-customer .filter-chip').forEach(c => c.classList.remove('active'));
-  if (el) el.classList.add('active');
+  const sel = document.getElementById('user-company-select');
+  if (sel && sel.value !== companyId) sel.value = companyId;
   applyUserFilter();
 }
 
@@ -8080,7 +8105,9 @@ if (_resetTokenFromUrl) {
           return;
         }
         const companyName = u.company?.name || '';
-        enterApp(acct.email, { id: u.id, role: u.role, name: u.name, company_id: u.company_id || null, contract_id: u.contract_id || null, company: companyName, phone: u.phone || '', token: acct.token }, true);
+        // 조직 목록(units)은 org_units가 스태프 전용이라 고객이 재조회할 수 없으므로,
+        // 로그인 때 저장해둔 세션 값(acct.units)을 그대로 이어서 사용한다.
+        enterApp(acct.email, { id: u.id, role: u.role, name: u.name, company_id: u.company_id || null, contract_id: u.contract_id || null, company: companyName, phone: u.phone || '', units: acct.units || [], token: acct.token }, true);
       }).catch(() => {
         // DB 조회 실패 시 저장된 세션으로 그냥 진입
         const { email, ...rest } = acct;

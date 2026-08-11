@@ -530,9 +530,15 @@ async function login(body) {
   }
 
   const companyName = await getCompanyName(user.company_id);
-  // 배정 조직 목록 — JWT에 실어 data-api 테넌트 필터(unit_id = ANY)가 쓰게 한다
-  const unitRows = await query('select unit_id from user_org_units where user_id=$1', [user.id]);
+  // 배정 조직 목록 — id는 JWT에 실어 data-api 테넌트 필터(unit_id = ANY)가 쓰고,
+  // 이름(unit_no/unit_name)은 응답 user.units로 내려 프런트 "요청 조직" 선택기에 쓴다
+  // (org_units는 스태프 전용이라 고객이 직접 못 읽으므로 로그인 때 함께 내려준다).
+  const unitRows = await query(
+    `select uo.unit_id, uo.is_primary, o.unit_no, o.unit_name
+       from user_org_units uo join org_units o on o.id = uo.unit_id
+      where uo.user_id = $1 order by o.unit_no`, [user.id]);
   const unitIds = unitRows.map(r => r.unit_id);
+  const units = unitRows.map(r => ({ id: r.unit_id, unit_no: r.unit_no, unit_name: r.unit_name, is_primary: r.is_primary }));
   const token = signToken(
     { sub: user.id, role: user.role, company_id: user.company_id || null, contract_id: user.contract_id || null, unit_ids: unitIds },
     JWT_SECRET, TOKEN_TTL_SECONDS
@@ -542,7 +548,7 @@ async function login(body) {
     user: {
       id: user.id, name: user.name, role: user.role,
       company_id: user.company_id || null, contract_id: user.contract_id || null,
-      unit_id: user.unit_id || null, unit_ids: unitIds,
+      unit_id: user.unit_id || null, unit_ids: unitIds, units,
       phone: user.phone || '', company: companyName === '-' ? '' : companyName,
     },
   });
