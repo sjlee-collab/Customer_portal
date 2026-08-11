@@ -3,6 +3,13 @@
 -- 원본: Supabase project ozmuxppuyuyhojmdiism (PostgreSQL 17.6)
 -- 생성일: Phase 0 export
 -- 순서: 전체 테이블 생성(FK 없이) → 마지막에 FK 일괄 추가 (순환 참조 회피)
+--
+-- [2026-08-11 추가] 조직(org_units / user_org_units)과 users.unit_id, tickets.unit_id/unit_name은
+-- 기능 구현 시 운영 DB에 직접 반영되어 이 파일에 빠져 있었다. 운영 DB의 실제 컬럼을 조회해서
+-- 뒤늦게 채워넣은 것이므로, 컬럼 구성은 실제와 일치하지만 제약조건(PK/unique/FK on delete)은
+-- 운영 DB와 다를 수 있다 — 새 환경에 적용하기 전 아래 쿼리로 대조할 것.
+--   select conname, pg_get_constraintdef(oid) from pg_constraint
+--    where conrelid in ('public.org_units'::regclass, 'public.user_org_units'::regclass);
 -- ============================================================
 
 -- ── 1. companies ──
@@ -66,13 +73,15 @@ create table public.users (
   updated_at    timestamptz not null default now(),
   division      text,
   password      text,
-  contract_id   uuid
+  contract_id   uuid,
+  unit_id       uuid
 );
 comment on table public.users is '포탈 사용자 (고객사 담당자 및 내부 직원)';
 comment on column public.users.role is 'customer=고객사 사용자 / internal=내부 일반 / tech_support=기술지원 담당 / sales=영업 담당 / education=교육 담당 / admin=시스템 관리자';
 comment on column public.users.is_active is '계정 활성 여부 (비활성=로그인 불가)';
 comment on column public.users.division is '소속 본부 (본사, 세일즈본부, 컨설팅본부, 기술연구소_DATA&AI, 경영지원)';
-comment on column public.users.contract_id is '사업부 등으로 계약이 나뉜 고객사의 경우, 이 사용자가 속한 계약(company_contracts). null이면 회사 전체 공유(기존 방식).';
+comment on column public.users.contract_id is '사업부 등으로 계약이 나뉜 고객사의 경우, 이 사용자가 속한 계약(company_contracts). null이면 회사 전체 공유(기존 방식). 조직(unit_id) 도입 후에는 폴백 경로.';
+comment on column public.users.unit_id is '대표 조직(org_units) — user_org_units의 is_primary와 같은 값을 편의상 비정규화해 둔 것. 실제 배정 목록은 user_org_units가 기준.';
 
 -- ── 4. tickets ──
 create table public.tickets (
@@ -98,12 +107,16 @@ create table public.tickets (
   assigned_to_name    text,
   contract_id         uuid,
   company_name        text,
-  created_by_name     text
+  created_by_name     text,
+  unit_id             uuid,
+  unit_name           text
 );
 comment on table public.tickets is '고객 기술지원 요청 티켓';
 comment on column public.tickets.internal_memo is '내부 전용 메모 — 고객 화면에 절대 노출 금지';
 comment on column public.tickets.assigned_to_name is '담당자 이름 스냅샷 — assigned_to 계정이 삭제(FK SET NULL)되어도 이력 표시를 위해 보존';
-comment on column public.tickets.contract_id is '요청 등록자의 contract_id 스냅샷 — 계약 단위로 요청 목록을 스코프하기 위함.';
+comment on column public.tickets.contract_id is '요청 등록자의 contract_id 스냅샷 — 계약 단위로 요청 목록을 스코프하기 위함. 조직(unit_id) 도입 후에는 폴백 경로.';
+comment on column public.tickets.unit_id is '요청을 등록한 조직(org_units). 요청 목록 격리의 기준 — 계약이 갱신돼도 이 값은 바뀌지 않는다.';
+comment on column public.tickets.unit_name is '조직명 스냅샷 — 조직이 이름을 바꾸거나 삭제돼도 과거 요청에 당시 조직명을 보존.';
 
 -- ── 5. log_notification ──
 create table public.log_notification (
@@ -264,6 +277,35 @@ create table public.role_permissions (
 );
 comment on table public.role_permissions is '역할별 메뉴/기능 접근 권한 (권한 관리 화면 백엔드)';
 
+-- ── 15. org_units (조직) ──
+-- 고객사 안에서 사업부·팀·최종고객 등으로 요청을 갈라 봐야 할 때 쓰는 단위.
+-- 계약(company_contracts)은 연도마다 갱신되며 교체되지만 조직은 그대로 유지되므로,
+-- 사용자와 티켓을 계약이 아니라 이 조직에 붙여서 갱신의 영향을 받지 않게 한다.
+create table public.org_units (
+  id          uuid primary key default gen_random_uuid(),
+  unit_no     text not null,
+  company_id  uuid not null,
+  unit_name   text not null,
+  status      text not null default 'active',
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+comment on table public.org_units is '고객사 내 조직(사업부/팀/최종고객). 계약 갱신과 무관하게 유지되는 요청 격리 단위.';
+comment on column public.org_units.unit_no is '조직 고유번호 (ORG-0001 형식). 화면에서 조직명과 함께 표시.';
+comment on column public.org_units.status is 'active=사용 중. 조직 자체를 지우지 않고 상태로 관리.';
+
+-- ── 16. user_org_units (사용자↔조직 배정, N:M) ──
+-- 한 사용자가 여러 조직에 속할 수 있고(예: 겸직), 그중 하나를 대표 조직으로 지정한다.
+create table public.user_org_units (
+  user_id     uuid not null,
+  unit_id     uuid not null,
+  is_primary  boolean not null default false,
+  created_at  timestamptz not null default now(),
+  primary key (user_id, unit_id)
+);
+comment on table public.user_org_units is '사용자-조직 다중 배정. 요청 조회 범위는 배정된 조직 전체 + 본인이 등록한 요청.';
+comment on column public.user_org_units.is_primary is '대표 조직. 요청 등록 시 기본으로 선택되는 조직.';
+
 -- ============================================================
 -- 외래키 일괄 추가 (순환 참조 회피를 위해 테이블 생성 후 한번에)
 -- ============================================================
@@ -309,6 +351,21 @@ alter table public.company_licenses
 
 alter table public.role_permissions
   add constraint role_permissions_updated_by_fkey foreign key (updated_by) references public.users(id);
+
+-- 조직(org_units / user_org_units) — 사용자·티켓이 조직을 참조한다.
+-- tickets.unit_id는 unit_name 스냅샷이 함께 있으므로 조직이 지워져도 과거 요청 표시가 유지된다.
+alter table public.org_units
+  add constraint org_units_company_id_fkey foreign key (company_id) references public.companies(id);
+
+alter table public.user_org_units
+  add constraint user_org_units_user_id_fkey foreign key (user_id) references public.users(id) on delete cascade,
+  add constraint user_org_units_unit_id_fkey foreign key (unit_id) references public.org_units(id) on delete cascade;
+
+alter table public.users
+  add constraint users_unit_id_fkey foreign key (unit_id) references public.org_units(id);
+
+alter table public.tickets
+  add constraint tickets_unit_id_fkey foreign key (unit_id) references public.org_units(id);
 
 -- ============================================================
 -- 시퀀스 / 트리거 함수 / 트리거
