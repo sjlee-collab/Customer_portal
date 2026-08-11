@@ -209,8 +209,15 @@ textarea{resize:vertical;min-height:100px;}
 .og-count{background:var(--surface);color:var(--muted);border-radius:99px;padding:1px 8px;font-size:10.5px;font-weight:700;}
 .og-sum{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto;}
 .og-head.open .clg-arrow-icon{transform:rotate(180deg);}
-.og-body{overflow:hidden;max-height:0;transition:max-height .25s ease;padding:0 10px;}
-.og-body.open{max-height:6000px;padding:10px;}
+/* 안에 "만료 계약" 섹션과 계약별 라이선스 표가 또 접혀 들어가므로, max-height 방식은
+   중첩되면 안쪽이 잘린다. 조직 묶음은 표시/숨김으로 처리해 높이 제한을 두지 않는다. */
+.og-body{display:none;padding:10px;}
+.og-body.open{display:block;}
+.og-count.exp{color:var(--red-d);}
+/* 조직 안의 만료 계약 섹션 — 조직 헤더보다 한 단 안쪽임을 왼쪽 선으로 표시 */
+.og-exp-inner{padding-left:11px;border-left:2px solid var(--border-md);margin:0 0 4px 5px;}
+.og-dim .og-head{background:var(--surface2);}
+.og-dim .og-name{color:var(--muted);}
 
 /* ── 고객사 검색 콤보박스 ── */
 .combo-panel{position:absolute;top:100%;left:0;right:0;margin-top:4px;background:var(--surface);border:1px solid var(--border-md);border-radius:var(--r-md);box-shadow:0 8px 24px rgba(0,0,0,.14);max-height:220px;overflow-y:auto;z-index:50;display:none;}
@@ -5544,10 +5551,11 @@ function renderContractLicenseGroups() {
 
   // ── 조직(사업부/팀/부서)별로 묶기 ──
   // 조직이 2개 이상일 때만 묶는다 — 1개뿐인 고객사에서 그룹 헤더는 한 겹 더 눌러야 하는
-  // 군더더기가 되므로 기존처럼 계약을 바로 나열한다.
+  // 군더더기가 되므로 기존처럼 계약을 바로 나열한다. 만료 계약도 같은 조직 아래로 들어가므로
+  // 만료만 있는 조직도 묶음 판단에 포함한다.
   const unitById = new Map(_selectedCompanyOrgUnits.map(u => [u.id, u]));
-  const activeUnitIds = [...new Set(activeContracts.map(ct => ct.unit_id).filter(Boolean))];
-  const groupByOrg = activeUnitIds.length > 1;
+  const allUnitIds = [...new Set(contracts.map(ct => ct.unit_id).filter(Boolean))];
+  const groupByOrg = allUnitIds.length > 1;
 
   // 조직 헤더에 표시할 라이선스 합계 — 좌석(Core/Creator/Explorer/Viewer)과 DM/AM 모두
   // 계약별 수량을 그대로 더한다. 본계약과 추가구매(Add-on)에 DM/AM이 각각 잡혀 있으면
@@ -5564,55 +5572,91 @@ function renderContractLicenseGroups() {
       .join('');
   };
 
-  const renderOrgGroup = (unitId, cts, openByDefault) => {
+  // 조직 하나를 펼치면 그 조직의 유효 계약과 만료 계약이 한자리에 보이게 한다.
+  // 라이선스 합계는 "지금 보유한 수량"이라 유효 계약만 더한다(만료는 합계에서 제외).
+  const renderOrgGroup = (unitId, actCts, expCts, openByDefault) => {
     const u = unitById.get(unitId);
     const label = u
       ? `<span class="og-no">${escHtml(u.unit_no)}</span><span class="og-name">${escHtml(u.unit_name)}</span>`
       : '<span class="og-name" style="color:var(--muted);">조직 미지정</span>';
+    const counts = (actCts.length ? `<span class="og-count">유효 ${actCts.length}건</span>` : '')
+      + (expCts.length ? `<span class="og-count exp">만료 ${expCts.length}건</span>` : '');
+    // 조직 안의 만료 계약은 기본으로 접어둔다 — 평소엔 유효 계약만 보이면 충분하다.
+    const expInner = expCts.length ? `
+      <div class="clg-section-toggle" onclick="toggleContractSection(this)">
+        <span class="badge b-gray">만료</span>
+        <span class="clg-section-label">이 조직의 만료 계약 <span class="clg-section-count">${expCts.length}건</span> 보기</span>
+        <span class="clg-arrow">펼치기 <span class="clg-arrow-icon">▾</span></span>
+      </div>
+      <div class="clg-section-body"><div class="og-exp-inner">${expCts.map(renderContractCard).join('')}</div></div>` : '';
     return `
-    <div class="og-group">
+    <div class="og-group${actCts.length ? '' : ' og-dim'}">
       <div class="og-head${openByDefault ? ' open' : ''}" onclick="toggleOrgGroup(this)">
         ${label}
-        <span class="og-count">계약 ${cts.length}건</span>
-        <span class="og-sum">${orgSeatChips(cts)}</span>
+        ${counts}
+        <span class="og-sum">${orgSeatChips(actCts)}</span>
         <span class="clg-arrow">${openByDefault ? '접기 ' : '펼치기 '}<span class="clg-arrow-icon">▾</span></span>
       </div>
-      <div class="og-body${openByDefault ? ' open' : ''}">${cts.map(renderContractCard).join('')}</div>
+      <div class="og-body${openByDefault ? ' open' : ''}">
+        ${actCts.map(renderContractCard).join('')}
+        ${expInner}
+      </div>
     </div>`;
   };
 
-  let activeHtml;
+  let activeHtml, expiredHtml;
   if (groupByOrg) {
+    // 조직별로 유효/만료를 각각 모은다. 조직 키는 unit_id(없으면 빈 문자열 = 조직 미지정).
     const byUnit = new Map();
-    activeContracts.forEach(ct => {
-      const k = ct.unit_id || '';
-      if (!byUnit.has(k)) byUnit.set(k, []);
-      byUnit.get(k).push(ct);
-    });
-    // 계약이 많은 조직을 위로, 조직 미지정은 항상 맨 아래로.
-    const ordered = [...byUnit.entries()].sort((a, b) => {
-      if (!a[0]) return 1;
+    const slot = (k) => {
+      if (!byUnit.has(k)) byUnit.set(k, { act: [], exp: [] });
+      return byUnit.get(k);
+    };
+    activeContracts.forEach(ct => slot(ct.unit_id || '').act.push(ct));
+    expiredContracts.forEach(ct => slot(ct.unit_id || '').exp.push(ct));
+
+    // 유효 계약이 있는 조직을 본 목록에, 만료만 있는 조직은 아래 별도 영역으로 내린다 —
+    // 유효 목록에 섞으면 "유효 0건 · 라이선스 없음" 헤더가 끼어 목록이 어수선해진다.
+    const sortOrgs = (entries) => entries.sort((a, b) => {
+      if (!a[0]) return 1;   // 조직 미지정은 항상 맨 아래
       if (!b[0]) return -1;
-      if (b[1].length !== a[1].length) return b[1].length - a[1].length;
+      const n = (b[1].act.length + b[1].exp.length) - (a[1].act.length + a[1].exp.length);
+      if (n !== 0) return n;
       return (unitById.get(a[0])?.unit_no || '').localeCompare(unitById.get(b[0])?.unit_no || '');
     });
-    // 조직이 몇 개뿐이면 다 펼쳐두는 게 편하고, 많으면 접어서 목록을 훑게 한다.
-    const openAll = ordered.length <= 3;
-    activeHtml = `<div style="font-size:11.5px;color:var(--faint);margin-bottom:8px;">조직 ${ordered.length}개 · 계약 ${activeContracts.length}건</div>`
-      + ordered.map(([uid, cts]) => renderOrgGroup(uid, cts, openAll)).join('');
-  } else {
-    activeHtml = activeContracts.map(renderContractCard).join('');
-  }
-  const expiredHtml = expiredContracts.length ? `
-    <div class="clg-section-toggle" onclick="toggleContractSection(this)">
-      <span class="badge b-gray">만료</span>
-      <span class="clg-section-label">만료된 계약 <span class="clg-section-count">${expiredContracts.length}건</span> 보기</span>
-      <span class="clg-arrow">펼치기 <span class="clg-arrow-icon">▾</span></span>
-    </div>
-    <div class="clg-section-body">
-      ${expiredContracts.map(renderContractCard).join('')}
-    </div>` : '';
+    const liveOrgs = sortOrgs([...byUnit.entries()].filter(([, v]) => v.act.length));
+    const deadOrgs = sortOrgs([...byUnit.entries()].filter(([, v]) => !v.act.length));
 
+    // 조직이 몇 개뿐이면 다 펼쳐두는 게 편하고, 많으면 접어서 목록을 훑게 한다.
+    const openAll = liveOrgs.length <= 3;
+    const expTotal = expiredContracts.length;
+    activeHtml = `<div style="font-size:11.5px;color:var(--faint);margin-bottom:8px;">조직 ${liveOrgs.length + deadOrgs.length}개 · 유효 계약 ${activeContracts.length}건${expTotal ? ` · 만료 ${expTotal}건` : ''}</div>`
+      + liveOrgs.map(([uid, v]) => renderOrgGroup(uid, v.act, v.exp, openAll)).join('');
+
+    // 만료만 있는 조직 묶음 — 통째로 접어둔다.
+    const deadCount = deadOrgs.reduce((n, [, v]) => n + v.exp.length, 0);
+    expiredHtml = deadOrgs.length ? `
+      <div class="clg-section-toggle" onclick="toggleContractSection(this)" style="margin-top:14px;">
+        <span class="badge b-gray">만료</span>
+        <span class="clg-section-label">만료 계약만 있는 조직 <span class="clg-section-count">${deadOrgs.length}개 · ${deadCount}건</span> 보기</span>
+        <span class="clg-arrow">펼치기 <span class="clg-arrow-icon">▾</span></span>
+      </div>
+      <div class="clg-section-body">
+        ${deadOrgs.map(([uid, v]) => renderOrgGroup(uid, v.act, v.exp, false)).join('')}
+      </div>` : '';
+  } else {
+    // 조직이 1개거나 조직 정보가 없는 고객사 — 기존처럼 유효 나열 + 만료 섹션 분리.
+    activeHtml = activeContracts.map(renderContractCard).join('');
+    expiredHtml = expiredContracts.length ? `
+      <div class="clg-section-toggle" onclick="toggleContractSection(this)">
+        <span class="badge b-gray">만료</span>
+        <span class="clg-section-label">만료된 계약 <span class="clg-section-count">${expiredContracts.length}건</span> 보기</span>
+        <span class="clg-arrow">펼치기 <span class="clg-arrow-icon">▾</span></span>
+      </div>
+      <div class="clg-section-body">
+        ${expiredContracts.map(renderContractCard).join('')}
+      </div>` : '';
+  }
   const unassignedHtml = unassigned.length ? `
     <div style="border:1px solid var(--border);border-radius:var(--r-md);padding:10px 14px;${contracts.length ? 'margin-top:14px;' : ''}">
       <div style="font-size:12.5px;font-weight:700;margin-bottom:2px;">공통 라이선스 <span style="font-size:11px;color:var(--faint);font-weight:500;">(계약 미지정)</span></div>
