@@ -85,7 +85,9 @@
 ## 대기 중 작업
 
 - 노션 기술지원 내역 → 포탈 배치 연동 (노션 DB 구조 확인 필요)
-- **안 쓰는 DB 컬럼 정리** (2026-07-31 조사 → 2026-08-12 실행):
-  - **[2026-08-12 운영 RDS에서 DROP 완료]** 코드·데이터·스키마의존 모두 0으로 확인된 9개 컬럼 삭제: `companies.email_domain/industry/notes/environment_info`, `company_contracts.document_url`, `tickets.internal_memo/salesforce_case_id`, `content_documents.file_type`, `log_integration.reference_id`. (VPC 프라이빗이라 일회용 마이그레이션 Lambda로 실행 후 삭제. 드롭 전 레거시DB에서 DROP+ROLLBACK로 의존성 0 실증, RDS CRUD 무영향 확인.) schema.sql도 갱신됨.
-  - 참고: `company_licenses.license_key`는 2026-08-06 기능 추가로 사용 중(삭제 금지).
-  - **남은 후보(데이터 있어 미삭제)**: `users.division`(내부직원 소속 38건 — 백업만 해둠, 화면 노출/보존 결정 후 처리), `log_notification.notification_type`(기본값 'Slack'만, 코드 미사용). 삭제 시 데이터만 손실.
+- **안 쓰는 DB 컬럼 정리 — 완료** (2026-07-31 조사 → 2026-08-12 실행):
+  - **[2026-08-12 운영 RDS DROP 완료, 총 11개]** 코드·스키마의존 0으로 확인된 컬럼 삭제:
+    - 데이터도 0이던 9개: `companies.email_domain/industry/notes/environment_info`, `company_contracts.document_url`, `tickets.internal_memo/salesforce_case_id`, `content_documents.file_type`, `log_integration.reference_id`.
+    - 데이터 있었으나 코드 미사용이라 백업 후 삭제한 2개: `users.division`(내부직원 소속 38건 → `scratchpad/itest/dropped-columns-backup.json`), `log_notification.notification_type`(기본값 'Slack' 위주 866건 → `backup-notification_type.json`).
+  - 실행: VPC 프라이빗이라 data-api와 동일 VPC/역할의 일회용 마이그레이션 Lambda로 DROP 후 함수 삭제. 사전 레거시DB DROP+ROLLBACK로 의존성 0 실증, RDS CRUD 무영향 확인. schema.sql 갱신됨.
+  - 참고: `company_licenses.license_key`는 2026-08-06 기능 추가로 사용 중(삭제 금지). 미사용 개념의 실제 대체: 업종→`companies.customer_type`, 환경→`products`, 알림유형→`channel`+`event_type`, 내부메모→`ticket_memos` 테이블, 계약문서→S3 첨부(`file_path`).

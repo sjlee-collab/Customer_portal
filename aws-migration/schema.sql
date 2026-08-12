@@ -66,7 +66,6 @@ create table public.users (
   last_login    timestamptz,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
-  division      text,
   password      text,
   contract_id   uuid,
   unit_id       uuid
@@ -74,7 +73,6 @@ create table public.users (
 comment on table public.users is '포탈 사용자 (고객사 담당자 및 내부 직원)';
 comment on column public.users.role is 'customer=고객사 사용자 / internal=내부 일반 / tech_support=기술지원 담당 / sales=영업 담당 / education=교육 담당 / admin=시스템 관리자';
 comment on column public.users.is_active is '계정 활성 여부 (비활성=로그인 불가)';
-comment on column public.users.division is '소속 본부 (본사, 세일즈본부, 컨설팅본부, 기술연구소_DATA&AI, 경영지원)';
 comment on column public.users.contract_id is '사업부 등으로 계약이 나뉜 고객사의 경우, 이 사용자가 속한 계약(company_contracts). null이면 회사 전체 공유(기존 방식). 조직(unit_id) 도입 후에는 폴백 경로.';
 comment on column public.users.unit_id is '대표 조직(org_units) — user_org_units의 is_primary와 같은 값을 편의상 비정규화해 둔 것. 실제 배정 목록은 user_org_units가 기준.';
 
@@ -115,7 +113,6 @@ create table public.log_notification (
   id                uuid primary key default gen_random_uuid(),
   ticket_id         uuid,
   channel           text not null,
-  notification_type text default 'Slack',
   recipient         text not null,
   content           text,
   status            text not null default 'pending',
