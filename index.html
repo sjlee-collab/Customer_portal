@@ -496,38 +496,36 @@ textarea{resize:vertical;min-height:100px;}
 <!-- ════════════════════════════════════
      SCREEN 1: 로그인
 ════════════════════════════════════ -->
-<div id="screen-login" class="login-wrap" style="display:none;">
-  <div class="login-split">
-    <div class="login-side">
-      <span class="login-side-mark" aria-hidden="true">B</span>
-      <div class="login-side-brand"><span class="mark">B</span>BigXData</div>
-      <div class="login-side-headline">
-        <div class="l1">고객지원<br>포탈</div>
-        <div class="l2">빅스데이터와 계약된 고객사를 위한 전용 지원 창구입니다.</div>
-      </div>
+<div id="screen-login" class="login-wrap" style="display:none;background:radial-gradient(1100px 640px at 50% -12%, rgba(160,140,255,.5), rgba(160,140,255,0) 60%), linear-gradient(135deg,#7b5ff0 0%,#6a4fe6 45%,#5a3fd6 100%);">
+  <div style="width:100%;max-width:520px;background:#fff;border-radius:24px;box-shadow:0 40px 90px rgba(40,20,90,.35);padding:52px 56px 40px;box-sizing:border-box;">
+    <!-- 로고 -->
+    <div style="display:flex;align-items:center;justify-content:center;gap:11px;margin-bottom:26px;">
+      <span style="width:42px;height:42px;border-radius:10px;background:#26264a;color:#fff;font-weight:800;font-size:23px;display:flex;align-items:center;justify-content:center;flex:none;">B</span>
+      <span style="position:relative;font-weight:800;font-size:28px;color:#26264a;letter-spacing:-.01em;">BIG<span style="color:var(--accent);">X</span>Data<span style="position:absolute;top:-3px;right:-13px;color:var(--accent);font-size:14px;">+</span></span>
     </div>
-    <div class="login-form-side">
-      <div style="display:flex;flex-direction:column;gap:14px;">
-        <div class="form-group">
-          <label class="login-field-label">이메일</label>
-          <input type="email" id="login-email" placeholder="이메일 입력" onkeydown="if(event.key==='Enter')doLogin()">
-        </div>
-        <div class="form-group">
-          <label class="login-field-label">비밀번호</label>
-          <div style="position:relative;">
-            <input type="password" id="login-pw" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')doLogin()" style="width:100%;padding-right:40px;box-sizing:border-box;">
-            <button type="button" onclick="toggleLoginPw()" aria-label="비밀번호 보기/숨기기" style="position:absolute;right:0;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:2px;display:flex;align-items:center;color:var(--muted);" id="login-pw-eye-btn">
-              <svg id="login-pw-eye" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
-          </div>
-        </div>
-        <div style="text-align:right;margin-top:-6px;">
-          <span style="font-size:11.5px;color:var(--accent);font-weight:600;cursor:pointer;" onclick="goScreen('screen-forgot-password')">비밀번호를 잊으셨나요?</span>
-        </div>
-        <div id="login-error" style="display:none;background:#FEF2F2;border:1px solid #FECACA;border-radius:var(--r-md);padding:9px 12px;font-size:12px;color:#DC2626;"></div>
-        <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:2px;" onclick="doLogin()">로그인</button>
-        <div style="text-align:center;font-size:12px;color:var(--faint);">계정이 없으신가요? <span style="color:var(--accent);cursor:pointer;" onclick="openModal('modal-contact-support')">담당자에게 문의</span></div>
+    <h1 style="font-size:21px;font-weight:800;text-align:center;margin:0 0 9px;">고객지원 포탈 로그인</h1>
+    <p style="font-size:13.5px;color:var(--muted);text-align:center;margin:0 0 30px;">빅스데이터와 계약된 고객사를 위한 전용 지원 창구입니다.</p>
+
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <input type="email" id="login-email" placeholder="이메일 입력" onkeydown="if(event.key==='Enter')doLogin()" style="width:100%;height:56px;border:1px solid var(--border-md);border-radius:13px;padding:0 18px;font-size:15px;box-sizing:border-box;">
+      <div style="position:relative;">
+        <input type="password" id="login-pw" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')doLogin()" style="width:100%;height:56px;border:1px solid var(--border-md);border-radius:13px;padding:0 48px 0 18px;font-size:15px;box-sizing:border-box;">
+        <button type="button" onclick="toggleLoginPw()" aria-label="비밀번호 보기/숨기기" id="login-pw-eye-btn" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:2px;display:flex;align-items:center;color:var(--muted);">
+          <svg id="login-pw-eye" xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
       </div>
+      <div id="login-error" style="display:none;background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:9px 12px;font-size:12px;color:#DC2626;"></div>
+      <button class="btn btn-primary" onclick="doLogin()" style="width:100%;height:56px;justify-content:center;border-radius:13px;font-size:16px;font-weight:800;margin-top:4px;">로그인</button>
+    </div>
+
+    <div style="margin-top:24px;text-align:center;display:flex;flex-direction:column;gap:18px;">
+      <span style="color:var(--accent);font-weight:800;font-size:14px;cursor:pointer;" onclick="goScreen('screen-forgot-password')">비밀번호를 잊으셨나요?</span>
+      <span style="color:var(--accent);font-weight:800;font-size:14px;cursor:pointer;" onclick="openModal('modal-contact-support')">계정이 없으신가요? 담당자에게 문의</span>
+    </div>
+
+    <div style="margin-top:48px;text-align:center;">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">계약 고객사 전용 서비스입니다.</div>
+      <span style="color:var(--accent);font-weight:800;font-size:13px;cursor:pointer;" onclick="openModal('modal-contact-support')">지원 정책 자세히 보기</span>
     </div>
   </div>
 </div>
