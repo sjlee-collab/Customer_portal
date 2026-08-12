@@ -27,8 +27,11 @@
 - **계정:** 605163667429 / **리전:** ap-northeast-2 (서울)
 - **RDS:** 인스턴스 식별자 `csdb` (PostgreSQL 18.3, DB명 `customer_portal`), 엔드포인트 `csdb.cngoihiekj6q.ap-northeast-2.rds.amazonaws.com:5432`. 기본적으로 퍼블릭 액세스 꺼짐 + 보안그룹(`sg-034f2d418a20a6f95`)에서 특정 IP만 허용. 마스터 비밀번호는 Secrets Manager 관리형 시크릿(`rds!db-...`).
 - **API Gateway:** `https://8xbmazu4ij.execute-api.ap-northeast-2.amazonaws.com` — index.html의 `API_BASE`가 이 주소를 호출.
-  - `/data/:table` — `data-api` Lambda, PostgREST 흉내낸 범용 CRUD (허용 테이블 14개, `aws-migration/lambda/data-api/index.mjs` 참고)
+  - `/data/:table` — `data-api` Lambda, PostgREST 흉내낸 범용 CRUD (허용 테이블 16개, `aws-migration/lambda/data-api/index.mjs` 참고)
   - 티켓 생성/상태변경 등 알림이 걸리는 액션 — `api-layer` Lambda
+- **Lambda 배포 함수명 매핑(소스 폴더 ↔ 실제 함수명 다름 주의):** `aws-migration/lambda/data-api` → `customer_portal_data-api` · `jwt-authorizer` → `customer_portal_jwt-authorizer` · `storage-api` → `customer_portal_storage-api` · `notify-handler` → `customer_portal_notify-handler` · `send-email` → `customer_portal_send-email` · **`api-layer` → `customer-portal_slack_status_change`**(이름이 안 맞음).
+  - ⚠️ **api-layer 재배포 시 소스 4개(`index.mjs`·`db.mjs`·`notify.mjs`·`jwt.mjs`)를 모두 zip에 넣어야 한다.** `index.mjs`만 교체하면 `db.mjs`의 `withTransaction` 등 누락으로 **로그인 전체 순단**이 난다(2026-08-12 실제 발생). data-api/jwt-authorizer도 각자 소스 파일 전체 동봉.
+- **보안 헤더 / CSP:** 레포 루트 `customHttp.yml`이 Amplify에 적용됨 — `default-src/script-src/style-src/font-src 'self'`, img/connect는 API GW·S3 버킷만 허용. 즉 **외부 CDN 폰트·스크립트는 CSP로 차단**되므로 자체 호스팅 또는 인라인(+필요 시 `data:` 허용) 해야 한다. (artifacts와 무관, 운영 사이트 한정)
   - `/storage/*` — `storage-api` Lambda (S3 presigned URL 발급)
   - `/functions/:fnName` — `notify-handler`(Slack), `send-email`(Outlook/MS Graph API) Lambda 호출
 - **S3 버킷:** `bigxdata-portal-contract-attachments`, `bigxdata-portal-documents`, `bigxdata-portal-ticket-attachments`
@@ -81,6 +84,8 @@
 - 권한 관리 화면 (역할×기능 매트릭스, `data-roles="admin"` — 관리자만 표시)
 - 공지사항, 자료실, 고객사/사용자 관리, 연동 관리, 알림 로그
 - **AWS 마이그레이션** (Supabase → RDS/Lambda/API Gateway/S3/Amplify), 고객사 업종 분류(397개), 계약/라이선스 UI 개선(라이선스 모델·유형, 접기/펼치기 등)
+- **조직(org_units) 도입** (2026-08-12): 회사 → 조직(사업부/부서/팀) → 계약 3계층. 조직 시드는 엑셀 "고객지원포탈" 시트 부서 컬럼 기준(계약별). 사용자는 조직 **다중 배정**(`user_org_units` N:M, `is_primary`=대표), 티켓 가시성은 JWT `unit_ids` 기반(`unit_id = ANY` + `created_by` 폴백), `tickets.unit_id`+`unit_name` 스냅샷. 사용자 폼=조직 인라인 체크리스트, 계약 폼=조직 선택(+즉석 생성). 고객 계정 일괄 등록·계약명 동일고객사 중복방지 포함.
+- **제품 목록 통일** (2026-08-12): 고객사 사용제품·라이선스 제품 목록을 `Tableau Server / Cloud Enterprise / Cloud Standard / Cloud Plus / Tableau Plus / Tableau Next` + `DataWorks`·`AgentWorks`로 통일(Tableau Desktop 제거, 표기 DataWorks). 구 `products='Tableau Cloud'` 153개사 → `Tableau Cloud Standard` 일괄 변경. ⚠️ `company_licenses.product_info`는 초기 임포트분이 **축약형(`Server`/`Cloud`)**, 폼 입력분은 전체이름으로 **혼재**(에디션 정보 없음) — 그룹핑 시 주의.
 
 ## 대기 중 작업
 
