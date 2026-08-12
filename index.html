@@ -1986,6 +1986,11 @@ textarea{resize:vertical;min-height:100px;}
           <input type="text" id="ct-name" placeholder="IN26-고객사명-16C+80V">
           <div class="form-hint">신규 계약은 <b>IN</b>, 갱신 계약은 <b>MR</b> + 연도 2자리로 시작합니다.</div>
         </div>
+        <div class="form-group span2">
+          <label>조직 <span class="req">*</span> <span style="font-size:11px;color:var(--faint);">(사업부/부서/팀) — 이 계약이 속한 조직</span></label>
+          <select id="ct-unit" onchange="onCtUnitChange()"></select>
+          <input type="text" id="ct-unit-new" placeholder="새 조직명 입력 (예: 현대모비스(인도))" style="display:none;margin-top:8px;">
+        </div>
         <div class="form-group">
           <label>Salesforce ID</label>
           <input type="text" id="ct-salesforce-id" placeholder="001XXXXXXXXXXXXXXX">
@@ -5749,6 +5754,32 @@ function resetContractDropzone() {
   _contractFile = null;
 }
 
+// 계약 모달의 조직 select 채우기 — 선택된 고객사의 org_units + "새 조직 추가" 옵션.
+// 조직이 1개뿐이면 그 조직을 기본 선택.
+async function populateCtUnitSelect(companyId, selectedUnitId) {
+  const sel = document.getElementById('ct-unit');
+  const newInput = document.getElementById('ct-unit-new');
+  if (!sel) return;
+  if (newInput) { newInput.style.display = 'none'; newInput.value = ''; }
+  sel.innerHTML = '<option value="">불러오는 중...</option>';
+  const { data } = await sb.from('org_units').select('id, unit_no, unit_name').eq('company_id', companyId).order('unit_no');
+  const units = data || [];
+  const opts = units.map(u => `<option value="${u.id}">${escHtml(u.unit_no)} · ${escHtml(u.unit_name)}</option>`).join('');
+  sel.innerHTML = (units.length ? '' : '<option value="">(등록된 조직 없음)</option>') + opts + '<option value="__new__">＋ 새 조직 추가…</option>';
+  // 지정된 조직 / 조직 1개면 자동 선택 / 그 외 첫 조직
+  sel.value = selectedUnitId || (units.length === 1 ? units[0].id : (units[0]?.id || '__new__'));
+  onCtUnitChange();
+}
+
+function onCtUnitChange() {
+  const sel = document.getElementById('ct-unit');
+  const newInput = document.getElementById('ct-unit-new');
+  if (!sel || !newInput) return;
+  const isNew = sel.value === '__new__';
+  newInput.style.display = isNew ? '' : 'none';
+  if (isNew) newInput.focus();
+}
+
 function openContractModal() {
   if (!selectedCompanyId) { showToast('고객사를 먼저 선택해주세요.', true); return; }
   document.getElementById('modal-contract-title').textContent = '계약정보 입력';
@@ -5760,6 +5791,7 @@ function openContractModal() {
   });
   document.getElementById('ct-type').value   = '';
   document.getElementById('ct-status').value = '진행중';
+  populateCtUnitSelect(selectedCompanyId, '');
   resetContractDropzone();
   openModal('modal-contract');
 }
@@ -5784,6 +5816,7 @@ function openEditContractModal(ct) {
   document.getElementById('ct-bixs-contact').value   = ct.bixs_contact   || '';
   document.getElementById('ct-amount').value          = ct.amount         || '';
   document.getElementById('ct-note').value            = ct.note           || '';
+  populateCtUnitSelect(ct.company_id, ct.unit_id || '');
   resetContractDropzone();
   document.getElementById('ct-file-path').value = ct.file_path || '';
   document.getElementById('ct-filename').value  = ct.file_name || '';
@@ -5809,6 +5842,26 @@ async function submitContract() {
     return;
   }
   name = name.replace(CONTRACT_NAME_RE, (_, pre, yy) => pre.toUpperCase() + yy + '-');
+
+  // 조직 확정 — 기존 조직 선택 또는 새 조직 즉석 생성
+  const unitSel = document.getElementById('ct-unit');
+  let unitId = unitSel ? unitSel.value : '';
+  if (unitId === '__new__') {
+    const newName = document.getElementById('ct-unit-new').value.trim();
+    if (!newName) { showToast('새 조직명을 입력하거나 기존 조직을 선택해주세요.', true); document.getElementById('ct-unit-new').focus(); return; }
+    // 같은 회사에 동일 이름 조직이 이미 있으면 그걸 재사용, 없으면 생성
+    const { data: exist } = await sb.from('org_units').select('id').eq('company_id', companyId).eq('unit_name', newName).limit(1);
+    if (exist && exist[0]) {
+      unitId = exist[0].id;
+    } else {
+      const { error: insErr } = await sb.from('org_units').insert({ company_id: companyId, unit_name: newName });
+      if (insErr) { showToast('조직 생성 실패: ' + insErr.message, true); return; }
+      const { data: made } = await sb.from('org_units').select('id').eq('company_id', companyId).eq('unit_name', newName).limit(1);
+      unitId = made?.[0]?.id;
+    }
+  }
+  if (!unitId) { showToast('조직을 선택해주세요.', true); return; }
+
   const btn = document.getElementById('btn-submit-contract');
   if (btn) { btn.disabled = true; btn.textContent = '처리 중...'; }
 
@@ -5831,6 +5884,7 @@ async function submitContract() {
 
   const payload = {
     company_id:       companyId,
+    unit_id:          unitId,
     contract_name:    name,
     salesforce_id:    document.getElementById('ct-salesforce-id').value.trim() || null,
     start_date:       document.getElementById('ct-start').value   || null,
