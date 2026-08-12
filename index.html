@@ -2757,9 +2757,23 @@ async function enterApp(email, acct, isRestore) {
   await loadPermissions();
   applyRoleUI(acct.role);
 
-  // 역할별 첫 번째 탭 클릭 (초기 페이지)
-  const firstVisible = document.querySelector('#main-navtabs .nt:not([style*="display: none"]):not([style*="display:none"])');
-  if (firstVisible) firstVisible.click();
+  // 새로고침 복원: showPage가 남긴 URL 해시(#p-xxx)가 있으면 그 페이지로 돌아간다.
+  // 단 역할상 보이지 않는 탭(권한 숨김)이면 무시하고 첫 탭으로 — 해시 조작으로
+  // 권한 밖 화면에 진입하는 것을 막는다. 상세 페이지는 탭이 없으므로 요청 목록으로 대체.
+  let restored = false;
+  let hashPage = (location.hash || '').replace(/^#/, '');
+  if (hashPage === 'p-request-detail') {
+    hashPage = ADMIN_ROLES.has(acct.role) ? 'p-all-requests' : 'p-my-requests';
+  }
+  if (hashPage && document.getElementById(hashPage)) {
+    const tab = document.querySelector(`#main-navtabs .nt[onclick*="'${hashPage}'"]`);
+    if (tab && tab.style.display !== 'none') { tab.click(); restored = true; }
+  }
+  if (!restored) {
+    // 역할별 첫 번째 탭 클릭 (초기 페이지)
+    const firstVisible = document.querySelector('#main-navtabs .nt:not([style*="display: none"]):not([style*="display:none"])');
+    if (firstVisible) firstVisible.click();
+  }
 
   // 기본 데이터 로드
   loadDashboard();
