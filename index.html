@@ -1924,7 +1924,6 @@ textarea{resize:vertical;min-height:100px;}
           <!-- 라이선스 입력 폼의 제품 목록과 동일한 순서로 통일 (+ 자사 제품 DW/AW, 기타) -->
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px 12px;padding:6px 0;">
             <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Tableau Server" style="accent-color:var(--accent);"> Tableau Server</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Tableau Desktop" style="accent-color:var(--accent);"> Tableau Desktop</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Tableau Cloud Enterprise" style="accent-color:var(--accent);"> Tableau Cloud Enterprise</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Tableau Cloud Standard" style="accent-color:var(--accent);"> Tableau Cloud Standard</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Tableau Cloud Plus" style="accent-color:var(--accent);"> Tableau Cloud Plus</label>
@@ -5094,7 +5093,6 @@ function renderCompanies(companies) {
     const ALL_PRODUCTS = KNOWN_PRODUCT_VALUES;
     const PRODUCT_MONO = {
       'Tableau Server':           { text: 'SVR', bg: '#4A90D9' },
-      'Tableau Desktop':          { text: 'TD',  bg: '#3573B9' },
       'Tableau Cloud Enterprise': { text: 'TCE', bg: '#185FA5' },
       'Tableau Cloud Standard':   { text: 'TCS', bg: '#2E77BE' },
       'Tableau Cloud Plus':       { text: 'TCP', bg: '#4E93D4' },
@@ -5102,16 +5100,10 @@ function renderCompanies(companies) {
       'Tableau Next':             { text: 'TN',  bg: '#6C5CE7' },
       'Dataworks':                { text: 'DW',  bg: '#C77800' },
       'AgentWorks':               { text: 'AW',  bg: '#8E44AD' },
-      'Tableau Cloud':            { text: 'TC',  bg: '#6B87A8' }, // 구 단일 값(에디션 미지정) — 레거시 표시 전용
     };
-    // 표시 순서: Desktop 다음에 레거시 TC 칸을 끼워 Cloud 계열과 나란히 보이게 한다
-    const DISPLAY_PRODUCTS = [...ALL_PRODUCTS];
-    DISPLAY_PRODUCTS.splice(2, 0, 'Tableau Cloud');
+    const DISPLAY_PRODUCTS = ALL_PRODUCTS;
     const usedSet = new Set(Array.isArray(c.products) ? c.products : []);
-    // 구 단일 값 'Tableau Cloud'(153개사) — 에디션 정보가 없어 자동 변환이 불가하므로
-    // 기타로 뭉개지 않고 레거시 TC 칸으로 따로 보여준다 (에디션 확정 시 수정 폼에서 재선택).
-    const legacyCloud = usedSet.has('Tableau Cloud');
-    const customProducts = (Array.isArray(c.products) ? c.products : []).filter(p => !ALL_PRODUCTS.includes(p) && p !== 'Tableau Cloud');
+    const customProducts = (Array.isArray(c.products) ? c.products : []).filter(p => !ALL_PRODUCTS.includes(p));
     const etcActive = customProducts.length > 0;
     const etcTitle  = etcActive ? `기타: ${customProducts.join(', ')}` : '기타 (미사용)';
     const etcStyle  = etcActive
@@ -5120,9 +5112,7 @@ function renderCompanies(companies) {
     const products = `<div style="display:flex;gap:3px;">${DISPLAY_PRODUCTS.map(p => {
       const m = PRODUCT_MONO[p];
       const active = usedSet.has(p);
-      const label = p === 'Tableau Cloud'
-        ? (active ? 'Tableau Cloud — 구 데이터(에디션 미지정), 수정에서 Ent/Std/Plus 재선택' : 'Tableau Cloud (구·미사용)')
-        : `${p}${active ? '' : ' (미사용)'}`;
+      const label = `${p}${active ? '' : ' (미사용)'}`;
       const style = active
         ? `background:${m.bg};color:#fff;`
         : 'background:var(--surface-1);color:var(--faint);border:1px solid var(--border);';
@@ -5208,9 +5198,9 @@ function toggleCoProductOtherInput() {
 }
 
 // 라이선스 입력 폼의 제품 목록과 동일 + 자사 제품(DW/AW).
-// 'Tableau Cloud'(구 단일 값)는 목록에서 빠졌지만 기존 데이터에 남아있을 수 있어
-// 폼에서는 "기타" 텍스트로 흡수되고, 수정 시 에디션(Ent/Std/Plus)으로 재선택하면 자연 정리된다.
-const KNOWN_PRODUCT_VALUES = ['Tableau Server', 'Tableau Desktop', 'Tableau Cloud Enterprise', 'Tableau Cloud Standard', 'Tableau Cloud Plus', 'Tableau Plus', 'Tableau Next', 'Dataworks', 'AgentWorks'];
+// 구 'Tableau Cloud' 단일 값은 2026-08-12에 전량(153개사) 'Tableau Cloud Standard'로 일괄 변경됨.
+// 'Tableau Desktop'은 보유 회사가 0곳이라 선택항목에서 제거(사용자 확정).
+const KNOWN_PRODUCT_VALUES = ['Tableau Server', 'Tableau Cloud Enterprise', 'Tableau Cloud Standard', 'Tableau Cloud Plus', 'Tableau Plus', 'Tableau Next', 'Dataworks', 'AgentWorks'];
 
 async function openEditCompany(c) {
   document.querySelector('#modal-company div[style*="font-size:16px"]').textContent = '고객사 수정';
