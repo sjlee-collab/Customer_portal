@@ -5102,21 +5102,31 @@ function renderCompanies(companies) {
       'Tableau Next':             { text: 'TN',  bg: '#6C5CE7' },
       'Dataworks':                { text: 'DW',  bg: '#C77800' },
       'AgentWorks':               { text: 'AW',  bg: '#8E44AD' },
+      'Tableau Cloud':            { text: 'TC',  bg: '#6B87A8' }, // 구 단일 값(에디션 미지정) — 레거시 표시 전용
     };
+    // 표시 순서: Desktop 다음에 레거시 TC 칸을 끼워 Cloud 계열과 나란히 보이게 한다
+    const DISPLAY_PRODUCTS = [...ALL_PRODUCTS];
+    DISPLAY_PRODUCTS.splice(2, 0, 'Tableau Cloud');
     const usedSet = new Set(Array.isArray(c.products) ? c.products : []);
-    const customProducts = (Array.isArray(c.products) ? c.products : []).filter(p => !ALL_PRODUCTS.includes(p));
+    // 구 단일 값 'Tableau Cloud'(153개사) — 에디션 정보가 없어 자동 변환이 불가하므로
+    // 기타로 뭉개지 않고 레거시 TC 칸으로 따로 보여준다 (에디션 확정 시 수정 폼에서 재선택).
+    const legacyCloud = usedSet.has('Tableau Cloud');
+    const customProducts = (Array.isArray(c.products) ? c.products : []).filter(p => !ALL_PRODUCTS.includes(p) && p !== 'Tableau Cloud');
     const etcActive = customProducts.length > 0;
     const etcTitle  = etcActive ? `기타: ${customProducts.join(', ')}` : '기타 (미사용)';
     const etcStyle  = etcActive
       ? 'background:#64748B;color:#fff;'
       : 'background:var(--surface-1);color:var(--faint);border:1px solid var(--border);';
-    const products = `<div style="display:flex;gap:3px;">${ALL_PRODUCTS.map(p => {
+    const products = `<div style="display:flex;gap:3px;">${DISPLAY_PRODUCTS.map(p => {
       const m = PRODUCT_MONO[p];
       const active = usedSet.has(p);
+      const label = p === 'Tableau Cloud'
+        ? (active ? 'Tableau Cloud — 구 데이터(에디션 미지정), 수정에서 Ent/Std/Plus 재선택' : 'Tableau Cloud (구·미사용)')
+        : `${p}${active ? '' : ' (미사용)'}`;
       const style = active
         ? `background:${m.bg};color:#fff;`
         : 'background:var(--surface-1);color:var(--faint);border:1px solid var(--border);';
-      return `<div title="${escHtml(p)}${active ? '' : ' (미사용)'}" style="min-width:24px;height:22px;padding:0 3px;border-radius:6px;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;letter-spacing:-.02em;${style}">${m.text}</div>`;
+      return `<div title="${escHtml(label)}" style="min-width:24px;height:22px;padding:0 3px;border-radius:6px;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;letter-spacing:-.02em;${style}">${m.text}</div>`;
     }).join('')}<div title="${escHtml(etcTitle)}" style="min-width:24px;height:22px;padding:0 3px;border-radius:6px;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;letter-spacing:-.02em;${etcStyle}">기타</div></div>`;
     const ctLabel = CUSTOMER_TYPE_KO[c.customer_type] || (c.customer_type ? escHtml(c.customer_type) : '—');
     const idx = allCompanies.indexOf(c);
