@@ -1921,10 +1921,15 @@ textarea{resize:vertical;min-height:100px;}
         <!-- ④ 사용 제품 -->
         <div class="form-group span2">
           <label>사용 제품</label>
-          <div style="display:flex;flex-wrap:wrap;gap:8px;padding:6px 0;">
+          <!-- 라이선스 입력 폼의 제품 목록과 동일한 순서로 통일 (+ 자사 제품 DW/AW, 기타) -->
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px 12px;padding:6px 0;">
             <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Tableau Server" style="accent-color:var(--accent);"> Tableau Server</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Tableau Cloud" style="accent-color:var(--accent);"> Tableau Cloud</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Tableau Desktop" style="accent-color:var(--accent);"> Tableau Desktop</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Tableau Cloud Enterprise" style="accent-color:var(--accent);"> Tableau Cloud Enterprise</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Tableau Cloud Standard" style="accent-color:var(--accent);"> Tableau Cloud Standard</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Tableau Cloud Plus" style="accent-color:var(--accent);"> Tableau Cloud Plus</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Tableau Plus" style="accent-color:var(--accent);"> Tableau Plus</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Tableau Next" style="accent-color:var(--accent);"> Tableau Next</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Dataworks" style="accent-color:var(--accent);"> Dataworks</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="AgentWorks" style="accent-color:var(--accent);"> AgentWorks</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" id="co-product-other-chk" class="co-product-chk" value="기타" style="accent-color:var(--accent);" onchange="toggleCoProductOtherInput()"> 기타</label>
@@ -5085,12 +5090,18 @@ function renderCompanies(companies) {
   tbody.innerHTML = companies.map(c => {
     const stLabel = STATUS_CO_LABELS[c.status] || c.status || '—';
     const stBadge = STATUS_CO_BADGE[c.status]  || 'b-gray';
-    const ALL_PRODUCTS = ['Tableau Server','Tableau Cloud','Dataworks','AgentWorks'];
+    // 라이선스 제품 목록과 동일한 구성의 모노그램 전체 표시 (사용=색, 미사용=회색)
+    const ALL_PRODUCTS = KNOWN_PRODUCT_VALUES;
     const PRODUCT_MONO = {
-      'Tableau Server':  { text: 'TS', bg: '#4A90D9' },
-      'Tableau Cloud':   { text: 'TC', bg: '#185FA5' },
-      'Dataworks':       { text: 'DW', bg: '#C77800' },
-      'AgentWorks':      { text: 'AW', bg: '#6C5CE7' },
+      'Tableau Server':           { text: 'SVR', bg: '#4A90D9' },
+      'Tableau Desktop':          { text: 'TD',  bg: '#3573B9' },
+      'Tableau Cloud Enterprise': { text: 'TCE', bg: '#185FA5' },
+      'Tableau Cloud Standard':   { text: 'TCS', bg: '#2E77BE' },
+      'Tableau Cloud Plus':       { text: 'TCP', bg: '#4E93D4' },
+      'Tableau Plus':             { text: 'TP',  bg: '#0E8FA8' },
+      'Tableau Next':             { text: 'TN',  bg: '#6C5CE7' },
+      'Dataworks':                { text: 'DW',  bg: '#C77800' },
+      'AgentWorks':               { text: 'AW',  bg: '#8E44AD' },
     };
     const usedSet = new Set(Array.isArray(c.products) ? c.products : []);
     const customProducts = (Array.isArray(c.products) ? c.products : []).filter(p => !ALL_PRODUCTS.includes(p));
@@ -5099,14 +5110,14 @@ function renderCompanies(companies) {
     const etcStyle  = etcActive
       ? 'background:#64748B;color:#fff;'
       : 'background:var(--surface-1);color:var(--faint);border:1px solid var(--border);';
-    const products = `<div style="display:flex;gap:4px;">${ALL_PRODUCTS.map(p => {
+    const products = `<div style="display:flex;gap:3px;">${ALL_PRODUCTS.map(p => {
       const m = PRODUCT_MONO[p];
       const active = usedSet.has(p);
       const style = active
         ? `background:${m.bg};color:#fff;`
         : 'background:var(--surface-1);color:var(--faint);border:1px solid var(--border);';
-      return `<div title="${escHtml(p)}${active ? '' : ' (미사용)'}" style="width:22px;height:22px;border-radius:6px;font-size:9.5px;font-weight:800;display:flex;align-items:center;justify-content:center;letter-spacing:-.02em;${style}">${m.text}</div>`;
-    }).join('')}<div title="${escHtml(etcTitle)}" style="width:22px;height:22px;border-radius:6px;font-size:9.5px;font-weight:800;display:flex;align-items:center;justify-content:center;letter-spacing:-.02em;${etcStyle}">기타</div></div>`;
+      return `<div title="${escHtml(p)}${active ? '' : ' (미사용)'}" style="min-width:24px;height:22px;padding:0 3px;border-radius:6px;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;letter-spacing:-.02em;${style}">${m.text}</div>`;
+    }).join('')}<div title="${escHtml(etcTitle)}" style="min-width:24px;height:22px;padding:0 3px;border-radius:6px;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;letter-spacing:-.02em;${etcStyle}">기타</div></div>`;
     const ctLabel = CUSTOMER_TYPE_KO[c.customer_type] || (c.customer_type ? escHtml(c.customer_type) : '—');
     const idx = allCompanies.indexOf(c);
 
@@ -5186,7 +5197,10 @@ function toggleCoProductOtherInput() {
   if (!chk.checked) input.value = '';
 }
 
-const KNOWN_PRODUCT_VALUES = ['Tableau Server', 'Tableau Cloud', 'Tableau Desktop', 'Dataworks', 'AgentWorks'];
+// 라이선스 입력 폼의 제품 목록과 동일 + 자사 제품(DW/AW).
+// 'Tableau Cloud'(구 단일 값)는 목록에서 빠졌지만 기존 데이터에 남아있을 수 있어
+// 폼에서는 "기타" 텍스트로 흡수되고, 수정 시 에디션(Ent/Std/Plus)으로 재선택하면 자연 정리된다.
+const KNOWN_PRODUCT_VALUES = ['Tableau Server', 'Tableau Desktop', 'Tableau Cloud Enterprise', 'Tableau Cloud Standard', 'Tableau Cloud Plus', 'Tableau Plus', 'Tableau Next', 'Dataworks', 'AgentWorks'];
 
 async function openEditCompany(c) {
   document.querySelector('#modal-company div[style*="font-size:16px"]').textContent = '고객사 수정';
