@@ -1983,8 +1983,9 @@ textarea{resize:vertical;min-height:100px;}
       <div class="form-grid" style="gap:16px;">
         <div class="form-group">
           <label>계약명 <span class="req">*</span></label>
-          <input type="text" id="ct-name" placeholder="IN26-고객사명-16C+80V">
+          <input type="text" id="ct-name" placeholder="IN26-고객사명-16C+80V" oninput="checkContractNameDup()">
           <div class="form-hint">신규 계약은 <b>IN</b>, 갱신 계약은 <b>MR</b> + 연도 2자리로 시작합니다.</div>
+          <div id="ct-name-msg" style="font-size:11.5px;font-weight:600;margin-top:6px;display:none;"></div>
         </div>
         <div class="form-group span2">
           <label>조직 <span class="req">*</span> <span style="font-size:11px;color:var(--faint);">(사업부/부서/팀) — 이 계약이 속한 조직</span></label>
@@ -5791,6 +5792,7 @@ function openContractModal() {
   });
   document.getElementById('ct-type').value   = '';
   document.getElementById('ct-status').value = '진행중';
+  const _m = document.getElementById('ct-name-msg'); if (_m) _m.style.display = 'none';
   populateCtUnitSelect(selectedCompanyId, '');
   resetContractDropzone();
   openModal('modal-contract');
@@ -5816,6 +5818,7 @@ function openEditContractModal(ct) {
   document.getElementById('ct-bixs-contact').value   = ct.bixs_contact   || '';
   document.getElementById('ct-amount').value          = ct.amount         || '';
   document.getElementById('ct-note').value            = ct.note           || '';
+  const _m2 = document.getElementById('ct-name-msg'); if (_m2) _m2.style.display = 'none';
   populateCtUnitSelect(ct.company_id, ct.unit_id || '');
   resetContractDropzone();
   document.getElementById('ct-file-path').value = ct.file_path || '';
@@ -5831,6 +5834,55 @@ function openEditContractModal(ct) {
 // 입력 단계에서는 대소문자를 가리지 않고 받되, 저장 직전에 접두어를 대문자로 맞춰 표기를 통일한다.
 const CONTRACT_NAME_RE = /^(IN|MR)(\d{2})-/i;
 
+// 저장 규칙과 동일하게 정규화 — 앞뒤 공백 제거 + IN/MR 접두어 대문자
+function normalizeContractName(s) {
+  const t = (s || '').trim();
+  return t.replace(CONTRACT_NAME_RE, (_, pre, yy) => pre.toUpperCase() + yy + '-');
+}
+
+// 같은 고객사 안에서 계약명이 이미 있는지 확인 (수정 중이면 자기 자신 제외).
+// 있으면 그 계약 행, 없으면 null.
+async function findDuplicateContract(companyId, name, excludeId) {
+  if (!companyId || !sb) return null;
+  const { data } = await sb.from('company_contracts')
+    .select('id, contract_name, start_date, end_date, status')
+    .eq('company_id', companyId).eq('contract_name', name).limit(5);
+  const hit = (data || []).find(c => c.id !== excludeId);
+  return hit || null;
+}
+
+let _ctDupTimer = null;
+// 입력 중 실시간 확인 (타이핑 멈춤 0.4초 후). 결과를 메시지 줄 + 등록 버튼 상태에 반영.
+function checkContractNameDup() {
+  const msg = document.getElementById('ct-name-msg');
+  const btn = document.getElementById('btn-submit-contract');
+  const raw = document.getElementById('ct-name').value;
+  const companyId = document.getElementById('ct-company-id').value;
+  const editingId = document.getElementById('ct-id').value || null;
+  clearTimeout(_ctDupTimer);
+  const setMsg = (html, color, disable) => {
+    if (msg) { msg.innerHTML = html; msg.style.color = color; msg.style.display = html ? '' : 'none'; }
+    if (btn) { btn.disabled = !!disable; }
+  };
+  if (!raw.trim()) { setMsg('', '', false); return; }
+  if (!CONTRACT_NAME_RE.test(raw.trim())) {
+    setMsg('⚠ 계약명은 IN 또는 MR + 연도 2자리로 시작해야 합니다.', 'var(--red)', true); return;
+  }
+  setMsg('중복 여부 확인 중…', 'var(--faint)', true);
+  _ctDupTimer = setTimeout(async () => {
+    const name = normalizeContractName(raw);
+    const dup = await findDuplicateContract(companyId, name, editingId);
+    // 입력이 그새 바뀌었으면 무시
+    if (normalizeContractName(document.getElementById('ct-name').value) !== name) return;
+    if (dup) {
+      const period = `${(dup.start_date||'').slice(0,10)} ~ ${(dup.end_date||'').slice(0,10)} · ${dup.status||''}`;
+      setMsg(`⚠ 이 고객사에 <b>같은 계약명이 이미 있습니다.</b> (${escHtml(period)})`, 'var(--red)', true);
+    } else {
+      setMsg('✓ 사용 가능한 계약명입니다.', 'var(--green, #1f9d6b)', false);
+    }
+  }, 400);
+}
+
 async function submitContract() {
   const id         = document.getElementById('ct-id').value;
   const companyId  = document.getElementById('ct-company-id').value;
@@ -5842,6 +5894,14 @@ async function submitContract() {
     return;
   }
   name = name.replace(CONTRACT_NAME_RE, (_, pre, yy) => pre.toUpperCase() + yy + '-');
+
+  // 같은 고객사 내 계약명 중복 방지 — 등록/저장 직전 재확인(실시간 확인과 별개로 최종 차단)
+  const dup = await findDuplicateContract(companyId, name, id || null);
+  if (dup) {
+    showToast('이 고객사에 같은 계약명이 이미 있습니다: ' + name, true);
+    document.getElementById('ct-name').focus();
+    return;
+  }
 
   // 조직 확정 — 기존 조직 선택 또는 새 조직 즉석 생성
   const unitSel = document.getElementById('ct-unit');
