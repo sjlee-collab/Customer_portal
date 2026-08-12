@@ -85,6 +85,7 @@
 ## 대기 중 작업
 
 - 노션 기술지원 내역 → 포탈 배치 연동 (노션 DB 구조 확인 필요)
-- **안 쓰는 DB 컬럼 정리** (2026-07-31 조사):
-  - 코드/데이터 모두 없어 삭제 안전: `companies.email_domain/industry/notes/environment_info`, `company_contracts.document_url`, `tickets.internal_memo/salesforce_case_id`, `log_integration.reference_id` (~~`company_licenses.license_key`~~ — 2026-08-06 라이선스 키 입력 기능 추가로 이제 사용 중, 삭제 금지)
-  - 코드에서는 안 쓰지만 실데이터 있어 검토 필요: `log_notification.notification_type`, `content_documents.file_type`, `users.division`(내부 직원 소속— 화면 노출 검토 여지 있음)
+- **안 쓰는 DB 컬럼 정리** (2026-07-31 조사 → 2026-08-12 실행):
+  - **[2026-08-12 운영 RDS에서 DROP 완료]** 코드·데이터·스키마의존 모두 0으로 확인된 9개 컬럼 삭제: `companies.email_domain/industry/notes/environment_info`, `company_contracts.document_url`, `tickets.internal_memo/salesforce_case_id`, `content_documents.file_type`, `log_integration.reference_id`. (VPC 프라이빗이라 일회용 마이그레이션 Lambda로 실행 후 삭제. 드롭 전 레거시DB에서 DROP+ROLLBACK로 의존성 0 실증, RDS CRUD 무영향 확인.) schema.sql도 갱신됨.
+  - 참고: `company_licenses.license_key`는 2026-08-06 기능 추가로 사용 중(삭제 금지).
+  - **남은 후보(데이터 있어 미삭제)**: `users.division`(내부직원 소속 38건 — 백업만 해둠, 화면 노출/보존 결정 후 처리), `log_notification.notification_type`(기본값 'Slack'만, 코드 미사용). 삭제 시 데이터만 손실.

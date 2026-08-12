@@ -16,18 +16,14 @@
 create table public.companies (
   id                        uuid primary key default gen_random_uuid(),
   name                      text not null,
-  email_domain              text,
   salesforce_id             text,
   status                    text not null default 'active'
                             check (status = any (array['active','expiring_soon','expired','inactive'])),
   account_manager           text,
-  industry                  text,
-  notes                     text,
   created_at                timestamptz not null default now(),
   updated_at                timestamptz not null default now(),
   tech_support_manager      text,
   products                  text[],
-  environment_info          jsonb,
   customer_type             text,
   main_contact_name         text,
   main_contact_phone        text,
@@ -48,7 +44,6 @@ create table public.company_contracts (
   customer_contact  text,
   bixs_contact      text,
   amount            text,
-  document_url      text,
   note              text,
   created_at        timestamptz not null default now(),
   updated_at        timestamptz not null default now(),
@@ -99,8 +94,6 @@ create table public.tickets (
                       check (priority = any (array['normal','high','critical'])),
   status              text not null default 'received'
                       check (status = any (array['received','classifying','in_progress','pending_customer','on_hold','completed','cancelled'])),
-  internal_memo       text,
-  salesforce_case_id  text,
   created_at          timestamptz not null default now(),
   updated_at          timestamptz not null default now(),
   due_date            date,
@@ -112,7 +105,6 @@ create table public.tickets (
   unit_name           text
 );
 comment on table public.tickets is '고객 기술지원 요청 티켓';
-comment on column public.tickets.internal_memo is '내부 전용 메모 — 고객 화면에 절대 노출 금지';
 comment on column public.tickets.assigned_to_name is '담당자 이름 스냅샷 — assigned_to 계정이 삭제(FK SET NULL)되어도 이력 표시를 위해 보존';
 comment on column public.tickets.contract_id is '요청 등록자의 contract_id 스냅샷 — 계약 단위로 요청 목록을 스코프하기 위함. 조직(unit_id) 도입 후에는 폴백 경로.';
 comment on column public.tickets.unit_id is '요청을 등록한 조직(org_units). 요청 목록 격리의 기준 — 계약이 갱신돼도 이 값은 바뀌지 않는다.';
@@ -144,7 +136,6 @@ create table public.content_documents (
   product         text,
   file_name       text not null,
   file_size       bigint,
-  file_type       text,
   storage_path    text not null,
   is_public       boolean not null default true,
   download_count  integer not null default 0,
@@ -181,7 +172,6 @@ create table public.log_integration (
   action       text not null,
   direction    text not null check (direction = any (array['inbound','outbound'])),
   status       text not null check (status = any (array['success','failed','pending'])),
-  reference_id text,
   request      jsonb,
   response     jsonb,
   error_message text,
