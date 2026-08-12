@@ -1929,7 +1929,7 @@ textarea{resize:vertical;min-height:100px;}
             <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Tableau Cloud Plus" style="accent-color:var(--accent);"> Tableau Cloud Plus</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Tableau Plus" style="accent-color:var(--accent);"> Tableau Plus</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Tableau Next" style="accent-color:var(--accent);"> Tableau Next</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="Dataworks" style="accent-color:var(--accent);"> Dataworks</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="DataWorks" style="accent-color:var(--accent);"> DataWorks</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="co-product-chk" value="AgentWorks" style="accent-color:var(--accent);"> AgentWorks</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" id="co-product-other-chk" class="co-product-chk" value="기타" style="accent-color:var(--accent);" onchange="toggleCoProductOtherInput()"> 기타</label>
           </div>
@@ -5111,7 +5111,7 @@ function renderCompanies(companies) {
       'Tableau Cloud Plus':       { text: 'TCP', bg: '#4E93D4' },
       'Tableau Plus':             { text: 'TP',  bg: '#0E8FA8' },
       'Tableau Next':             { text: 'TN',  bg: '#6C5CE7' },
-      'Dataworks':                { text: 'DW',  bg: '#C77800' },
+      'DataWorks':                { text: 'DW',  bg: '#C77800' },
       'AgentWorks':               { text: 'AW',  bg: '#8E44AD' },
     };
     const DISPLAY_PRODUCTS = ALL_PRODUCTS;
@@ -5213,7 +5213,7 @@ function toggleCoProductOtherInput() {
 // 라이선스 입력 폼의 제품 목록과 동일 + 자사 제품(DW/AW).
 // 구 'Tableau Cloud' 단일 값은 2026-08-12에 전량(153개사) 'Tableau Cloud Standard'로 일괄 변경됨.
 // 'Tableau Desktop'은 보유 회사가 0곳이라 선택항목에서 제거(사용자 확정).
-const KNOWN_PRODUCT_VALUES = ['Tableau Server', 'Tableau Cloud Enterprise', 'Tableau Cloud Standard', 'Tableau Cloud Plus', 'Tableau Plus', 'Tableau Next', 'Dataworks', 'AgentWorks'];
+const KNOWN_PRODUCT_VALUES = ['Tableau Server', 'Tableau Cloud Enterprise', 'Tableau Cloud Standard', 'Tableau Cloud Plus', 'Tableau Plus', 'Tableau Next', 'DataWorks', 'AgentWorks'];
 
 async function openEditCompany(c) {
   document.querySelector('#modal-company div[style*="font-size:16px"]').textContent = '고객사 수정';
