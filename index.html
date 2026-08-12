@@ -496,36 +496,36 @@ textarea{resize:vertical;min-height:100px;}
 <!-- ════════════════════════════════════
      SCREEN 1: 로그인
 ════════════════════════════════════ -->
-<div id="screen-login" class="login-wrap" style="display:none;background:radial-gradient(1100px 640px at 50% -12%, rgba(160,140,255,.5), rgba(160,140,255,0) 60%), linear-gradient(135deg,#7b5ff0 0%,#6a4fe6 45%,#5a3fd6 100%);">
-  <div style="width:100%;max-width:520px;background:#fff;border-radius:24px;box-shadow:0 40px 90px rgba(40,20,90,.35);padding:52px 56px 40px;box-sizing:border-box;">
+<div id="screen-login" class="login-wrap" style="display:none;background:radial-gradient(1200px 760px at 50% -8%, rgba(170,150,255,.55), rgba(170,150,255,0) 55%), linear-gradient(150deg,#7a61ee 0%,#6a51e8 42%,#5a3fd6 100%);">
+  <div style="width:100%;max-width:600px;background:#fff;border-radius:28px;box-shadow:0 44px 100px rgba(40,20,90,.38);padding:60px 66px 46px;box-sizing:border-box;">
     <!-- 로고 -->
-    <div style="display:flex;align-items:center;justify-content:center;gap:11px;margin-bottom:26px;">
-      <span style="width:42px;height:42px;border-radius:10px;background:#26264a;color:#fff;font-weight:800;font-size:23px;display:flex;align-items:center;justify-content:center;flex:none;">B</span>
-      <span style="position:relative;font-weight:800;font-size:28px;color:#26264a;letter-spacing:-.01em;">BIG<span style="color:var(--accent);">X</span>Data<span style="position:absolute;top:-3px;right:-13px;color:var(--accent);font-size:14px;">+</span></span>
+    <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:30px;">
+      <span style="width:46px;height:46px;border-radius:11px;background:#26264a;color:#fff;font-weight:800;font-size:25px;display:flex;align-items:center;justify-content:center;flex:none;">B</span>
+      <span style="position:relative;font-weight:800;font-size:31px;color:#26264a;letter-spacing:-.01em;">BIG<span style="color:#6c5ce7;">X</span>Data<span style="position:absolute;top:-3px;right:-15px;color:#6c5ce7;font-size:16px;">+</span></span>
     </div>
-    <h1 style="font-size:21px;font-weight:800;text-align:center;margin:0 0 9px;">고객지원 포탈 로그인</h1>
-    <p style="font-size:13.5px;color:var(--muted);text-align:center;margin:0 0 30px;">빅스데이터와 계약된 고객사를 위한 전용 지원 창구입니다.</p>
+    <h1 style="font-size:22px;font-weight:800;text-align:center;margin:0 0 10px;color:#26264a;">고객지원 포탈 로그인</h1>
+    <p style="font-size:14px;color:#9797ac;text-align:center;margin:0 0 34px;">빅스데이터와 계약된 고객사를 위한 전용 지원 창구입니다.</p>
 
-    <div style="display:flex;flex-direction:column;gap:14px;">
-      <input type="email" id="login-email" placeholder="이메일 입력" onkeydown="if(event.key==='Enter')doLogin()" style="width:100%;height:56px;border:1px solid var(--border-md);border-radius:13px;padding:0 18px;font-size:15px;box-sizing:border-box;">
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <input type="email" id="login-email" placeholder="이메일 입력" onkeydown="if(event.key==='Enter')doLogin()" style="width:100%;height:60px;border:1px solid #e4e4ee;border-radius:14px;padding:0 20px;font-size:15px;color:#2b2b3a;box-sizing:border-box;">
       <div style="position:relative;">
-        <input type="password" id="login-pw" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')doLogin()" style="width:100%;height:56px;border:1px solid var(--border-md);border-radius:13px;padding:0 48px 0 18px;font-size:15px;box-sizing:border-box;">
-        <button type="button" onclick="toggleLoginPw()" aria-label="비밀번호 보기/숨기기" id="login-pw-eye-btn" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:2px;display:flex;align-items:center;color:var(--muted);">
-          <svg id="login-pw-eye" xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        <input type="password" id="login-pw" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')doLogin()" style="width:100%;height:60px;border:1px solid #e4e4ee;border-radius:14px;padding:0 50px 0 20px;font-size:15px;color:#2b2b3a;box-sizing:border-box;">
+        <button type="button" onclick="toggleLoginPw()" aria-label="비밀번호 보기/숨기기" id="login-pw-eye-btn" style="position:absolute;right:18px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:2px;display:flex;align-items:center;color:#b7b7c8;">
+          <svg id="login-pw-eye" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
       </div>
-      <div id="login-error" style="display:none;background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:9px 12px;font-size:12px;color:#DC2626;"></div>
-      <button class="btn btn-primary" onclick="doLogin()" style="width:100%;height:56px;justify-content:center;border-radius:13px;font-size:16px;font-weight:800;margin-top:4px;">로그인</button>
+      <div id="login-error" style="display:none;background:#FEF2F2;border:1px solid #FECACA;border-radius:12px;padding:9px 12px;font-size:12px;color:#DC2626;"></div>
+      <button class="btn btn-primary" onclick="doLogin()" style="width:100%;height:60px;justify-content:center;background:#6c5ce7;border:none;border-radius:14px;font-size:16px;font-weight:800;color:#fff;margin-top:6px;">로그인</button>
     </div>
 
-    <div style="margin-top:24px;text-align:center;display:flex;flex-direction:column;gap:18px;">
-      <span style="color:var(--accent);font-weight:800;font-size:14px;cursor:pointer;" onclick="goScreen('screen-forgot-password')">비밀번호를 잊으셨나요?</span>
-      <span style="color:var(--accent);font-weight:800;font-size:14px;cursor:pointer;" onclick="openModal('modal-contact-support')">계정이 없으신가요? 담당자에게 문의</span>
+    <div style="margin-top:28px;text-align:center;display:flex;flex-direction:column;gap:22px;">
+      <span style="color:#5b4fd6;font-weight:800;font-size:15px;cursor:pointer;" onclick="goScreen('screen-forgot-password')">비밀번호를 잊으셨나요?</span>
+      <span style="color:#5b4fd6;font-weight:800;font-size:15px;cursor:pointer;" onclick="openModal('modal-contact-support')">계정이 없으신가요? 담당자에게 문의</span>
     </div>
 
-    <div style="margin-top:48px;text-align:center;">
-      <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">계약 고객사 전용 서비스입니다.</div>
-      <span style="color:var(--accent);font-weight:800;font-size:13px;cursor:pointer;" onclick="openModal('modal-contact-support')">지원 정책 자세히 보기</span>
+    <div style="margin-top:68px;text-align:center;">
+      <div style="font-size:14px;color:#9797ac;margin-bottom:12px;">계약 고객사 전용 서비스입니다.</div>
+      <span style="color:#5b4fd6;font-weight:800;font-size:14px;cursor:pointer;" onclick="openModal('modal-contact-support')">지원 정책 자세히 보기</span>
     </div>
   </div>
 </div>
