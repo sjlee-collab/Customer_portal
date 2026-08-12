@@ -18,4 +18,25 @@ for dir in aws-migration/lambda/*/; do
   fi
 done
 
+# 브랜치 기준 대상 시스템 환경변수 주입 — main만 운영, 나머지(dev 포함)는 전부 개발계 취급
+branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+if [ "$branch" = "main" ]; then
+  PORTAL_ENV="prod"
+  PORTAL_URL="https://support.bigxdata.io/"
+  AMPLIFY_APP_ID="d197cwv814vb95"
+else
+  PORTAL_ENV="dev"
+  PORTAL_URL="https://dev.dlayoierdftk6.amplifyapp.com/"
+  AMPLIFY_APP_ID="dlayoierdftk6"
+fi
+
+if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
+  {
+    echo "export PORTAL_ENV=\"$PORTAL_ENV\""
+    echo "export PORTAL_URL=\"$PORTAL_URL\""
+    echo "export AMPLIFY_APP_ID=\"$AMPLIFY_APP_ID\""
+  } >> "$CLAUDE_ENV_FILE"
+fi
+
+echo "[session-start] 브랜치=$branch → 대상 시스템=$PORTAL_ENV ($PORTAL_URL)"
 echo "[session-start] 개발환경 준비 완료"
