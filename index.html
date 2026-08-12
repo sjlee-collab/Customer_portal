@@ -524,62 +524,52 @@ textarea{resize:vertical;min-height:100px;}
     </div>
 
     <div style="margin-top:68px;text-align:center;">
-      <div style="font-size:14px;color:#9797ac;margin-bottom:12px;">계약 고객사 전용 서비스입니다.</div>
-      <span style="color:#5b4fd6;font-weight:800;font-size:14px;cursor:pointer;" onclick="openModal('modal-contact-support')">지원 정책 자세히 보기</span>
+      <div style="font-size:14px;color:#9797ac;">계약 고객사 전용 서비스입니다.</div>
     </div>
   </div>
 </div>
 
 <!-- 비밀번호 재설정 요청 -->
-<div id="screen-forgot-password" class="login-wrap" style="display:none;">
-  <div class="login-split">
-    <div class="login-side">
-      <span class="login-side-mark" aria-hidden="true">B</span>
-      <div class="login-side-brand"><span class="mark">B</span>BigXData</div>
-      <div class="login-side-headline">
-        <div class="l1">비밀번호<br>재설정</div>
-        <div class="l2">가입하신 이메일로 재설정 링크를 보내드립니다.</div>
-      </div>
+<div id="screen-forgot-password" class="login-wrap" style="display:none;background:radial-gradient(1200px 900px at 12% 0%, rgba(150,120,240,.6), rgba(150,120,240,0) 52%), linear-gradient(135deg,#6a4fe0 0%,#4325bf 45%,#230c82 100%);">
+  <div style="width:100%;max-width:600px;background:#fff;border-radius:28px;box-shadow:0 44px 100px rgba(40,20,90,.38);padding:60px 66px 46px;box-sizing:border-box;">
+    <div style="display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:30px;">
+      <span style="width:38px;height:38px;border-radius:9px;background:#2e2e5e;color:#fff;font-weight:900;font-size:22px;display:flex;align-items:center;justify-content:center;flex:none;font-family:Arial,var(--sans);">B</span>
+      <span style="position:relative;font-weight:800;font-size:29px;color:#2e2e5e;letter-spacing:-.02em;font-family:Arial,var(--sans);">BIG<span style="color:#7a6bf2;">X</span>Data<span style="position:absolute;top:-5px;right:-17px;color:#9b8ef7;font-size:16px;line-height:1;">✦</span></span>
     </div>
-    <div class="login-form-side">
-      <div style="display:flex;flex-direction:column;gap:14px;">
-        <div class="form-group" id="fp-form-group">
-          <label class="login-field-label">이메일</label>
-          <input type="email" id="fp-email" placeholder="name@company.com" onkeydown="if(event.key==='Enter')requestPasswordReset()">
-        </div>
-        <div id="fp-result" style="display:none;font-size:12px;border-radius:var(--r-md);padding:9px 12px;line-height:1.6;"></div>
-        <button class="btn btn-primary" id="fp-submit-btn" style="width:100%;justify-content:center;margin-top:2px;" onclick="requestPasswordReset()">재설정 링크 받기</button>
-        <div style="text-align:center;font-size:12px;color:var(--accent);font-weight:600;cursor:pointer;" onclick="goScreen('screen-login')">← 로그인으로 돌아가기</div>
-      </div>
+    <h1 style="font-size:22px;font-weight:800;text-align:center;margin:0 0 10px;color:#26264a;">비밀번호 재설정</h1>
+    <p style="font-size:14px;color:#9797ac;text-align:center;margin:0 0 34px;">가입하신 이메일로 재설정 링크를 보내드립니다.</p>
+
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <input type="email" id="fp-email" placeholder="name@company.com" onkeydown="if(event.key==='Enter')requestPasswordReset()" style="width:100%;height:60px;border:1px solid #e4e4ee;border-radius:14px;padding:0 20px;font-size:15px;color:#2b2b3a;box-sizing:border-box;">
+      <div id="fp-result" style="display:none;font-size:12.5px;border-radius:12px;padding:10px 13px;line-height:1.6;"></div>
+      <button class="btn btn-primary" id="fp-submit-btn" onclick="requestPasswordReset()" style="width:100%;height:60px;justify-content:center;background:#6c5ce7;border:none;border-radius:14px;font-size:16px;font-weight:800;color:#fff;margin-top:6px;">재설정 링크 받기</button>
+    </div>
+
+    <div style="margin-top:28px;text-align:center;">
+      <span style="color:#5b4fd6;font-weight:800;font-size:15px;cursor:pointer;" onclick="goScreen('screen-login')">← 로그인으로 돌아가기</span>
     </div>
   </div>
 </div>
 
 <!-- 비밀번호 재설정 (메일의 링크로 진입) -->
-<div id="screen-reset-password" class="login-wrap" style="display:none;">
-  <div class="login-split">
-    <div class="login-side">
-      <span class="login-side-mark" aria-hidden="true">B</span>
-      <div class="login-side-brand"><span class="mark">B</span>BigXData</div>
-      <div class="login-side-headline">
-        <div class="l1">새 비밀번호<br>설정</div>
-        <div class="l2">새로 사용할 비밀번호를 입력해주세요.</div>
-      </div>
+<div id="screen-reset-password" class="login-wrap" style="display:none;background:radial-gradient(1200px 900px at 12% 0%, rgba(150,120,240,.6), rgba(150,120,240,0) 52%), linear-gradient(135deg,#6a4fe0 0%,#4325bf 45%,#230c82 100%);">
+  <div style="width:100%;max-width:600px;background:#fff;border-radius:28px;box-shadow:0 44px 100px rgba(40,20,90,.38);padding:60px 66px 46px;box-sizing:border-box;">
+    <div style="display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:30px;">
+      <span style="width:38px;height:38px;border-radius:9px;background:#2e2e5e;color:#fff;font-weight:900;font-size:22px;display:flex;align-items:center;justify-content:center;flex:none;font-family:Arial,var(--sans);">B</span>
+      <span style="position:relative;font-weight:800;font-size:29px;color:#2e2e5e;letter-spacing:-.02em;font-family:Arial,var(--sans);">BIG<span style="color:#7a6bf2;">X</span>Data<span style="position:absolute;top:-5px;right:-17px;color:#9b8ef7;font-size:16px;line-height:1;">✦</span></span>
     </div>
-    <div class="login-form-side">
-      <div style="display:flex;flex-direction:column;gap:14px;">
-        <div class="form-group">
-          <label class="login-field-label">새 비밀번호</label>
-          <input type="password" id="rp-pw-new" placeholder="새 비밀번호 입력" onkeydown="if(event.key==='Enter')submitPasswordReset()">
-        </div>
-        <div class="form-group">
-          <label class="login-field-label">새 비밀번호 확인</label>
-          <input type="password" id="rp-pw-confirm" placeholder="새 비밀번호 다시 입력" onkeydown="if(event.key==='Enter')submitPasswordReset()">
-        </div>
-        <div id="rp-error" style="display:none;background:#FEF2F2;border:1px solid #FECACA;border-radius:var(--r-md);padding:9px 12px;font-size:12px;color:#DC2626;"></div>
-        <button class="btn btn-primary" id="rp-submit-btn" style="width:100%;justify-content:center;margin-top:2px;" onclick="submitPasswordReset()">비밀번호 변경</button>
-        <div style="text-align:center;font-size:12px;color:var(--accent);font-weight:600;cursor:pointer;" onclick="goScreen('screen-login')">← 로그인으로 돌아가기</div>
-      </div>
+    <h1 style="font-size:22px;font-weight:800;text-align:center;margin:0 0 10px;color:#26264a;">새 비밀번호 설정</h1>
+    <p style="font-size:14px;color:#9797ac;text-align:center;margin:0 0 34px;">새로 사용할 비밀번호를 입력해주세요.</p>
+
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <input type="password" id="rp-pw-new" placeholder="새 비밀번호 입력" onkeydown="if(event.key==='Enter')submitPasswordReset()" style="width:100%;height:60px;border:1px solid #e4e4ee;border-radius:14px;padding:0 20px;font-size:15px;color:#2b2b3a;box-sizing:border-box;">
+      <input type="password" id="rp-pw-confirm" placeholder="새 비밀번호 다시 입력" onkeydown="if(event.key==='Enter')submitPasswordReset()" style="width:100%;height:60px;border:1px solid #e4e4ee;border-radius:14px;padding:0 20px;font-size:15px;color:#2b2b3a;box-sizing:border-box;">
+      <div id="rp-error" style="display:none;background:#FEF2F2;border:1px solid #FECACA;border-radius:12px;padding:9px 12px;font-size:12px;color:#DC2626;"></div>
+      <button class="btn btn-primary" id="rp-submit-btn" onclick="submitPasswordReset()" style="width:100%;height:60px;justify-content:center;background:#6c5ce7;border:none;border-radius:14px;font-size:16px;font-weight:800;color:#fff;margin-top:6px;">비밀번호 변경</button>
+    </div>
+
+    <div style="margin-top:28px;text-align:center;">
+      <span style="color:#5b4fd6;font-weight:800;font-size:15px;cursor:pointer;" onclick="goScreen('screen-login')">← 로그인으로 돌아가기</span>
     </div>
   </div>
 </div>
