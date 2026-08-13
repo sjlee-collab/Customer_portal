@@ -3166,7 +3166,11 @@ function fitListHeight() {
       page.querySelectorAll('.tbl-scroll.list-scroll').forEach(scroll => {
         if (scroll.offsetParent === null) return;
         const top = scroll.getBoundingClientRect().top;
-        if (top > 0) { scroll.style.maxHeight = 'none'; scroll.style.height = Math.max(200, bodyBottom - top) + 'px'; }
+        // 같은 카드 안에 페이지네이션 바가 있으면 그 높이만큼 남겨 화면 밖으로 밀리지 않게 한다.
+        let reserve = 0;
+        const pager = scroll.parentElement?.querySelector(':scope > [id$="-pager"]');
+        if (pager && pager.offsetParent !== null) reserve = pager.offsetHeight;
+        if (top > 0) { scroll.style.maxHeight = 'none'; scroll.style.height = Math.max(200, bodyBottom - top - reserve) + 'px'; }
       });
     });
   });
