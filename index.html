@@ -1033,14 +1033,25 @@ textarea{resize:vertical;min-height:100px;}
       <!-- 자료 다운로드 패널 -->
       <div id="lib-panel-files">
       <div class="filter-bar">
-        <input class="search-box" id="lib-search" placeholder="자료명 검색..." oninput="renderLibFiles()">
-        <span class="filter-chip active" onclick="setLibCategory('',this)">전체</span>
-        <span class="filter-chip" onclick="setLibCategory('tableau',this)">Tableau Desktop</span>
-        <span class="filter-chip" onclick="setLibCategory('tableau-server',this)">Tableau Server</span>
-        <span class="filter-chip" onclick="setLibCategory('tableau-cloud',this)">Tableau Cloud</span>
-        <span class="filter-chip" onclick="setLibCategory('tableau-prep',this)">Tableau Prep</span>
-        <span class="filter-chip" onclick="setLibCategory('edu',this)">교육</span>
-        <span class="filter-chip" onclick="setLibCategory('product-intro',this)">제품 소개서</span>
+        <div class="search-wrap">
+          <input class="search-box" id="lib-search" placeholder="카테고리 / 자료명으로 검색" oninput="renderLibFiles()" onkeydown="if(event.key==='Enter')renderLibFiles()">
+          <button class="search-go" onclick="renderLibFiles()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg>검색</button>
+        </div>
+        <div class="flt-wrap">
+          <button class="th-filter-btn flt-btn" onclick="toggleLibFilterPop(this,'files')"><span class="flt-label" id="lib-files-flt-label">전체 카테고리</span> <span class="th-filter-caret">▾</span></button>
+          <div class="th-filter-pop" id="lib-files-pop">
+            <div class="th-filter-foot">
+              <button class="th-filter-clear" onclick="clearLibFilter('files')">초기화</button>
+              <button class="th-filter-apply" onclick="applyLibFilter('files')">적용</button>
+            </div>
+            <label class="th-filter-opt"><input type="checkbox" value="tableau"> Tableau Desktop</label>
+            <label class="th-filter-opt"><input type="checkbox" value="tableau-server"> Tableau Server</label>
+            <label class="th-filter-opt"><input type="checkbox" value="tableau-cloud"> Tableau Cloud</label>
+            <label class="th-filter-opt"><input type="checkbox" value="tableau-prep"> Tableau Prep</label>
+            <label class="th-filter-opt"><input type="checkbox" value="edu"> 교육</label>
+            <label class="th-filter-opt"><input type="checkbox" value="product-intro"> 제품 소개서</label>
+          </div>
+        </div>
       </div>
       <div class="card" style="padding:0;overflow:hidden;">
         <div class="tbl-scroll list-scroll"><table class="tbl tbl-fit">
@@ -1056,14 +1067,25 @@ textarea{resize:vertical;min-height:100px;}
       <!-- FAQ 패널 -->
       <div id="lib-panel-faq" style="display:none;">
       <div class="filter-bar">
-        <input class="search-box" id="lib-faq-search" placeholder="질문 검색..." oninput="renderLibFaq()">
-        <span class="filter-chip active" onclick="setLibFaqCategory('',this)">전체</span>
-        <span class="filter-chip" onclick="setLibFaqCategory('tableau',this)">Tableau Desktop</span>
-        <span class="filter-chip" onclick="setLibFaqCategory('tableau-server',this)">Tableau Server</span>
-        <span class="filter-chip" onclick="setLibFaqCategory('tableau-cloud',this)">Tableau Cloud</span>
-        <span class="filter-chip" onclick="setLibFaqCategory('tableau-prep',this)">Tableau Prep</span>
-        <span class="filter-chip" onclick="setLibFaqCategory('edu',this)">교육</span>
-        <span class="filter-chip" onclick="setLibFaqCategory('product-intro',this)">제품 소개서</span>
+        <div class="search-wrap">
+          <input class="search-box" id="lib-faq-search" placeholder="카테고리 / 질문으로 검색" oninput="renderLibFaq()" onkeydown="if(event.key==='Enter')renderLibFaq()">
+          <button class="search-go" onclick="renderLibFaq()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg>검색</button>
+        </div>
+        <div class="flt-wrap">
+          <button class="th-filter-btn flt-btn" onclick="toggleLibFilterPop(this,'faq')"><span class="flt-label" id="lib-faq-flt-label">전체 카테고리</span> <span class="th-filter-caret">▾</span></button>
+          <div class="th-filter-pop" id="lib-faq-pop">
+            <div class="th-filter-foot">
+              <button class="th-filter-clear" onclick="clearLibFilter('faq')">초기화</button>
+              <button class="th-filter-apply" onclick="applyLibFilter('faq')">적용</button>
+            </div>
+            <label class="th-filter-opt"><input type="checkbox" value="tableau"> Tableau Desktop</label>
+            <label class="th-filter-opt"><input type="checkbox" value="tableau-server"> Tableau Server</label>
+            <label class="th-filter-opt"><input type="checkbox" value="tableau-cloud"> Tableau Cloud</label>
+            <label class="th-filter-opt"><input type="checkbox" value="tableau-prep"> Tableau Prep</label>
+            <label class="th-filter-opt"><input type="checkbox" value="edu"> 교육</label>
+            <label class="th-filter-opt"><input type="checkbox" value="product-intro"> 제품 소개서</label>
+          </div>
+        </div>
       </div>
       <div class="card" style="padding:0;overflow:hidden;">
         <div class="tbl-scroll list-scroll"><table class="tbl tbl-fit">
@@ -8374,8 +8396,8 @@ function switchLibTab() {
 
 // ── 자료실 (고객용) DB 연동 ─────────────────────────────────────
 let allLibDocs = [];
-let libProductFilter = '';
-let libFaqCatFilter = '';
+let libFilesCats = [];
+let libFaqCats = [];
 
 const DOC_CAT_ICON = { tableau:'📊', 'tableau-server':'🖥️', 'tableau-cloud':'☁️', 'tableau-prep':'🧹', edu:'🎓', 'product-intro':'📄', faq:'❓' };
 const DOC_CAT_LABEL_KO = { tableau:'Tableau Desktop', 'tableau-server':'Tableau Server', 'tableau-cloud':'Tableau Cloud', 'tableau-prep':'Tableau Prep', edu:'교육', 'product-intro':'제품 소개서', faq:'FAQ' };
@@ -8415,18 +8437,47 @@ function switchLibDisplayTab(tab) {
   setTimeout(fitListHeight, 0);
 }
 
-function setLibCategory(cat, el) {
-  libProductFilter = cat;
-  document.querySelectorAll('#lib-panel-files .filter-chip').forEach(c => c.classList.remove('active'));
-  if (el) el.classList.add('active');
-  renderLibFiles();
+// 자료실 카테고리 필터 — 요청 화면과 같은 드롭다운(다중 선택) 방식.
+// .th-filter-pop 클래스를 그대로 써서 외부 클릭 시 closeAllArFilterPops로 함께 닫힌다.
+function toggleLibFilterPop(btn, key) {
+  const pop = document.getElementById('lib-' + key + '-pop');
+  if (!pop) return;
+  const isOpen = pop.classList.contains('open');
+  closeAllArFilterPops();
+  if (!isOpen) {
+    const cur = key === 'files' ? libFilesCats : libFaqCats;
+    pop.querySelectorAll('input[type=checkbox]').forEach(cb => { cb.checked = cur.includes(cb.value); });
+    pop.classList.add('open');
+    btn.classList.add('active');
+  }
 }
 
-function setLibFaqCategory(cat, el) {
-  libFaqCatFilter = cat;
-  document.querySelectorAll('#lib-panel-faq .filter-chip').forEach(c => c.classList.remove('active'));
-  if (el) el.classList.add('active');
-  renderLibFaq();
+function applyLibFilter(key) {
+  const pop = document.getElementById('lib-' + key + '-pop');
+  if (!pop) return;
+  const vals = [...pop.querySelectorAll('input:checked')].map(el => el.value);
+  if (key === 'files') libFilesCats = vals; else libFaqCats = vals;
+  closeAllArFilterPops();
+  updateLibFilterLabel(key);
+  if (key === 'files') renderLibFiles(); else renderLibFaq();
+}
+
+function clearLibFilter(key) {
+  const pop = document.getElementById('lib-' + key + '-pop');
+  if (pop) pop.querySelectorAll('input').forEach(el => el.checked = false);
+  if (key === 'files') libFilesCats = []; else libFaqCats = [];
+  closeAllArFilterPops();
+  updateLibFilterLabel(key);
+  if (key === 'files') renderLibFiles(); else renderLibFaq();
+}
+
+function updateLibFilterLabel(key) {
+  const label = document.getElementById('lib-' + key + '-flt-label');
+  if (!label) return;
+  const cur = key === 'files' ? libFilesCats : libFaqCats;
+  label.textContent = cur.length === 0 ? '전체 카테고리'
+    : cur.length === 1 ? (DOC_CAT_LABEL_KO[cur[0]] || cur[0])
+    : `카테고리 ${cur.length}`;
 }
 
 function libRowActions(d, isAdmin, isPublic) {
@@ -8450,8 +8501,9 @@ function renderLibFiles() {
   const list = allLibDocs.filter(d => {
     if (d.product === 'faq') return false;
     if (!isAdmin && !d.is_public) return false;
-    const matchCat = !libProductFilter || (d.category || '') === libProductFilter;
-    const matchQ = !q || (d.title||'').toLowerCase().includes(q) || (d.file_name||'').toLowerCase().includes(q);
+    const matchCat = !libFilesCats.length || libFilesCats.includes(d.category || '');
+    const catLabel = (DOC_CAT_LABEL_KO[d.category] || '').toLowerCase();
+    const matchQ = !q || (d.title||'').toLowerCase().includes(q) || (d.file_name||'').toLowerCase().includes(q) || catLabel.includes(q);
     return matchCat && matchQ;
   });
 
@@ -8518,8 +8570,9 @@ function renderLibFaq() {
   const list = allLibDocs.filter(d => {
     if (d.product !== 'faq') return false;
     if (!isAdmin && !d.is_public) return false;
-    if (libFaqCatFilter && d.category !== libFaqCatFilter) return false;
-    return !q || (d.title||'').toLowerCase().includes(q) || (d.description||'').toLowerCase().includes(q);
+    if (libFaqCats.length && !libFaqCats.includes(d.category)) return false;
+    const catLabel = (DOC_CAT_LABEL_KO[d.category] || '').toLowerCase();
+    return !q || (d.title||'').toLowerCase().includes(q) || (d.description||'').toLowerCase().includes(q) || catLabel.includes(q);
   });
 
   if (!list.length) {
