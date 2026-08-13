@@ -1816,13 +1816,13 @@ textarea{resize:vertical;min-height:100px;}
 
 <!-- ════ 새 요청 등록 모달 ════ -->
 <div id="modal-new" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.35);align-items:center;justify-content:center;">
-  <div class="modal-box" style="background:var(--surface);border-radius:var(--r-lg);width:560px;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+  <div class="modal-box" style="background:var(--surface);border-radius:var(--r-lg);width:720px;max-width:calc(100vw - 32px);max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
     <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
       <div style="font-size:16px;font-weight:800;">요청</div>
       <button onclick="closeModal('modal-new')" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--faint);">✕</button>
     </div>
-    <div style="padding:24px;">
-      <div class="form-grid" style="gap:16px;">
+    <div style="padding:18px 22px;">
+      <div class="form-grid" style="gap:11px 16px;">
         <div class="form-group span2">
           <label>요청 제목 <span class="req">*</span></label>
           <input type="text" id="f-title" placeholder="문제를 간략하게 설명해 주세요">
@@ -1858,40 +1858,32 @@ textarea{resize:vertical;min-height:100px;}
             <option value="critical">긴급</option>
           </select>
         </div>
+        <div class="form-group" id="nw-org-group" style="display:none;">
+          <label>요청 조직 <span class="req">*</span> <span style="font-size:10.5px;color:var(--faint);font-weight:400;">(사업부/팀/부서)</span></label>
+          <select id="nw-org"></select>
+        </div>
         <div class="form-group span2">
           <label>요청 내용 <span class="req">*</span></label>
-          <textarea placeholder="문제 상황, 오류 메시지, 재현 방법 등을 자세히 설명해 주세요." style="min-height:120px;"></textarea>
+          <textarea placeholder="문제 상황, 오류 메시지, 재현 방법 등을 자세히 설명해 주세요." style="min-height:80px;"></textarea>
         </div>
         <div class="form-group span2">
           <label>첨부 파일</label>
           <input type="file" id="f-attach" multiple accept="image/*,.pdf,.log,.txt,.zip,.xlsx,.docx" style="display:none;" onchange="handleFileSelect(this)">
-          <div class="file-drop" onclick="document.getElementById('f-attach').click()"
+          <div class="file-drop" style="padding:10px 12px;" onclick="document.getElementById('f-attach').click()"
                ondragover="event.preventDefault();this.style.borderColor='var(--accent-m)'"
                ondragleave="this.style.borderColor=''"
                ondrop="event.preventDefault();this.style.borderColor='';handleFileDrop(event)">
-            <div id="file-drop-label">📎 파일을 드래그하거나 클릭하여 업로드<br>
-            <span style="font-size:11px;color:var(--faint);">오류 화면, 로그 파일 등 (최대 10MB)</span></div>
-            <div id="file-list" style="margin-top:8px;font-size:12px;text-align:left;"></div>
+            <div id="file-drop-label" style="font-size:12.5px;">📎 파일을 드래그하거나 클릭하여 업로드 <span style="font-size:11px;color:var(--faint);">· 오류화면·로그 등 (최대 10MB)</span></div>
+            <div id="file-list" style="margin-top:6px;font-size:12px;text-align:left;"></div>
           </div>
         </div>
-        <div class="form-group">
-          <label>고객사</label>
-          <input type="text" id="nw-company" class="auto-field" readonly>
-          <div class="form-hint">로그인 계정 기준 자동 입력</div>
+        <div class="form-group span2">
+          <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;background:var(--surface2);border-radius:var(--r-md);padding:9px 12px;font-size:12.5px;">
+            <span><span style="color:var(--faint);margin-right:5px;">고객사</span><b id="nw-company-txt"></b><input type="text" id="nw-company" style="display:none;" readonly></span>
+            <span><span style="color:var(--faint);margin-right:5px;">연락처</span><b id="nw-contact-txt"></b><input type="text" id="nw-contact" style="display:none;" readonly></span>
+            <span style="margin-left:auto;font-size:11px;color:var(--faint);">로그인 계정 기준 자동 입력 · 접수 확인 메일 자동 발송</span>
+          </div>
         </div>
-        <div class="form-group">
-          <label>연락처</label>
-          <input type="text" id="nw-contact" class="auto-field" readonly>
-          <div class="form-hint">마이페이지에서 변경 가능</div>
-        </div>
-        <div class="form-group span2" id="nw-org-group" style="display:none;">
-          <label>요청 조직(사업부/팀/부서) <span class="req">*</span></label>
-          <select id="nw-org"></select>
-          <div class="form-hint">여러 조직을 담당하고 있어, 이 요청이 어느 조직 건인지 선택해 주세요.</div>
-        </div>
-      </div>
-      <div style="background:var(--surface2);border-radius:var(--r-md);padding:12px;margin-top:16px;font-size:12px;color:var(--muted);">
-        📧 요청 등록 시 접수 확인 메일이 자동 발송됩니다.
       </div>
     </div>
     <div style="padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;">
@@ -3960,8 +3952,14 @@ function openModal(id) {
   if (id === 'modal-new') {
     const companyEl = document.getElementById('nw-company');
     const contactEl = document.getElementById('nw-contact');
-    if (companyEl && currentUser) companyEl.value = currentUser.company || '';
-    if (contactEl && currentUser) contactEl.value = currentUser.phone || '';
+    const companyTxt = document.getElementById('nw-company-txt');
+    const contactTxt = document.getElementById('nw-contact-txt');
+    const _co = (currentUser && currentUser.company) || '';
+    const _ph = (currentUser && currentUser.phone) || '';
+    if (companyEl) companyEl.value = _co;
+    if (contactEl) contactEl.value = _ph;
+    if (companyTxt) companyTxt.textContent = _co || '—';
+    if (contactTxt) contactTxt.textContent = _ph || '—';
     // 요청 조직 선택기: 조직 2개 이상 배정된 고객에게만 노출(1개면 서버가 대표로 자동 스냅샷)
     const orgGroup = document.getElementById('nw-org-group');
     const orgSel = document.getElementById('nw-org');
