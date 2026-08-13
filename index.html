@@ -1182,6 +1182,7 @@ textarea{resize:vertical;min-height:100px;}
                 <button class="th-filter-btn" onclick="toggleArFilterPop(this,'company')">고객사 <span class="th-filter-caret">▾</span></button>
                 <div class="th-filter-pop" id="ar-pop-company"><div class="th-filter-empty">불러오는 중...</div></div>
               </th>
+              <th style="padding:8px 12px;">조직</th>
               <th>
                 <button class="th-filter-btn" onclick="toggleArFilterPop(this,'requester')">요청자 <span class="th-filter-caret">▾</span></button>
                 <div class="th-filter-pop" id="ar-pop-requester"><div class="th-filter-empty">불러오는 중...</div></div>
@@ -1195,7 +1196,7 @@ textarea{resize:vertical;min-height:100px;}
               <th style="padding:8px 12px;width:80px;">액션</th>
             </tr></thead>
             <tbody id="ar-tbody">
-              <tr><td colspan="8" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
+              <tr><td colspan="12" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
             </tbody>
           </table></div>
           <div style="padding:12px 18px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:flex-end;gap:10px;background:var(--surface2);flex-shrink:0;">
@@ -7335,7 +7336,7 @@ async function loadAllTickets(silent = false) {
   }
 
   let q = sb.from('tickets')
-    .select('id, ticket_number, title, category, priority, status, created_at, due_date, assigned_to_name, company_name, created_by_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name,email)')
+    .select('id, ticket_number, title, category, priority, status, created_at, due_date, unit_name, assigned_to_name, company_name, created_by_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name,email)')
     .order('created_at', { ascending: false })
     .limit(1000);
 
@@ -7438,7 +7439,7 @@ function renderAllTickets() {
   if (pageCount) pageCount.textContent = totalPages;
 
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">조건에 맞는 요청이 없습니다.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">조건에 맞는 요청이 없습니다.</td></tr>';
     return;
   }
   tbody.innerHTML = pageList.map((t) => {
@@ -7450,13 +7451,14 @@ function renderAllTickets() {
     const priL      = PRIORITY_LABELS[t.priority]  || '일반';
     const priB      = PRIORITY_BADGE[t.priority]   || 'b-gray';
     const company   = t.company?.name ? escHtml(t.company.name) : t.company_name ? escHtml(t.company_name) : '<span style="color:var(--faint);">—</span>';
+    const org       = t.unit_name ? escHtml(t.unit_name) : '<span style="color:var(--faint);">—</span>';
     const requester = t.requester?.name ? escHtml(t.requester.name) : t.created_by_name ? escHtml(t.created_by_name) : '<span style="color:var(--faint);">—</span>';
     const asgn      = t.assignee?.name ? escHtml(t.assignee.name)
                       : t.assigned_to_name ? escHtml(t.assigned_to_name) + ' <span style="color:var(--faint);font-size:10px;">(탈퇴)</span>'
                       : '<span style="color:var(--faint);">미배정</span>';
     const date    = (t.created_at||'').slice(0,10);
     const dueDate = t.due_date ? t.due_date.slice(0,10) : '<span style="color:var(--faint);">—</span>';
-    return `<tr class="ar-spacer" style="display:none;"><td colspan="11" style="padding:0;border:none;height:14px;"></td></tr>
+    return `<tr class="ar-spacer" style="display:none;"><td colspan="12" style="padding:0;border:none;height:14px;"></td></tr>
     <tr class="ticket-row" style="cursor:pointer;" data-id="${t.id}" onclick="toggleAllTicketRow(this, allMgTickets[${idx}])">
       <td style="color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;font-size:12px;">${escHtml(t.ticket_number||'—')}</td>
       <td style="font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(t.title||'')}<span class="row-arrow">▾</span></td>
@@ -7464,6 +7466,7 @@ function renderAllTickets() {
       <td><span class="badge ${priB}">${priL}</span></td>
       <td><span class="badge ${statB}">${statL}</span></td>
       <td style="font-size:12px;">${company}</td>
+      <td style="font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(t.unit_name||'')}">${org}</td>
       <td style="font-size:12px;">${requester}</td>
       <td style="font-size:12px;">${asgn}</td>
       <td style="color:var(--faint);font-size:12px;">${date}</td>
@@ -7471,9 +7474,9 @@ function renderAllTickets() {
       <td><button class="btn btn-primary btn-sm" style="font-size:11px;" onclick="event.stopPropagation();openManage(${idx})">처리</button></td>
     </tr>
     <tr class="ticket-detail-row" style="display:none;">
-      <td colspan="11"></td>
+      <td colspan="12"></td>
     </tr>
-    <tr class="ar-spacer" style="display:none;"><td colspan="11" style="padding:0;border:none;height:14px;"></td></tr>`;
+    <tr class="ar-spacer" style="display:none;"><td colspan="12" style="padding:0;border:none;height:14px;"></td></tr>`;
   }).join('');
 }
 
