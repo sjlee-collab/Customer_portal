@@ -316,16 +316,24 @@ textarea{resize:vertical;min-height:100px;}
 
 /* ── section header ── */
 .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
-.section-title{font-size:16px;font-weight:800;}
+.section-title{font-size:19px;font-weight:700;}
 .section-sub{font-size:13px;color:var(--muted);margin-top:2px;}
 
 /* ── filter bar ── */
-.filter-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
-.filter-chip{padding:5px 14px;border-radius:99px;font-size:12px;font-weight:600;border:1px solid var(--border-md);background:var(--surface);color:var(--muted);cursor:pointer;transition:.12s;}
-.filter-chip.active{background:var(--accent-l);color:var(--accent-d);border-color:var(--accent-m);}
-.filter-chip:hover:not(.active){background:var(--surface2);}
-.search-box{flex:1;min-width:200px;padding:7px 12px;border:1px solid var(--border-md);border-radius:var(--r-md);font-size:13px;font-family:inherit;outline:none;}
-.search-box:focus{border-color:var(--accent);}
+.filter-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+/* 시안의 필터는 알약이 아니라 각진 버튼 — 활성 시 인디고로 채워지고 살짝 떠 보인다. */
+.filter-chip{padding:7px 13px;border-radius:var(--r-md);font-size:12px;font-weight:600;border:1px solid var(--border-md);background:var(--surface);color:var(--muted);cursor:pointer;transition:.12s;}
+.filter-chip.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 1px 2px rgba(79,70,229,.3);}
+.filter-chip:hover:not(.active){border-color:var(--accent-m);color:var(--accent);}
+/* 검색창 — 시안대로 왼쪽에 돋보기를 배경 SVG로 심는다(마크업 수정 없이 전 검색창 공통 적용).
+   CSP img-src에 data:가 허용돼 있어 외부 요청 없이 그려진다. */
+.search-box{flex:1;min-width:200px;padding:9px 12px 9px 34px;border:1px solid var(--border-md);border-radius:var(--r-lg);font-size:13px;font-family:inherit;outline:none;background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath stroke-linecap='round' d='M21 21l-4.35-4.35'/%3E%3C/svg%3E") no-repeat 12px center;transition:.12s;}
+.search-box:focus{border-color:var(--accent-m);box-shadow:var(--shadow-sm);}
+/* 요청 목록 검색창 — 시안의 "검색창 안에 인디고 검색 버튼" 형태. */
+.search-wrap{flex:1;min-width:220px;position:relative;display:flex;align-items:center;}
+.search-wrap .search-box{width:100%;padding-right:76px;}
+.search-go{position:absolute;right:6px;display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border:none;border-radius:var(--r-md);background:var(--accent);color:#fff;font-size:11.5px;font-weight:700;cursor:pointer;box-shadow:0 1px 2px rgba(79,70,229,.3);transition:.12s;}
+.search-go:hover{background:var(--accent-d);}
 
 /* ── reply box ── */
 .reply-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);padding:16px;}
@@ -764,7 +772,7 @@ textarea{resize:vertical;min-height:100px;}
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:400px 1fr;gap:16px;align-items:stretch;height:calc(100vh - 300px);">
+      <div style="display:grid;grid-template-columns:380px 1fr;gap:16px;align-items:stretch;height:calc(100vh - 300px);">
         <div class="card dash-notice-card" style="display:none;flex-direction:column;overflow:hidden;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-shrink:0;">
             <div class="card-title" style="margin-bottom:0;">📢 공지사항</div>
@@ -774,7 +782,7 @@ textarea{resize:vertical;min-height:100px;}
         <div class="card" style="display:flex;flex-direction:column;overflow:hidden;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-shrink:0;">
             <div class="card-title" style="margin-bottom:0;">최근 요청건</div>
-            <button class="btn btn-primary btn-sm" data-show-roles="customer,internal" data-perm="ticket_create" onclick="openModal('modal-new')">+ 빠른 요청 생성</button>
+            <button class="btn btn-primary btn-sm" data-show-roles="customer,internal" data-perm="ticket_create" onclick="openModal('modal-new')">+ 새 요청 등록</button>
           </div>
           <div class="tbl-scroll list-scroll" style="flex:1;min-height:0;overflow:hidden;"><table class="tbl">
             <thead><tr>
@@ -797,7 +805,7 @@ textarea{resize:vertical;min-height:100px;}
             <div class="stat dash-kpi-card" data-filter="done" style="cursor:pointer;" onclick="toggleDashFilter('done')"><div class="stat-label">처리 완료 (오늘)</div><div class="stat-val" style="color:var(--green);" id="dash-admin-done-val">—</div><div class="stat-sub"></div></div>
             <div class="stat"><div class="stat-label">전체 고객사</div><div class="stat-val" id="dash-admin-companies-val">—</div><div class="stat-sub" id="dash-admin-companies-sub"></div></div>
           </div>
-          <div style="display:grid;grid-template-columns:400px 1fr;gap:16px;align-items:stretch;height:calc(100vh - 300px);">
+          <div style="display:grid;grid-template-columns:380px 1fr;gap:16px;align-items:stretch;height:calc(100vh - 300px);">
             <div class="card dash-notice-card" style="display:none;flex-direction:column;overflow:hidden;">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-shrink:0;">
                 <div class="card-title" style="margin-bottom:0;">📢 공지사항</div>
@@ -859,7 +867,10 @@ textarea{resize:vertical;min-height:100px;}
         <button class="btn btn-primary" id="btn-new-request" data-show-roles="customer,internal" data-perm="ticket_create" onclick="openModal('modal-new')">+ 새 요청 등록</button>
       </div>
       <div class="filter-bar">
-        <input class="search-box" id="ticket-search" placeholder="요청 번호, 제목 검색..." oninput="applyTicketFilter()">
+        <div class="search-wrap">
+          <input class="search-box" id="ticket-search" placeholder="요청 번호 / 제목 / 고객사 / 요청자 / 담당자 로 검색" oninput="applyTicketFilter()" onkeydown="if(event.key==='Enter')applyTicketFilter()">
+          <button class="search-go" onclick="applyTicketFilter()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg>검색</button>
+        </div>
         <span class="filter-chip active" onclick="setTicketFilter('all',this)">전체</span>
         <span class="filter-chip" onclick="setTicketFilter('active',this)">처리 중</span>
         <span class="filter-chip" onclick="setTicketFilter('completed',this)">완료</span>
@@ -4657,7 +4668,9 @@ function jumpTkPage(val) {
 function applyTicketFilter() {
   const q = (document.getElementById('ticket-search')?.value || '').trim().toLowerCase();
   const filtered = allTickets.filter(t => {
-    if (q && !(t.ticket_number + ' ' + t.title).toLowerCase().includes(q)) return false;
+    // 검색창 플레이스홀더가 약속하는 범위 그대로: 번호·제목·고객사·요청자·담당자
+    if (q && !([t.ticket_number, t.title, t.company_name, t.created_by_name, t.assigned_to_name]
+      .filter(Boolean).join(' ').toLowerCase().includes(q))) return false;
     if (ticketFilter === 'active' && !['received','classifying','assigned','in_progress','pending_customer','on_hold'].includes(t.status)) return false;
     if (ticketFilter === 'completed' && t.status !== 'completed') return false;
     if (ticketFilter !== 'all' && ticketFilter !== 'active' && ticketFilter !== 'completed' && t.category !== ticketFilter) return false;
