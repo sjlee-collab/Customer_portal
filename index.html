@@ -1056,7 +1056,7 @@ textarea{resize:vertical;min-height:100px;}
       <div class="card" style="padding:0;overflow:hidden;">
         <div class="tbl-scroll list-scroll"><table class="tbl tbl-fit">
           <colgroup><col style="width:9%"><col style="width:28%"><col style="width:16%"><col style="width:9%"><col style="width:10%"><col style="width:28%"></colgroup>
-          <thead><tr><th>카테고리</th><th>제목</th><th>파일명</th><th>다운로드</th><th>등록일</th><th>액션</th></tr></thead>
+          <thead><tr><th>카테고리</th><th>제목</th><th>파일명</th><th style="text-align:center;">다운로드</th><th>등록일</th><th>액션</th></tr></thead>
           <tbody id="lib-files-tbody">
             <tr><td colspan="6" style="padding:40px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
           </tbody>
@@ -1511,7 +1511,7 @@ textarea{resize:vertical;min-height:100px;}
           <div class="card" style="padding:0;overflow:hidden;">
             <div class="tbl-scroll list-scroll"><table class="tbl tbl-fit">
               <colgroup><col style="width:26%"><col style="width:9%"><col style="width:15%"><col style="width:8%"><col style="width:8%"><col style="width:10%"><col style="width:24%"></colgroup>
-              <thead><tr><th>제목</th><th>카테고리</th><th>파일명</th><th>공개</th><th>다운로드</th><th>등록일</th><th>작업</th></tr></thead>
+              <thead><tr><th>제목</th><th>카테고리</th><th>파일명</th><th>공개</th><th style="text-align:center;">다운로드</th><th>등록일</th><th>작업</th></tr></thead>
               <tbody id="docs-tbody">
                 <tr><td colspan="7" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
               </tbody>
@@ -3436,7 +3436,7 @@ function renderDocsFiles() {
       <td class="tbl-ellipsis"><span class="badge b-blue">${DOC_CATEGORY_LABEL[d.category] || d.category}</span></td>
       <td class="tbl-ellipsis" style="font-size:12px;color:var(--faint);">${escHtml(d.file_name || '-')}</td>
       <td class="tbl-ellipsis"><span class="badge ${d.is_public ? 'b-green' : 'b-gray'}">${d.is_public ? '공개' : '비공개'}</span></td>
-      <td style="font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;" id="dl-count-docs-${d.id}">${(d.download_count || 0).toLocaleString()}</td>
+      <td style="font-variant-numeric:tabular-nums;text-align:center;white-space:nowrap;" id="dl-count-docs-${d.id}">${(d.download_count || 0).toLocaleString()}</td>
       <td style="font-size:12px;color:var(--faint);white-space:nowrap;">${(d.created_at || '').slice(0,10)}</td>
       <td style="overflow:hidden;">${docRowActions(d)}</td>
     </tr>`).join('');
@@ -8529,7 +8529,7 @@ function renderLibFiles() {
         ${d.description ? `<div class="tbl-ellipsis" style="font-size:11px;color:var(--faint);margin-top:2px;">${escHtml(stripHtml(d.description))}</div>` : ''}
       </td>
       <td class="tbl-ellipsis" style="font-size:12px;color:var(--faint);">${(isAdmin || isPublic) ? escHtml(d.file_name || '-') : '—'}</td>
-      <td style="font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;" id="dl-count-lib-${d.id}">${(d.download_count || 0).toLocaleString()}</td>
+      <td style="font-variant-numeric:tabular-nums;text-align:center;white-space:nowrap;" id="dl-count-lib-${d.id}">${(d.download_count || 0).toLocaleString()}</td>
       <td style="white-space:nowrap;color:var(--faint);">${(d.created_at || '').slice(0,10)}</td>
       <td style="overflow:hidden;">${libRowActions(d, isAdmin, isPublic)}</td>
     </tr>`;
