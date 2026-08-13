@@ -7726,30 +7726,73 @@ async function selectRdTicket(idx, directTicket) {
   }
 }
 
-// 요청 등록 시점에 스냅샷된 조직(tickets.unit_name)/계약(contract_id)을 사이드바에 표시.
-// 조직 스냅샷이 있으면 조직명을 우선 보여주고(신규 조직 기반 티켓), 없으면 기존 계약을 보여준다.
+// 사이드바 "연동 계약" — 조직명 대신 실제 계약건을 표시한다.
+// 만료(status='만료') 계약은 제외하고 현재 유효한 계약만 보여준다.
+// 요청 조직(unit_id)이 있으면 그 조직 계약으로 범위를 좁히고, 요청에 스냅샷된
+// 계약(contract_id)은 "대표"로 맨 위에 고정한다. 유효 계약이 여러 건이면 목록으로 나열.
 const RD_CONTRACT_STATUS_BADGE = { 진행중:'b-accent', 완료:'b-green', 협의중:'b-amber', 해지:'b-red', 만료:'b-gray' };
+function _rdContractPeriod(c) {
+  const s = (c.start_date || '').slice(0, 10);
+  const e = (c.end_date || '').slice(0, 10);
+  if (!s && !e) return '';
+  return `${s || '?'} ~ ${e || '?'}`;
+}
+function _rdContractRow(c, isRep, opts) {
+  opts = opts || {};
+  const period = _rdContractPeriod(c);
+  const rep = isRep ? ' <span style="font-size:9px;font-weight:800;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:0 4px;vertical-align:1px;">대표</span>' : '';
+  const badge = `<span class="badge ${RD_CONTRACT_STATUS_BADGE[c.status] || 'b-gray'}">${escHtml(c.status || '—')}</span>`;
+  return `<div style="display:flex;flex-direction:column;gap:2px;${opts.border || ''}">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span>${escHtml(c.contract_name)}${rep}</span>${badge}</div>
+      ${period ? `<div style="font-size:10.5px;color:var(--faint);font-variant-numeric:tabular-nums;">${period}</div>` : ''}
+    </div>`;
+}
 async function renderRdContract(ticket, el) {
   if (!el) return;
-  if (ticket && ticket.unit_name) {
-    el.textContent = ticket.unit_name;
-    el.style.color = 'var(--text)';
-    return;
+  const companyId = ticket && ticket.company_id;
+  const snapId    = ticket && ticket.contract_id;
+  const setNone = () => { el.style.display = 'block'; el.textContent = '미지정'; el.style.color = 'var(--faint)'; };
+  if (!sb || (!companyId && !snapId)) { setNone(); return; }
+
+  // 같은 고객사의 계약을 불러와 만료 제외(= 현재 유효 계약)
+  let list = [];
+  if (companyId) {
+    const { data } = await sb.from('company_contracts')
+      .select('id, contract_name, status, start_date, end_date, unit_id')
+      .eq('company_id', companyId);
+    list = (data || []).filter(c => c.status !== '만료');
   }
-  const contractId = ticket && ticket.contract_id;
-  if (!contractId || !sb) {
-    el.textContent = '미지정';
-    el.style.color = 'var(--faint)';
-    return;
+  // 요청 조직(unit_id)이 있으면 그 조직 계약으로 좁힌다(그 조직에 유효 계약이 있을 때만)
+  if (ticket.unit_id) {
+    const scoped = list.filter(c => c.unit_id === ticket.unit_id);
+    if (scoped.length) list = scoped;
   }
-  const { data: ct } = await sb.from('company_contracts').select('contract_name, status').eq('id', contractId).single();
-  if (!ct) {
-    el.textContent = '계약 미지정';
-    el.style.color = 'var(--faint)';
-    return;
+  // 회사 기준으로 아무것도 못 찾았지만 스냅샷 계약은 있는 경우 — 그 계약만 재조회
+  if (!list.length && snapId) {
+    const { data: ct } = await sb.from('company_contracts')
+      .select('id, contract_name, status, start_date, end_date').eq('id', snapId).single();
+    if (ct && ct.status !== '만료') list = [ct];
   }
+  if (!list.length) { setNone(); return; }
+
+  // 대표(스냅샷) 계약을 맨 위로, 나머지는 시작일 최신순
+  list.sort((a, b) => {
+    if (snapId) { if (a.id === snapId) return -1; if (b.id === snapId) return 1; }
+    return (b.start_date || '').localeCompare(a.start_date || '');
+  });
+
+  el.style.display = 'block';
   el.style.color = 'var(--text)';
-  el.innerHTML = `${escHtml(ct.contract_name)} <span class="badge ${RD_CONTRACT_STATUS_BADGE[ct.status] || 'b-gray'}">${escHtml(ct.status || '—')}</span>`;
+  if (list.length === 1) {
+    el.innerHTML = _rdContractRow(list[0], false);
+    return;
+  }
+  const items = list.map((c, i) => {
+    const last = i === list.length - 1;
+    const border = last ? '' : 'padding-bottom:7px;margin-bottom:7px;border-bottom:1px dashed var(--border);';
+    return _rdContractRow(c, snapId && c.id === snapId, { border });
+  }).join('');
+  el.innerHTML = `<div style="font-size:10px;color:var(--faint);margin-bottom:5px;">${list.length}건 · 만료 제외</div>${items}`;
 }
 
 async function loadRdAttachments() {
