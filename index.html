@@ -7741,9 +7741,8 @@ function _rdContractRow(c, isRep, opts) {
   opts = opts || {};
   const period = _rdContractPeriod(c);
   const rep = isRep ? ' <span style="font-size:9px;font-weight:800;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:0 4px;vertical-align:1px;">대표</span>' : '';
-  const badge = `<span class="badge ${RD_CONTRACT_STATUS_BADGE[c.status] || 'b-gray'}">${escHtml(c.status || '—')}</span>`;
   return `<div style="display:flex;flex-direction:column;gap:2px;${opts.border || ''}">
-      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span>${escHtml(c.contract_name)}${rep}</span>${badge}</div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span>${escHtml(c.contract_name)}${rep}</span></div>
       ${period ? `<div style="font-size:10.5px;color:var(--faint);font-variant-numeric:tabular-nums;">${period}</div>` : ''}
     </div>`;
 }
