@@ -108,6 +108,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Ne
 .b-amber{background:var(--amber-l);color:var(--amber-d);border-color:#FDE68A;}
 .b-red{background:var(--red-l);color:var(--red);border-color:#FECACA;}
 .b-gray{background:#F3F4F6;color:#4B5563;border-color:#E5E7EB;}
+/* 시안의 "처리 중" 파랑. JS가 예전부터 b-blue를 참조했는데 정의가 없어 무색으로 나가고 있었다. */
+.b-blue{background:#EFF6FF;color:#2563EB;border-color:#BFDBFE;}
 
 /* ── buttons ── */
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:var(--r-md);font-size:13px;font-weight:600;border:none;cursor:pointer;transition:.15s;}
@@ -301,6 +303,15 @@ textarea{resize:vertical;min-height:100px;}
 .f-chip .f-chip-x:hover{background:var(--border-md);color:var(--text);}
 .ar-reset-all{font-size:11.5px;font-weight:700;color:var(--red-d);cursor:pointer;padding:4px 2px;}
 .ar-reset-all:hover{text-decoration:underline;}
+/* 시안식 툴바 필터 드롭다운 — 검색줄 옆 버튼, 활성 시 인디고로 채워지고 선택값이 라벨이 된다.
+   기존 th-filter-btn/pop 클래스를 함께 달아 열림/닫힘 JS를 그대로 재사용한다. */
+.flt-wrap{position:relative;flex-shrink:0;}
+.flt-btn{width:auto;padding:8px 14px;font-size:12px;font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0;background:var(--surface);border:1px solid var(--border-md);border-radius:var(--r-md);transition:.12s;}
+.flt-btn:hover{border-color:var(--accent-m);color:var(--accent);}
+.flt-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 1px 2px rgba(79,70,229,.3);}
+/* 툴바 드롭다운은 화면 오른쪽 끝에 있어서 왼쪽 기준으로 열면 패널 오른쪽(적용 버튼 포함)이
+   화면 밖으로 잘린다 — 버튼의 오른쪽 모서리에 붙여 왼쪽으로 펼쳐지게 한다. */
+.flt-wrap .th-filter-pop{left:auto;right:0;margin-top:6px;}
 
 /* ── stats row ── */
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
@@ -883,12 +894,50 @@ textarea{resize:vertical;min-height:100px;}
           <input class="search-box" id="ticket-search" placeholder="요청 번호 / 제목 / 고객사 / 요청자 / 담당자 로 검색" oninput="applyTicketFilter()" onkeydown="if(event.key==='Enter')applyTicketFilter()">
           <button class="search-go" onclick="applyTicketFilter()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg>검색</button>
         </div>
-        <span class="filter-chip active" onclick="setTicketFilter('all',this)">전체</span>
-        <span class="filter-chip" onclick="setTicketFilter('active',this)">처리 중</span>
-        <span class="filter-chip" onclick="setTicketFilter('completed',this)">완료</span>
-        <span class="filter-chip" onclick="setTicketFilter('tech_support',this)">기술지원</span>
-        <span class="filter-chip" onclick="setTicketFilter('contract',this)">계약 문의</span>
-        <span class="filter-chip" onclick="setTicketFilter('education',this)">교육 문의</span>
+        <!-- 빠른 필터 칩은 아래 드롭다운과 기능이 겹쳐 시안대로 드롭다운 3개로 통일했다.
+             (요청 관리 화면과 같은 구성) -->
+        <div class="flt-wrap">
+          <button class="th-filter-btn flt-btn" onclick="toggleTkFilterPop(this,'category')"><span class="flt-label" data-flt="category">전체 카테고리</span> <span class="th-filter-caret">▾</span></button>
+          <div class="th-filter-pop" id="tk-pop-category">
+            <div class="th-filter-foot">
+              <button class="th-filter-clear" onclick="clearTkFilter('category')">초기화</button>
+              <button class="th-filter-apply" onclick="applyTkFilter('category')">적용</button>
+            </div>
+            <label class="th-filter-opt"><input type="checkbox" value="tech_support"> 기술지원</label>
+            <label class="th-filter-opt"><input type="checkbox" value="contract"> 계약 문의</label>
+            <label class="th-filter-opt"><input type="checkbox" value="license"> 라이선스 문의</label>
+            <label class="th-filter-opt"><input type="checkbox" value="education"> 교육 문의</label>
+            <label class="th-filter-opt"><input type="checkbox" value="other"> 기타</label>
+          </div>
+        </div>
+        <div class="flt-wrap">
+          <button class="th-filter-btn flt-btn" onclick="toggleTkFilterPop(this,'priority')"><span class="flt-label" data-flt="priority">전체 긴급도</span> <span class="th-filter-caret">▾</span></button>
+          <div class="th-filter-pop" id="tk-pop-priority">
+            <div class="th-filter-foot">
+              <button class="th-filter-clear" onclick="clearTkFilter('priority')">초기화</button>
+              <button class="th-filter-apply" onclick="applyTkFilter('priority')">적용</button>
+            </div>
+            <label class="th-filter-opt"><input type="checkbox" value="normal"> 일반</label>
+            <label class="th-filter-opt"><input type="checkbox" value="high"> 빠른 확인 필요</label>
+            <label class="th-filter-opt"><input type="checkbox" value="critical"> 긴급</label>
+          </div>
+        </div>
+        <div class="flt-wrap">
+          <button class="th-filter-btn flt-btn" onclick="toggleTkFilterPop(this,'status')"><span class="flt-label" data-flt="status">전체 상태</span> <span class="th-filter-caret">▾</span></button>
+          <div class="th-filter-pop" id="tk-pop-status">
+            <div class="th-filter-foot">
+              <button class="th-filter-clear" onclick="clearTkFilter('status')">초기화</button>
+              <button class="th-filter-apply" onclick="applyTkFilter('status')">적용</button>
+            </div>
+            <label class="th-filter-opt"><input type="checkbox" value="received"> 접수</label>
+            <label class="th-filter-opt"><input type="checkbox" value="classifying"> 분류 중</label>
+            <label class="th-filter-opt"><input type="checkbox" value="in_progress"> 처리 중</label>
+            <label class="th-filter-opt"><input type="checkbox" value="pending_customer"> 고객 확인 필요</label>
+            <label class="th-filter-opt"><input type="checkbox" value="on_hold"> 보류</label>
+            <label class="th-filter-opt"><input type="checkbox" value="completed"> 완료</label>
+            <label class="th-filter-opt"><input type="checkbox" value="cancelled"> 취소</label>
+          </div>
+        </div>
       </div>
 
       <!-- 목록 / 상세 토글 -->
@@ -897,48 +946,10 @@ textarea{resize:vertical;min-height:100px;}
           <div class="tbl-scroll list-scroll" style="padding:0 24px;"><table class="tbl" style="border-collapse:separate;border-spacing:0;">
             <thead><tr>
               <th>요청 번호</th><th>제목</th>
-              <th>
-                <button class="th-filter-btn" onclick="toggleTkFilterPop(this,'category')">카테고리 <span class="th-filter-caret">▾</span></button>
-                <div class="th-filter-pop" id="tk-pop-category">
-                  <label class="th-filter-opt"><input type="checkbox" value="tech_support"> 기술지원</label>
-                  <label class="th-filter-opt"><input type="checkbox" value="contract"> 계약 문의</label>
-                  <label class="th-filter-opt"><input type="checkbox" value="license"> 라이선스 문의</label>
-                  <label class="th-filter-opt"><input type="checkbox" value="education"> 교육 문의</label>
-                  <label class="th-filter-opt"><input type="checkbox" value="other"> 기타</label>
-                  <div class="th-filter-foot">
-                    <button class="th-filter-clear" onclick="clearTkFilter('category')">초기화</button>
-                    <button class="th-filter-apply" onclick="applyTkFilter('category')">적용</button>
-                  </div>
-                </div>
-              </th>
-              <th>
-                <button class="th-filter-btn" onclick="toggleTkFilterPop(this,'priority')">긴급도 <span class="th-filter-caret">▾</span></button>
-                <div class="th-filter-pop" id="tk-pop-priority">
-                  <label class="th-filter-opt"><input type="checkbox" value="normal"> 일반</label>
-                  <label class="th-filter-opt"><input type="checkbox" value="high"> 빠른 확인 필요</label>
-                  <label class="th-filter-opt"><input type="checkbox" value="critical"> 긴급</label>
-                  <div class="th-filter-foot">
-                    <button class="th-filter-clear" onclick="clearTkFilter('priority')">초기화</button>
-                    <button class="th-filter-apply" onclick="applyTkFilter('priority')">적용</button>
-                  </div>
-                </div>
-              </th>
-              <th>
-                <button class="th-filter-btn" onclick="toggleTkFilterPop(this,'status')">상태 <span class="th-filter-caret">▾</span></button>
-                <div class="th-filter-pop" id="tk-pop-status">
-                  <label class="th-filter-opt"><input type="checkbox" value="received"> 접수</label>
-                  <label class="th-filter-opt"><input type="checkbox" value="classifying"> 분류 중</label>
-                  <label class="th-filter-opt"><input type="checkbox" value="in_progress"> 처리 중</label>
-                  <label class="th-filter-opt"><input type="checkbox" value="pending_customer"> 고객 확인 필요</label>
-                  <label class="th-filter-opt"><input type="checkbox" value="on_hold"> 보류</label>
-                  <label class="th-filter-opt"><input type="checkbox" value="completed"> 완료</label>
-                  <label class="th-filter-opt"><input type="checkbox" value="cancelled"> 취소</label>
-                  <div class="th-filter-foot">
-                    <button class="th-filter-clear" onclick="clearTkFilter('status')">초기화</button>
-                    <button class="th-filter-apply" onclick="applyTkFilter('status')">적용</button>
-                  </div>
-                </div>
-              </th>
+              <!-- 필터는 시안대로 검색줄 옆 드롭다운으로 옮겼다(같은 id의 팝을 툴바에서 재사용). -->
+              <th>카테고리</th>
+              <th>긴급도</th>
+              <th>상태</th>
               <th>고객사</th><th>요청자</th><th>담당자</th><th>접수일</th>
               <th data-show-roles="internal">완료예정일</th>
             </tr></thead>
@@ -1113,6 +1124,48 @@ textarea{resize:vertical;min-height:100px;}
         </div>
         <div class="filter-bar">
           <input class="search-box" id="ar-search" placeholder="요청 번호, 제목 검색..." oninput="renderAllTickets()">
+          <div class="flt-wrap">
+            <button class="th-filter-btn flt-btn" onclick="toggleArFilterPop(this,'category')"><span class="flt-label" data-flt="category">전체 카테고리</span> <span class="th-filter-caret">▾</span></button>
+            <div class="th-filter-pop" id="ar-pop-category">
+              <div class="th-filter-foot">
+                <button class="th-filter-clear" onclick="clearArFilter('category')">초기화</button>
+                <button class="th-filter-apply" onclick="applyArFilter('category')">적용</button>
+              </div>
+              <label class="th-filter-opt"><input type="checkbox" value="tech_support"> 기술지원</label>
+              <label class="th-filter-opt"><input type="checkbox" value="contract"> 계약 문의</label>
+              <label class="th-filter-opt"><input type="checkbox" value="license"> 라이선스 문의</label>
+              <label class="th-filter-opt"><input type="checkbox" value="education"> 교육 문의</label>
+              <label class="th-filter-opt"><input type="checkbox" value="other"> 기타</label>
+            </div>
+          </div>
+          <div class="flt-wrap">
+            <button class="th-filter-btn flt-btn" onclick="toggleArFilterPop(this,'priority')"><span class="flt-label" data-flt="priority">전체 긴급도</span> <span class="th-filter-caret">▾</span></button>
+            <div class="th-filter-pop" id="ar-pop-priority">
+              <div class="th-filter-foot">
+                <button class="th-filter-clear" onclick="clearArFilter('priority')">초기화</button>
+                <button class="th-filter-apply" onclick="applyArFilter('priority')">적용</button>
+              </div>
+              <label class="th-filter-opt"><input type="checkbox" value="normal"> 일반</label>
+              <label class="th-filter-opt"><input type="checkbox" value="high"> 빠른 확인 필요</label>
+              <label class="th-filter-opt"><input type="checkbox" value="critical"> 긴급</label>
+            </div>
+          </div>
+          <div class="flt-wrap">
+            <button class="th-filter-btn flt-btn" onclick="toggleArFilterPop(this,'status')"><span class="flt-label" data-flt="status">전체 상태</span> <span class="th-filter-caret">▾</span></button>
+            <div class="th-filter-pop" id="ar-pop-status">
+              <div class="th-filter-foot">
+                <button class="th-filter-clear" onclick="clearArFilter('status')">초기화</button>
+                <button class="th-filter-apply" onclick="applyArFilter('status')">적용</button>
+              </div>
+              <label class="th-filter-opt"><input type="checkbox" value="received"> 접수</label>
+              <label class="th-filter-opt"><input type="checkbox" value="classifying"> 분류 중</label>
+              <label class="th-filter-opt"><input type="checkbox" value="in_progress"> 처리 중</label>
+              <label class="th-filter-opt"><input type="checkbox" value="pending_customer"> 고객 확인 필요</label>
+              <label class="th-filter-opt"><input type="checkbox" value="on_hold"> 보류</label>
+              <label class="th-filter-opt"><input type="checkbox" value="completed"> 완료</label>
+              <label class="th-filter-opt"><input type="checkbox" value="cancelled"> 취소</label>
+            </div>
+          </div>
         </div>
         <div class="ar-filter-chips" id="ar-filter-chips"></div>
         <div class="card" style="padding:0;overflow:visible;">
@@ -1120,48 +1173,11 @@ textarea{resize:vertical;min-height:100px;}
             <thead><tr>
               <th style="padding:8px 12px;">요청 번호</th>
               <th style="padding:8px 12px;">제목</th>
-              <th>
-                <button class="th-filter-btn" onclick="toggleArFilterPop(this,'category')">카테고리 <span class="th-filter-caret">▾</span></button>
-                <div class="th-filter-pop" id="ar-pop-category">
-                  <div class="th-filter-foot">
-                    <button class="th-filter-clear" onclick="clearArFilter('category')">초기화</button>
-                    <button class="th-filter-apply" onclick="applyArFilter('category')">적용</button>
-                  </div>
-                  <label class="th-filter-opt"><input type="checkbox" value="tech_support"> 기술지원</label>
-                  <label class="th-filter-opt"><input type="checkbox" value="contract"> 계약 문의</label>
-                  <label class="th-filter-opt"><input type="checkbox" value="license"> 라이선스 문의</label>
-                  <label class="th-filter-opt"><input type="checkbox" value="education"> 교육 문의</label>
-                  <label class="th-filter-opt"><input type="checkbox" value="other"> 기타</label>
-                </div>
-              </th>
-              <th>
-                <button class="th-filter-btn" onclick="toggleArFilterPop(this,'priority')">긴급도 <span class="th-filter-caret">▾</span></button>
-                <div class="th-filter-pop" id="ar-pop-priority">
-                  <div class="th-filter-foot">
-                    <button class="th-filter-clear" onclick="clearArFilter('priority')">초기화</button>
-                    <button class="th-filter-apply" onclick="applyArFilter('priority')">적용</button>
-                  </div>
-                  <label class="th-filter-opt"><input type="checkbox" value="normal"> 일반</label>
-                  <label class="th-filter-opt"><input type="checkbox" value="high"> 빠른 확인 필요</label>
-                  <label class="th-filter-opt"><input type="checkbox" value="critical"> 긴급</label>
-                </div>
-              </th>
-              <th>
-                <button class="th-filter-btn" onclick="toggleArFilterPop(this,'status')">상태 <span class="th-filter-caret">▾</span></button>
-                <div class="th-filter-pop" id="ar-pop-status">
-                  <div class="th-filter-foot">
-                    <button class="th-filter-clear" onclick="clearArFilter('status')">초기화</button>
-                    <button class="th-filter-apply" onclick="applyArFilter('status')">적용</button>
-                  </div>
-                  <label class="th-filter-opt"><input type="checkbox" value="received"> 접수</label>
-                  <label class="th-filter-opt"><input type="checkbox" value="classifying"> 분류 중</label>
-                  <label class="th-filter-opt"><input type="checkbox" value="in_progress"> 처리 중</label>
-                  <label class="th-filter-opt"><input type="checkbox" value="pending_customer"> 고객 확인 필요</label>
-                  <label class="th-filter-opt"><input type="checkbox" value="on_hold"> 보류</label>
-                  <label class="th-filter-opt"><input type="checkbox" value="completed"> 완료</label>
-                  <label class="th-filter-opt"><input type="checkbox" value="cancelled"> 취소</label>
-                </div>
-              </th>
+              <!-- 카테고리/긴급도/상태 필터는 시안대로 검색줄 옆 드롭다운으로 옮겼다(같은 id의 팝을
+                   툴바에서 재사용). 고객사/요청자/담당자는 데이터에서 옵션을 뽑는 동적 필터라 머리글에 남긴다. -->
+              <th style="padding:8px 12px;">카테고리</th>
+              <th style="padding:8px 12px;">긴급도</th>
+              <th style="padding:8px 12px;">상태</th>
               <th>
                 <button class="th-filter-btn" onclick="toggleArFilterPop(this,'company')">고객사 <span class="th-filter-caret">▾</span></button>
                 <div class="th-filter-pop" id="ar-pop-company"><div class="th-filter-empty">불러오는 중...</div></div>
@@ -2615,9 +2631,11 @@ const CATEGORY_LABELS = {
   tech_support:'기술지원', contract:'계약 문의', license:'라이선스 문의',
   education:'교육 문의', customer:'고객 문의', other:'기타 문의',
 };
+// 시안은 카테고리를 전부 회색으로 통일한다 — 색은 긴급도·상태가 쓰고,
+// 카테고리까지 색을 가지면 표에서 무엇이 급한 건지 색만으로 읽히지 않는다.
 const CATEGORY_BADGE = {
-  tech_support:'b-red', contract:'b-amber', license:'b-accent',
-  education:'b-green', customer:'b-accent', other:'b-gray',
+  tech_support:'b-gray', contract:'b-gray', license:'b-gray',
+  education:'b-gray', customer:'b-gray', other:'b-gray',
 };
 const STATUS_LABELS = {
   received:          '접수',
@@ -2629,11 +2647,14 @@ const STATUS_LABELS = {
   completed:         '완료',
   cancelled:         '취소',
 };
+// 시안의 상태 색: 접수·보류·취소=회색, 분류 중=인디고, 처리 중=파랑,
+// 고객 확인 필요=주황, 완료=초록. 진행이 앞으로 갈수록 회색→인디고→파랑→초록으로 읽힌다.
+// 담당자 배정은 시안에 없는 단계라 착수 직전이라는 뜻에서 처리 중과 같은 파랑에 둔다.
 const STATUS_BADGE = {
-  received:          'b-accent',
-  classifying:       'b-blue',
+  received:          'b-gray',
+  classifying:       'b-accent',
   assigned:          'b-blue',
-  in_progress:       'b-amber',
+  in_progress:       'b-blue',
   pending_customer:  'b-amber',
   on_hold:           'b-gray',
   completed:         'b-green',
@@ -3725,10 +3746,10 @@ async function showDetail(ticket) {
 
     // 이전에 걸려있던 필터 때문에 클릭한 항목이 목록에서 안 보이는 일이 없도록 전체 보기로 초기화
     ticketFilter = 'all';
-    document.querySelectorAll('#p-my-requests .filter-bar .filter-chip').forEach(c => c.classList.remove('active'));
-    document.querySelector('#p-my-requests .filter-bar .filter-chip')?.classList.add('active');
     tkFilters = { category: [], priority: [], status: [] };
     document.querySelectorAll('#p-my-requests .th-filter-pop input[type=checkbox]').forEach(el => el.checked = false);
+    // 드롭다운 버튼의 활성 색/라벨("기술지원 외 1" 등)도 함께 초기값으로 되돌린다
+    if (typeof updateTkFilterButtonStates === 'function') updateTkFilterButtonStates();
     const searchBox = document.getElementById('ticket-search');
     if (searchBox) searchBox.value = '';
 
@@ -4647,14 +4668,6 @@ async function loadTickets() {
     return;
   }
   allTickets = data || [];
-  applyTicketFilter();
-}
-
-function setTicketFilter(filter, el) {
-  ticketFilter = filter;
-  // 기술지원 탭 filter-bar 안의 칩만 토글
-  el.closest('.filter-bar').querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
   applyTicketFilter();
 }
 
@@ -7161,7 +7174,23 @@ function updateArFilterButtonStates() {
     const btn = pop?.previousElementSibling;
     if (btn) btn.classList.toggle('active', arFilters[key].length > 0);
   });
+  // 툴바 드롭다운은 시안처럼 버튼 라벨 자체가 선택값이 된다 — "기술지원 외 2" 식.
+  // 요청(p-my-requests) 화면에도 같은 .flt-label이 있어 반드시 화면으로 스코프를 좁힌다.
+  updateFltLabels('#p-all-requests', arFilters);
   renderArFilterChips();
+}
+
+// 두 화면(요청/요청 관리)이 같은 라벨 규칙을 쓴다 — 컨테이너와 상태 객체만 다르다.
+function updateFltLabels(scope, filters) {
+  document.querySelectorAll(scope + ' .flt-label').forEach(el => {
+    const key = el.dataset.flt;
+    const vals = filters[key] || [];
+    el.textContent = vals.length === 0
+      ? '전체 ' + AR_FILTER_NAME_KO[key]
+      : vals.length === 1
+        ? arFilterValueLabel(key, vals[0])
+        : arFilterValueLabel(key, vals[0]) + ' 외 ' + (vals.length - 1);
+  });
 }
 
 function applyArFilter(key) {
@@ -7270,6 +7299,7 @@ function updateTkFilterButtonStates() {
     const btn = pop?.previousElementSibling;
     if (btn) btn.classList.toggle('active', tkFilters[key].length > 0);
   });
+  updateFltLabels('#p-my-requests', tkFilters);
 }
 
 async function loadAllTickets(silent = false) {
