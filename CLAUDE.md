@@ -63,7 +63,7 @@
 ## 기술 스택
 
 - **Frontend:** 바닐라 JS, 단일 HTML 파일 SPA (Supabase 클라이언트 제거 완료, AWS API Gateway 직접 호출)
-- **DB:** Amazon RDS (PostgreSQL 18.3)
+- **DB:** Amazon RDS (PostgreSQL 18.3). 성능 인덱스 20개(FK/필터 컬럼 — tickets.unit_id/company_id/created_by/status/due_date, 부속테이블 ticket_id, user_org_units, users, contracts/licenses) 2026-08-12 추가(schema.sql 하단). FK엔 자동 인덱스가 없어 seq scan이던 조회를 index scan으로 전환.
 - **API:** API Gateway + Lambda (`data-api`=범용 CRUD, `api-layer`=알림 연계 액션, `storage-api`=S3 업로드, `notify-handler`/`send-email`=알림·메일 발송)
 - **자동화:** EventBridge Scheduler 3개가 매일 KST 09:00에 `api-layer` Lambda를 직접 호출 — `daily-overdue-ticket-check`(`overdue_batch`, 지연 티켓 Slack 알림), `daily-license-expiry-notice`(`license_expiry_notice`), `daily-contract-expiry-check`(`expire_contracts`). 레거시 Supabase pg_cron 잡 2개는 중복 알람을 일으켜 2026-08-11에 모두 제거함(unschedule) — 레거시 쪽에는 더 이상 크론 없음.
 

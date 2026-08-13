@@ -433,3 +433,28 @@ create trigger trg_ticket_history_created
 -- 나머지 10개는 RLS 자체가 꺼져있는 상태 — RDS에서는 애초에 브라우저가
 -- DB에 직접 접근하지 않고 API 레이어를 거치므로 RLS 이전 불필요.
 -- ============================================================
+
+-- ============================================================
+-- 성능 인덱스 (2026-08-12 추가) — FK/필터 컬럼. Postgres는 FK에 자동 인덱스를
+-- 만들지 않아 테넌트 격리·티켓 상세·라이선스 조회가 seq scan이던 것을 index scan으로.
+-- ============================================================
+create index if not exists idx_tickets_unit_id on public.tickets (unit_id);
+create index if not exists idx_tickets_company_id on public.tickets (company_id);
+create index if not exists idx_tickets_created_by on public.tickets (created_by);
+create index if not exists idx_tickets_assigned_to on public.tickets (assigned_to);
+create index if not exists idx_tickets_contract_id on public.tickets (contract_id);
+create index if not exists idx_tickets_status on public.tickets (status);
+create index if not exists idx_tickets_due_date on public.tickets (due_date);
+create index if not exists idx_ticket_replies_ticket_id on public.ticket_replies (ticket_id);
+create index if not exists idx_ticket_memos_ticket_id on public.ticket_memos (ticket_id);
+create index if not exists idx_ticket_attachments_ticket_id on public.ticket_attachments (ticket_id);
+create index if not exists idx_ticket_history_ticket_id on public.ticket_history (ticket_id);
+create index if not exists idx_log_notification_ticket_id on public.log_notification (ticket_id);
+create index if not exists idx_user_org_units_user_id on public.user_org_units (user_id);
+create index if not exists idx_user_org_units_unit_id on public.user_org_units (unit_id);
+create index if not exists idx_users_company_id on public.users (company_id);
+create index if not exists idx_users_unit_id on public.users (unit_id);
+create index if not exists idx_users_contract_id on public.users (contract_id);
+create index if not exists idx_company_contracts_company_id on public.company_contracts (company_id);
+create index if not exists idx_company_licenses_company_id on public.company_licenses (company_id);
+create index if not exists idx_company_licenses_contract_id on public.company_licenses (contract_id);
