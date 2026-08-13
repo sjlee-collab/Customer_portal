@@ -950,11 +950,11 @@ textarea{resize:vertical;min-height:100px;}
               <th>카테고리</th>
               <th>긴급도</th>
               <th>상태</th>
-              <th>고객사</th><th>요청자</th><th>담당자</th><th>접수일</th>
+              <th>고객사</th><th>조직</th><th>요청자</th><th>담당자</th><th>접수일</th>
               <th data-show-roles="internal">완료예정일</th>
             </tr></thead>
             <tbody id="ticket-tbody">
-              <tr><td colspan="10" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
+              <tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
             </tbody>
           </table></div>
           <div style="padding:12px 18px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:flex-end;gap:10px;background:var(--surface2);flex-shrink:0;">
@@ -4648,7 +4648,7 @@ async function loadTickets() {
 
   let query = sb
     .from('tickets')
-    .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, assigned_to_name, company_name, created_by_name, assignee:assigned_to(name), company:company_id(name), requester:created_by(name)')
+    .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, unit_name, assigned_to_name, company_name, created_by_name, assignee:assigned_to(name), company:company_id(name), requester:created_by(name)')
     .order('created_at', { ascending: false });
 
   if (DEMO_COMPANY_ID) query = query.eq('company_id', DEMO_COMPANY_ID);
@@ -4738,7 +4738,7 @@ function renderTickets(tickets) {
   detachSharedRequestDetail(tbody);
 
   const isCustomerRole = currentUser?.role === 'customer';
-  const colCount = isCustomerRole ? 9 : 10;
+  const colCount = isCustomerRole ? 10 : 11;
 
   if (!tickets.length) {
     tbody.innerHTML = `<tr><td colspan="${colCount}" style="padding:40px;text-align:center;color:var(--faint);">등록된 요청이 없습니다.</td></tr>`;
@@ -4754,6 +4754,7 @@ function renderTickets(tickets) {
     const priLabel  = PRIORITY_LABELS[t.priority]  || '일반';
     const priBadge  = PRIORITY_BADGE[t.priority]   || 'b-gray';
     const company   = t.company?.name ? escHtml(t.company.name) : t.company_name ? escHtml(t.company_name) : '<span style="color:var(--faint);">—</span>';
+    const org       = t.unit_name ? escHtml(t.unit_name) : '<span style="color:var(--faint);">—</span>';
     const requester = t.requester?.name ? escHtml(t.requester.name) : t.created_by_name ? escHtml(t.created_by_name) : '<span style="color:var(--faint);">—</span>';
     const asgn      = t.assignee?.name ? escHtml(t.assignee.name)
                       : t.assigned_to_name ? escHtml(t.assigned_to_name) + ' <span style="color:var(--faint);font-size:10px;">(탈퇴)</span>'
@@ -4773,6 +4774,7 @@ function renderTickets(tickets) {
       <td><span class="badge ${priBadge}">${priLabel}</span></td>
       <td><span class="badge ${statBadge}">${statLabel}</span></td>
       <td style="font-size:12px;">${company}</td>
+      <td style="font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(t.unit_name||'')}">${org}</td>
       <td style="font-size:12px;">${requester}</td>
       <td style="font-size:12px;">${asgn}</td>
       <td style="color:var(--faint);font-size:12px;">${date}</td>
