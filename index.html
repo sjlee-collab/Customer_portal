@@ -809,10 +809,10 @@ textarea{resize:vertical;min-height:100px;}
           </div>
           <div class="tbl-scroll list-scroll" style="flex:1;min-height:0;overflow:hidden;"><table class="tbl">
             <thead><tr>
-              <th>요청 번호</th><th>제목</th><th>카테고리</th><th>상태</th><th>접수일</th>
+              <th>요청 번호</th><th>제목</th><th>카테고리</th><th>조직</th><th>상태</th><th>접수일</th>
             </tr></thead>
             <tbody id="dash-recent-tbody">
-              <tr><td colspan="5" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>
+              <tr><td colspan="6" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>
             </tbody>
           </table></div>
 
@@ -4442,7 +4442,7 @@ async function loadDashboard() {
 
     // 최근 요청 테이블
     const { data: recent } = await applyFilter(sb.from('tickets')
-      .select('id, ticket_number, title, category, status, created_at'))
+      .select('id, ticket_number, title, category, unit_name, status, created_at'))
       .order('created_at', { ascending: false }).limit(200);
     dashRecentTickets = recent || [];
     window._dashRecentFilter = window._dashRecentFilter || 'all';
@@ -4614,7 +4614,7 @@ function renderDashRecentTable(f) {
     tickets = all.filter(t => (t.created_at || '').slice(0, 10) === todayStr);
   }
   if (!tickets.length) {
-    tbody.innerHTML = `<tr><td colspan="5" style="padding:16px;text-align:center;color:var(--faint);">${DASH_RECENT_EMPTY_LABEL[f] || '요청 없음'}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--faint);">${DASH_RECENT_EMPTY_LABEL[f] || '요청 없음'}</td></tr>`;
     return;
   }
   tbody.innerHTML = tickets.map((t) => {
@@ -4625,6 +4625,7 @@ function renderDashRecentTable(f) {
     const stC  = STATUS_BADGE[t.status] || 'b-gray';
     return `<tr style="cursor:pointer;" onclick="showDetail(dashRecentTickets[${idx}])"><td><span style="font-variant-numeric:tabular-nums;color:var(--accent);font-weight:600;">${escHtml(t.ticket_number||'')}</span></td>` +
       `<td><div style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(t.title||'')}">${escHtml(t.title||'')}</div></td><td><span class="badge ${catC}">${catL}</span></td>` +
+      `<td style="color:var(--muted);"><div style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(t.unit_name||'')}">${t.unit_name ? escHtml(t.unit_name) : '<span style="color:var(--faint);">—</span>'}</div></td>` +
       `<td><span class="badge ${stC}">${stL}</span></td><td style="color:var(--faint);">${fmtTime(t.created_at).slice(0,10)}</td></tr>`;
   }).join('');
 }
