@@ -1572,6 +1572,15 @@ textarea{resize:vertical;min-height:100px;}
               <tr><td colspan="10" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
             </tbody>
           </table></div>
+          <div id="notify-pager" style="padding:12px 18px;border-top:1px solid var(--border);display:none;align-items:center;justify-content:flex-end;gap:10px;background:var(--surface2);flex-shrink:0;">
+            <span style="font-size:12px;color:var(--muted);margin-right:auto;" id="notify-page-total"></span>
+            <button class="btn btn-outline btn-sm" onclick="changeNotifyPage(-1)">← 이전</button>
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;">
+              <input type="text" id="notify-page-input" value="1" inputmode="numeric" style="width:34px;text-align:center;border:1px solid var(--accent);border-radius:7px;padding:4px 2px;font-size:12px;font-variant-numeric:tabular-nums;outline:none;box-shadow:0 0 0 3px var(--accent-l);" onkeydown="if(event.key==='Enter')jumpNotifyPage(this.value)">
+              <span>/ <span id="notify-page-count">1</span> 페이지</span>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="changeNotifyPage(1)">다음 →</button>
+          </div>
         </div>
       </div>
 
@@ -6352,11 +6361,16 @@ async function loadNotifyLog() {
 
   const { data, error } = await q;
 
+  const pager = document.getElementById('notify-pager');
   if (error) {
+    _notifyRowsHtml = [];
+    if (pager) pager.style.display = 'none';
     tbody.innerHTML = `<tr><td colspan="10" style="padding:20px;text-align:center;color:var(--red);font-size:13px;">오류: ${escHtml(error.message)}</td></tr>`;
     return;
   }
   if (!data || !data.length) {
+    _notifyRowsHtml = [];
+    if (pager) pager.style.display = 'none';
     tbody.innerHTML = '<tr><td colspan="10" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">알림 로그가 없습니다.</td></tr>';
     document.getElementById('notify-count').textContent = '총 0건';
     return;
@@ -6412,7 +6426,7 @@ async function loadNotifyLog() {
     : data;
 
   document.getElementById('notify-count').textContent = `총 ${filteredData.length}건`;
-  tbody.innerHTML = filteredData.map(n => {
+  _notifyRowsHtml = filteredData.map(n => {
     const ticketNum = n.ticket?.ticket_number || (n.ticket_id ? n.ticket_id.slice(0,8) : '—');
     const sentAtRaw = n.sent_at || n.created_at;
     const sentAt = sentAtRaw ? new Date(sentAtRaw).toLocaleString('ko-KR', { hour12: false }) : '—';
@@ -6485,7 +6499,36 @@ async function loadNotifyLog() {
         </div>
       </td>
     </tr>`;
-  }).join('');
+  });
+  notifyPage = 1;
+  renderNotifyPage();
+}
+
+// ── 알림 로그 페이지네이션 (클라이언트) ──
+let _notifyRowsHtml = [];
+let notifyPage = 1;
+const NOTIFY_PAGE_SIZE = 20;
+
+function changeNotifyPage(delta) { notifyPage += delta; renderNotifyPage(); }
+function jumpNotifyPage(val) { const n = parseInt(val, 10); if (!isNaN(n)) notifyPage = n; renderNotifyPage(); }
+
+function renderNotifyPage() {
+  const tbody = document.getElementById('notify-tbody');
+  const pager = document.getElementById('notify-pager');
+  if (!tbody) return;
+  const rows = _notifyRowsHtml || [];
+  const totalPages = Math.max(1, Math.ceil(rows.length / NOTIFY_PAGE_SIZE));
+  notifyPage = Math.min(Math.max(1, notifyPage), totalPages);
+  const pageRows = rows.slice((notifyPage - 1) * NOTIFY_PAGE_SIZE, notifyPage * NOTIFY_PAGE_SIZE);
+  tbody.innerHTML = pageRows.join('');
+
+  if (pager) pager.style.display = rows.length > NOTIFY_PAGE_SIZE ? 'flex' : 'none';
+  const totalEl = document.getElementById('notify-page-total');
+  if (totalEl) totalEl.textContent = `총 ${rows.length}건`;
+  const pageInput = document.getElementById('notify-page-input');
+  if (pageInput) pageInput.value = notifyPage;
+  const pageCount = document.getElementById('notify-page-count');
+  if (pageCount) pageCount.textContent = totalPages;
 }
 
 function toggleNotifyDetail(tr) {
