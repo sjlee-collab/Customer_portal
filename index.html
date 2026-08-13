@@ -309,7 +309,9 @@ textarea{resize:vertical;min-height:100px;}
 .flt-btn{width:auto;padding:8px 14px;font-size:12px;font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0;background:var(--surface);border:1px solid var(--border-md);border-radius:var(--r-md);transition:.12s;}
 .flt-btn:hover{border-color:var(--accent-m);color:var(--accent);}
 .flt-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 1px 2px rgba(79,70,229,.3);}
-.flt-wrap .th-filter-pop{margin-top:6px;}
+/* 툴바 드롭다운은 화면 오른쪽 끝에 있어서 왼쪽 기준으로 열면 패널 오른쪽(적용 버튼 포함)이
+   화면 밖으로 잘린다 — 버튼의 오른쪽 모서리에 붙여 왼쪽으로 펼쳐지게 한다. */
+.flt-wrap .th-filter-pop{left:auto;right:0;margin-top:6px;}
 
 /* ── stats row ── */
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
