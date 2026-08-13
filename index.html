@@ -8542,21 +8542,31 @@ function setupSearchBoxClearButtons() {
     if (input.dataset.clearWired) return;
     input.dataset.clearWired = '1';
 
-    const wrap = document.createElement('div');
-    wrap.style.position = 'relative';
-    wrap.style.flex = '1';
-    wrap.style.minWidth = '200px';
-    input.parentNode.insertBefore(wrap, input);
-    wrap.appendChild(input);
-    input.style.width = '100%';
-    input.style.boxSizing = 'border-box';
-    input.style.paddingRight = '28px';
+    // 요청 목록 검색창은 이미 .search-wrap(내장 "검색" 버튼) 안에 있다 — 한 번 더 감싸면
+    // ✕가 검색 버튼과 같은 자리(right:6px)에 겹치고 인라인 padding이 버튼 공간을 지운다.
+    // 그 경우 기존 래퍼를 그대로 쓰고 ✕는 검색 버튼 왼쪽에, 여백은 버튼+✕ 몫으로 넓힌다.
+    const searchWrap = input.closest('.search-wrap');
+    let wrap;
+    if (searchWrap) {
+      wrap = searchWrap;
+      input.style.paddingRight = '96px';
+    } else {
+      wrap = document.createElement('div');
+      wrap.style.position = 'relative';
+      wrap.style.flex = '1';
+      wrap.style.minWidth = '200px';
+      input.parentNode.insertBefore(wrap, input);
+      wrap.appendChild(input);
+      input.style.width = '100%';
+      input.style.boxSizing = 'border-box';
+      input.style.paddingRight = '28px';
+    }
 
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.setAttribute('aria-label', '검색어 지우기');
     btn.textContent = '✕';
-    btn.style.cssText = 'display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);width:18px;height:18px;border-radius:50%;border:none;background:transparent;color:var(--faint);font-size:11px;line-height:18px;text-align:center;cursor:pointer;padding:0;';
+    btn.style.cssText = 'display:none;position:absolute;right:' + (searchWrap ? '76px' : '6px') + ';top:50%;transform:translateY(-50%);width:18px;height:18px;border-radius:50%;border:none;background:transparent;color:var(--faint);font-size:11px;line-height:18px;text-align:center;cursor:pointer;padding:0;';
     btn.onmouseenter = () => { btn.style.background = 'var(--accent)'; btn.style.color = '#fff'; };
     btn.onmouseleave = () => { btn.style.background = 'transparent'; btn.style.color = 'var(--faint)'; };
     btn.onclick = () => {
