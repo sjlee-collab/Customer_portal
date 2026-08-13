@@ -5,25 +5,29 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>고객지원 포탈 — 화면 설계</title>
 <style>
+/* 2026-08 피그마 시안(Update Pages 1-8 Design) 팔레트 — 베이지 배경/보라 액센트에서
+   쿨그레이 배경/인디고 액센트로 전환. 값은 시안이 쓰는 Tailwind 스케일을 그대로 따른다. */
 :root {
-  --bg:        #f1efe8;
+  --bg:        #F5F6FA;
   --surface:   #ffffff;
-  --surface2:  #f8f7f4;
-  --border:        rgba(0,0,0,.09);
-  --border-md:     rgba(0,0,0,.16);
-  --border-strong: rgba(0,0,0,.28);
-  --text:      #1a1a18;
-  --muted:     #6b6a65;
-  --faint:     #9b9a96;
-  --accent:    #534AB7;
-  --accent-l:  #EEEDFE;
-  --accent-m:  #AFA9EC;
-  --accent-d:  #3C3489;
+  --surface2:  #F9FAFB;
+  --border:        rgba(17,24,39,.07);
+  --border-md:     rgba(17,24,39,.13);
+  --border-strong: rgba(17,24,39,.24);
+  --text:      #111827;
+  --muted:     #6B7280;
+  --faint:     #9CA3AF;
+  --accent:    #4F46E5;
+  --accent-l:  #EEF2FF;
+  --accent-m:  #A5B4FC;
+  --accent-d:  #4338CA;
   --login-bg:  #ffffff;
-  --green:     #27AE60; --green-l:#EAF3DE; --green-d:#1a6e3a;
-  --amber:     #D97706; --amber-l:#FEF3C7; --amber-d:#92400E;
-  --red:       #DC2626;  --red-l:#FCEBEB;   --red-d:#791F1F;
-  --r-sm:6px; --r-md:10px; --r-lg:14px;
+  --green:     #059669; --green-l:#ECFDF5; --green-d:#047857;
+  --amber:     #D97706; --amber-l:#FFFBEB; --amber-d:#B45309;
+  --red:       #DC2626;  --red-l:#FEF2F2;   --red-d:#B91C1C;
+  --r-sm:6px; --r-md:8px; --r-lg:12px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.05);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.07);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:14px;color:var(--text);background:var(--bg);min-height:100vh;}
@@ -33,7 +37,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Ne
 
 /* ── top bar ── */
 .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;gap:16px;height:52px;flex-shrink:0;}
-.logo{width:28px;height:28px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;}
+/* 로고는 시안에 포함된 실제 브랜드 마크(PNG)를 base64로 심는다 — CSP img-src에 data: 허용됨. */
+.logo{width:30px;height:30px;display:flex;align-items:center;justify-content:center;}
+.logo img{width:100%;height:100%;object-fit:contain;display:block;}
 .site-name{font-size:14px;font-weight:700;color:var(--text);}
 .view-toggle{margin-left:auto;display:flex;background:var(--bg);border-radius:99px;padding:3px;gap:2px;}
 .vt-btn{padding:4px 14px;border-radius:99px;font-size:12px;font-weight:600;border:none;cursor:pointer;color:var(--muted);background:transparent;transition:.15s;}
@@ -88,23 +94,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Ne
 #p-users.active .tbl-scroll.list-scroll{overflow-y:auto;}
 
 /* ── cards ── */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px 24px;margin-bottom:16px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px 24px;margin-bottom:16px;box-shadow:var(--shadow-sm);}
 /* CSS Grid 자식 요소가 nowrap 텍스트 때문에 트랙을 밀어내지 않도록 방지 */
 #lib-files-grid > *{min-width:0;}
 .card-title{font-size:14px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
 .card-title svg{opacity:.55;}
 
 /* ── badge ── */
-.badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600;white-space:nowrap;}
-.b-accent{background:var(--accent-l);color:var(--accent-d);}
-.b-green{background:var(--green-l);color:var(--green-d);}
-.b-amber{background:var(--amber-l);color:var(--amber-d);}
-.b-red{background:var(--red-l);color:var(--red-d);}
-.b-gray{background:#f1efe8;color:#444;}
+/* 시안의 배지는 옅은 배경 + 같은 계열 테두리 조합이라 흰 카드 위에서도 윤곽이 산다. */
+.badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600;white-space:nowrap;border:1px solid transparent;}
+.b-accent{background:var(--accent-l);color:var(--accent);border-color:#C7D2FE;}
+.b-green{background:var(--green-l);color:var(--green-d);border-color:#A7F3D0;}
+.b-amber{background:var(--amber-l);color:var(--amber-d);border-color:#FDE68A;}
+.b-red{background:var(--red-l);color:var(--red);border-color:#FECACA;}
+.b-gray{background:#F3F4F6;color:#4B5563;border-color:#E5E7EB;}
 
 /* ── buttons ── */
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:var(--r-md);font-size:13px;font-weight:600;border:none;cursor:pointer;transition:.15s;}
-.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary{background:var(--accent);color:#fff;box-shadow:0 1px 2px rgba(79,70,229,.3);}
 .btn-primary:hover{background:var(--accent-d);}
 .btn-outline{background:transparent;color:var(--accent);border:1px solid var(--accent-m);}
 .btn-outline:hover{background:var(--accent-l);}
@@ -145,12 +152,13 @@ textarea{resize:vertical;min-height:100px;}
 .tbl{width:100%;border-collapse:collapse;}
 .tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
 .list-scroll{max-height:560px;overflow-y:auto;}
-.list-scroll thead th{position:sticky;top:0;background:var(--surface);z-index:3;will-change:transform;backface-visibility:hidden;}
-.tbl th{font-size:11px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.5px;padding:8px 12px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;}
-.th-filter{font-size:11px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.5px;border:none;background:transparent;cursor:pointer;padding:0;margin:0;width:100%;appearance:auto;-webkit-appearance:auto;}
+.list-scroll thead th{position:sticky;top:0;background:var(--surface2);z-index:3;will-change:transform;backface-visibility:hidden;}
+/* 시안의 표 머리는 대문자 라벨 대신 회색 바탕 + 보통 굵기 텍스트를 쓴다. */
+.tbl th{font-size:11.5px;font-weight:600;color:var(--muted);background:var(--surface2);padding:10px 12px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;}
+.th-filter{font-size:11.5px;font-weight:600;color:var(--muted);border:none;background:transparent;cursor:pointer;padding:0;margin:0;width:100%;appearance:auto;-webkit-appearance:auto;}
 .tbl td{padding:11px 12px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;white-space:nowrap;}
 .tbl tr:last-child td{border-bottom:none;}
-.tbl-compact th{padding:6px 14px;font-size:10px;}
+.tbl-compact th{padding:6px 14px;font-size:10.5px;}
 .tbl-compact td{padding:6px 14px;font-size:12.5px;}
 .tbl tr:hover td{background:var(--surface2);cursor:pointer;}
 .company-detail-row:hover td{background:inherit !important;cursor:default !important;}
@@ -175,7 +183,7 @@ textarea{resize:vertical;min-height:100px;}
 .dlc-pills{display:inline-flex;gap:3px;flex-wrap:wrap;justify-content:flex-end;}
 .dlc-pill{display:inline-flex;align-items:center;padding:1px 5px;border-radius:99px;font-size:9px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;}
 .dlc-pill-core{background:var(--surface2);color:var(--muted);}
-.dlc-pill-creator{background:#EEEDFE;color:#4C3FC7;}
+.dlc-pill-creator{background:#EEF2FF;color:#4F46E5;}
 .dlc-pill-explorer{background:#E6F4EA;color:#1E7A3C;}
 .dlc-pill-viewer{background:#FEF3E2;color:#B5690A;}
 .dlc-pill-dm{background:#FCEBEB;color:#B23B3B;}
@@ -284,9 +292,10 @@ textarea{resize:vertical;min-height:100px;}
 
 /* ── stats row ── */
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
-.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px 20px;}
-.stat-label{font-size:11px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;}
-.stat-val{font-size:24px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums;}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:18px 20px;box-shadow:var(--shadow-sm);transition:box-shadow .15s;}
+.stat:hover{box-shadow:var(--shadow-md);}
+.stat-label{font-size:12px;font-weight:500;color:var(--muted);margin-bottom:6px;}
+.stat-val{font-size:28px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums;}
 .stat-sub{font-size:11px;color:var(--faint);margin-top:3px;}
 
 /* ── detail layout ── */
@@ -330,7 +339,9 @@ textarea{resize:vertical;min-height:100px;}
 /* 배경이 흰색이라 패널 우측 폼 영역이 배경과 같은 색이 된다 — 테두리가 유일한 경계이므로
    일반 카드보다 한 단계 진한 border-md를 쓴다. */
 .login-split{width:820px;max-width:100%;display:flex;border:1px solid var(--border-md);background:var(--surface);overflow:hidden;}
-.login-side{width:42%;background:var(--accent-d);color:#fff;position:relative;display:flex;flex-direction:column;justify-content:space-between;padding:32px 28px;overflow:hidden;}
+/* 로그인 좌측 패널은 별도로 확정된 디자인이라 토큰 전환(인디고화)에 딸려가지 않게
+   기존 보라(#3C3489)를 고정한다 — 이번 시안 범위는 홈/요청/자료실뿐이다. */
+.login-side{width:42%;background:#3C3489;color:#fff;position:relative;display:flex;flex-direction:column;justify-content:space-between;padding:32px 28px;overflow:hidden;}
 .login-side-mark{position:absolute;right:-34px;top:40%;transform:translateY(-50%);font-size:220px;font-weight:800;line-height:1;color:rgba(255,255,255,.08);letter-spacing:-.05em;}
 .login-side-brand{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;position:relative;z-index:1;}
 .login-side-brand .mark{width:22px;height:22px;border:1.5px solid #fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;}
@@ -642,7 +653,7 @@ textarea{resize:vertical;min-height:100px;}
   <!-- ── 통합 상단바 ── -->
   <div class="topbar">
     <button class="nav-toggle" id="nav-toggle" onclick="toggleDrawer()" aria-label="메뉴">☰</button>
-    <div class="logo" onclick="showPage(document.querySelector('.nt[data-roles=\'all\']'),'p-dashboard')" style="cursor:pointer;">B</div>
+    <div class="logo" onclick="showPage(document.querySelector('.nt[data-roles=\'all\']'),'p-dashboard')" style="cursor:pointer;"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFoAAABaCAYAAAA4qEECAAAACXBIWXMAAAsTAAALEwEAmpwYAAAE9WlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4gPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iQWRvYmUgWE1QIENvcmUgMTAuMC1jMDAwIDc5LmQyMGU0NjYzMCwgMjAyNS8xMi8wOS0wMjoxMToyMyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczpkYz0iaHR0cDovL3B1cmwub3JnL2RjL2VsZW1lbnRzLzEuMS8iIHhtbG5zOnBob3Rvc2hvcD0iaHR0cDovL25zLmFkb2JlLmNvbS9waG90b3Nob3AvMS4wLyIgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iIHhtbG5zOnN0RXZ0PSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VFdmVudCMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIDI3LjggKE1hY2ludG9zaCkiIHhtcDpDcmVhdGVEYXRlPSIyMDI2LTA4LTA2VDE0OjM2OjQ1KzA5OjAwIiB4bXA6TW9kaWZ5RGF0ZT0iMjAyNi0wOC0xMlQxNzoyNToyMyswOTowMCIgeG1wOk1ldGFkYXRhRGF0ZT0iMjAyNi0wOC0xMlQxNzoyNToyMyswOTowMCIgZGM6Zm9ybWF0PSJpbWFnZS9wbmciIHBob3Rvc2hvcDpDb2xvck1vZGU9IjMiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6MGRmZjAxZTMtYjFiYy00N2Y1LWI1ZTQtZmNjZWEwMGZiMjg4IiB4bXBNTTpEb2N1bWVu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" alt="BIGxDATA"></div>
     <span class="site-name" onclick="showPage(document.querySelector('.nt[data-roles=\'all\']'),'p-dashboard')" style="cursor:pointer;">고객지원 포탈</span>
     <div style="margin-left:auto;display:flex;align-items:center;gap:12px;">
       <!-- 사용자 드롭다운 -->
