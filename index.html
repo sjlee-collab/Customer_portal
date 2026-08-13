@@ -3996,6 +3996,7 @@ function closeModal(id) {
     m.querySelectorAll('select').forEach(el => el.selectedIndex = 0);
     const fa = m.querySelector('#f-attach'); if (fa) fa.value = '';
     const fl = m.querySelector('#file-list'); if (fl) fl.innerHTML = '';
+    _attachFiles = [];
   }
 }
 
@@ -4849,38 +4850,39 @@ function renderFileList(files) {
   ).join('');
 }
 
-function removeAttachFile(idx) {
+// 첨부 파일 누적 저장소. 파일 input은 새 선택 시 이전 파일이 덮어써지므로
+// (onchange 시점엔 이미 소실) 별도 배열로 누적을 관리하고 input.files에 다시 써넣는다.
+let _attachFiles = [];
+
+function _syncAttachInput() {
   const input = document.getElementById('f-attach');
+  if (!input) return;
   const dt = new DataTransfer();
-  [...input.files].forEach((f, i) => { if (i !== idx) dt.items.add(f); });
+  _attachFiles.forEach(f => dt.items.add(f));
   input.files = dt.files;
-  renderFileList(input.files);
+  renderFileList(_attachFiles);
+}
+
+function _addAttachFiles(fileList) {
+  [...fileList].forEach(f => {
+    // 동일 파일명+크기 중복 방지
+    const isDup = _attachFiles.some(e => e.name === f.name && e.size === f.size);
+    if (!isDup) _attachFiles.push(f);
+  });
+  _syncAttachInput();
+}
+
+function removeAttachFile(idx) {
+  _attachFiles.splice(idx, 1);
+  _syncAttachInput();
 }
 
 function handleFileSelect(input) {
-  // 기존 파일에 새로 선택한 파일을 누적
-  const existing = document.getElementById('f-attach');
-  const dt = new DataTransfer();
-  [...existing.files].forEach(f => dt.items.add(f));
-  [...input.files].forEach(f => {
-    // 동일 파일명 중복 방지
-    const isDup = [...dt.files].some(e => e.name === f.name && e.size === f.size);
-    if (!isDup) dt.items.add(f);
-  });
-  existing.files = dt.files;
-  renderFileList(existing.files);
+  _addAttachFiles(input.files);
 }
 
 function handleFileDrop(event) {
-  const input = document.getElementById('f-attach');
-  const dt = new DataTransfer();
-  [...input.files].forEach(f => dt.items.add(f));
-  [...event.dataTransfer.files].forEach(f => {
-    const isDup = [...dt.files].some(e => e.name === f.name && e.size === f.size);
-    if (!isDup) dt.items.add(f);
-  });
-  input.files = dt.files;
-  renderFileList(input.files);
+  _addAttachFiles(event.dataTransfer.files);
 }
 
 async function submitRequest() {
