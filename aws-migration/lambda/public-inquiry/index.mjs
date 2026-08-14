@@ -8,7 +8,8 @@
 
 import { query } from './db.mjs';
 
-const SLACK_WEBHOOK_INQUIRY = process.env.SLACK_WEBHOOK_INQUIRY || '';
+// 계정 문의 알림도 공통 채널(#고객지원포탈-공통)로 보낸다. 변수명 오타(WEEBHOOK)는 기존 그대로.
+const SLACK_WEBHOOK = process.env.SLACK_WEEBHOOK_COMMON || '';
 
 function resp(status, body) {
   return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
@@ -67,7 +68,7 @@ export async function handler(event) {
 
   // ② Slack 발송 (best-effort)
   let slackOk = false;
-  if (SLACK_WEBHOOK_INQUIRY) {
+  if (SLACK_WEBHOOK) {
     try {
       const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false });
       const lines = [
@@ -79,7 +80,7 @@ export async function handler(event) {
       ];
       if (message) lines.push(`• 내용: ${message}`);
       lines.push(`• 접수: ${now}`);
-      const r = await fetch(SLACK_WEBHOOK_INQUIRY, {
+      const r = await fetch(SLACK_WEBHOOK, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: lines.join('\n') }),
       });
