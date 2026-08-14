@@ -7851,14 +7851,22 @@ function _rdContractPeriod(c) {
   if (!s && !e) return '';
   return `${s || '?'} ~ ${e || '?'}`;
 }
-function _rdContractRow(c, isRep, opts) {
+function _rdContractRow(c, opts) {
   opts = opts || {};
   const period = _rdContractPeriod(c);
-  const rep = isRep ? ' <span style="font-size:9px;font-weight:800;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:0 4px;vertical-align:1px;">대표</span>' : '';
   return `<div style="display:flex;flex-direction:column;gap:2px;${opts.border || ''}">
-      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span>${escHtml(c.contract_name)}${rep}</span></div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span>${escHtml(c.contract_name)}</span></div>
       ${period ? `<div style="font-size:10.5px;color:var(--faint);font-variant-numeric:tabular-nums;">${period}</div>` : ''}
     </div>`;
+}
+// 연동 계약 여러 건 접기/펼치기 토글 (내부메모·처리이력과 동일 패턴)
+function toggleRdContract() {
+  const c = document.getElementById('rd-ct-collapsed');
+  const f = document.getElementById('rd-ct-full');
+  if (!c || !f) return;
+  const expand = f.style.display === 'none';
+  f.style.display = expand ? '' : 'none';
+  c.style.display = expand ? 'none' : '';
 }
 async function renderRdContract(ticket, el) {
   if (!el) return;
@@ -7888,24 +7896,28 @@ async function renderRdContract(ticket, el) {
   }
   if (!list.length) { setNone(); return; }
 
-  // 대표(스냅샷) 계약을 맨 위로, 나머지는 시작일 최신순
-  list.sort((a, b) => {
-    if (snapId) { if (a.id === snapId) return -1; if (b.id === snapId) return 1; }
-    return (b.start_date || '').localeCompare(a.start_date || '');
-  });
+  // 시작일 최신순 정렬
+  list.sort((a, b) => (b.start_date || '').localeCompare(a.start_date || ''));
 
   el.style.display = 'block';
   el.style.color = 'var(--text)';
   if (list.length === 1) {
-    el.innerHTML = _rdContractRow(list[0], false);
+    el.innerHTML = _rdContractRow(list[0]);
     return;
   }
+  // 2건 이상 — 기본은 접힌 상태(건수만), 펼치면 전체 목록 (내부메모·처리이력과 동일 토글)
   const items = list.map((c, i) => {
     const last = i === list.length - 1;
     const border = last ? '' : 'padding-bottom:7px;margin-bottom:7px;border-bottom:1px dashed var(--border);';
-    return _rdContractRow(c, snapId && c.id === snapId, { border });
+    return _rdContractRow(c, { border });
   }).join('');
-  el.innerHTML = `<div style="font-size:10px;color:var(--faint);margin-bottom:5px;">${list.length}건 · 만료 제외</div>${items}`;
+  const tgl = 'style="cursor:pointer;color:var(--muted);font-weight:400;margin-left:6px;font-size:11px;" onclick="toggleRdContract()"';
+  el.innerHTML =
+    `<div id="rd-ct-collapsed">계약 <b>${list.length}건</b> · 만료 제외 <span ${tgl}>펼치기 ▾</span></div>` +
+    `<div id="rd-ct-full" style="display:none;">` +
+      `<div style="font-size:10px;color:var(--faint);margin-bottom:5px;">${list.length}건 · 만료 제외 <span ${tgl}>접기 ▴</span></div>` +
+      items +
+    `</div>`;
 }
 
 async function loadRdAttachments() {
