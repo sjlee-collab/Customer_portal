@@ -55,6 +55,11 @@
 - 관련 테이블(총 16개, `data-api`의 `ALLOWED_TABLES` 기준): `companies`, `company_contracts`, `company_licenses`, `users`, `tickets`, `log_notification`, `content_documents`, `ticket_history`, `log_integration`, `ticket_replies`, `ticket_memos`, `ticket_attachments`, `content_notices`, `role_permissions`, `org_units`, `user_org_units`
 - `org_units`(조직)·`user_org_units`(사용자↔조직 N:M)·`ticket_memos`·`log_integration`은 **스태프 전용**이라 고객/내부 역할로는 조회조차 안 된다(`data-api`의 `STAFF_ONLY_TABLES`). 고객 화면에서 조직 정보가 필요하면 JWT의 `unit_ids` 클레임과 `tickets.unit_name` 스냅샷을 쓴다.
 
+### 스모크 테스트(회귀 안전망)
+배포/리팩터 후 핵심 경로가 살아있는지 빠르게(비파괴) 점검한다. `amplify.yml`이 `index.html`만 배포하므로 `scripts/`는 웹에 노출되지 않는다.
+- **백엔드**: `bash scripts/smoke.sh` (비인증 경로) / `SMOKE_EMAIL=.. SMOKE_PASSWORD=.. bash scripts/smoke.sh` (로그인·조회까지). 로그인 엔드포인트·계정신청(허니팟 비파괴)·인증보호·(선택)티켓조회 확인, 실패 시 종료코드 1.
+- **프론트**: `scripts/smoke-frontend.js` 내용을 브라우저 콘솔에 붙여넣기 → 폼 옵션 채움·통합 함수(openDocModal/filterPop*)·렌더러·핵심 DOM 존재를 즉시 확인. 로컬 검증은 `.claude/launch.json`의 static 서버(preview)로 로그인 없이 가능.
+
 ### 3. 개발현황.html 수정 금지
 이 채팅에서 진척 보고 요청이 와도 `개발현황.html` 파일은 건드리지 않는다.
 텍스트/마크다운으로만 응답. 파일 반영은 사용자가 명시적으로 요청할 때만.
