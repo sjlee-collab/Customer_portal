@@ -2405,6 +2405,12 @@ textarea{resize:vertical;min-height:100px;}
         </div>
         <div class="form-group" style="grid-column:1/-1;">
           <label>파일 <span class="req" id="doc-file-req">*</span></label>
+          <div id="d-current-file" style="display:none;align-items:center;gap:9px;border:1px solid var(--border-md);border-radius:var(--r-md);padding:7px 10px;background:var(--surface2);margin-bottom:7px;">
+            <span style="font-size:13px;">📄</span>
+            <span id="d-current-file-name" style="flex:1;min-width:0;font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+            <span id="d-current-file-size" style="font-size:11px;color:var(--faint);flex-shrink:0;"></span>
+            <button type="button" onclick="downloadCurrentDocFile()" style="border:1px solid var(--border-md);border-radius:6px;background:transparent;color:var(--muted);font-size:11.5px;font-weight:600;padding:4px 9px;cursor:pointer;flex-shrink:0;">⬇ 다운로드</button>
+          </div>
           <div id="d-dropzone" onclick="document.getElementById('d-file-input').click()"
             style="border:2px dashed var(--border-md);border-radius:var(--r-md);padding:24px;text-align:center;cursor:pointer;transition:border-color .15s;background:var(--surface2);"
             ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
@@ -3692,21 +3698,48 @@ function onDocTypeChange() {
 function openEditDoc(d) {
   document.getElementById('modal-doc-title').textContent = '자료 수정';
   document.getElementById('d-id').value = d.id;
+  document.getElementById('d-storage-path').value = d.storage_path || '';
+  document.getElementById('d-file-size').value = d.file_size || '';
   document.getElementById('doc-title').value = d.title || '';
   document.getElementById('d-type').value = d.product === 'faq' ? 'faq' : '';
   document.getElementById('d-category').value = d.category || 'tableau';
   setDescEditorValue(d.description);
   document.getElementById('d-filename').value = d.file_name || '';
   onDocTypeChange();
-  // 기존 파일명 드롭존에 표시
+  // 현재 저장된 파일은 전용 "현재 첨부 파일" 행으로 표시(드롭존은 교체용).
+  _docFile = null;
+  _docSavedFile = d.storage_path ? { name: d.file_name, size: d.file_size, path: d.storage_path, id: d.id } : null;
+  renderDocCurrentFile();
   const lbl = document.getElementById('d-dropzone-label');
-  if (lbl) lbl.textContent = d.file_name || '클릭하거나 파일을 여기로 드래그하세요';
+  if (lbl) lbl.textContent = d.file_name ? '클릭하거나 드래그해서 새 파일로 교체' : '클릭하거나 파일을 여기로 드래그하세요';
   const dz = document.getElementById('d-dropzone');
-  if (dz && d.file_name) dz.style.borderColor = 'var(--accent)';
+  if (dz) dz.style.borderColor = '';
   openModal('modal-doc');
 }
 
 let _docFile = null; // 선택된 File 객체 보관
+let _docSavedFile = null; // 수정 화면에서 현재 저장돼 있는 파일 정보(표시·다운로드용)
+
+// 수정 모달의 "현재 첨부 파일" 행 표시/숨김
+function renderDocCurrentFile() {
+  const box = document.getElementById('d-current-file');
+  if (!box) return;
+  if (_docSavedFile && _docSavedFile.path) {
+    document.getElementById('d-current-file-name').textContent = _docSavedFile.name || '(파일)';
+    const kb = _docSavedFile.size ? `${(_docSavedFile.size / 1024).toFixed(1)} KB` : '';
+    document.getElementById('d-current-file-size').textContent = kb;
+    box.style.display = 'flex';
+  } else {
+    box.style.display = 'none';
+  }
+}
+
+// 현재 저장된 파일 다운로드 (새로 고른 파일이 아니라 기존 파일 기준)
+function downloadCurrentDocFile() {
+  if (!_docSavedFile || !_docSavedFile.path) return;
+  downloadPrivateFile('documents', _docSavedFile.path, _docSavedFile.name || 'file', _docSavedFile.id);
+}
+
 const ALLOWED_DOC_EXTENSIONS = ['.pdf', '.docx', '.pptx', '.xlsx', '.png', '.jpg', '.jpeg', '.gif', '.zip', '.mp4'];
 const MAX_DOC_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
@@ -8684,6 +8717,8 @@ function openNewDocModal(type) {
   document.getElementById('d-filename').value = '';
   onDocTypeChange();
   _docFile = null;
+  _docSavedFile = null;
+  renderDocCurrentFile();
   const lbl = document.getElementById('d-dropzone-label');
   if (lbl) lbl.textContent = '클릭하거나 파일을 여기로 드래그하세요';
   const dz = document.getElementById('d-dropzone');
@@ -8709,17 +8744,13 @@ function openLibEditDoc(d) {
   if (isPubChk) { isPubChk.checked = d.is_public !== false; document.getElementById('d-is-public-label').textContent = isPubChk.checked ? '공개 (고객에게 노출됨)' : '비공개 (고객에게 숨김)'; }
   document.getElementById('d-filename').value = d.file_name || '';
   _docFile = null;
+  // 현재 저장된 파일은 드롭존 라벨이 아니라 전용 "현재 첨부 파일" 행으로 보여준다.
+  _docSavedFile = d.storage_path ? { name: d.file_name, size: d.file_size, path: d.storage_path, id: d.id } : null;
+  renderDocCurrentFile();
   const lbl = document.getElementById('d-dropzone-label');
-  if (lbl) {
-    if (d.file_name) {
-      const sizeStr = d.file_size ? ` (${(d.file_size/1024).toFixed(1)} KB)` : '';
-      lbl.textContent = '📎 ' + d.file_name + sizeStr;
-    } else {
-      lbl.textContent = '클릭하거나 파일을 여기로 드래그하세요';
-    }
-  }
+  if (lbl) lbl.textContent = d.file_name ? '클릭하거나 드래그해서 새 파일로 교체' : '클릭하거나 파일을 여기로 드래그하세요';
   const dz = document.getElementById('d-dropzone');
-  if (dz) dz.style.borderColor = d.file_name ? 'var(--accent)' : '';
+  if (dz) dz.style.borderColor = '';
   openModal('modal-doc');
 }
 
