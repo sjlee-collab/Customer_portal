@@ -7307,28 +7307,54 @@ function closeAllArFilterPops() {
   document.querySelectorAll('.th-filter-btn').forEach(b => b.classList.remove('active'));
 }
 
-function toggleArFilterPop(btn, key) {
-  const pop = document.getElementById('ar-pop-' + key);
+// ── 필터 팝업 공용 로직 ──
+// 요청(tk)·요청관리(ar) 두 화면이 같은 팝업 동작을 쓴다. 스코프별 차이(DOM 프리픽스·
+// 상태객체·적용콜백·라벨범위·ar만 칩 렌더)만 여기서 분기한다. 아래 8개 공개 함수는
+// 이 코어로 위임하는 얇은 래퍼라, 로직은 한 곳에만 존재한다(HTML onclick은 그대로).
+function _filterScope(scope) {
+  return scope === 'ar'
+    ? { prefix: 'ar-pop-', state: arFilters, labelScope: '#p-all-requests', onApply: renderAllTickets, afterUpdate: renderArFilterChips }
+    : { prefix: 'tk-pop-', state: tkFilters, labelScope: '#p-my-requests', onApply: applyTicketFilter, afterUpdate: null };
+}
+function filterPopToggle(scope, btn, key) {
+  const pop = document.getElementById(_filterScope(scope).prefix + key);
   if (!pop) return;
   const isOpen = pop.classList.contains('open');
   closeAllArFilterPops();
-  if (!isOpen) {
-    pop.classList.add('open');
-    btn.classList.add('active');
-  }
+  if (!isOpen) { pop.classList.add('open'); btn.classList.add('active'); }
+}
+function filterUpdateButtons(scope) {
+  const s = _filterScope(scope);
+  Object.keys(s.state).forEach(key => {
+    const pop = document.getElementById(s.prefix + key);
+    const btn = pop?.previousElementSibling;
+    if (btn) btn.classList.toggle('active', s.state[key].length > 0);
+  });
+  updateFltLabels(s.labelScope, s.state);
+  if (s.afterUpdate) s.afterUpdate();
+}
+function filterPopApply(scope, key) {
+  const s = _filterScope(scope);
+  const pop = document.getElementById(s.prefix + key);
+  if (!pop) return;
+  s.state[key] = [...pop.querySelectorAll('input:checked')].map(el => el.value);
+  closeAllArFilterPops();
+  filterUpdateButtons(scope);
+  s.onApply();
+}
+function filterPopClear(scope, key) {
+  const s = _filterScope(scope);
+  const pop = document.getElementById(s.prefix + key);
+  if (pop) pop.querySelectorAll('input').forEach(el => el.checked = false);
+  s.state[key] = [];
+  closeAllArFilterPops();
+  filterUpdateButtons(scope);
+  s.onApply();
 }
 
-function updateArFilterButtonStates() {
-  Object.keys(arFilters).forEach(key => {
-    const pop = document.getElementById('ar-pop-' + key);
-    const btn = pop?.previousElementSibling;
-    if (btn) btn.classList.toggle('active', arFilters[key].length > 0);
-  });
-  // 툴바 드롭다운은 시안처럼 버튼 라벨 자체가 선택값이 된다 — "기술지원 외 2" 식.
-  // 요청(p-my-requests) 화면에도 같은 .flt-label이 있어 반드시 화면으로 스코프를 좁힌다.
-  updateFltLabels('#p-all-requests', arFilters);
-  renderArFilterChips();
-}
+function toggleArFilterPop(btn, key) { filterPopToggle('ar', btn, key); }
+
+function updateArFilterButtonStates() { filterUpdateButtons('ar'); }
 
 // 두 화면(요청/요청 관리)이 같은 라벨 규칙을 쓴다 — 컨테이너와 상태 객체만 다르다.
 function updateFltLabels(scope, filters) {
@@ -7343,23 +7369,8 @@ function updateFltLabels(scope, filters) {
   });
 }
 
-function applyArFilter(key) {
-  const pop = document.getElementById('ar-pop-' + key);
-  if (!pop) return;
-  arFilters[key] = [...pop.querySelectorAll('input:checked')].map(el => el.value);
-  closeAllArFilterPops();
-  updateArFilterButtonStates();
-  renderAllTickets();
-}
-
-function clearArFilter(key) {
-  const pop = document.getElementById('ar-pop-' + key);
-  if (pop) pop.querySelectorAll('input').forEach(el => el.checked = false);
-  arFilters[key] = [];
-  closeAllArFilterPops();
-  updateArFilterButtonStates();
-  renderAllTickets();
-}
+function applyArFilter(key) { filterPopApply('ar', key); }
+function clearArFilter(key) { filterPopClear('ar', key); }
 
 // 고객사/담당자는 값이 고정돼 있지 않아 현재 불러온 티켓들에서 뽑아 옵션을 채운다
 function populateArDynamicFilters() {
@@ -7417,40 +7428,10 @@ document.addEventListener('click', (e) => {
 // ── 고객 티켓 목록 컬럼 필터 (tk-) ──────────────────────────
 let tkFilters = { category: [], priority: [], status: [] };
 
-function toggleTkFilterPop(btn, key) {
-  const pop = document.getElementById('tk-pop-' + key);
-  if (!pop) return;
-  const isOpen = pop.classList.contains('open');
-  closeAllArFilterPops();
-  if (!isOpen) { pop.classList.add('open'); btn.classList.add('active'); }
-}
-
-function applyTkFilter(key) {
-  const pop = document.getElementById('tk-pop-' + key);
-  if (!pop) return;
-  tkFilters[key] = [...pop.querySelectorAll('input:checked')].map(el => el.value);
-  closeAllArFilterPops();
-  updateTkFilterButtonStates();
-  applyTicketFilter();
-}
-
-function clearTkFilter(key) {
-  const pop = document.getElementById('tk-pop-' + key);
-  if (pop) pop.querySelectorAll('input').forEach(el => el.checked = false);
-  tkFilters[key] = [];
-  closeAllArFilterPops();
-  updateTkFilterButtonStates();
-  applyTicketFilter();
-}
-
-function updateTkFilterButtonStates() {
-  Object.keys(tkFilters).forEach(key => {
-    const pop = document.getElementById('tk-pop-' + key);
-    const btn = pop?.previousElementSibling;
-    if (btn) btn.classList.toggle('active', tkFilters[key].length > 0);
-  });
-  updateFltLabels('#p-my-requests', tkFilters);
-}
+function toggleTkFilterPop(btn, key) { filterPopToggle('tk', btn, key); }
+function applyTkFilter(key) { filterPopApply('tk', key); }
+function clearTkFilter(key) { filterPopClear('tk', key); }
+function updateTkFilterButtonStates() { filterUpdateButtons('tk'); }
 
 async function loadAllTickets(silent = false) {
   const tbody = document.getElementById('ar-tbody');
