@@ -71,7 +71,7 @@ export async function handler(event) {
     try {
       const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false });
       const lines = [
-        '📩 *신규 계정/문의 요청*',
+        '📩 *신규 계정 요청*',
         `• 성함: ${name}`,
         `• 기업명: ${company}`,
         `• 연락처: ${phone}`,
