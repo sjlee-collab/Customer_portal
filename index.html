@@ -4845,6 +4845,21 @@ function detachSharedRequestDetail(tbody) {
   rdTicket = null;
 }
 
+// ── 티켓 목록 공용 셀 빌더 ──
+// 요청 탭·요청 관리 두 아코디언 테이블이 똑같이 쓰는 9개 셀을 한 곳에 정의(중복 제거).
+// 화면별로 다른 셀은 각 렌더러에 그대로 둔다: num(폴백 차이)·due(지연뱃지 유무)·action(요청관리 전용).
+const TICKET_CELL = {
+  title:     t => `<td style="font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(t.title||'')}<span class="row-arrow">▾</span></td>`,
+  category:  t => `<td><span class="badge ${CATEGORY_BADGE[t.category]||'b-gray'}">${CATEGORY_LABELS[t.category]||t.category||'—'}</span></td>`,
+  priority:  t => `<td><span class="badge ${PRIORITY_BADGE[t.priority]||'b-gray'}">${PRIORITY_LABELS[t.priority]||'일반'}</span></td>`,
+  status:    t => `<td><span class="badge ${STATUS_BADGE[t.status]||'b-gray'}">${STATUS_LABELS[t.status]||t.status||'—'}</span></td>`,
+  company:   t => `<td style="font-size:12px;">${t.company?.name?escHtml(t.company.name):(t.company_name?escHtml(t.company_name):'<span style="color:var(--faint);">—</span>')}</td>`,
+  org:       t => `<td style="font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(t.unit_name||'')}">${t.unit_name?escHtml(t.unit_name):'<span style="color:var(--faint);">—</span>'}</td>`,
+  requester: t => `<td style="font-size:12px;">${t.requester?.name?escHtml(t.requester.name):(t.created_by_name?escHtml(t.created_by_name):'<span style="color:var(--faint);">—</span>')}</td>`,
+  assignee:  t => `<td style="font-size:12px;">${t.assignee?.name?escHtml(t.assignee.name):(t.assigned_to_name?escHtml(t.assigned_to_name)+' <span style="color:var(--faint);font-size:10px;">(탈퇴)</span>':'<span style="color:var(--faint);">미배정</span>')}</td>`,
+  created:   t => `<td style="color:var(--faint);font-size:12px;">${t.created_at?t.created_at.slice(0,10):'—'}</td>`,
+};
+
 function renderTickets(tickets) {
   const tbody = document.getElementById('ticket-tbody');
   if (!tbody) return;
@@ -4860,43 +4875,29 @@ function renderTickets(tickets) {
   const PENDING_STATUSES = ['received', 'classifying', 'in_progress', 'pending_customer', 'on_hold'];
   const todayStr = new Date().toISOString().slice(0, 10);
   tbody.innerHTML = tickets.map(t => {
-    const catLabel  = CATEGORY_LABELS[t.category] || t.category || '—';
-    const catBadge  = CATEGORY_BADGE[t.category]  || 'b-gray';
-    const statLabel = STATUS_LABELS[t.status]      || t.status  || '—';
-    const statBadge = STATUS_BADGE[t.status]       || 'b-gray';
-    const priLabel  = PRIORITY_LABELS[t.priority]  || '일반';
-    const priBadge  = PRIORITY_BADGE[t.priority]   || 'b-gray';
-    const company   = t.company?.name ? escHtml(t.company.name) : t.company_name ? escHtml(t.company_name) : '<span style="color:var(--faint);">—</span>';
-    const org       = t.unit_name ? escHtml(t.unit_name) : '<span style="color:var(--faint);">—</span>';
-    const requester = t.requester?.name ? escHtml(t.requester.name) : t.created_by_name ? escHtml(t.created_by_name) : '<span style="color:var(--faint);">—</span>';
-    const asgn      = t.assignee?.name ? escHtml(t.assignee.name)
-                      : t.assigned_to_name ? escHtml(t.assigned_to_name) + ' <span style="color:var(--faint);font-size:10px;">(탈퇴)</span>'
-                      : '<span style="color:var(--faint);">미배정</span>';
-    const date      = t.created_at ? t.created_at.slice(0, 10) : '—';
     const num       = t.ticket_number || t.id?.slice(0, 8);
+    const numCell   = `<td style="color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;font-size:12px;">${escHtml(num)}</td>`;
     const dueDateStr = t.due_date ? t.due_date.slice(0, 10) : null;
     const isDelayed = PENDING_STATUSES.includes(t.status) && dueDateStr && dueDateStr < todayStr;
     const overdueDays = isDelayed ? Math.floor((new Date(todayStr) - new Date(dueDateStr)) / (24*60*60*1000)) : 0;
+    // 요청 탭은 완료예정일에 지연 뱃지를 붙인다(요청 관리와 다른 부분). 고객 역할엔 열 자체가 없음.
     const dueDateCell = isCustomerRole ? '' : `<td style="font-size:12px;${isDelayed ? 'color:var(--red);font-weight:600;' : 'color:var(--faint);'}">${dueDateStr ? dueDateStr + (isDelayed ? ` <span style="font-size:10px;background:#fee2e2;color:#b91c1c;padding:1px 5px;border-radius:3px;">+${overdueDays}일</span>` : '') : '—'}</td>`;
     const idx = allTickets.indexOf(t);
-    return `<tr class="ar-spacer" style="display:none;"><td colspan="${colCount}" style="padding:0;border:none;height:14px;"></td></tr>
+    // 셀 순서: 번호·제목·카테고리·긴급도·상태·고객사·조직·요청자·담당자·접수일·(완료예정일). colspan은 셀 수에서 자동.
+    const cells = [
+      numCell, TICKET_CELL.title(t), TICKET_CELL.category(t), TICKET_CELL.priority(t), TICKET_CELL.status(t),
+      TICKET_CELL.company(t), TICKET_CELL.org(t), TICKET_CELL.requester(t), TICKET_CELL.assignee(t),
+      TICKET_CELL.created(t), dueDateCell,
+    ].filter(Boolean);
+    const span = cells.length;
+    return `<tr class="ar-spacer" style="display:none;"><td colspan="${span}" style="padding:0;border:none;height:14px;"></td></tr>
     <tr class="ticket-row" style="cursor:pointer;" data-id="${t.id}" onclick="toggleTicketRow(this, allTickets[${idx}])">
-      <td style="color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;font-size:12px;">${escHtml(num)}</td>
-      <td style="font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(t.title||'')}<span class="row-arrow">▾</span></td>
-      <td><span class="badge ${catBadge}">${catLabel}</span></td>
-      <td><span class="badge ${priBadge}">${priLabel}</span></td>
-      <td><span class="badge ${statBadge}">${statLabel}</span></td>
-      <td style="font-size:12px;">${company}</td>
-      <td style="font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(t.unit_name||'')}">${org}</td>
-      <td style="font-size:12px;">${requester}</td>
-      <td style="font-size:12px;">${asgn}</td>
-      <td style="color:var(--faint);font-size:12px;">${date}</td>
-      ${dueDateCell}
+      ${cells.join('')}
     </tr>
     <tr class="ticket-detail-row" style="display:none;">
-      <td colspan="${colCount}"></td>
+      <td colspan="${span}"></td>
     </tr>
-    <tr class="ar-spacer" style="display:none;"><td colspan="${colCount}" style="padding:0;border:none;height:14px;"></td></tr>`;
+    <tr class="ar-spacer" style="display:none;"><td colspan="${span}" style="padding:0;border:none;height:14px;"></td></tr>`;
   }).join('');
 }
 
@@ -7570,40 +7571,26 @@ function renderAllTickets() {
     return;
   }
   tbody.innerHTML = pageList.map((t) => {
-    const idx       = allMgTickets.indexOf(t);
-    const catL      = CATEGORY_LABELS[t.category]  || t.category || '—';
-    const catB      = CATEGORY_BADGE[t.category]   || 'b-gray';
-    const statL     = STATUS_LABELS[t.status]       || t.status   || '—';
-    const statB     = STATUS_BADGE[t.status]        || 'b-gray';
-    const priL      = PRIORITY_LABELS[t.priority]  || '일반';
-    const priB      = PRIORITY_BADGE[t.priority]   || 'b-gray';
-    const company   = t.company?.name ? escHtml(t.company.name) : t.company_name ? escHtml(t.company_name) : '<span style="color:var(--faint);">—</span>';
-    const org       = t.unit_name ? escHtml(t.unit_name) : '<span style="color:var(--faint);">—</span>';
-    const requester = t.requester?.name ? escHtml(t.requester.name) : t.created_by_name ? escHtml(t.created_by_name) : '<span style="color:var(--faint);">—</span>';
-    const asgn      = t.assignee?.name ? escHtml(t.assignee.name)
-                      : t.assigned_to_name ? escHtml(t.assigned_to_name) + ' <span style="color:var(--faint);font-size:10px;">(탈퇴)</span>'
-                      : '<span style="color:var(--faint);">미배정</span>';
-    const date    = (t.created_at||'').slice(0,10);
-    const dueDate = t.due_date ? t.due_date.slice(0,10) : '<span style="color:var(--faint);">—</span>';
-    return `<tr class="ar-spacer" style="display:none;"><td colspan="12" style="padding:0;border:none;height:14px;"></td></tr>
+    const idx      = allMgTickets.indexOf(t);
+    const numCell  = `<td style="color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;font-size:12px;">${escHtml(t.ticket_number||'—')}</td>`;
+    const dueDate  = t.due_date ? t.due_date.slice(0,10) : '<span style="color:var(--faint);">—</span>';
+    // 요청 관리는 완료예정일(지연뱃지 없음) + 처리 버튼 열이 요청 탭과 다른 부분.
+    const dueCell    = `<td style="font-size:12px;font-variant-numeric:tabular-nums;">${dueDate}</td>`;
+    const actionCell = `<td><button class="btn btn-primary btn-sm" style="font-size:11px;" onclick="event.stopPropagation();openManage(${idx})">처리</button></td>`;
+    const cells = [
+      numCell, TICKET_CELL.title(t), TICKET_CELL.category(t), TICKET_CELL.priority(t), TICKET_CELL.status(t),
+      TICKET_CELL.company(t), TICKET_CELL.org(t), TICKET_CELL.requester(t), TICKET_CELL.assignee(t),
+      TICKET_CELL.created(t), dueCell, actionCell,
+    ];
+    const span = cells.length;
+    return `<tr class="ar-spacer" style="display:none;"><td colspan="${span}" style="padding:0;border:none;height:14px;"></td></tr>
     <tr class="ticket-row" style="cursor:pointer;" data-id="${t.id}" onclick="toggleAllTicketRow(this, allMgTickets[${idx}])">
-      <td style="color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;font-size:12px;">${escHtml(t.ticket_number||'—')}</td>
-      <td style="font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(t.title||'')}<span class="row-arrow">▾</span></td>
-      <td><span class="badge ${catB}">${catL}</span></td>
-      <td><span class="badge ${priB}">${priL}</span></td>
-      <td><span class="badge ${statB}">${statL}</span></td>
-      <td style="font-size:12px;">${company}</td>
-      <td style="font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(t.unit_name||'')}">${org}</td>
-      <td style="font-size:12px;">${requester}</td>
-      <td style="font-size:12px;">${asgn}</td>
-      <td style="color:var(--faint);font-size:12px;">${date}</td>
-      <td style="font-size:12px;font-variant-numeric:tabular-nums;">${dueDate}</td>
-      <td><button class="btn btn-primary btn-sm" style="font-size:11px;" onclick="event.stopPropagation();openManage(${idx})">처리</button></td>
+      ${cells.join('')}
     </tr>
     <tr class="ticket-detail-row" style="display:none;">
-      <td colspan="12"></td>
+      <td colspan="${span}"></td>
     </tr>
-    <tr class="ar-spacer" style="display:none;"><td colspan="12" style="padding:0;border:none;height:14px;"></td></tr>`;
+    <tr class="ar-spacer" style="display:none;"><td colspan="${span}" style="padding:0;border:none;height:14px;"></td></tr>`;
   }).join('');
 }
 
