@@ -691,7 +691,7 @@ textarea{resize:vertical;min-height:100px;}
         <!-- 허니팟: 사람에겐 안 보임, 봇이 채우면 서버가 무시 -->
         <input id="inq-website" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
       </div>
-      <button class="btn btn-primary" id="inq-submit" style="width:100%;justify-content:center;" onclick="submitAccountInquiry()">문의 보내기</button>
+      <button class="btn btn-primary" id="inq-submit" style="width:100%;justify-content:center;" onclick="submitAccountInquiry()">계정 요청</button>
     </div>
   </div>
 </div>
@@ -2630,7 +2630,7 @@ async function submitAccountInquiry() {
   } catch (e) {
     showToast('네트워크 오류로 접수하지 못했습니다.', true);
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '문의 보내기'; }
+    if (btn) { btn.disabled = false; btn.textContent = '계정 요청'; }
   }
 }
 
