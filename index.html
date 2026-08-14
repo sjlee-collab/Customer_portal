@@ -7434,6 +7434,39 @@ function applyTkFilter(key) { filterPopApply('tk', key); }
 function clearTkFilter(key) { filterPopClear('tk', key); }
 function updateTkFilterButtonStates() { filterUpdateButtons('tk'); }
 
+// 요청 관리 티켓 조회 — 전체 로드와 델타 폴링이 같은 select·역할필터를 쓰도록 공용화.
+const AR_TICKET_SELECT = 'id, ticket_number, title, category, priority, status, created_at, updated_at, due_date, unit_name, assigned_to_name, company_name, created_by_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name,email)';
+const AR_ROLE_ALLOWED_CATS = { tech_support: ['tech_support', 'other'], sales: ['contract', 'license', 'other'], education: ['education'] };
+function _arBaseQuery() {
+  const allowedCats = AR_ROLE_ALLOWED_CATS[currentUser?.role] || null;
+  let q = sb.from('tickets').select(AR_TICKET_SELECT).order('created_at', { ascending: false });
+  if (allowedCats) q = allowedCats.length === 1 ? q.eq('category', allowedCats[0]) : q.in('category', allowedCats);
+  return q;
+}
+let arLastSync = null; // 마지막으로 반영된 updated_at 워터마크(델타 폴링 기준)
+function _arMaxUpdated(rows) {
+  let mx = '';
+  for (const r of (rows || [])) if (r.updated_at && r.updated_at > mx) mx = r.updated_at;
+  return mx;
+}
+
+// 델타 폴링: 마지막 동기화 이후 새로 생기거나(created) 바뀐(status/담당자 등) 티켓만 받아
+// 로컬 목록에 병합 → 전체 1000건 재조회 없이 신선도 유지. (updated_at 트리거+api-layer가 보장)
+async function arMergeDelta() {
+  if (!sb || !currentUser) return;
+  if (!arLastSync) { await loadAllTickets(true); return; }  // 아직 전체 로드 전이면 전체 로드
+  const { data, error } = await _arBaseQuery().gt('updated_at', arLastSync).limit(500);
+  if (error || !data || !data.length) return;
+  data.forEach(t => {
+    const i = allMgTickets.findIndex(x => x.id === t.id);
+    if (i >= 0) allMgTickets[i] = t; else allMgTickets.unshift(t);
+  });
+  allMgTickets.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  arLastSync = _arMaxUpdated(data) || arLastSync;
+  populateArDynamicFilters();
+  renderAllTickets();
+}
+
 async function loadAllTickets(silent = false) {
   const tbody = document.getElementById('ar-tbody');
   if (!tbody) return;
@@ -7445,16 +7478,8 @@ async function loadAllTickets(silent = false) {
     return;
   }
 
-  // 역할별 허용 카테고리
-  const ROLE_ALLOWED_CATS = {
-    tech_support: ['tech_support', 'other'],
-    sales:        ['contract', 'license', 'other'],
-    education:    ['education'],
-  };
-  const role = currentUser?.role;
-  const allowedCats = ROLE_ALLOWED_CATS[role] || null; // null = 제한 없음
-
   // 카테고리 헤더 필터 팝업 — 허용 카테고리만 노출
+  const allowedCats = AR_ROLE_ALLOWED_CATS[currentUser?.role] || null; // null = 제한 없음
   const catPop = document.getElementById('ar-pop-category');
   if (catPop) {
     catPop.querySelectorAll('.th-filter-opt').forEach(opt => {
@@ -7463,23 +7488,13 @@ async function loadAllTickets(silent = false) {
     });
   }
 
-  let q = sb.from('tickets')
-    .select('id, ticket_number, title, category, priority, status, created_at, due_date, unit_name, assigned_to_name, company_name, created_by_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name,email)')
-    .order('created_at', { ascending: false })
-    .limit(1000);
-
-  // 역할 기반 강제 필터
-  if (allowedCats) {
-    if (allowedCats.length === 1) q = q.eq('category', allowedCats[0]);
-    else q = q.in('category', allowedCats);
-  }
-
-  const { data, error } = await q;
+  const { data, error } = await _arBaseQuery().limit(1000);
   if (error) {
     if (!silent) tbody.innerHTML = `<tr><td colspan="8" style="padding:24px;text-align:center;color:var(--red-d);">오류: ${error.message}</td></tr>`;
     return;
   }
   allMgTickets = data || [];
+  arLastSync = _arMaxUpdated(allMgTickets) || new Date().toISOString(); // 델타 폴링 기준 시각
   populateArDynamicFilters();
   renderAllTickets();
 }
@@ -7502,7 +7517,7 @@ async function arAutoRefreshTick() {
   if (!document.getElementById('p-all-requests')?.classList.contains('active')) { stopArAutoRefresh(); return; }
   if (document.querySelector('#ar-tbody tr.ticket-row.open')) return;
   if (document.getElementById('modal-manage')?.style.display === 'flex') return;
-  await loadAllTickets(true);
+  await arMergeDelta();  // 전체 재조회 대신 델타(신규·변경분)만 병합
 }
 
 let arPage = 1;
