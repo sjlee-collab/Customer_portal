@@ -1,0 +1,94 @@
+// 계정 문의 공개 엔드포인트 (POST /public/account-inquiry, 인증 NONE)
+//
+// 로그인 화면의 "담당자에게 문의" 폼에서 호출한다(비인증). 입력을 검증해
+// account_inquiries 테이블에 기록하고, 전용 Slack 채널로 알림을 보낸다.
+// 공개 엔드포인트이므로 허니팟·필수검증·길이제한으로 남용을 막는다.
+//
+// data-api와 동일 VPC/서브넷/보안그룹·DB 시크릿을 재사용한다(db.mjs 그대로 복사).
+
+import { query } from './db.mjs';
+
+const SLACK_WEBHOOK_INQUIRY = process.env.SLACK_WEBHOOK_INQUIRY || '';
+
+function resp(status, body) {
+  return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+}
+
+// 최초 1회 테이블 생성용 — API Gateway가 아닌 직접 invoke(`{ "__migrate": true }`)로만 동작.
+const MIGRATE_SQL = `
+create table if not exists public.account_inquiries (
+  id          uuid primary key default gen_random_uuid(),
+  name        text not null,
+  company     text,
+  phone       text,
+  email       text,
+  message     text,
+  status      text not null default 'new' check (status in ('new','handled','spam')),
+  handled_by  uuid,
+  handled_at  timestamptz,
+  note        text,
+  created_at  timestamptz not null default now()
+);
+create index if not exists idx_account_inquiries_created on public.account_inquiries(created_at desc);
+`;
+
+export async function handler(event) {
+  // 직접 invoke 마이그레이션/점검(HTTP 요청이 아닐 때만) — 공개 라우트로는 절대 실행 안 됨.
+  if (event && event.__migrate === true && !event.requestContext) {
+    await query(MIGRATE_SQL);
+    return { migrated: true };
+  }
+
+  let data;
+  try { data = JSON.parse(event.body || '{}'); } catch { return resp(400, { ok: false, error: 'bad json' }); }
+
+  // 허니팟: 사람에겐 보이지 않는 필드가 채워졌으면 봇으로 간주하고 조용히 성공 처리.
+  if (data.website) return resp(200, { ok: true });
+
+  const clip = (s, n) => (typeof s === 'string' ? s.trim().slice(0, n) : '');
+  const name    = clip(data.name, 100);
+  const company = clip(data.company, 150);
+  const phone   = clip(data.phone, 50);
+  const email   = clip(data.email, 150);
+  const message = clip(data.message, 1000);
+
+  if (!name || !company || !phone || !email) return resp(400, { ok: false, error: 'missing required fields' });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return resp(400, { ok: false, error: 'invalid email' });
+
+  // ① DB 기록 (실패해도 Slack은 시도)
+  let dbOk = false;
+  try {
+    await query(
+      `insert into public.account_inquiries (name, company, phone, email, message) values ($1,$2,$3,$4,$5)`,
+      [name, company, phone, email, message || null]
+    );
+    dbOk = true;
+  } catch (e) { console.error('[inquiry] db insert 실패', e); }
+
+  // ② Slack 발송 (best-effort)
+  let slackOk = false;
+  if (SLACK_WEBHOOK_INQUIRY) {
+    try {
+      const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false });
+      const lines = [
+        '📩 *신규 계정/문의 요청*',
+        `• 성함: ${name}`,
+        `• 기업명: ${company}`,
+        `• 연락처: ${phone}`,
+        `• 이메일: ${email}`,
+      ];
+      if (message) lines.push(`• 내용: ${message}`);
+      lines.push(`• 접수: ${now}`);
+      const r = await fetch(SLACK_WEBHOOK_INQUIRY, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: lines.join('\n') }),
+      });
+      slackOk = r.ok;
+      if (!r.ok) console.error('[inquiry] slack HTTP', r.status);
+    } catch (e) { console.error('[inquiry] slack 실패', e); }
+  }
+
+  // DB·Slack 둘 다 실패하면 오류로 알려 재시도를 유도한다.
+  if (!dbOk && !slackOk) return resp(502, { ok: false, error: 'delivery failed' });
+  return resp(200, { ok: true });
+}

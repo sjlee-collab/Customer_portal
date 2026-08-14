@@ -458,3 +458,22 @@ create index if not exists idx_users_contract_id on public.users (contract_id);
 create index if not exists idx_company_contracts_company_id on public.company_contracts (company_id);
 create index if not exists idx_company_licenses_company_id on public.company_licenses (company_id);
 create index if not exists idx_company_licenses_contract_id on public.company_licenses (contract_id);
+
+-- ── account_inquiries (2026-08-14) ──
+-- 로그인 전(비인증) "담당자에게 문의" 폼 접수 내역. 공개 엔드포인트
+-- POST /public/account-inquiry → Lambda customer_portal_public-inquiry가 insert.
+-- data-api ALLOWED_TABLES에는 아직 미등록(관리자 조회 화면은 Phase 2).
+create table if not exists public.account_inquiries (
+  id          uuid primary key default gen_random_uuid(),
+  name        text not null,
+  company     text,
+  phone       text,
+  email       text,
+  message     text,
+  status      text not null default 'new' check (status in ('new','handled','spam')),
+  handled_by  uuid,
+  handled_at  timestamptz,
+  note        text,
+  created_at  timestamptz not null default now()
+);
+create index if not exists idx_account_inquiries_created on public.account_inquiries (created_at desc);

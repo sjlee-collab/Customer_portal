@@ -29,7 +29,8 @@
 - **API Gateway:** `https://8xbmazu4ij.execute-api.ap-northeast-2.amazonaws.com` — index.html의 `API_BASE`가 이 주소를 호출.
   - `/data/:table` — `data-api` Lambda, PostgREST 흉내낸 범용 CRUD (허용 테이블 16개, `aws-migration/lambda/data-api/index.mjs` 참고)
   - 티켓 생성/상태변경 등 알림이 걸리는 액션 — `api-layer` Lambda
-- **Lambda 배포 함수명 매핑(소스 폴더 ↔ 실제 함수명 다름 주의):** `aws-migration/lambda/data-api` → `customer_portal_data-api` · `jwt-authorizer` → `customer_portal_jwt-authorizer` · `storage-api` → `customer_portal_storage-api` · `notify-handler` → `customer_portal_notify-handler` · `send-email` → `customer_portal_send-email` · **`api-layer` → `customer-portal_slack_status_change`**(이름이 안 맞음).
+- **Lambda 배포 함수명 매핑(소스 폴더 ↔ 실제 함수명 다름 주의):** `aws-migration/lambda/data-api` → `customer_portal_data-api` · `jwt-authorizer` → `customer_portal_jwt-authorizer` · `storage-api` → `customer_portal_storage-api` · `notify-handler` → `customer_portal_notify-handler` · `send-email` → `customer_portal_send-email` · `public-inquiry` → `customer_portal_public-inquiry` · **`api-layer` → `customer-portal_slack_status_change`**(이름이 안 맞음).
+- **계정 문의(공개 엔드포인트)** (2026-08-14): 로그인 전 "담당자에게 문의" 폼 → `POST /public/account-inquiry`(**인증 NONE** — 공개 라우트). Lambda `customer_portal_public-inquiry`(data-api와 동일 VPC/서브넷 `subnet-0749…`/SG `sg-01c9…`/DB 시크릿·실행역할 재사용, env에 `SLACK_WEBHOOK_INQUIRY`)가 검증→`account_inquiries` insert→전용 Slack 채널 발송. 남용 방지: 허니팟(`website` 필드)·필수/이메일/길이 검증. 테이블 생성은 이 Lambda 직접 invoke `{"__migrate":true}`(HTTP 경유 아닐 때만). 관리자 조회 화면은 미구현(Phase 2, data-api ALLOWED_TABLES 미등록).
   - ⚠️ **api-layer 재배포 시 소스 4개(`index.mjs`·`db.mjs`·`notify.mjs`·`jwt.mjs`)를 모두 zip에 넣어야 한다.** `index.mjs`만 교체하면 `db.mjs`의 `withTransaction` 등 누락으로 **로그인 전체 순단**이 난다(2026-08-12 실제 발생). data-api/jwt-authorizer도 각자 소스 파일 전체 동봉.
 - **보안 헤더 / CSP:** 레포 루트 `customHttp.yml`이 Amplify에 적용됨 — `default-src/script-src/style-src/font-src 'self'`, img/connect는 API GW·S3 버킷만 허용. 즉 **외부 CDN 폰트·스크립트는 CSP로 차단**되므로 자체 호스팅 또는 인라인(+필요 시 `data:` 허용) 해야 한다. (artifacts와 무관, 운영 사이트 한정)
   - `/storage/*` — `storage-api` Lambda (S3 presigned URL 발급)
@@ -74,6 +75,7 @@
 | `SLACK_WEEBHOOK_COMMON` | 공통 | **오타 주의** (WEEBHOOK) |
 | `SLACK_WEBHOOK_SALES` | 영업 | contract/license/education |
 | `SLACK_WEBHOOK_TECH` | 기술지원 | tech_support |
+| `SLACK_WEBHOOK_INQUIRY` | 계정문의 | `public-inquiry` Lambda 전용(로그인 전 문의 폼) |
 
 ---
 

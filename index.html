@@ -668,10 +668,30 @@ textarea{resize:vertical;min-height:100px;}
       <div style="font-size:16px;font-weight:800;">담당자에게 문의</div>
       <button onclick="closeModal('modal-contact-support')" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--faint);">✕</button>
     </div>
-    <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px;">
-      <div style="font-size:13px;color:var(--muted);">계정 신청 및 문의는 아래 이메일로 연락해 주세요.</div>
-      <div style="font-size:14px;font-weight:700;text-align:center;padding:10px;background:var(--bg);border-radius:var(--r-md);">sjlee@bigxdata.io</div>
-      <a href="mailto:sjlee@bigxdata.io" class="btn btn-primary" style="width:100%;justify-content:center;text-decoration:none;">메일 보내기</a>
+    <div style="padding:20px 24px;display:flex;flex-direction:column;gap:12px;">
+      <div style="font-size:12.5px;color:var(--muted);">계정 신청·문의를 남기시면 담당자가 확인 후 연락드립니다. <span style="color:#d64545;">*</span> 필수</div>
+      <div style="display:flex;flex-direction:column;gap:9px;">
+        <div>
+          <label style="font-size:11.5px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;">성함 <span style="color:#d64545;">*</span></label>
+          <input id="inq-name" type="text" maxlength="100" placeholder="홍길동" style="width:100%;height:38px;border:1px solid var(--border-md,#d3d6df);border-radius:8px;padding:0 12px;font-size:13px;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:11.5px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;">기업명 <span style="color:#d64545;">*</span></label>
+          <input id="inq-company" type="text" maxlength="150" placeholder="빅스데이터" style="width:100%;height:38px;border:1px solid var(--border-md,#d3d6df);border-radius:8px;padding:0 12px;font-size:13px;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:11.5px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;">연락처 <span style="color:#d64545;">*</span></label>
+          <input id="inq-phone" type="tel" maxlength="50" placeholder="010-1234-5678" style="width:100%;height:38px;border:1px solid var(--border-md,#d3d6df);border-radius:8px;padding:0 12px;font-size:13px;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:11.5px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;">이메일 <span style="color:#d64545;">*</span></label>
+          <input id="inq-email" type="email" maxlength="150" placeholder="hong@company.com" style="width:100%;height:38px;border:1px solid var(--border-md,#d3d6df);border-radius:8px;padding:0 12px;font-size:13px;box-sizing:border-box;">
+        </div>
+        <!-- 허니팟: 사람에겐 안 보임, 봇이 채우면 서버가 무시 -->
+        <input id="inq-website" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
+      </div>
+      <button class="btn btn-primary" id="inq-submit" style="width:100%;justify-content:center;" onclick="submitAccountInquiry()">문의 보내기</button>
+      <div style="font-size:11.5px;color:var(--faint);text-align:center;">또는 <a href="mailto:sjlee@bigxdata.io" style="color:var(--accent);text-decoration:none;">sjlee@bigxdata.io</a> 로 메일</div>
     </div>
   </div>
 </div>
@@ -2579,6 +2599,38 @@ async function apiFunctionsInvoke(fnName, { body } = {}) {
     return { data, error: null };
   } catch (e) {
     return { data: null, error: { message: e.message } };
+  }
+}
+
+// 계정 문의(로그인 전, 비인증) — 공개 엔드포인트로 전송. authHeaders 없이 호출한다.
+async function submitAccountInquiry() {
+  const name    = document.getElementById('inq-name')?.value.trim();
+  const company = document.getElementById('inq-company')?.value.trim();
+  const phone   = document.getElementById('inq-phone')?.value.trim();
+  const email   = document.getElementById('inq-email')?.value.trim();
+  const website = document.getElementById('inq-website')?.value || ''; // 허니팟
+  if (!name || !company || !phone || !email) { showToast('성함·기업명·연락처·이메일을 모두 입력해 주세요.', true); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('이메일 형식을 확인해 주세요.', true); return; }
+
+  const btn = document.getElementById('inq-submit');
+  if (btn) { btn.disabled = true; btn.textContent = '보내는 중...'; }
+  try {
+    const res = await fetch(`${API_BASE}/public/account-inquiry`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, company, phone, email, website }),
+    });
+    const j = await res.json().catch(() => null);
+    if (res.ok && j?.ok) {
+      showToast('문의가 접수되었습니다. 담당자가 확인 후 연락드립니다.');
+      ['inq-name', 'inq-company', 'inq-phone', 'inq-email'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+      closeModal('modal-contact-support');
+    } else {
+      showToast('접수에 실패했습니다. 잠시 후 다시 시도해 주세요.', true);
+    }
+  } catch (e) {
+    showToast('네트워크 오류로 접수하지 못했습니다.', true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '문의 보내기'; }
   }
 }
 
