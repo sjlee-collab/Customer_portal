@@ -3486,7 +3486,7 @@ function docRowActions(d) {
     : `<button class="btn btn-outline btn-sm" style="${btnStyle}" disabled>⬇ 다운로드</button>`;
   return `<div style="display:flex;gap:4px;flex-wrap:nowrap;overflow:hidden;">
     ${dlBtn}
-    <button class="btn btn-ghost btn-sm" style="${btnStyle}" onclick='openEditDoc(${JSON.stringify(d).replace(/'/g,"&#39;")})'>수정</button>
+    <button class="btn btn-ghost btn-sm" style="${btnStyle}" onclick='openDocModal(${JSON.stringify(d).replace(/'/g,"&#39;")})'>수정</button>
     <button class="btn btn-ghost btn-sm" style="${btnStyle}color:var(--danger);" onclick="deleteDocument('${d.id}','${(d.title||'').replace(/'/g,"\\'")}')">삭제</button>
   </div>`;
 }
@@ -3516,7 +3516,7 @@ function renderDocsFiles() {
 function docFaqActions(d) {
   const btnStyle = 'padding:4px 8px;font-size:11px;';
   return `<div style="display:flex;gap:4px;flex-wrap:nowrap;overflow:hidden;">
-    <button class="btn btn-ghost btn-sm" style="${btnStyle}" onclick='openEditDoc(${JSON.stringify(d).replace(/'/g,"&#39;")})'>수정</button>
+    <button class="btn btn-ghost btn-sm" style="${btnStyle}" onclick='openDocModal(${JSON.stringify(d).replace(/'/g,"&#39;")})'>수정</button>
     <button class="btn btn-ghost btn-sm" style="${btnStyle}color:var(--danger);" onclick="deleteDocument('${d.id}','${(d.title||'').replace(/'/g,"\\'")}')">삭제</button>
   </div>`;
 }
@@ -3695,27 +3695,7 @@ function onDocTypeChange() {
   if (fileReq) fileReq.style.display = isFaq ? 'none' : '';
 }
 
-function openEditDoc(d) {
-  document.getElementById('modal-doc-title').textContent = '자료 수정';
-  document.getElementById('d-id').value = d.id;
-  document.getElementById('d-storage-path').value = d.storage_path || '';
-  document.getElementById('d-file-size').value = d.file_size || '';
-  document.getElementById('doc-title').value = d.title || '';
-  document.getElementById('d-type').value = d.product === 'faq' ? 'faq' : '';
-  document.getElementById('d-category').value = d.category || 'tableau';
-  setDescEditorValue(d.description);
-  document.getElementById('d-filename').value = d.file_name || '';
-  onDocTypeChange();
-  // 현재 저장된 파일은 전용 "현재 첨부 파일" 행으로 표시(드롭존은 교체용).
-  _docFile = null;
-  _docSavedFile = d.storage_path ? { name: d.file_name, size: d.file_size, path: d.storage_path, id: d.id } : null;
-  renderDocCurrentFile();
-  const lbl = document.getElementById('d-dropzone-label');
-  if (lbl) lbl.textContent = d.file_name ? '클릭하거나 드래그해서 새 파일로 교체' : '클릭하거나 파일을 여기로 드래그하세요';
-  const dz = document.getElementById('d-dropzone');
-  if (dz) dz.style.borderColor = '';
-  openModal('modal-doc');
-}
+// (제거됨) openEditDoc — openDocModal로 통합. 두 화면(자료실/자료실 관리)이 같은 함수를 쓴다.
 
 let _docFile = null; // 선택된 File 객체 보관
 let _docSavedFile = null; // 수정 화면에서 현재 저장돼 있는 파일 정보(표시·다운로드용)
@@ -8591,7 +8571,7 @@ function libRowActions(d, isAdmin, isPublic) {
   const dJson = escHtml(JSON.stringify(d).replace(/'/g,"&#39;"));
   const adminBtns = isAdmin ? `
     <button class="btn btn-ghost btn-sm" style="${btnStyle}color:${isPublic?'var(--faint)':'var(--accent)'};" onclick="toggleDocPublic('${d.id}',${isPublic})" title="${isPublic?'비공개로 전환':'공개로 전환'}">${isPublic?'비공개':'공개'}</button>
-    <button class="btn btn-ghost btn-sm" style="${btnStyle}" onclick='openLibEditDoc(${dJson})'>수정</button>
+    <button class="btn btn-ghost btn-sm" style="${btnStyle}" onclick='openDocModal(${dJson})'>수정</button>
     <button class="btn btn-ghost btn-sm" style="${btnStyle}color:#e53e3e;" onclick="deleteDoc('${d.id}','${escHtml(d.storage_path||'')}','${escHtml(d.title||'')}')">삭제</button>` : '';
   return `<div style="display:flex;gap:4px;flex-wrap:nowrap;overflow:hidden;">${downloadBtn}${adminBtns}</div>`;
 }
@@ -8645,7 +8625,7 @@ function libFaqActions(d, isAdmin, isPublic) {
   const dJson = escHtml(JSON.stringify(d).replace(/'/g,"&#39;"));
   return `<div style="display:flex;gap:4px;flex-wrap:nowrap;overflow:hidden;">
     <button class="btn btn-ghost btn-sm" style="${btnStyle}color:${isPublic?'var(--faint)':'var(--accent)'};" onclick="toggleDocPublic('${d.id}',${isPublic})" title="${isPublic?'비공개로 전환':'공개로 전환'}">${isPublic?'비공개':'공개'}</button>
-    <button class="btn btn-ghost btn-sm" style="${btnStyle}" onclick='openLibEditDoc(${dJson})'>수정</button>
+    <button class="btn btn-ghost btn-sm" style="${btnStyle}" onclick='openDocModal(${dJson})'>수정</button>
     <button class="btn btn-ghost btn-sm" style="${btnStyle}color:#e53e3e;" onclick="deleteDoc('${d.id}','${escHtml(d.storage_path||'')}','${escHtml(d.title||'')}')">삭제</button>
   </div>`;
 }
@@ -8726,8 +8706,8 @@ function openNewDocModal(type) {
   openModal('modal-doc');
 }
 
-// 자료실 카드뷰에서 수정 클릭 → modal-doc 재사용
-function openLibEditDoc(d) {
+// 자료 수정 모달(modal-doc) 채우기 — 자료실·자료실 관리 두 화면 공용(단일 함수).
+function openDocModal(d) {
   // 이전 저장 시도로 굳은 버튼 상태 초기화
   const saveBtn = document.querySelector('#modal-doc .btn-primary');
   if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '저장'; }
