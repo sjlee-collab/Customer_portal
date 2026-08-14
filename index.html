@@ -2951,8 +2951,9 @@ async function enterApp(email, acct, isRestore) {
     if (firstVisible) firstVisible.click();
   }
 
-  // 기본 데이터 로드
-  loadDashboard();
+  // 대시보드 데이터는 위 탭 클릭(홈=p-dashboard) 또는 해시 복원 탭 클릭이 showPage를 통해
+  // loadDashboard()를 부르므로 여기서 또 부르지 않는다(이중 로드 방지). 홈이 아닌 페이지로
+  // 복원된 경우엔 홈 클릭 시 온디맨드로 로드된다.
 
   // URL ?ticket=TK-xxx 파라미터로 직접 접근 시 해당 티켓 상세 표시 (이메일/Slack 링크용)
   // showDetail()이 역할별로 알아서 분기하므로(관리자 계열=요청 관리, 고객/internal=내 요청) 여기선 역할 구분 없이 호출한다.
@@ -4516,18 +4517,23 @@ async function loadDashboard() {
       .eq('status', 'completed').gte('created_at', thirtyDaysAgo);
     const atVal = document.getElementById('dash-avgtime-val');
     if (compTickets && compTickets.length) {
+      // N+1 방지: 완료 티켓들의 이력을 한 번에 조회한 뒤(티켓별 개별 쿼리 X),
+      // created_at 내림차순이라 티켓별 첫 등장이 곧 '최신 완료' 이력 — 기존 로직과 동일 결과.
+      const ids = compTickets.map(t => t.id);
+      const { data: hist } = await sb.from('ticket_history')
+        .select('ticket_id, created_at')
+        .in('ticket_id', ids)
+        .eq('action', 'status_changed')
+        .ilike('note', '%완료%')
+        .order('created_at', { ascending: false });
+      const latestByTicket = {};
+      (hist || []).forEach(h => { if (!(h.ticket_id in latestByTicket)) latestByTicket[h.ticket_id] = h.created_at; });
       let totalDays = 0, cnt = 0;
       for (const t of compTickets) {
-        const { data: h } = await sb.from('ticket_history')
-          .select('created_at')
-          .eq('ticket_id', t.id)
-          .eq('action', 'status_changed')
-          .ilike('note', '%완료%')
-          .order('created_at', { ascending: false }).limit(1);
-        if (h && h.length) {
-          const diff = (new Date(h[0].created_at) - new Date(t.created_at)) / 86400000;
-          if (diff >= 0) { totalDays += diff; cnt++; }
-        }
+        const hc = latestByTicket[t.id];
+        if (!hc) continue;
+        const diff = (new Date(hc) - new Date(t.created_at)) / 86400000;
+        if (diff >= 0) { totalDays += diff; cnt++; }
       }
       if (atVal) atVal.innerHTML = cnt ? `${(totalDays/cnt).toFixed(1)}<span style="font-size:14px;font-weight:500;">일</span>` : '—';
     } else {
