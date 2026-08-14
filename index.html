@@ -1881,25 +1881,11 @@ textarea{resize:vertical;min-height:100px;}
         </div>
         <div class="form-group">
           <label>요청 카테고리 <span class="req">*</span></label>
-          <select id="f-category">
-            <option value="">카테고리 선택</option>
-            <option value="tech_support">기술지원</option>
-            <option value="contract">계약 문의</option>
-            <option value="license">라이선스 문의</option>
-            <option value="education">교육 문의</option>
-            <option value="other">기타 문의</option>
-          </select>
+          <select id="f-category"><!-- 옵션은 populateStaticSelects()가 채움(단일 출처) --></select>
         </div>
         <div class="form-group">
           <label>제품명</label>
-          <select id="f-product">
-            <option value="">제품 선택 (선택)</option>
-            <option>Tableau Server</option>
-            <option>Tableau Cloud</option>
-            <option>DataWorks</option>
-            <option>AgentWorks</option>
-            <option>기타</option>
-          </select>
+          <select id="f-product"><!-- 옵션은 populateStaticSelects()가 채움(단일 출처) --></select>
         </div>
         <div class="form-group">
           <label>긴급도 <span class="req">*</span></label>
@@ -1959,24 +1945,11 @@ textarea{resize:vertical;min-height:100px;}
         </div>
         <div class="form-group">
           <label>요청 카테고리 <span class="req">*</span></label>
-          <select id="edit-category">
-            <option value="tech_support">기술지원</option>
-            <option value="contract">계약 문의</option>
-            <option value="license">라이선스 문의</option>
-            <option value="education">교육 문의</option>
-            <option value="other">기타 문의</option>
-          </select>
+          <select id="edit-category"><!-- 옵션은 populateStaticSelects()가 채움(단일 출처) --></select>
         </div>
         <div class="form-group">
           <label>제품명</label>
-          <select id="edit-product">
-            <option value="">제품 선택 (선택)</option>
-            <option>Tableau Server</option>
-            <option>Tableau Cloud</option>
-            <option>DataWorks</option>
-            <option>AgentWorks</option>
-            <option>기타</option>
-          </select>
+          <select id="edit-product"><!-- 옵션은 populateStaticSelects()가 채움(단일 출처) --></select>
         </div>
         <div class="form-group">
           <label>긴급도 <span class="req">*</span></label>
@@ -2725,6 +2698,33 @@ const CATEGORY_BADGE = {
   tech_support:'b-gray', contract:'b-gray', license:'b-gray',
   education:'b-gray', customer:'b-gray', other:'b-gray',
 };
+
+// ── 폼 옵션 단일 출처(중복 제거) ──
+// 제품/요청카테고리 <option>을 여러 폼에 하드코딩하던 것을 여기 하나로 모은다.
+// 목록을 바꾸면(예: 제품 추가/삭제) 모든 폼에 자동 반영된다.
+const PRODUCT_OPTIONS = ['Tableau Server', 'Tableau Cloud', 'DataWorks', 'AgentWorks', '기타'];
+// 요청 폼에서 사용자가 고를 수 있는 카테고리(시스템 전용 'customer' 제외). 라벨은 CATEGORY_LABELS 사용.
+const TICKET_CATEGORY_FORM_KEYS = ['tech_support', 'contract', 'license', 'education', 'other'];
+
+function _optsHtml(itemsHtml, placeholder) {
+  return (placeholder !== undefined ? `<option value="">${placeholder}</option>` : '') + itemsHtml;
+}
+function productOptionsHtml(placeholder) {
+  return _optsHtml(PRODUCT_OPTIONS.map(p => `<option>${p}</option>`).join(''), placeholder);
+}
+function ticketCategoryOptionsHtml(placeholder) {
+  return _optsHtml(TICKET_CATEGORY_FORM_KEYS.map(k => `<option value="${k}">${CATEGORY_LABELS[k]}</option>`).join(''), placeholder);
+}
+// 정적 셀렉트를 단일 출처에서 채운다(로그인 여부와 무관, DOM 준비되면 1회).
+function populateStaticSelects() {
+  const set = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+  set('f-category',    ticketCategoryOptionsHtml('카테고리 선택'));
+  set('edit-category', ticketCategoryOptionsHtml());
+  set('f-product',     productOptionsHtml('제품 선택 (선택)'));
+  set('edit-product',  productOptionsHtml('제품 선택 (선택)'));
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', populateStaticSelects);
+else populateStaticSelects();
 const STATUS_LABELS = {
   received:          '접수',
   classifying:       '분류 중',
