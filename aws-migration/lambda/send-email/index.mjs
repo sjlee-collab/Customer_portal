@@ -164,6 +164,17 @@ function accountInviteHtml(userName, setupUrl, validDays) {
   return layout('계정 생성 안내', `<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">안녕하세요, <strong>${userName}</strong>님.<br>빅스데이터 고객지원 포탈 계정이 생성되었습니다.<br>아래 버튼을 눌러 사용하실 비밀번호를 직접 설정해주세요.</p><a class="btn" href="${setupUrl}">비밀번호 설정하기</a><div style="font-size:11px;color:#9ca3af;margin-top:8px;">${display}</div><p style="margin:20px 0 0;font-size:12px;color:#9ca3af;">이 링크는 ${validDays}일간 유효합니다. 기간이 지나면 로그인 화면의 "비밀번호를 잊으셨나요?"로 다시 설정하실 수 있습니다.</p>`);
 }
 
+// 신규 계정 신청(로그인 화면 폼) — 관리자에게 신청 정보를 전달. 입력은 외부(비회원) 값이라 이스케이프.
+function accountInquiryHtml(d) {
+  const esc = s => String(s ?? '—').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+  const rows = [['성함', d.name], ['기업명', d.company], ['연락처', d.phone], ['이메일', d.email]];
+  if (d.message) rows.push(['내용', d.message]);
+  rows.push(['접수시각', now]);
+  const table = rows.map(([k, v]) => `<tr><td>${k}</td><td>${esc(v)}</td></tr>`).join('');
+  return layout('신규 계정 신청', `<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">로그인 화면에서 신규 계정 신청이 접수되었습니다.<br>아래 정보를 확인한 뒤 계정을 생성해주세요.</p><div class="lbl">신청 정보</div><table class="info">${table}</table>`);
+}
+
 function passwordResetHtml(userName, resetUrl) {
   const display = resetUrl.replace(/^https?:\/\//, '');
   return layout('비밀번호 재설정', `<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">안녕하세요, <strong>${userName}</strong>님.<br>비밀번호 재설정을 요청하셨습니다. 아래 버튼을 눌러 새 비밀번호를 설정해주세요.</p><a class="btn" href="${resetUrl}">비밀번호 재설정하기</a><div style="font-size:11px;color:#9ca3af;margin-top:8px;">${display}</div><p style="margin:20px 0 0;font-size:12px;color:#9ca3af;">이 링크는 30분간 유효합니다. 본인이 요청하지 않았다면 이 메일을 무시해주세요.</p>`);
@@ -205,6 +216,16 @@ export const handler = async (event) => {
       if (!toEmail || !token) return { statusCode: 400, body: 'missing toEmail/token' };
       const resetUrl = `${PORTAL_URL}?reset=${token}`;
       await sendAndLog(toEmail, '[빅스데이터 고객지원] 비밀번호 재설정 안내', passwordResetHtml(userName || '고객', resetUrl), null, 'password_reset', results);
+      const sent = results.filter(r => r.status === 'sent').length;
+      return ok({ ok: true, sent, results });
+    }
+
+    if (payload.type === 'ACCOUNT_INQUIRY') {
+      const { adminEmails, name, company, phone, email, message } = payload;
+      const list = Array.isArray(adminEmails) ? adminEmails.filter(e => typeof e === 'string' && e.includes('@')) : [];
+      if (!list.length) return ok({ ok: true, sent: 0, note: 'no admin recipients' });
+      await sendToManyAndLog(list, '[빅스데이터 고객지원] 신규 계정 신청',
+        accountInquiryHtml({ name, company, phone, email, message }), null, 'account_inquiry', results);
       const sent = results.filter(r => r.status === 'sent').length;
       return ok({ ok: true, sent, results });
     }

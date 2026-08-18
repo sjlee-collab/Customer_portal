@@ -7,9 +7,12 @@
 // data-api와 동일 VPC/서브넷/보안그룹·DB 시크릿을 재사용한다(db.mjs 그대로 복사).
 
 import { query } from './db.mjs';
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
 // 계정 문의 알림도 공통 채널(#고객지원포탈-공통)로 보낸다. 변수명 오타(WEEBHOOK)는 기존 그대로.
 const SLACK_WEBHOOK = process.env.SLACK_WEEBHOOK_COMMON || '';
+const SEND_EMAIL_FN = process.env.SEND_EMAIL_FN || 'customer_portal_send-email';
+const lambda = new LambdaClient({});
 
 function resp(status, body) {
   return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
@@ -88,6 +91,24 @@ export async function handler(event) {
       if (!r.ok) console.error('[inquiry] slack HTTP', r.status);
     } catch (e) { console.error('[inquiry] slack 실패', e); }
   }
+
+  // ③ 관리자(role=admin) 이메일 알림 — send-email Lambda를 비동기(Event) 호출. best-effort.
+  //    응답을 막지 않도록 fire-and-forget. 실패해도 DB/Slack 결과에는 영향 없음.
+  try {
+    const admins = await query(
+      "select email from public.users where role='admin' and coalesce(is_active,true)=true and email is not null"
+    );
+    const adminEmails = (admins || []).map(r => r.email).filter(Boolean);
+    if (adminEmails.length) {
+      await lambda.send(new InvokeCommand({
+        FunctionName: SEND_EMAIL_FN,
+        InvocationType: 'Event',
+        Payload: Buffer.from(JSON.stringify({
+          type: 'ACCOUNT_INQUIRY', adminEmails, name, company, phone, email, message: message || '',
+        })),
+      }));
+    }
+  } catch (e) { console.error('[inquiry] 관리자 메일 알림 실패', e); }
 
   // DB·Slack 둘 다 실패하면 오류로 알려 재시도를 유도한다.
   if (!dbOk && !slackOk) return resp(502, { ok: false, error: 'delivery failed' });
