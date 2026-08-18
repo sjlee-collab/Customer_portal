@@ -1064,12 +1064,7 @@ textarea{resize:vertical;min-height:100px;}
               <button class="th-filter-clear" onclick="clearLibFilter('files')">초기화</button>
               <button class="th-filter-apply" onclick="applyLibFilter('files')">적용</button>
             </div>
-            <label class="th-filter-opt"><input type="checkbox" value="tableau"> Tableau Desktop</label>
-            <label class="th-filter-opt"><input type="checkbox" value="tableau-server"> Tableau Server</label>
-            <label class="th-filter-opt"><input type="checkbox" value="tableau-cloud"> Tableau Cloud</label>
-            <label class="th-filter-opt"><input type="checkbox" value="tableau-prep"> Tableau Prep</label>
-            <label class="th-filter-opt"><input type="checkbox" value="edu"> 교육</label>
-            <label class="th-filter-opt"><input type="checkbox" value="product-intro"> 제품 소개서</label>
+            <!-- 카테고리 체크박스는 populateDocCategoryUI()가 DOC_CATEGORIES에서 생성 -->
           </div>
         </div>
       </div>
@@ -1098,12 +1093,7 @@ textarea{resize:vertical;min-height:100px;}
               <button class="th-filter-clear" onclick="clearLibFilter('faq')">초기화</button>
               <button class="th-filter-apply" onclick="applyLibFilter('faq')">적용</button>
             </div>
-            <label class="th-filter-opt"><input type="checkbox" value="tableau"> Tableau Desktop</label>
-            <label class="th-filter-opt"><input type="checkbox" value="tableau-server"> Tableau Server</label>
-            <label class="th-filter-opt"><input type="checkbox" value="tableau-cloud"> Tableau Cloud</label>
-            <label class="th-filter-opt"><input type="checkbox" value="tableau-prep"> Tableau Prep</label>
-            <label class="th-filter-opt"><input type="checkbox" value="edu"> 교육</label>
-            <label class="th-filter-opt"><input type="checkbox" value="product-intro"> 제품 소개서</label>
+            <!-- 카테고리 체크박스는 populateDocCategoryUI()가 DOC_CATEGORIES에서 생성 -->
           </div>
         </div>
       </div>
@@ -1521,12 +1511,7 @@ textarea{resize:vertical;min-height:100px;}
           <div class="filter-bar">
             <input class="search-box" id="docs-search-files" placeholder="제목 검색..." oninput="renderDocsFiles()">
             <span class="filter-chip active" onclick="setDocsCategory('',this)">전체</span>
-            <span class="filter-chip" onclick="setDocsCategory('tableau',this)">Tableau Desktop</span>
-            <span class="filter-chip" onclick="setDocsCategory('tableau-server',this)">Tableau Server</span>
-            <span class="filter-chip" onclick="setDocsCategory('tableau-cloud',this)">Tableau Cloud</span>
-            <span class="filter-chip" onclick="setDocsCategory('tableau-prep',this)">Tableau Prep</span>
-            <span class="filter-chip" onclick="setDocsCategory('edu',this)">교육</span>
-            <span class="filter-chip" onclick="setDocsCategory('product-intro',this)">제품 소개서</span>
+            <!-- 카테고리 칩은 populateDocCategoryUI()가 DOC_CATEGORIES에서 생성 -->
           </div>
           <div class="card" style="padding:0;overflow:hidden;">
             <div class="tbl-scroll list-scroll"><table class="tbl tbl-fit">
@@ -1543,12 +1528,7 @@ textarea{resize:vertical;min-height:100px;}
           <div class="filter-bar">
             <input class="search-box" id="docs-search-faq" placeholder="질문 검색..." oninput="renderDocsFaq()">
             <span class="filter-chip active" onclick="setDocsFaqCategory('',this)">전체</span>
-            <span class="filter-chip" onclick="setDocsFaqCategory('tableau',this)">Tableau Desktop</span>
-            <span class="filter-chip" onclick="setDocsFaqCategory('tableau-server',this)">Tableau Server</span>
-            <span class="filter-chip" onclick="setDocsFaqCategory('tableau-cloud',this)">Tableau Cloud</span>
-            <span class="filter-chip" onclick="setDocsFaqCategory('tableau-prep',this)">Tableau Prep</span>
-            <span class="filter-chip" onclick="setDocsFaqCategory('edu',this)">교육</span>
-            <span class="filter-chip" onclick="setDocsFaqCategory('product-intro',this)">제품 소개서</span>
+            <!-- 카테고리 칩은 populateDocCategoryUI()가 DOC_CATEGORIES에서 생성 -->
           </div>
           <div class="card" style="padding:0;overflow:hidden;">
             <div class="tbl-scroll list-scroll"><table class="tbl tbl-fit">
@@ -2356,14 +2336,7 @@ textarea{resize:vertical;min-height:100px;}
         </div>
         <div class="form-group">
           <label>카테고리 <span class="req">*</span></label>
-          <select id="d-category">
-            <option value="tableau">Tableau Desktop</option>
-            <option value="tableau-server">Tableau Server</option>
-            <option value="tableau-cloud">Tableau Cloud</option>
-            <option value="tableau-prep">Tableau Prep</option>
-            <option value="edu">교육</option>
-            <option value="product-intro">제품 소개서</option>
-          </select>
+          <select id="d-category"><!-- 옵션은 populateDocCategoryUI()가 DOC_CATEGORIES에서 생성 --></select>
         </div>
         <div class="form-group" style="grid-column:1/-1;">
           <label id="doc-desc-label">설명</label>
@@ -2716,12 +2689,37 @@ function ticketCategoryOptionsHtml(placeholder) {
   return _optsHtml(TICKET_CATEGORY_FORM_KEYS.map(k => `<option value="${k}">${CATEGORY_LABELS[k]}</option>`).join(''), placeholder);
 }
 // 정적 셀렉트를 단일 출처에서 채운다(로그인 여부와 무관, DOM 준비되면 1회).
+// 자료실 카테고리 단일 출처 — 모달 select·라벨/아이콘 맵·자료실 필터·관리자 필터 칩이
+// 모두 여기서 생성된다. 카테고리 추가/변경은 이 배열 한 곳만 고치면 된다.
+const DOC_CATEGORIES = [
+  { key: 'tableau',        label: 'Tableau Desktop',  icon: '📊' },
+  { key: 'tableau-server', label: 'Tableau Server',   icon: '🖥️' },
+  { key: 'tableau-cloud',  label: 'Tableau Cloud',    icon: '☁️' },
+  { key: 'tableau-prep',   label: 'Tableau Prep',     icon: '🧹' },
+  { key: 'tableau-tip',    label: 'Tableau 활용 Tip',  icon: '💡' },
+  { key: 'edu',            label: '교육',             icon: '🎓' },
+  { key: 'product-intro',  label: '제품 소개서',       icon: '📄' },
+];
+// faq는 카테고리가 아니라 product 값이지만, 라벨/아이콘 표시용으로 맵에 포함(기존 동작 유지).
+const DOC_CAT_LABEL_KO = { ...Object.fromEntries(DOC_CATEGORIES.map(c => [c.key, c.label])), faq: 'FAQ' };
+const DOC_CAT_ICON     = { ...Object.fromEntries(DOC_CATEGORIES.map(c => [c.key, c.icon])),  faq: '❓' };
+function docCatOptionsHtml()    { return DOC_CATEGORIES.map(c => `<option value="${c.key}">${c.label}</option>`).join(''); }
+function docCatCheckboxesHtml() { return DOC_CATEGORIES.map(c => `<label class="th-filter-opt"><input type="checkbox" value="${c.key}"> ${c.label}</label>`).join(''); }
+function docCatChipsHtml(fnName){ return DOC_CATEGORIES.map(c => `<span class="filter-chip" onclick="${fnName}('${c.key}',this)">${c.label}</span>`).join(''); }
+function populateDocCategoryUI() {
+  const dc = document.getElementById('d-category'); if (dc) dc.innerHTML = docCatOptionsHtml();
+  ['lib-files-pop', 'lib-faq-pop'].forEach(id => { const p = document.getElementById(id); if (p) p.insertAdjacentHTML('beforeend', docCatCheckboxesHtml()); });
+  const filesBar = document.querySelector('#docs-panel-files .filter-bar'); if (filesBar) filesBar.insertAdjacentHTML('beforeend', docCatChipsHtml('setDocsCategory'));
+  const faqBar = document.querySelector('#docs-panel-faq .filter-bar'); if (faqBar) faqBar.insertAdjacentHTML('beforeend', docCatChipsHtml('setDocsFaqCategory'));
+}
+
 function populateStaticSelects() {
   const set = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
   set('f-category',    ticketCategoryOptionsHtml('카테고리 선택'));
   set('edit-category', ticketCategoryOptionsHtml());
   set('f-product',     productOptionsHtml('제품 선택 (선택)'));
   set('edit-product',  productOptionsHtml('제품 선택 (선택)'));
+  populateDocCategoryUI();
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', populateStaticSelects);
 else populateStaticSelects();
@@ -3431,7 +3429,7 @@ async function testIntegration(type) {
 }
 
 // ─── 자료실 관리 ────────────────────────────────────────
-const DOC_CATEGORY_LABEL = { tableau:'Tableau Desktop', 'tableau-server':'Tableau Server', 'tableau-cloud':'Tableau Cloud', 'tableau-prep':'Tableau Prep', edu:'교육', 'product-intro':'제품 소개서', faq:'FAQ' };
+const DOC_CATEGORY_LABEL = DOC_CAT_LABEL_KO; // 단일 출처(DOC_CATEGORIES) 별칭
 
 let allDocsAdmin = [];
 let docsCatFilter = '';
@@ -8477,8 +8475,7 @@ let allLibDocs = [];
 let libFilesCats = [];
 let libFaqCats = [];
 
-const DOC_CAT_ICON = { tableau:'📊', 'tableau-server':'🖥️', 'tableau-cloud':'☁️', 'tableau-prep':'🧹', edu:'🎓', 'product-intro':'📄', faq:'❓' };
-const DOC_CAT_LABEL_KO = { tableau:'Tableau Desktop', 'tableau-server':'Tableau Server', 'tableau-cloud':'Tableau Cloud', 'tableau-prep':'Tableau Prep', edu:'교육', 'product-intro':'제품 소개서', faq:'FAQ' };
+// DOC_CAT_ICON / DOC_CAT_LABEL_KO는 상단 DOC_CATEGORIES에서 파생 정의됨(중복 제거).
 
 async function loadLibFiles() {
   const tbody = document.getElementById('lib-files-tbody');
