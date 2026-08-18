@@ -8658,9 +8658,7 @@ function renderLibFaq() {
   tbody.innerHTML = list.map(d => {
     const isPublic = d.is_public !== false;
     const privateBadge = isAdmin && !isPublic ? '<span class="badge b-red" style="font-size:10px;margin-left:6px;">비공개</span>' : '';
-    const fileCell = d.storage_path
-      ? `<td class="tbl-ellipsis"><a href="#" onclick="event.stopPropagation();event.preventDefault();downloadPrivateFile('documents','${escHtml(d.storage_path)}','${escHtml(d.file_name||'file')}','${d.id}')" style="color:var(--accent);text-decoration:none;" title="${escHtml(d.file_name||'')}">📄 ${escHtml(d.file_name||'')}</a></td>`
-      : `<td style="color:var(--faint);">—</td>`;
+    const fileCell = `<td class="tbl-ellipsis" style="font-size:12px;color:var(--faint);">${(isAdmin || isPublic) ? escHtml(d.file_name || '-') : '—'}</td>`;
     return `<tr class="faq-row" onclick="toggleFaqRow(this)" style="cursor:pointer;${isAdmin && !isPublic ? 'background:rgba(220,38,38,.05);' : ''}" data-doc-id="${d.id}">
       <td class="tbl-ellipsis">${DOC_CAT_LABEL_KO[d.category] || d.category || '-'}</td>
       <td class="tbl-ellipsis" style="font-weight:600;">Q. ${escHtml(d.title)}${privateBadge}</td>
