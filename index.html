@@ -3693,7 +3693,47 @@ function stripHtml(html) {
 function renderFaqAnswer(raw) {
   const value = raw || '';
   const looksLikeHtml = /<[a-z][\s\S]*>/i.test(value);
-  return looksLikeHtml ? sanitizeFaqHtml(value) : escHtml(value).replace(/\n/g, '<br>');
+  return looksLikeHtml ? sanitizeFaqHtml(value) : faqPlainToHtml(value);
+}
+
+// 평문 답변 렌더: 파이프(|)로 구분된 줄이 2줄 이상 연속되면 표로 변환하고,
+// 나머지 줄은 기존처럼 줄바꿈(\n→<br>)만 적용한다. 색은 쓰지 않고 테두리/굵기만.
+function faqPlainToHtml(text) {
+  const lines = String(text).split('\n');
+  const hasPipe = s => s.indexOf('|') !== -1;
+  let html = '';
+  let i = 0;
+  while (i < lines.length) {
+    if (hasPipe(lines[i])) {
+      const block = [];
+      while (i < lines.length && hasPipe(lines[i])) { block.push(lines[i]); i++; }
+      if (block.length >= 2) { html += faqPipeTable(block); continue; }
+      html += escHtml(block[0]);            // 파이프 한 줄뿐이면 표로 만들지 않음
+      if (i < lines.length) html += '<br>';
+      continue;
+    }
+    html += escHtml(lines[i]);
+    i++;
+    if (i < lines.length) html += '<br>';
+  }
+  return html;
+}
+
+// 파이프 표 블록 → <table> (첫 줄=헤더, 첫 칸=항목명 굵게, 색상 없음)
+function faqPipeTable(rows) {
+  const splitCells = r => {
+    const parts = r.split('|').map(c => c.trim());
+    if (parts.length && parts[0] === '') parts.shift();          // 선행 | 대응
+    if (parts.length && parts[parts.length - 1] === '') parts.pop(); // 후행 | 대응
+    return parts;
+  };
+  const cells = rows.map(splitCells);
+  const bd = '1px solid var(--border)';
+  const head = cells[0].map(c => `<th style="text-align:left;padding:7px 10px;border:${bd};font-weight:600;">${escHtml(c)}</th>`).join('');
+  const body = cells.slice(1).map(r =>
+    '<tr>' + r.map((c, idx) => `<td style="padding:7px 10px;border:${bd};${idx === 0 ? 'font-weight:600;' : ''}">${escHtml(c)}</td>`).join('') + '</tr>'
+  ).join('');
+  return `<table style="border-collapse:collapse;width:100%;margin:6px 0;font-size:13px;"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
 }
 
 // 기존 저장값을 답변 입력창에 채울 때
