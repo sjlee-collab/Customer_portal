@@ -1076,6 +1076,15 @@ textarea{resize:vertical;min-height:100px;}
             <tr><td colspan="6" style="padding:40px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
           </tbody>
         </table></div>
+        <div id="lib-files-pager" style="padding:12px 18px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:flex-end;gap:10px;background:var(--surface2);flex-shrink:0;">
+          <span style="font-size:12px;color:var(--muted);margin-right:auto;" id="lib-files-page-total"></span>
+          <button class="btn btn-outline btn-sm" onclick="changeLibFilesPage(-1)">← 이전</button>
+          <div style="display:flex;align-items:center;gap:6px;font-size:12px;">
+            <input type="text" id="lib-files-page-input" value="1" inputmode="numeric" style="width:34px;text-align:center;border:1px solid var(--accent);border-radius:7px;padding:4px 2px;font-size:12px;font-variant-numeric:tabular-nums;outline:none;box-shadow:0 0 0 3px var(--accent-l);" onkeydown="if(event.key==='Enter')jumpLibFilesPage(this.value)">
+            <span>/ <span id="lib-files-page-count">1</span> 페이지</span>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="changeLibFilesPage(1)">다음 →</button>
+        </div>
       </div>
       </div><!-- /lib-panel-files -->
 
@@ -1105,6 +1114,15 @@ textarea{resize:vertical;min-height:100px;}
             <tr><td colspan="5" style="padding:40px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
           </tbody>
         </table></div>
+        <div id="lib-faq-pager" style="padding:12px 18px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:flex-end;gap:10px;background:var(--surface2);flex-shrink:0;">
+          <span style="font-size:12px;color:var(--muted);margin-right:auto;" id="lib-faq-page-total"></span>
+          <button class="btn btn-outline btn-sm" onclick="changeLibFaqPage(-1)">← 이전</button>
+          <div style="display:flex;align-items:center;gap:6px;font-size:12px;">
+            <input type="text" id="lib-faq-page-input" value="1" inputmode="numeric" style="width:34px;text-align:center;border:1px solid var(--accent);border-radius:7px;padding:4px 2px;font-size:12px;font-variant-numeric:tabular-nums;outline:none;box-shadow:0 0 0 3px var(--accent-l);" onkeydown="if(event.key==='Enter')jumpLibFaqPage(this.value)">
+            <span>/ <span id="lib-faq-page-count">1</span> 페이지</span>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="changeLibFaqPage(1)">다음 →</button>
+        </div>
       </div>
       </div><!-- /lib-panel-faq -->
     </div><!-- /p-downloads -->
@@ -8568,6 +8586,15 @@ function libRowActions(d, isAdmin, isPublic) {
   return `<div style="display:flex;gap:4px;flex-wrap:nowrap;overflow:hidden;">${downloadBtn}${adminBtns}</div>`;
 }
 
+// ── 자료실(자료 다운로드 / FAQ) 페이지네이션 (클라이언트, 다른 화면과 동일) ──
+const LIB_PAGE_SIZE = 20;
+let libFilesPage = 1, libFilesLastKey = '';
+let libFaqPage = 1, libFaqLastKey = '';
+function changeLibFilesPage(delta) { libFilesPage += delta; renderLibFiles(); }
+function jumpLibFilesPage(val) { const n = parseInt(val, 10); if (!isNaN(n)) libFilesPage = n; renderLibFiles(); }
+function changeLibFaqPage(delta) { libFaqPage += delta; renderLibFaq(); }
+function jumpLibFaqPage(val) { const n = parseInt(val, 10); if (!isNaN(n)) libFaqPage = n; renderLibFaq(); }
+
 function renderLibFiles() {
   const tbody = document.getElementById('lib-files-tbody');
   if (!tbody) return;
@@ -8582,6 +8609,16 @@ function renderLibFiles() {
     return matchCat && matchQ;
   });
 
+  // 검색어/필터가 실제로 바뀐 경우에만 1페이지로 리셋
+  const filterKey = JSON.stringify([q, libFilesCats]);
+  if (filterKey !== libFilesLastKey) { libFilesPage = 1; libFilesLastKey = filterKey; }
+  const totalPages = Math.max(1, Math.ceil(list.length / LIB_PAGE_SIZE));
+  libFilesPage = Math.min(Math.max(1, libFilesPage), totalPages);
+  const pageItems = list.slice((libFilesPage - 1) * LIB_PAGE_SIZE, libFilesPage * LIB_PAGE_SIZE);
+  const _ft = document.getElementById('lib-files-page-total'); if (_ft) _ft.textContent = `총 ${list.length}건`;
+  const _fi = document.getElementById('lib-files-page-input'); if (_fi) _fi.value = libFilesPage;
+  const _fc = document.getElementById('lib-files-page-count'); if (_fc) _fc.textContent = totalPages;
+
   if (!list.length) {
     tbody.innerHTML = '<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--faint);font-size:13px;">등록된 자료가 없습니다.</td></tr>';
     return;
@@ -8592,7 +8629,7 @@ function renderLibFiles() {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
-  tbody.innerHTML = list.map(d => {
+  tbody.innerHTML = pageItems.map(d => {
     const isPublic = d.is_public !== false;
     const isNew = d.created_at && new Date(d.created_at) >= todayStart;
     const privateBadge = isAdmin && !isPublic ? '<span class="badge b-red" style="font-size:10px;margin-left:6px;">비공개</span>' : '';
@@ -8649,12 +8686,22 @@ function renderLibFaq() {
     return !q || (d.title||'').toLowerCase().includes(q) || (d.description||'').toLowerCase().includes(q) || catLabel.includes(q);
   });
 
+  // 검색어/필터가 실제로 바뀐 경우에만 1페이지로 리셋
+  const filterKey = JSON.stringify([q, libFaqCats]);
+  if (filterKey !== libFaqLastKey) { libFaqPage = 1; libFaqLastKey = filterKey; }
+  const totalPages = Math.max(1, Math.ceil(list.length / LIB_PAGE_SIZE));
+  libFaqPage = Math.min(Math.max(1, libFaqPage), totalPages);
+  const pageItems = list.slice((libFaqPage - 1) * LIB_PAGE_SIZE, libFaqPage * LIB_PAGE_SIZE);
+  const _qt = document.getElementById('lib-faq-page-total'); if (_qt) _qt.textContent = `총 ${list.length}건`;
+  const _qi = document.getElementById('lib-faq-page-input'); if (_qi) _qi.value = libFaqPage;
+  const _qc = document.getElementById('lib-faq-page-count'); if (_qc) _qc.textContent = totalPages;
+
   if (!list.length) {
     tbody.innerHTML = `<tr><td colspan="${colCount}" style="padding:40px;text-align:center;color:var(--faint);font-size:13px;">등록된 FAQ가 없습니다.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = list.map(d => {
+  tbody.innerHTML = pageItems.map(d => {
     const isPublic = d.is_public !== false;
     const privateBadge = isAdmin && !isPublic ? '<span class="badge b-red" style="font-size:10px;margin-left:6px;">비공개</span>' : '';
     const fileCell = `<td class="tbl-ellipsis" style="font-size:12px;color:var(--faint);">${(isAdmin || isPublic) ? escHtml(d.file_name || '-') : '—'}</td>`;
