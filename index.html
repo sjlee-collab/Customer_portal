@@ -4628,13 +4628,15 @@ async function loadDashboard() {
     const yesterdayISO = new Date(todayStart.getTime() - 86400000).toISOString();
     const todayStr = new Date().toISOString().slice(0,10);
 
-    // 역할별 카테고리 제한
-    const STAT_ALLOWED_CATS = {
-      tech_support: ['tech_support'],
-      sales:        ['contract', 'license'],
+    // 역할별 카테고리 제한 — KPI 카드 숫자와 아래 목록이 반드시 같은 범위를 봐야 한다.
+    // 예전엔 카드용/목록용 상수가 따로 있었고 목록에만 'other'가 들어 있어서, 영업 계정에서
+    // 카드는 3건인데 목록은 4건으로 어긋났다(기타 문의 건이 카드에서만 빠짐). 하나로 합친다.
+    const DASH_ALLOWED_CATS = {
+      tech_support: ['tech_support', 'other'],
+      sales:        ['contract', 'license', 'other'],
       education:    ['education'],
     };
-    const statCats = STAT_ALLOWED_CATS[role] || null;
+    const statCats = DASH_ALLOWED_CATS[role] || null;
     const applyStatCat = (q) => statCats ? q.in('category', statCats) : q;
 
     const [
@@ -4674,9 +4676,8 @@ async function loadDashboard() {
     if (doneEl) doneEl.textContent = doneToday ?? '—';
     if (updEl) updEl.textContent = updatedToday ?? '—';
 
-    // 최근 요청 테이블 — 역할별 카테고리 필터
-    const DASH_ALLOWED_CATS = { tech_support: ['tech_support', 'other'], sales: ['contract', 'license', 'other'], education: ['education'] };
-    const dashAllowedCats = DASH_ALLOWED_CATS[role] || null;
+    // 최근 요청 테이블 — 카드와 같은 범위(statCats)를 쓴다
+    const dashAllowedCats = statCats;
     let recentQ = sb.from('tickets')
       .select('id, ticket_number, title, category, status, priority, created_at, updated_at, due_date, company_name, company:company_id(name)')
       .order('created_at', { ascending: false }).limit(200);
