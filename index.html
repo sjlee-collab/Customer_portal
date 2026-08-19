@@ -752,7 +752,8 @@ textarea{resize:vertical;min-height:100px;}
       <div id="p-dashboard" class="page u-page active">
         <!-- 고객/내부 대시보드 -->
         <div data-show-roles="customer,internal">
-      <div class="stats">
+      <!-- 평균 처리 시간 카드를 빼서 카드가 3장이 됐다 — 빈 칸이 남지 않게 3열로 -->
+      <div class="stats" style="grid-template-columns:repeat(3,1fr);">
         <!-- 고객 전용 라이선스 카드 (첫 번째 열) — B안 수정 -->
         <div id="dash-license-detail" class="stat" style="display:none;padding:0;overflow:hidden;">
           <div style="padding:8px 12px 6px;display:flex;align-items:center;justify-content:space-between;gap:6px;">
@@ -807,11 +808,6 @@ textarea{resize:vertical;min-height:100px;}
           <div class="stat-label">완료된 요청</div>
           <div class="stat-val" id="dash-completed-val">—</div>
           <div class="stat-sub" id="dash-completed-sub">누적 처리 완료</div>
-        </div>
-        <div class="stat" id="dash-avgtime-card">
-          <div class="stat-label">평균 처리 시간</div>
-          <div class="stat-val" id="dash-avgtime-val">—</div>
-          <div class="stat-sub" id="dash-avgtime-sub">최근 30일 기준</div>
         </div>
       </div>
 
@@ -4607,34 +4603,7 @@ async function loadDashboard() {
       if (todayStat) todayStat.style.display = 'none';
     }
 
-    // 평균 처리 시간 (최근 30일 완료 티켓)
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
-    const { data: compTickets } = await applyFilter(sb.from('tickets').select('id, created_at'))
-      .eq('status', 'completed').gte('created_at', thirtyDaysAgo);
-    const atVal = document.getElementById('dash-avgtime-val');
-    if (compTickets && compTickets.length) {
-      // N+1 방지: 완료 티켓들의 이력을 한 번에 조회한 뒤(티켓별 개별 쿼리 X),
-      // created_at 내림차순이라 티켓별 첫 등장이 곧 '최신 완료' 이력 — 기존 로직과 동일 결과.
-      const ids = compTickets.map(t => t.id);
-      const { data: hist } = await sb.from('ticket_history')
-        .select('ticket_id, created_at')
-        .in('ticket_id', ids)
-        .eq('action', 'status_changed')
-        .ilike('note', '%완료%')
-        .order('created_at', { ascending: false });
-      const latestByTicket = {};
-      (hist || []).forEach(h => { if (!(h.ticket_id in latestByTicket)) latestByTicket[h.ticket_id] = h.created_at; });
-      let totalDays = 0, cnt = 0;
-      for (const t of compTickets) {
-        const hc = latestByTicket[t.id];
-        if (!hc) continue;
-        const diff = (new Date(hc) - new Date(t.created_at)) / 86400000;
-        if (diff >= 0) { totalDays += diff; cnt++; }
-      }
-      if (atVal) atVal.innerHTML = cnt ? `${(totalDays/cnt).toFixed(1)}<span style="font-size:14px;font-weight:500;">일</span>` : '—';
-    } else {
-      if (atVal) atVal.innerHTML = '—';
-    }
+    // (평균 처리 시간 카드는 2026-08-18 제거 — 계산에 쓰던 완료 티켓·이력 조회 2회도 함께 삭제)
 
     // 최근 요청 테이블
     const { data: recent } = await applyFilter(sb.from('tickets')
