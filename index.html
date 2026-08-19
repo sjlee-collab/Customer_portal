@@ -752,8 +752,7 @@ textarea{resize:vertical;min-height:100px;}
       <div id="p-dashboard" class="page u-page active">
         <!-- 고객/내부 대시보드 -->
         <div data-show-roles="customer,internal">
-      <!-- 평균 처리 시간 카드를 빼서 카드가 3장이 됐다 — 빈 칸이 남지 않게 3열로 -->
-      <div class="stats" style="grid-template-columns:repeat(3,1fr);">
+      <div class="stats">
         <!-- 고객 전용 라이선스 카드 (첫 번째 열) — B안 수정 -->
         <div id="dash-license-detail" class="stat" style="display:none;padding:0;overflow:hidden;">
           <div style="padding:8px 12px 6px;display:flex;align-items:center;justify-content:space-between;gap:6px;">
@@ -809,6 +808,11 @@ textarea{resize:vertical;min-height:100px;}
           <div class="stat-val" id="dash-completed-val">—</div>
           <div class="stat-sub" id="dash-completed-sub">누적 처리 완료</div>
         </div>
+        <div class="stat dash-recent-kpi-card" data-filter="updated" style="cursor:pointer;" onclick="toggleDashRecentFilter('updated')">
+          <div class="stat-label">오늘 업데이트된 요청</div>
+          <div class="stat-val" id="dash-updated-val">—</div>
+          <div class="stat-sub" id="dash-updated-sub">상태·담당자·답글 변경 기준</div>
+        </div>
       </div>
 
       <div style="display:grid;grid-template-columns:380px 1fr;gap:16px;align-items:stretch;height:calc(100vh - 300px);">
@@ -842,7 +846,7 @@ textarea{resize:vertical;min-height:100px;}
             <div class="stat dash-kpi-card" data-filter="pending" style="cursor:pointer;" onclick="toggleDashFilter('pending')"><div class="stat-label">미처리</div><div class="stat-val" style="color:var(--red);" id="dash-admin-pending-val">—</div><div class="stat-sub" id="dash-admin-pending-sub">처리 대기 건수</div></div>
             <div class="stat dash-kpi-card" data-filter="delayed" style="cursor:pointer;" onclick="toggleDashFilter('delayed')"><div class="stat-label">지연</div><div class="stat-val" style="color:#e53e3e;font-weight:900;" id="dash-admin-delayed-val">—</div><div class="stat-sub" id="dash-admin-delayed-sub">완료예정일 초과</div></div>
             <div class="stat dash-kpi-card" data-filter="done" style="cursor:pointer;" onclick="toggleDashFilter('done')"><div class="stat-label">처리 완료 (오늘)</div><div class="stat-val" style="color:var(--green);" id="dash-admin-done-val">—</div><div class="stat-sub"></div></div>
-            <div class="stat"><div class="stat-label">전체 고객사</div><div class="stat-val" id="dash-admin-companies-val">—</div><div class="stat-sub" id="dash-admin-companies-sub"></div></div>
+            <div class="stat dash-kpi-card" data-filter="updated" style="cursor:pointer;" onclick="toggleDashFilter('updated')"><div class="stat-label">오늘 업데이트된 요청</div><div class="stat-val" id="dash-admin-updated-val">—</div><div class="stat-sub" id="dash-admin-updated-sub">상태·담당자·답글 변경 기준</div></div>
           </div>
           <div style="display:grid;grid-template-columns:380px 1fr;gap:16px;align-items:stretch;height:calc(100vh - 300px);">
             <div class="card dash-notice-card" style="display:none;flex-direction:column;overflow:hidden;">
@@ -4578,11 +4582,13 @@ async function loadDashboard() {
     // 처리 중 / 이번 달 접수
     const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
     const todayStart = new Date(); todayStart.setHours(0,0,0,0);
-    const [{ count: inProg }, { count: thisMonth }, { count: completed }, { count: todayNew }] = await Promise.all([
+    const [{ count: inProg }, { count: thisMonth }, { count: completed }, { count: todayNew }, { count: updatedToday }] = await Promise.all([
       applyFilter(sb.from('tickets').select('id',{count:'exact',head:true})).in('status', ACTIVE),
       applyFilter(sb.from('tickets').select('id',{count:'exact',head:true})).gte('created_at', monthStart.toISOString()),
       applyFilter(sb.from('tickets').select('id',{count:'exact',head:true})).eq('status', 'completed'),
       sb.from('tickets').select('id',{count:'exact',head:true}).gte('created_at', todayStart.toISOString()),
+      // 오늘 업데이트된 요청 — 본인/소속 범위(applyFilter)를 그대로 따른다.
+      applyFilter(sb.from('tickets').select('id',{count:'exact',head:true})).gte('updated_at', todayStart.toISOString()),
     ]);
     const ipVal = document.getElementById('dash-inprogress-val');
     const ipSub = document.getElementById('dash-inprogress-sub');
@@ -4590,6 +4596,8 @@ async function loadDashboard() {
     if (ipVal) ipVal.textContent = inProg ?? '—';
     if (ipSub) ipSub.textContent = '이번 달 접수 ' + (thisMonth ?? 0) + '건';
     if (cpVal) cpVal.textContent = completed ?? '—';
+    const updVal = document.getElementById('dash-updated-val');
+    if (updVal) updVal.textContent = updatedToday ?? '—';
 
     // 역할별 오늘 신규요청 카드 표시 제어
     const todayStat = document.getElementById('dash-today-stat');
@@ -4607,7 +4615,7 @@ async function loadDashboard() {
 
     // 최근 요청 테이블
     const { data: recent } = await applyFilter(sb.from('tickets')
-      .select('id, ticket_number, title, category, unit_name, status, created_at'))
+      .select('id, ticket_number, title, category, unit_name, status, created_at, updated_at'))
       .order('created_at', { ascending: false }).limit(200);
     dashRecentTickets = recent || [];
     window._dashRecentFilter = window._dashRecentFilter || 'all';
@@ -4632,13 +4640,14 @@ async function loadDashboard() {
     const [
       { count: todayCount }, { count: yesterdayCount },
       { count: pendingCount }, { count: doneToday },
-      { count: companiesCount }
+      { count: updatedToday }
     ] = await Promise.all([
       applyStatCat(sb.from('tickets').select('id',{count:'exact',head:true}).gte('created_at', todayISO)),
       applyStatCat(sb.from('tickets').select('id',{count:'exact',head:true}).gte('created_at', yesterdayISO).lt('created_at', todayISO)),
       applyStatCat(sb.from('tickets').select('id',{count:'exact',head:true}).in('status', ACTIVE)),
       applyStatCat(sb.from('tickets').select('id',{count:'exact',head:true}).eq('status','completed').gte('updated_at', todayISO)),
-      sb.from('companies').select('id',{count:'exact',head:true}),
+      // 오늘 업데이트된 요청 — 신규 접수분도 updated_at이 생성 시각과 같아 함께 잡힌다.
+      applyStatCat(sb.from('tickets').select('id',{count:'exact',head:true}).gte('updated_at', todayISO)),
     ]);
 
     const diff = (todayCount ?? 0) - (yesterdayCount ?? 0);
@@ -4656,14 +4665,14 @@ async function loadDashboard() {
     const delayedEl = document.getElementById('dash-admin-delayed-val');
     const delayedSubEl = document.getElementById('dash-admin-delayed-sub');
     const doneEl    = document.getElementById('dash-admin-done-val');
-    const coEl      = document.getElementById('dash-admin-companies-val');
+    const updEl     = document.getElementById('dash-admin-updated-val');
     if (todayEl) todayEl.textContent = todayCount ?? '—';
     if (todaySubEl) todaySubEl.textContent = '전일 대비 ' + (diff >= 0 ? '+' : '') + diff;
     if (pendingEl) pendingEl.textContent = pendingCount ?? '—';
     if (delayedEl) delayedEl.textContent = delayedCount;
     if (delayedSubEl) delayedSubEl.textContent = delayedCount > 0 ? '즉시 처리 필요' : '지연 없음';
     if (doneEl) doneEl.textContent = doneToday ?? '—';
-    if (coEl) coEl.textContent = companiesCount ?? '—';
+    if (updEl) updEl.textContent = updatedToday ?? '—';
 
     // 최근 요청 테이블 — 역할별 카테고리 필터
     const DASH_ALLOWED_CATS = { tech_support: ['tech_support', 'other'], sales: ['contract', 'license', 'other'], education: ['education'] };
@@ -4698,7 +4707,15 @@ function updateDashFilterCardStyles() {
   });
 }
 
-const DASH_FILTER_EMPTY_LABEL = { pending: '미처리 요청 없음', delayed: '지연 요청 없음', today: '오늘 신규 요청 없음', done: '오늘 처리 완료된 요청 없음' };
+const DASH_FILTER_EMPTY_LABEL = { pending: '미처리 요청 없음', delayed: '지연 요청 없음', today: '오늘 신규 요청 없음', done: '오늘 처리 완료된 요청 없음', updated: '오늘 업데이트된 요청 없음' };
+
+// "오늘"의 경계는 KST 자정 — 카드 숫자를 세는 쿼리도 같은 기준을 쓴다.
+// toISOString().slice(0,10)으로 날짜만 비교하면 UTC 기준이 되어 오전 9시 이전 건이 어제로 밀린다.
+function isTodayLocal(ts) {
+  if (!ts) return false;
+  const start = new Date(); start.setHours(0, 0, 0, 0);
+  return new Date(ts) >= start;
+}
 
 function renderDashAdminTable(f) {
   const ptbody = document.getElementById('dash-admin-pending-tbody');
@@ -4712,9 +4729,11 @@ function renderDashAdminTable(f) {
   } else if (f === 'delayed') {
     tickets = all.filter(t => PENDING_STATUSES.includes(t.status) && t.due_date && t.due_date.slice(0, 10) < todayStr);
   } else if (f === 'today') {
-    tickets = all.filter(t => (t.created_at || '').slice(0, 10) === todayStr);
+    tickets = all.filter(t => isTodayLocal(t.created_at));
   } else if (f === 'done') {
-    tickets = all.filter(t => t.status === 'completed' && (t.updated_at || '').slice(0, 10) === todayStr);
+    tickets = all.filter(t => t.status === 'completed' && isTodayLocal(t.updated_at));
+  } else if (f === 'updated') {
+    tickets = all.filter(t => isTodayLocal(t.updated_at));
   }
   const colspan = 7;
   if (!tickets.length) {
@@ -4763,20 +4782,21 @@ function updateDashRecentCardStyles() {
 }
 
 const DASH_RECENT_ACTIVE_STATUSES = ['received', 'classifying', 'assigned', 'in_progress', 'pending_customer', 'on_hold'];
-const DASH_RECENT_EMPTY_LABEL = { inprogress: '처리 중인 요청 없음', completed: '완료된 요청 없음', today: '오늘 등록한 요청 없음' };
+const DASH_RECENT_EMPTY_LABEL = { inprogress: '처리 중인 요청 없음', completed: '완료된 요청 없음', today: '오늘 등록한 요청 없음', updated: '오늘 업데이트된 요청 없음' };
 
 function renderDashRecentTable(f) {
   const tbody = document.getElementById('dash-recent-tbody');
   if (!tbody) return;
   const all = dashRecentTickets || [];
-  const todayStr = new Date().toISOString().slice(0, 10);
   let tickets = all;
   if (f === 'inprogress') {
     tickets = all.filter(t => DASH_RECENT_ACTIVE_STATUSES.includes(t.status));
   } else if (f === 'completed') {
     tickets = all.filter(t => t.status === 'completed');
   } else if (f === 'today') {
-    tickets = all.filter(t => (t.created_at || '').slice(0, 10) === todayStr);
+    tickets = all.filter(t => isTodayLocal(t.created_at));
+  } else if (f === 'updated') {
+    tickets = all.filter(t => isTodayLocal(t.updated_at));
   }
   if (!tickets.length) {
     tbody.innerHTML = `<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--faint);">${DASH_RECENT_EMPTY_LABEL[f] || '요청 없음'}</td></tr>`;
