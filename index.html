@@ -1823,7 +1823,7 @@ textarea{resize:vertical;min-height:100px;}
           <th style="padding:8px 12px;font-size:11px;font-weight:600;">제품</th>
           <th style="padding:8px 12px;font-size:11px;font-weight:600;">수량</th>
           <th style="padding:8px 12px;font-size:11px;font-weight:600;">계약기간</th>
-          <th style="padding:8px 12px;font-size:11px;font-weight:600;">만료일</th>
+          <th style="padding:8px 12px;font-size:11px;font-weight:600;">남은기간</th>
           <th style="padding:8px 12px;font-size:11px;font-weight:600;">담당</th>
           <th style="padding:8px 12px;font-size:11px;font-weight:600;">상태</th>
         </tr></thead>
@@ -4405,7 +4405,7 @@ function openContractDetail() {
       <td style="padding:9px 12px;font-size:12px;white-space:nowrap;">${escHtml(p.label)}</td>
       <td style="padding:9px 12px;font-size:12px;white-space:nowrap;">${p.qtyHtml}</td>
       <td style="padding:9px 12px;font-size:12px;color:var(--muted);white-space:nowrap;">${fmt(p.start)} ~ ${fmt(p.end)}</td>
-      <td style="padding:9px 12px;font-size:12px;font-weight:600;white-space:nowrap;color:${_dlcDayColor(p.daysLeft)};">${fmt(p.end)}</td>
+      <td style="padding:9px 12px;font-size:12px;font-weight:600;white-space:nowrap;color:${_dlcDayColor(p.daysLeft)};">${p.daysLeft != null ? 'D-' + p.daysLeft : '—'}</td>
       <td style="padding:9px 12px;font-size:12px;color:var(--accent);">${mgr}</td>
       <td style="padding:9px 12px;"><span style="font-size:10px;color:#059669;background:#ecfdf5;padding:2px 7px;border-radius:20px;">활성</span></td>
     </tr>`;
