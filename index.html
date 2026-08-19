@@ -754,43 +754,22 @@ textarea{resize:vertical;min-height:100px;}
         <div data-show-roles="customer,internal">
       <div class="stats">
         <!-- 고객 전용 라이선스 카드 (첫 번째 열) — B안 수정 -->
-        <div id="dash-license-detail" class="stat" style="display:none;padding:0;overflow:hidden;">
-          <div style="padding:8px 12px 6px;display:flex;align-items:center;justify-content:space-between;gap:6px;">
-            <span id="dlc-title" style="font-size:11px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;"></span>
-            <span style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-              <span id="dlc-pager" style="display:none;align-items:center;gap:4px;">
-                <button class="dlc-pg" onclick="dlcStep(-1)" aria-label="이전 제품">‹</button>
-                <span id="dlc-pgn" class="dlc-pgn"></span>
-                <button class="dlc-pg" onclick="dlcStep(1)" aria-label="다음 제품">›</button>
-              </span>
-              <span id="dlc-status" style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;flex-shrink:0;"></span>
-            </span>
+        <div id="dash-license-detail" class="stat" style="display:none;padding:0;overflow:hidden;flex-direction:column;">
+          <div style="padding:9px 12px;display:flex;align-items:center;justify-content:space-between;gap:6px;border-bottom:1px solid var(--border);">
+            <span style="font-size:11px;font-weight:700;color:var(--text);">연동 계약 <span id="dlc-count" style="color:var(--muted);font-weight:600;"></span></span>
+            <span id="dlc-status" style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;flex-shrink:0;"></span>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--border);">
-            <div style="padding:10px 12px;border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;">
-              <div id="dlc-days" style="font-size:36px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em;"></div>
-              <div style="font-size:9px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.05em;">남은 일자</div>
+          <div style="padding:11px 12px;display:flex;align-items:center;gap:12px;min-width:0;flex:1;">
+            <div style="text-align:center;flex-shrink:0;">
+              <div id="dlc-days" style="font-size:30px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em;"></div>
+              <div style="font-size:9px;font-weight:600;color:var(--faint);margin-top:3px;">가장 임박</div>
             </div>
-            <div style="padding:8px 11px;display:flex;flex-direction:column;gap:5px;min-width:0;">
-              <div id="dlc-product-row" style="display:flex;justify-content:space-between;align-items:baseline;gap:4px;min-width:0;">
-                <span style="font-size:9px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;flex-shrink:0;">제품</span>
-                <span id="dlc-product" style="font-size:10px;font-weight:600;color:var(--text);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;"></span>
-              </div>
-              <div style="display:flex;justify-content:space-between;align-items:baseline;gap:4px;min-width:0;">
-                <span style="font-size:9px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;flex-shrink:0;">수량</span>
-                <span id="dlc-qty" style="font-size:10px;font-weight:600;color:var(--text);text-align:right;"></span>
-              </div>
-              <div style="display:flex;justify-content:space-between;align-items:baseline;gap:4px;">
-                <span style="font-size:9px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;flex-shrink:0;">시작·종료</span>
-                <span id="dlc-daterange" style="font-size:9px;font-weight:600;color:var(--text);text-align:right;font-variant-numeric:tabular-nums;"></span>
-              </div>
-              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:4px;min-width:0;">
-                <span style="font-size:9px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;flex-shrink:0;padding-top:1px;">담당</span>
-                <span id="dlc-manager" style="font-size:10px;font-weight:600;color:var(--accent);text-align:right;display:flex;align-items:baseline;gap:5px;flex-wrap:nowrap;min-width:0;overflow:hidden;"></span>
-              </div>
+            <div style="min-width:0;">
+              <div id="dlc-title" style="font-size:11px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+              <div id="dlc-subline" style="font-size:10px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
             </div>
           </div>
-          <div id="dlc-dots" class="dlc-dots" style="display:none;"></div>
+          <button type="button" id="dlc-detail-btn" onclick="openContractDetail()" style="width:100%;border:none;border-top:1px solid var(--border);background:var(--surface2);color:var(--accent);font-size:11px;font-weight:600;padding:8px;cursor:pointer;">전체 계약 상세 보기 →</button>
         </div>
         <!-- 내부 전용 오늘 신규요청 카드 -->
         <div id="dash-today-stat" class="stat dash-recent-kpi-card" data-filter="today" style="display:none;cursor:pointer;" onclick="toggleDashRecentFilter('today')">
@@ -1820,6 +1799,30 @@ textarea{resize:vertical;min-height:100px;}
     <div style="padding:14px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;">
       <button class="btn btn-ghost" onclick="closeModal('modal-manage')">취소</button>
       <button class="btn btn-primary" onclick="saveManage()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ 연동 계약 상세 모달 ════ -->
+<div id="modal-contract-detail" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.35);align-items:center;justify-content:center;">
+  <div class="modal-box" style="background:var(--surface);border-radius:var(--r-lg);width:720px;max-height:85vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:15px;font-weight:800;">연동 계약 상세 <span id="contract-detail-count" style="color:var(--faint);font-weight:600;font-size:13px;"></span></div>
+      <button onclick="closeModal('modal-contract-detail')" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--faint);">✕</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="tbl" style="width:100%;border-collapse:collapse;min-width:640px;">
+        <thead><tr style="background:var(--surface2);text-align:left;color:var(--muted);">
+          <th style="padding:8px 12px;font-size:11px;font-weight:600;">계약명</th>
+          <th style="padding:8px 12px;font-size:11px;font-weight:600;">제품</th>
+          <th style="padding:8px 12px;font-size:11px;font-weight:600;">수량</th>
+          <th style="padding:8px 12px;font-size:11px;font-weight:600;">계약기간</th>
+          <th style="padding:8px 12px;font-size:11px;font-weight:600;">남은</th>
+          <th style="padding:8px 12px;font-size:11px;font-weight:600;">담당</th>
+          <th style="padding:8px 12px;font-size:11px;font-weight:600;">상태</th>
+        </tr></thead>
+        <tbody id="contract-detail-tbody"></tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -4345,42 +4348,50 @@ async function deleteNotice(id, title) {
 // 한 장이면 화살표와 점을 숨겨 종전과 같은 모습이 된다.
 let _dlcProducts = [];
 let _dlcIndex = 0;
+let _dlcMgr = null; // 상세 모달용 담당자(계정 단위) {name, email}
 
+const _dlcDayColor = d => d == null ? 'var(--faint)' : d <= 30 ? '#dc2626' : d <= 60 ? '#d97706' : '#059669';
+
+// 홈 카드 요약 — 가장 임박한(만료 안 된 것 중 D-day 최소) 대표 계약만 간단히 보여준다.
+// 전체 목록은 openContractDetail() 모달에서 확인한다.
 function renderDlcCard() {
-  const p = _dlcProducts[_dlcIndex];
+  const p = _dlcProducts[0]; // 이미 daysLeft 오름차순 정렬됨 = 가장 임박
   if (!p) return;
   const fmt = d => d ? d.slice(2, 10) : '—';
-  // 제목은 계약명을 쓴다 — 계약명이 길어서 좁은 부제목 줄에 두면 심하게 잘린다.
-  // 계약 미지정 라이선스는 쓸 계약명이 없으므로 제품명을 제목으로 올리고,
-  // 그 경우 아래 "제품" 행은 같은 이름을 두 번 보여주게 되므로 숨긴다.
-  // 둘 다 잘릴 수 있어 title에 전체 이름을 담아 마우스로 확인할 수 있게 한다.
-  const hasContract = !!p.contractName;
+  const cnt = document.getElementById('dlc-count');
+  if (cnt) cnt.textContent = `${_dlcProducts.length}건`;
   const title = document.getElementById('dlc-title');
-  title.textContent = hasContract ? p.contractName : p.label;
-  title.title       = title.textContent;
-  const prow = document.getElementById('dlc-product-row');
-  prow.style.display = hasContract ? 'flex' : 'none';
-  const prod = document.getElementById('dlc-product');
-  prod.textContent = p.label;
-  prod.title       = p.label;
+  const name = p.contractName || p.label;
+  title.textContent = name; title.title = name;
+  const sub = document.getElementById('dlc-subline');
+  if (sub) sub.textContent = `${p.label} · ~${fmt(p.end)}`;
   const dd = document.getElementById('dlc-days');
-  dd.textContent  = p.daysLeft ?? '—';
-  dd.style.color  = p.daysLeft === null ? 'var(--faint)'
-                  : p.daysLeft <= 30 ? '#dc2626'
-                  : p.daysLeft <= 60 ? '#d97706' : '#059669';
-  document.getElementById('dlc-qty').innerHTML  = p.qtyHtml;
-  document.getElementById('dlc-daterange').textContent = `${fmt(p.start)} · ${fmt(p.end)}`;
+  dd.textContent = p.daysLeft != null ? `D-${p.daysLeft}` : '—';
+  dd.style.color = _dlcDayColor(p.daysLeft);
+}
 
-  const multi = _dlcProducts.length > 1;
-  const pager = document.getElementById('dlc-pager');
-  const dots  = document.getElementById('dlc-dots');
-  if (pager) pager.style.display = multi ? 'flex' : 'none';
-  if (dots)  dots.style.display  = multi ? 'flex' : 'none';
-  if (multi) {
-    document.getElementById('dlc-pgn').textContent = `${_dlcIndex + 1}/${_dlcProducts.length}`;
-    dots.innerHTML = _dlcProducts
-      .map((_, i) => `<span class="dlc-dot${i === _dlcIndex ? ' on' : ''}"></span>`).join('');
-  }
+// 전체 계약 상세 모달 — 홈 카드와 같은 데이터(_dlcProducts, 현재 활성 계약)를 리스트로.
+function openContractDetail() {
+  if (!_dlcProducts.length) return;
+  const fmt = d => d ? d.slice(2, 10) : '—';
+  const cnt = document.getElementById('contract-detail-count');
+  if (cnt) cnt.textContent = `${_dlcProducts.length}건`;
+  const mgr = _dlcMgr?.name ? escHtml(_dlcMgr.name) : '—';
+  const body = document.getElementById('contract-detail-tbody');
+  body.innerHTML = _dlcProducts.map(p => {
+    const name = escHtml(p.contractName || p.label);
+    const dLabel = p.daysLeft != null ? `D-${p.daysLeft}` : '—';
+    return `<tr style="border-top:1px solid var(--border);">
+      <td style="padding:9px 12px;font-weight:600;font-size:12px;">${name}</td>
+      <td style="padding:9px 12px;font-size:12px;">${escHtml(p.label)}</td>
+      <td style="padding:9px 12px;font-size:12px;">${p.qtyHtml}</td>
+      <td style="padding:9px 12px;font-size:12px;color:var(--muted);white-space:nowrap;">${fmt(p.start)} ~ ${fmt(p.end)}</td>
+      <td style="padding:9px 12px;font-size:12px;font-weight:600;white-space:nowrap;color:${_dlcDayColor(p.daysLeft)};">${dLabel}</td>
+      <td style="padding:9px 12px;font-size:12px;color:var(--accent);">${mgr}</td>
+      <td style="padding:9px 12px;"><span style="font-size:10px;color:#059669;background:#ecfdf5;padding:2px 7px;border-radius:20px;">활성</span></td>
+    </tr>`;
+  }).join('');
+  openModal('modal-contract-detail');
 }
 
 // 끝에서 다시 처음으로 돌아온다 — 제품이 2~3개뿐이라 막다른 끝이 있으면 오히려 불편하다.
@@ -4532,33 +4543,27 @@ async function loadDashboard() {
           sc.style.background = '#ecfdf5';
           sc.style.color      = '#059669';
 
-          const me = document.getElementById('dlc-manager');
-          // 이름은 항상 온전히 보이게 두고, 자리가 모자라면 이메일 쪽만 말줄임한다.
-          // 잘렸을 때를 대비해 title에 전체 주소를 담는다.
-          me.innerHTML =
-            `<span style="font-weight:700;color:var(--accent);white-space:nowrap;flex-shrink:0;">${escHtml(mgrName || '—')}</span>` +
-            (mgrEmail
-              ? `<span title="${escHtml(mgrEmail)}" style="font-size:9px;font-weight:400;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;">${escHtml(mgrEmail)}</span>`
-              : '');
+          _dlcMgr = { name: mgrName, email: mgrEmail }; // 상세 모달에서 표시
+          const dbtn = document.getElementById('dlc-detail-btn');
+          if (dbtn) dbtn.style.display = '';
           detail.style.display = '';
         } else if (detail) {
-          // 넘겨볼 제품이 없으므로 화살표·점도 같이 숨긴다(이전 계정의 상태가 남지 않게).
+          // 표시할 활성 계약이 없는 상태(이전 계정 상태가 남지 않게 초기화).
           _dlcProducts = [];
           _dlcIndex = 0;
-          const pager = document.getElementById('dlc-pager');
-          const dots  = document.getElementById('dlc-dots');
-          if (pager) pager.style.display = 'none';
-          if (dots)  dots.style.display  = 'none';
+          _dlcMgr = null;
+          const cnt = document.getElementById('dlc-count');
+          if (cnt) cnt.textContent = '';
           document.getElementById('dlc-title').textContent = '라이선스 정보 없음';
           document.getElementById('dlc-title').title = '';
-          document.getElementById('dlc-product-row').style.display = 'none';
+          const sub = document.getElementById('dlc-subline');
+          if (sub) sub.textContent = '';
           const sc = document.getElementById('dlc-status');
           sc.textContent = '';
           sc.style.background = 'transparent';
           document.getElementById('dlc-days').textContent = '—';
-          document.getElementById('dlc-qty').textContent = '—';
-          document.getElementById('dlc-daterange').textContent = '—';
-          document.getElementById('dlc-manager').textContent = '—';
+          const dbtn = document.getElementById('dlc-detail-btn');
+          if (dbtn) dbtn.style.display = 'none';
           detail.style.display = '';
         }
       } else {
