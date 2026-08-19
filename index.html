@@ -1915,7 +1915,6 @@ textarea{resize:vertical;min-height:100px;}
         <div class="form-group span2">
           <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;background:var(--surface2);border-radius:var(--r-md);padding:9px 12px;font-size:12.5px;">
             <span><span style="color:var(--faint);margin-right:5px;">고객사</span><b id="nw-company-txt"></b><input type="text" id="nw-company" style="display:none;" readonly></span>
-            <span><span style="color:var(--faint);margin-right:5px;">연락처</span><b id="nw-contact-txt"></b><input type="text" id="nw-contact" style="display:none;" readonly></span>
             <span style="margin-left:auto;font-size:11px;color:var(--faint);">로그인 계정 기준 자동 입력 · 접수 확인 메일 자동 발송</span>
           </div>
         </div>
@@ -4115,15 +4114,10 @@ function openModal(id) {
   if (id === 'modal-user') populateCompanySelect(document.getElementById('u-company').dataset.pending);
   if (id === 'modal-new') {
     const companyEl = document.getElementById('nw-company');
-    const contactEl = document.getElementById('nw-contact');
     const companyTxt = document.getElementById('nw-company-txt');
-    const contactTxt = document.getElementById('nw-contact-txt');
     const _co = (currentUser && currentUser.company) || '';
-    const _ph = (currentUser && currentUser.phone) || '';
     if (companyEl) companyEl.value = _co;
-    if (contactEl) contactEl.value = _ph;
     if (companyTxt) companyTxt.textContent = _co || '—';
-    if (contactTxt) contactTxt.textContent = _ph || '—';
     // 요청 조직 선택기: 조직 2개 이상 배정된 고객에게만 노출(1개면 서버가 대표로 자동 스냅샷)
     const orgGroup = document.getElementById('nw-org-group');
     const orgSel = document.getElementById('nw-org');
