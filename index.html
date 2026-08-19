@@ -768,6 +768,11 @@ textarea{resize:vertical;min-height:100px;}
             <div style="min-width:0;">
               <div id="dlc-title" style="font-size:11px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
               <div id="dlc-subline" style="font-size:10px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+              <div id="dlc-mgr-line" style="font-size:10px;margin-top:4px;display:none;align-items:baseline;gap:5px;min-width:0;">
+                <span style="font-size:9px;font-weight:700;color:var(--faint);flex-shrink:0;">담당영업</span>
+                <span id="dlc-mgr-name" style="font-weight:700;color:var(--accent);white-space:nowrap;flex-shrink:0;"></span>
+                <span id="dlc-mgr-email" style="color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;"></span>
+              </div>
             </div>
           </div>
           <button type="button" id="dlc-detail-btn" onclick="openContractDetail()" style="width:100%;border:none;border-top:1px solid var(--border);background:var(--surface2);color:var(--accent);font-size:11px;font-weight:600;padding:8px;cursor:pointer;">전체 계약 상세 보기 →</button>
@@ -4369,6 +4374,20 @@ function renderDlcCard() {
   const dd = document.getElementById('dlc-days');
   dd.textContent = p.daysLeft != null ? `D-${p.daysLeft}` : '—';
   dd.style.color = _dlcDayColor(p.daysLeft);
+  // 담당영업(이름·이메일) — _dlcMgr 재사용
+  const mgrLine = document.getElementById('dlc-mgr-line');
+  if (mgrLine) {
+    const nm = _dlcMgr?.name;
+    if (nm) {
+      document.getElementById('dlc-mgr-name').textContent = nm;
+      const em = document.getElementById('dlc-mgr-email');
+      em.textContent = _dlcMgr.email || '';
+      em.title = _dlcMgr.email || '';
+      mgrLine.style.display = 'flex';
+    } else {
+      mgrLine.style.display = 'none';
+    }
+  }
 }
 
 // 전체 계약 상세 모달 — 홈 카드와 같은 데이터(_dlcProducts, 현재 활성 계약)를 리스트로.
@@ -4536,6 +4555,7 @@ async function loadDashboard() {
           // 한 번에 한 제품만 보이므로 순서가 곧 눈에 띄는 순서다 — 만료가 임박한 제품을 첫 장에 둔다.
           _dlcProducts.sort((a, b) => (a.daysLeft ?? Infinity) - (b.daysLeft ?? Infinity));
           _dlcIndex = 0;
+          _dlcMgr = { name: mgrName, email: mgrEmail }; // 카드·상세 모달에서 표시
           renderDlcCard();
 
           const sc = document.getElementById('dlc-status');
@@ -4543,7 +4563,6 @@ async function loadDashboard() {
           sc.style.background = '#ecfdf5';
           sc.style.color      = '#059669';
 
-          _dlcMgr = { name: mgrName, email: mgrEmail }; // 상세 모달에서 표시
           const dbtn = document.getElementById('dlc-detail-btn');
           if (dbtn) dbtn.style.display = '';
           detail.style.display = '';
@@ -4558,6 +4577,8 @@ async function loadDashboard() {
           document.getElementById('dlc-title').title = '';
           const sub = document.getElementById('dlc-subline');
           if (sub) sub.textContent = '';
+          const mgrLine = document.getElementById('dlc-mgr-line');
+          if (mgrLine) mgrLine.style.display = 'none';
           const sc = document.getElementById('dlc-status');
           sc.textContent = '';
           sc.style.background = 'transparent';
