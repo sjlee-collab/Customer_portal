@@ -384,6 +384,10 @@ async function addReply(ticketId, body, event) {
     `insert into ticket_replies (ticket_id, note, changed_by) values ($1,$2,$3)`,
     [ticketId, note, changed_by]
   );
+  // 답글도 "이 요청에 오늘 무슨 일이 있었나"에 해당하므로 티켓의 갱신 시각을 올린다.
+  // 대시보드의 "오늘 업데이트된 요청" 카드가 updated_at을 기준으로 세는데, 이게 없으면
+  // 고객이 답글만 단 요청은 아무도 손대지 않은 것처럼 보인다.
+  await query(`update tickets set updated_at=now() where id=$1`, [ticketId]);
 
   if (author?.role === 'customer') {
     await deferNotify('reply', { ticketId });
