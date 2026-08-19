@@ -2664,6 +2664,24 @@ async function apiManageTicket(ticketId, body) {
   }
 }
 
+// 작성자 본인 요청 내용 수정 — api-layer PATCH /tickets/{id} (tickets 직접쓰기 차단 우회)
+async function apiEditTicket(ticketId, body) {
+  try {
+    const res = await fetch(`${API_BASE}/tickets/${ticketId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(body),
+    });
+    const j = await res.json().catch(() => null);
+    if (!res.ok) {
+      if (isAuthRejection(res.status, j)) handleAuthExpired();
+      return { data: null, error: { message: j?.error || res.statusText } };
+    }
+    return { data: j.ticket, error: null };
+  } catch (e) {
+    return { data: null, error: { message: e.message } };
+  }
+}
+
 // 데모용 고객사 ID (DB의 companies.id로 교체 / null이면 전체 조회)
 const DEMO_COMPANY_ID = null;
 
@@ -5185,9 +5203,8 @@ async function saveEditRequest() {
     return;
   }
   _savingEditRequest = true;
-  const { error } = await sb.from('tickets')
-    .update({ title, category, product: product || null, priority, description })
-    .eq('id', rdTicket.id);
+  // tickets는 data-api 직접쓰기가 막혀 있어 api-layer 전용 엔드포인트로 수정한다.
+  const { error } = await apiEditTicket(rdTicket.id, { title, category, product: product || null, priority, description });
   _savingEditRequest = false;
   if (error) { showToast('수정 실패: ' + error.message, true); return; }
   const patch = { title, category, product: product || null, priority, description };

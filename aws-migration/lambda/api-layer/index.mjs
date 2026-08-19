@@ -403,6 +403,41 @@ async function notifyForReply(ticketId) {
   });
 }
 
+// ── PATCH /tickets/{id} — 작성자 본인(또는 스태프)의 요청 내용 수정 ──
+// index.html의 "요청 수정" 모달(saveEditRequest) 전용. 제목/카테고리/제품/긴급도/내용만
+// 수정하며 상태·담당자는 건드리지 않는다(그건 /manage). tickets는 data-api 직접쓰기가 막혀
+// 있어(전용 API 강제) 이 엔드포인트를 통해서만 수정된다. 남의 요청 수정을 막기 위해
+// created_by === 로그인 본인인지 확인한다(스태프는 ticket_manage 권한으로 허용).
+async function editTicket(ticketId, body, event) {
+  const authz = getAuthz(event);
+  if (!authz.userId) return json(401, { error: '인증이 필요합니다' });
+
+  const before = await query('select created_by from tickets where id=$1', [ticketId]);
+  if (!before[0]) return json(404, { error: '요청을 찾을 수 없습니다' });
+
+  const isOwner = before[0].created_by === authz.userId;
+  const isStaff = await hasPermission(authz.role, 'ticket_manage');
+  if (!isOwner && !isStaff) return json(403, { error: '본인이 등록한 요청만 수정할 수 있습니다' });
+
+  const VALID_CATEGORIES = new Set(['tech_support', 'contract', 'license', 'education', 'customer', 'other']);
+  const VALID_PRIORITIES = new Set(['normal', 'high', 'critical']);
+  const title = (body.title ?? '').trim();
+  const description = (body.description ?? '').trim();
+  const category = body.category;
+  const product = body.product ?? null;
+  const priority = body.priority ?? 'normal';
+  if (!title || !category || !description) return json(400, { error: 'title, category, description은 필수입니다' });
+  if (!VALID_CATEGORIES.has(category)) return json(400, { error: '허용되지 않은 카테고리입니다' });
+  if (!VALID_PRIORITIES.has(priority)) return json(400, { error: '허용되지 않은 긴급도입니다' });
+
+  const updated = await query(
+    `update tickets set title=$1, category=$2, product=$3, priority=$4, description=$5, updated_at=now()
+     where id=$6 returning *`,
+    [title, category, product, priority, description, ticketId]
+  );
+  return json(200, { ticket: updated[0] });
+}
+
 // ── PATCH /tickets/{id}/manage ──
 // index.html의 "관리" 모달(saveManage) 전용: 상태/담당자/마감일을 한 번에 저장한다.
 // 이력(ticket_history)·메모(ticket_memos) 기록은 응답 전에 즉시 처리하고,
@@ -915,6 +950,11 @@ export const handler = async (event) => {
     const replyMatch = path.match(/^\/tickets\/([^/]+)\/reply$/);
     if (method === 'POST' && replyMatch) {
       return await addReply(replyMatch[1], body, event);
+    }
+    // 접미사 없는 /tickets/{id} — 작성자 본인 요청 내용 수정(위 접미사 라우트가 우선 매칭됨)
+    const editMatch = path.match(/^\/tickets\/([^/]+)$/);
+    if (method === 'PATCH' && editMatch) {
+      return await editTicket(editMatch[1], body, event);
     }
     return json(404, { error: 'not found' });
   } catch (err) {
