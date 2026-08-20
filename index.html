@@ -2338,7 +2338,7 @@ textarea{resize:vertical;min-height:100px;}
         </div>
         <div class="form-group span2">
           <label>라이선스 키</label>
-          <input type="text" id="lic-key" placeholder="TSBX-4F2A-91C7-B0D3-6E85" style="font-family:ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;letter-spacing:.02em;">
+          <input type="text" id="lic-key" placeholder="TSBX-4F2A-91C7-B0D3-6E85" style="font-variant-numeric:tabular-nums;letter-spacing:.04em;">
         </div>
         <div class="form-group span2">
           <label>라이선스 기간</label>
@@ -5954,7 +5954,7 @@ function licenseKeyCell(key) {
   if (!key) return '<td><span style="color:var(--faint);">—</span></td>';
   const safe = escHtml(key);
   return `<td style="white-space:nowrap;">
-    <span style="font-family:ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;font-size:11.5px;">${safe}</span>
+    <span style="font-variant-numeric:tabular-nums;letter-spacing:.04em;font-size:11.5px;">${safe}</span>
     <button class="btn btn-ghost btn-sm" style="font-size:10.5px;margin-left:6px;" onclick="copyLicenseKey('${safe.replace(/'/g, "&#39;")}')">복사</button>
   </td>`;
 }
