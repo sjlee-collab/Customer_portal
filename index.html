@@ -6482,13 +6482,14 @@ const PERM_COLS = [
   'user_manage',
   'integration','notify_log','permission'
 ];
-// data-roles/data-show-roles/ADMIN_ROLES 등 실제 코드 동작 기준으로 산정한 기본값 (DB 조회 실패 시 폴백)
+// "기본권한" 버튼이 되돌리는 기준값이자 DB 조회 실패 시 폴백.
+// 2026-08-20 운영 role_permissions 테이블의 실제 저장값에 맞췄다.
 const PERM_DEFAULT = {
   admin:        { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:1,library_view:1,library_manage:1,company_manage:1,user_manage:1,integration:1,notify_log:1,permission:1 },
   internal:     { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:0,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
   sales:        { ticket_view:1,ticket_create:0,ticket_delete:1,ticket_manage:1,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
-  tech_support: { ticket_view:1,ticket_create:0,ticket_delete:1,ticket_manage:1,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
-  education:    { ticket_view:1,ticket_create:0,ticket_delete:1,ticket_manage:1,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
+  tech_support: { ticket_view:1,ticket_create:0,ticket_delete:1,ticket_manage:1,library_view:1,library_manage:1,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
+  education:    { ticket_view:1,ticket_create:0,ticket_delete:1,ticket_manage:0,library_view:1,library_manage:1,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
   customer:     { ticket_view:1,ticket_create:1,ticket_delete:0,ticket_manage:0,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
 };
 let permState = JSON.parse(JSON.stringify(PERM_DEFAULT));
