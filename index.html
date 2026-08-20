@@ -815,7 +815,7 @@ textarea{resize:vertical;min-height:100px;}
           </div>
           <div class="tbl-scroll list-scroll" style="flex:1;min-height:0;overflow-y:hidden;overflow-x:auto;"><table class="tbl">
             <thead><tr>
-              <th>요청 번호</th><th>조직</th><th>제목</th><th>카테고리</th><th>상태</th><th>접수일</th><th>업데이트</th>
+              <th>요청 번호</th><th>조직</th><th>제목</th><th>카테고리</th><th>상태</th><th>접수일</th><th>업데이트 일자</th>
             </tr></thead>
             <tbody id="dash-recent-tbody">
               <tr><td colspan="7" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>
@@ -848,7 +848,7 @@ textarea{resize:vertical;min-height:100px;}
                 <button id="dash-refresh-btn" class="btn btn-outline btn-sm" data-show-roles="admin" style="display:none;font-size:12px;padding:6px 12px;" onclick="refreshDashboard(this)"><svg id="dash-refresh-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>새로고침</button>
               </div>
               <div class="tbl-scroll list-scroll" style="flex:1;min-height:0;overflow-y:auto;overflow-x:auto;"><table class="tbl">
-                <thead><tr><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">요청 번호</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">고객사</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">제목</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">카테고리</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">상태</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">접수일</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">업데이트</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">완료예정일</th></tr></thead>
+                <thead><tr><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">요청 번호</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">고객사</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">제목</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">카테고리</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">상태</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">접수일</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">업데이트 일자</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">완료예정일</th></tr></thead>
                 <tbody id="dash-admin-pending-tbody">
                   <tr><td colspan="8" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>
                 </tbody>
@@ -957,7 +957,7 @@ textarea{resize:vertical;min-height:100px;}
               <th>카테고리</th>
               <th>긴급도</th>
               <th>상태</th>
-              <th>고객사</th><th>조직</th><th>요청자</th><th>담당자</th><th>접수일</th><th>업데이트</th>
+              <th>고객사</th><th>조직</th><th>요청자</th><th>담당자</th><th>접수일</th><th>업데이트 일자</th>
               <th data-show-roles="internal">완료예정일</th>
             </tr></thead>
             <tbody id="ticket-tbody">
@@ -1229,7 +1229,7 @@ textarea{resize:vertical;min-height:100px;}
                 <div class="th-filter-pop" id="ar-pop-assignee"><div class="th-filter-empty">불러오는 중...</div></div>
               </th>
               <th style="padding:8px 12px;">접수일</th>
-              <th style="padding:8px 12px;">업데이트</th>
+              <th style="padding:8px 12px;">업데이트 일자</th>
               <th style="padding:8px 12px;">완료예정일</th>
               <th style="padding:8px 12px;width:80px;">액션</th>
             </tr></thead>
