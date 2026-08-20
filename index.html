@@ -7545,7 +7545,7 @@ function clearTkFilter(key) { filterPopClear('tk', key); }
 function updateTkFilterButtonStates() { filterUpdateButtons('tk'); }
 
 // 요청 관리 티켓 조회 — 전체 로드와 델타 폴링이 같은 select·역할필터를 쓰도록 공용화.
-const AR_TICKET_SELECT = 'id, ticket_number, title, category, priority, status, created_at, updated_at, due_date, unit_name, assigned_to_name, company_name, created_by_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name,email)';
+const AR_TICKET_SELECT = 'id, ticket_number, title, category, priority, status, created_at, updated_at, due_date, cc_emails, unit_name, assigned_to_name, company_name, created_by_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name,email)';
 const AR_ROLE_ALLOWED_CATS = { tech_support: ['tech_support', 'other'], sales: ['contract', 'license', 'other'], education: ['education'] };
 function _arBaseQuery() {
   const allowedCats = AR_ROLE_ALLOWED_CATS[currentUser?.role] || null;
@@ -8499,7 +8499,9 @@ async function openManage(idx) {
   document.getElementById('mg-status').value = mgTicket.status || 'received';
   document.getElementById('mg-due-date').value = mgTicket.due_date ? mgTicket.due_date.slice(0, 10) : '';
   document.getElementById('mg-memo').value   = '';
-  document.getElementById('mg-cc-emails').value = '';
+  // 추가 수신자는 티켓에 저장돼 있어 다음에 열 때도 그대로 남는다(없으면 빈 칸).
+  const savedCc = Array.isArray(mgTicket.cc_emails) ? mgTicket.cc_emails : [];
+  document.getElementById('mg-cc-emails').value = savedCc.join(', ');
   updateMgRecipientPreview();
 
   await populateMgAssigneeOptions(mgTicket.category, mgTicket.assignee?.id);
