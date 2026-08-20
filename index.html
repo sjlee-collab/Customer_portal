@@ -4467,7 +4467,7 @@ async function loadDashboard() {
     const userId     = currentUser.id;
     // internal: 본인이 올린 것만 / customer: 배정 조직(신규) → 계약 → 고객사 → 본인작성 순 폴백
     const applyFilter = (q) => role === 'internal'
-      ? (userId ? q.eq('created_by', userId) : q)
+      ? q // 내부직원: 전체 티켓
       : (unitIds.length ? q.in('unit_id', unitIds)
         : contractId ? q.eq('contract_id', contractId)
         : companyId ? q.eq('company_id', companyId)
@@ -4880,9 +4880,8 @@ async function loadTickets() {
     .order('created_at', { ascending: false });
 
   if (DEMO_COMPANY_ID) query = query.eq('company_id', DEMO_COMPANY_ID);
-  else if (currentUser?.role === 'internal' && currentUser?.id) {
-    query = query.eq('created_by', currentUser.id);
-  } else if (currentUser?.role === 'customer' && currentUser?.unit_ids?.length) {
+  // 내부직원(internal): 전체 티켓 조회 (필터 없음)
+  else if (currentUser?.role === 'customer' && currentUser?.unit_ids?.length) {
     query = query.in('unit_id', currentUser.unit_ids);
   } else if (currentUser?.role === 'customer' && currentUser?.contract_id) {
     query = query.eq('contract_id', currentUser.contract_id);
@@ -7817,11 +7816,13 @@ async function loadCustomerRdList(activeId) {
     .select('id, ticket_number, title, category, priority, status, created_at, due_date')
     .order('created_at', { ascending: false })
     .limit(1000);
-  const { data } = currentUser.company_id
-    ? await rdQ.eq('company_id', currentUser.company_id)
-    : currentUser.id
-      ? await rdQ.eq('created_by', currentUser.id)
-      : await rdQ;
+  const { data } = currentUser.role === 'internal'
+    ? await rdQ                                   // 내부직원: 전체 티켓
+    : currentUser.company_id
+      ? await rdQ.eq('company_id', currentUser.company_id)
+      : currentUser.id
+        ? await rdQ.eq('created_by', currentUser.id)
+        : await rdQ;
   customerRdTickets = data || [];
   renderCustomerRdListPanel(activeId);
 }

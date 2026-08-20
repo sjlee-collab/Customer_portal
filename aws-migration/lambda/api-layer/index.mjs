@@ -127,9 +127,9 @@ async function ticketBelongsToRequester(ticketId, authz) {
   if (STAFF_ROLES.has(authz.role)) return true;
   if (!ticketId) return false;
   const { role, userId, companyId, contractId, unitIds } = authz;
+  if (role === 'internal') return true; // 내부직원: 전체 티켓 답글 허용
   let sql, params;
-  if (role === 'internal') { sql = 'select 1 from tickets where id=$1 and created_by=$2'; params = [ticketId, userId]; }
-  else if (unitIds?.length) { sql = 'select 1 from tickets where id=$1 and (unit_id = any($2::uuid[]) or created_by=$3)'; params = [ticketId, unitIds, userId]; }
+  if (unitIds?.length) { sql = 'select 1 from tickets where id=$1 and (unit_id = any($2::uuid[]) or created_by=$3)'; params = [ticketId, unitIds, userId]; }
   else if (contractId)     { sql = 'select 1 from tickets where id=$1 and contract_id=$2'; params = [ticketId, contractId]; }
   else if (companyId)      { sql = 'select 1 from tickets where id=$1 and company_id=$2'; params = [ticketId, companyId]; }
   else return false;
