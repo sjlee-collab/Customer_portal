@@ -485,8 +485,15 @@ async function manageTicket(ticketId, body, event) {
   // 이력은 안 남는 부분 반영이 생겼다(감사추적 누락). 이제 하나라도 실패하면 전부 롤백된다.
   const ticket = await withTransaction(async (q) => {
     const updated = await q(
-      `update tickets set category=$1, status=$2, assigned_to=$3, assigned_to_name=$4, due_date=$5, updated_at=now() where id=$6 returning *`,
-      [nextCategory, nextStatus, assigned_to ?? null, assignedToName, due_date ?? null, ticketId]
+      // cc_emails(추가 수신자)도 함께 저장한다 — 지금까지는 메일 발송에만 쓰고 버려서
+      // 모달을 다시 열면 매번 빈 칸이었다. 티켓별로 마지막 입력을 기억한다.
+      // 값을 아예 안 보낸 호출(cc_emails === undefined)은 기존 값을 덮어쓰지 않는다.
+      `update tickets set category=$1, status=$2, assigned_to=$3, assigned_to_name=$4, due_date=$5,
+              cc_emails = case when $6 then cc_emails else $7::text[] end,
+              updated_at=now()
+        where id=$8 returning *`,
+      [nextCategory, nextStatus, assigned_to ?? null, assignedToName, due_date ?? null,
+       cc_emails === undefined, Array.isArray(cc_emails) ? cc_emails : null, ticketId]
     );
     if (statusChanged) {
       await q(
