@@ -29,7 +29,7 @@ function corsHeaders(event) {
   return {
     'Access-Control-Allow-Origin': ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
     'Access-Control-Allow-Headers': 'authorization, content-type',
-    'Access-Control-Allow-Methods': 'GET,POST,PATCH,OPTIONS',
+    'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS',
     'Vary': 'Origin',
   };
 }
@@ -440,6 +440,27 @@ async function editTicket(ticketId, body, event) {
     [title, category, product, priority, description, ticketId]
   );
   return json(200, { ticket: updated[0] });
+}
+
+// ── DELETE /tickets/{id} — 요청 삭제 (자식행 포함, 트랜잭션). 권한: ticket_delete ──
+// 첨부 S3 객체는 프론트가 이 호출 전에 storage-api로 먼저 제거한다(여기선 DB만 원자적 삭제).
+async function deleteTicket(ticketId, event) {
+  const authz = getAuthz(event);
+  if (!authz.userId) return json(401, { error: '인증이 필요합니다' });
+  if (!(await hasPermission(authz.role, 'ticket_delete'))) {
+    return json(403, { error: '요청을 삭제할 권한이 없습니다' });
+  }
+  const before = await query('select id from tickets where id=$1', [ticketId]);
+  if (!before[0]) return json(404, { error: '요청을 찾을 수 없습니다' });
+  await withTransaction(async (q) => {
+    await q('delete from ticket_history where ticket_id=$1', [ticketId]);
+    await q('delete from ticket_replies where ticket_id=$1', [ticketId]);
+    await q('delete from ticket_memos where ticket_id=$1', [ticketId]);
+    await q('delete from ticket_attachments where ticket_id=$1', [ticketId]);
+    await q('delete from log_notification where ticket_id=$1', [ticketId]);
+    await q('delete from tickets where id=$1', [ticketId]);
+  });
+  return json(200, { ok: true });
 }
 
 // ── PATCH /tickets/{id}/manage ──
@@ -966,6 +987,9 @@ export const handler = async (event) => {
     const editMatch = path.match(/^\/tickets\/([^/]+)$/);
     if (method === 'PATCH' && editMatch) {
       return await editTicket(editMatch[1], body, event);
+    }
+    if (method === 'DELETE' && editMatch) {
+      return await deleteTicket(editMatch[1], event);
     }
     return json(404, { error: 'not found' });
   } catch (err) {

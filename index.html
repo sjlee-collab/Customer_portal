@@ -1281,7 +1281,10 @@ textarea{resize:vertical;min-height:100px;}
                     <!-- 제목 + 수정 (같은 줄) -->
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;">
                       <div style="font-size:17px;font-weight:800;word-break:break-word;overflow-wrap:break-word;" id="rd-title">—</div>
-                      <button id="rd-owner-edit-btn" class="btn btn-outline btn-sm" style="display:none;white-space:nowrap;flex-shrink:0;" onclick="openEditRequestModal()">수정</button>
+                      <span style="display:flex;gap:6px;flex-shrink:0;">
+                        <button id="rd-owner-edit-btn" class="btn btn-outline btn-sm" style="display:none;white-space:nowrap;" onclick="openEditRequestModal()">수정</button>
+                        <button id="rd-delete-btn" class="btn btn-sm" style="display:none;white-space:nowrap;border:1px solid #f0a9a9;color:#dc2626;background:transparent;" onclick="deleteTicketFlow(rdTicket&&rdTicket.id, rdTicket&&rdTicket.ticket_number, 'detail')">삭제</button>
+                      </span>
                     </div>
                     <!-- 고객 문의 내용 -->
                     <div style="background:var(--surface2);border-radius:var(--r-md);padding:10px 12px;font-size:13px;line-height:1.7;word-break:break-all;overflow-wrap:break-word;white-space:pre-wrap;" id="rd-description">—</div>
@@ -1626,7 +1629,7 @@ textarea{resize:vertical;min-height:100px;}
               <thead>
                 <tr>
                   <th rowspan="2" style="width:110px;border-right:1.5px solid var(--border-strong);text-align:left;padding-left:14px;">역할</th>
-                  <th colspan="3" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">요청</th>
+                  <th colspan="4" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">요청</th>
                   <th colspan="2" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">자료실</th>
                   <th colspan="1" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">고객사</th>
                   <th colspan="1" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">사용자</th>
@@ -1635,6 +1638,7 @@ textarea{resize:vertical;min-height:100px;}
                 <tr>
                   <th style="border-left:1.5px solid var(--border-strong);border-right:1px solid var(--border);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">조회</th>
                   <th style="border-right:1px solid var(--border);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">생성</th>
+                  <th style="border-right:1px solid var(--border);text-align:center;font-size:10px;font-weight:400;color:var(--accent);">삭제</th>
                   <th style="border-right:1.5px solid var(--border-strong);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">관리</th>
                   <th style="border-right:1px solid var(--border);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">조회</th>
                   <th style="border-right:1.5px solid var(--border-strong);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">관리</th>
@@ -2679,6 +2683,44 @@ async function apiManageTicket(ticketId, body) {
 }
 
 // 작성자 본인 요청 내용 수정 — api-layer PATCH /tickets/{id} (tickets 직접쓰기 차단 우회)
+// 요청 삭제 — api-layer DELETE /tickets/{id} (권한: ticket_delete). 첨부 S3는 이 호출 전에 먼저 제거.
+async function apiDeleteTicket(ticketId) {
+  try {
+    const res = await fetch(`${API_BASE}/tickets/${ticketId}`, {
+      method: 'DELETE', headers: { ...authHeaders() },
+    });
+    const j = await res.json().catch(() => null);
+    if (!res.ok) {
+      if (isAuthRejection(res.status, j)) handleAuthExpired();
+      return { error: { message: j?.error || res.statusText } };
+    }
+    return { error: null };
+  } catch (e) { return { error: { message: e.message } }; }
+}
+
+async function deleteTicketFlow(ticketId, ticketNumber, ctx) {
+  if (!confirm(`${ticketNumber || '이'} 요청을 삭제하시겠습니까?\n답글·처리 이력·첨부파일이 모두 함께 삭제되며 되돌릴 수 없습니다.`)) return;
+  // 1) 첨부 S3 먼저 제거 — storage-api 인가가 DB행 존재를 확인하므로 DB 삭제보다 앞서야 함
+  try {
+    const { data: atts } = await sb.from('ticket_attachments').select('storage_path').eq('ticket_id', ticketId);
+    const paths = (atts || []).map(a => a.storage_path).filter(Boolean);
+    if (paths.length) await sb.storage.from('ticket-attachments').remove(paths);
+  } catch (_) { /* S3 제거 실패해도 DB 삭제는 진행(고아 객체는 수동 정리) */ }
+  // 2) DB 삭제(트랜잭션)
+  const { error } = await apiDeleteTicket(ticketId);
+  if (error) { showToast('삭제 실패: ' + error.message, true); return; }
+  showToast('✅ 요청이 삭제됐습니다.');
+  // 3) 화면 갱신
+  if (ctx === 'detail') {
+    const grid = document.querySelector('.rd-grid');
+    if (grid) grid.classList.remove('showing-detail');
+    if (typeof loadCustomerRdList === 'function') loadCustomerRdList();
+    if (typeof loadDashboard === 'function') loadDashboard();
+  } else {
+    if (typeof loadAllTickets === 'function') await loadAllTickets();
+  }
+}
+
 async function apiEditTicket(ticketId, body) {
   try {
     const res = await fetch(`${API_BASE}/tickets/${ticketId}`, {
@@ -6429,7 +6471,7 @@ const PERM_ROLES = [
   { key:'customer',     label:'고객',     color:'#6B7280', locked:false },
 ];
 const PERM_COLS = [
-  'ticket_view','ticket_create','ticket_manage',
+  'ticket_view','ticket_create','ticket_delete','ticket_manage',
   'library_view','library_manage',
   'company_manage',
   'user_manage',
@@ -6437,12 +6479,12 @@ const PERM_COLS = [
 ];
 // data-roles/data-show-roles/ADMIN_ROLES 등 실제 코드 동작 기준으로 산정한 기본값 (DB 조회 실패 시 폴백)
 const PERM_DEFAULT = {
-  admin:        { ticket_view:1,ticket_create:1,ticket_manage:1,library_view:1,library_manage:1,company_manage:1,user_manage:1,integration:1,notify_log:1,permission:1 },
-  internal:     { ticket_view:1,ticket_create:1,ticket_manage:0,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
-  sales:        { ticket_view:1,ticket_create:0,ticket_manage:1,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
-  tech_support: { ticket_view:1,ticket_create:0,ticket_manage:1,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
-  education:    { ticket_view:1,ticket_create:0,ticket_manage:1,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
-  customer:     { ticket_view:1,ticket_create:1,ticket_manage:0,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
+  admin:        { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:1,library_view:1,library_manage:1,company_manage:1,user_manage:1,integration:1,notify_log:1,permission:1 },
+  internal:     { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:0,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
+  sales:        { ticket_view:1,ticket_create:0,ticket_delete:1,ticket_manage:1,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
+  tech_support: { ticket_view:1,ticket_create:0,ticket_delete:1,ticket_manage:1,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
+  education:    { ticket_view:1,ticket_create:0,ticket_delete:1,ticket_manage:1,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
+  customer:     { ticket_view:1,ticket_create:1,ticket_delete:0,ticket_manage:0,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,permission:0 },
 };
 let permState = JSON.parse(JSON.stringify(PERM_DEFAULT));
 
@@ -6469,7 +6511,7 @@ function resetPermissionsToDefault() {
 function renderPermissions() {
   const tbody = document.getElementById('perm-tbody');
   if (!tbody) return;
-  const sepCols = [2,4,5,6]; // border-right after these indices (0-based)
+  const sepCols = [3,5,6,7]; // border-right after these indices (0-based) — ticket_delete 추가로 시프트
   tbody.innerHTML = PERM_ROLES.map(role => {
     const cells = PERM_COLS.map((col, i) => {
       const on = permState[role.key][col];
@@ -7701,7 +7743,9 @@ function renderAllTickets() {
     const dueDate  = t.due_date ? t.due_date.slice(0,10) : '<span style="color:var(--faint);">—</span>';
     // 요청 관리는 완료예정일(지연뱃지 없음) + 처리 버튼 열이 요청 탭과 다른 부분.
     const dueCell    = `<td style="font-size:12px;font-variant-numeric:tabular-nums;">${dueDate}</td>`;
-    const actionCell = `<td><button class="btn btn-primary btn-sm" style="font-size:11px;" onclick="event.stopPropagation();openManage(${idx})">처리</button></td>`;
+    const canDelete = !!permState[currentUser?.role]?.ticket_delete;
+    const delBtn = canDelete ? `<button class="btn btn-sm" style="font-size:11px;margin-left:4px;border:1px solid #f0a9a9;color:#dc2626;background:transparent;" onclick="event.stopPropagation();deleteTicketFlow('${t.id}','${escHtml(t.ticket_number||'')}','manage')">삭제</button>` : '';
+    const actionCell = `<td style="white-space:nowrap;"><button class="btn btn-primary btn-sm" style="font-size:11px;" onclick="event.stopPropagation();openManage(${idx})">처리</button>${delBtn}</td>`;
     const cells = [
       numCell, TICKET_CELL.title(t), TICKET_CELL.category(t), TICKET_CELL.priority(t), TICKET_CELL.status(t),
       TICKET_CELL.company(t), TICKET_CELL.org(t), TICKET_CELL.requester(t), TICKET_CELL.assignee(t),
@@ -7917,6 +7961,9 @@ async function selectRdTicket(idx, directTicket) {
   document.getElementById('rd-title').textContent = rdTicket.title || '—';
   const descEl = document.getElementById('rd-description');
   if (descEl) descEl.textContent = rdTicket.description ?? '불러오는 중...';
+
+  const rdDelBtn = document.getElementById('rd-delete-btn');
+  if (rdDelBtn) rdDelBtn.style.display = permState[currentUser?.role]?.ticket_delete ? '' : 'none';
 
   const isCustomerRole = currentUser?.role === 'customer';
   const isAdminUser = currentUser && ADMIN_ROLES.has(currentUser.role);
