@@ -813,12 +813,12 @@ textarea{resize:vertical;min-height:100px;}
             <div class="card-title" style="margin-bottom:0;">최근 요청건</div>
             <button class="btn btn-primary btn-sm" data-show-roles="customer,internal" data-perm="ticket_create" onclick="openModal('modal-new')">+ 새 요청 등록</button>
           </div>
-          <div class="tbl-scroll list-scroll" style="flex:1;min-height:0;overflow:hidden;"><table class="tbl">
+          <div class="tbl-scroll list-scroll" style="flex:1;min-height:0;overflow-y:hidden;overflow-x:auto;"><table class="tbl">
             <thead><tr>
-              <th>요청 번호</th><th>조직</th><th>제목</th><th>카테고리</th><th>상태</th><th>접수일</th>
+              <th>요청 번호</th><th>조직</th><th>제목</th><th>카테고리</th><th>상태</th><th>접수일</th><th>업데이트</th>
             </tr></thead>
             <tbody id="dash-recent-tbody">
-              <tr><td colspan="6" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>
+              <tr><td colspan="7" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>
             </tbody>
           </table></div>
 
@@ -847,10 +847,10 @@ textarea{resize:vertical;min-height:100px;}
                 <div class="card-title" style="margin-bottom:0;">요청</div>
                 <button id="dash-refresh-btn" class="btn btn-outline btn-sm" data-show-roles="admin" style="display:none;font-size:12px;padding:6px 12px;" onclick="refreshDashboard(this)"><svg id="dash-refresh-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>새로고침</button>
               </div>
-              <div class="tbl-scroll list-scroll" style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;"><table class="tbl">
-                <thead><tr><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">요청 번호</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">고객사</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">제목</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">카테고리</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">상태</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">접수일</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">완료예정일</th></tr></thead>
+              <div class="tbl-scroll list-scroll" style="flex:1;min-height:0;overflow-y:auto;overflow-x:auto;"><table class="tbl">
+                <thead><tr><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">요청 번호</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">고객사</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">제목</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">카테고리</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">상태</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">접수일</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">업데이트</th><th style="position:sticky;top:0;background:var(--surface2,var(--surface-2,#fff));z-index:1;">완료예정일</th></tr></thead>
                 <tbody id="dash-admin-pending-tbody">
-                  <tr><td colspan="6" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>
+                  <tr><td colspan="8" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>
                 </tbody>
               </table></div>
             </div>
@@ -957,11 +957,11 @@ textarea{resize:vertical;min-height:100px;}
               <th>카테고리</th>
               <th>긴급도</th>
               <th>상태</th>
-              <th>고객사</th><th>조직</th><th>요청자</th><th>담당자</th><th>접수일</th>
+              <th>고객사</th><th>조직</th><th>요청자</th><th>담당자</th><th>접수일</th><th>업데이트</th>
               <th data-show-roles="internal">완료예정일</th>
             </tr></thead>
             <tbody id="ticket-tbody">
-              <tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
+              <tr><td colspan="12" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
             </tbody>
           </table></div>
           <div style="padding:12px 18px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:flex-end;gap:10px;background:var(--surface2);flex-shrink:0;">
@@ -1229,11 +1229,12 @@ textarea{resize:vertical;min-height:100px;}
                 <div class="th-filter-pop" id="ar-pop-assignee"><div class="th-filter-empty">불러오는 중...</div></div>
               </th>
               <th style="padding:8px 12px;">접수일</th>
+              <th style="padding:8px 12px;">업데이트</th>
               <th style="padding:8px 12px;">완료예정일</th>
               <th style="padding:8px 12px;width:80px;">액션</th>
             </tr></thead>
             <tbody id="ar-tbody">
-              <tr><td colspan="12" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
+              <tr><td colspan="13" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
             </tbody>
           </table></div>
           <div style="padding:12px 18px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:flex-end;gap:10px;background:var(--surface2);flex-shrink:0;">
@@ -4817,7 +4818,7 @@ function renderDashAdminTable(f) {
   } else if (f === 'updated') {
     tickets = all.filter(t => isTodayLocal(t.updated_at));
   }
-  const colspan = 7;
+  const colspan = 8;
   if (!tickets.length) {
     ptbody.innerHTML = `<tr><td colspan="${colspan}" style="padding:16px;text-align:center;color:var(--faint);">${DASH_FILTER_EMPTY_LABEL[f] || '요청 없음'}</td></tr>`;
     return;
@@ -4841,6 +4842,7 @@ function renderDashAdminTable(f) {
       `<td><span class="badge ${catC}">${catL}</span></td>` +
       `<td><span class="badge ${statB}" style="font-size:11px;">${statL}</span></td>` +
       `<td style="font-size:12px;color:var(--faint);">${(t.created_at||'').slice(0,10)}</td>` +
+      `<td style="font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums;">${t.updated_at?fmtTime(t.updated_at):'—'}</td>` +
       `<td>${dueDateDisplay}</td></tr>`;
   }).join('');
 }
@@ -4881,7 +4883,7 @@ function renderDashRecentTable(f) {
     tickets = all.filter(t => isTodayLocal(t.updated_at));
   }
   if (!tickets.length) {
-    tbody.innerHTML = `<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--faint);">${DASH_RECENT_EMPTY_LABEL[f] || '요청 없음'}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="padding:16px;text-align:center;color:var(--faint);">${DASH_RECENT_EMPTY_LABEL[f] || '요청 없음'}</td></tr>`;
     return;
   }
   tbody.innerHTML = tickets.map((t) => {
@@ -4893,7 +4895,8 @@ function renderDashRecentTable(f) {
     return `<tr style="cursor:pointer;" onclick="showDetail(dashRecentTickets[${idx}])"><td><span style="font-variant-numeric:tabular-nums;color:var(--accent);font-weight:600;">${escHtml(t.ticket_number||'')}</span></td>` +
       `<td style="color:var(--muted);"><div style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(t.unit_name||'')}">${t.unit_name ? escHtml(t.unit_name) : '<span style="color:var(--faint);">—</span>'}</div></td>` +
       `<td><div style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(t.title||'')}">${escHtml(t.title||'')}</div></td><td><span class="badge ${catC}">${catL}</span></td>` +
-      `<td><span class="badge ${stC}">${stL}</span></td><td style="color:var(--faint);">${fmtTime(t.created_at).slice(0,10)}</td></tr>`;
+      `<td><span class="badge ${stC}">${stL}</span></td><td style="color:var(--faint);">${fmtTime(t.created_at).slice(0,10)}</td>` +
+      `<td style="color:var(--faint);font-variant-numeric:tabular-nums;">${t.updated_at?fmtTime(t.updated_at):'—'}</td></tr>`;
   }).join('');
 }
 
@@ -4906,16 +4909,16 @@ async function loadTickets() {
   if (!tbody) return;
   detachSharedRequestDetail(tbody);
 
-  tbody.innerHTML = '<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>';
 
   if (!sb) {
-    tbody.innerHTML = '<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">DB 연결 없음</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">DB 연결 없음</td></tr>';
     return;
   }
 
   let query = sb
     .from('tickets')
-    .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, unit_name, assigned_to_name, company_name, created_by_name, assignee:assigned_to(name), company:company_id(name), requester:created_by(name)')
+    .select('id, ticket_number, title, description, category, product, priority, status, created_at, updated_at, due_date, unit_name, assigned_to_name, company_name, created_by_name, assignee:assigned_to(name), company:company_id(name), requester:created_by(name)')
     .order('created_at', { ascending: false });
 
   if (DEMO_COMPANY_ID) query = query.eq('company_id', DEMO_COMPANY_ID);
@@ -4930,7 +4933,7 @@ async function loadTickets() {
 
   const { data, error } = await query;
   if (error) {
-    tbody.innerHTML = `<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--red);font-size:13px;">조회 오류: ${error.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--red);font-size:13px;">조회 오류: ${error.message}</td></tr>`;
     return;
   }
   allTickets = data || [];
@@ -5011,6 +5014,8 @@ const TICKET_CELL = {
   requester: t => `<td style="font-size:12px;">${t.requester?.name?escHtml(t.requester.name):(t.created_by_name?escHtml(t.created_by_name):'<span style="color:var(--faint);">—</span>')}</td>`,
   assignee:  t => `<td style="font-size:12px;">${t.assignee?.name?escHtml(t.assignee.name):(t.assigned_to_name?escHtml(t.assigned_to_name)+' <span style="color:var(--faint);font-size:10px;">(탈퇴)</span>':'<span style="color:var(--faint);">미배정</span>')}</td>`,
   created:   t => `<td style="color:var(--faint);font-size:12px;">${t.created_at?t.created_at.slice(0,10):'—'}</td>`,
+  // 접수일과 달리 시각까지 보여주므로 UTC 문자열을 그대로 자르면 안 되고 KST로 변환한다.
+  updated:   t => `<td style="color:var(--faint);font-size:12px;font-variant-numeric:tabular-nums;">${t.updated_at?fmtTime(t.updated_at):'—'}</td>`,
 };
 
 function renderTickets(tickets) {
@@ -5019,7 +5024,7 @@ function renderTickets(tickets) {
   detachSharedRequestDetail(tbody);
 
   const isCustomerRole = currentUser?.role === 'customer';
-  const colCount = isCustomerRole ? 10 : 11;
+  const colCount = isCustomerRole ? 11 : 12;
 
   if (!tickets.length) {
     tbody.innerHTML = `<tr><td colspan="${colCount}" style="padding:40px;text-align:center;color:var(--faint);">등록된 요청이 없습니다.</td></tr>`;
@@ -5040,7 +5045,7 @@ function renderTickets(tickets) {
     const cells = [
       numCell, TICKET_CELL.title(t), TICKET_CELL.category(t), TICKET_CELL.priority(t), TICKET_CELL.status(t),
       TICKET_CELL.company(t), TICKET_CELL.org(t), TICKET_CELL.requester(t), TICKET_CELL.assignee(t),
-      TICKET_CELL.created(t), dueDateCell,
+      TICKET_CELL.created(t), TICKET_CELL.updated(t), dueDateCell,
     ].filter(Boolean);
     const span = cells.length;
     return `<tr class="ar-spacer" style="display:none;"><td colspan="${span}" style="padding:0;border:none;height:14px;"></td></tr>
@@ -7623,10 +7628,10 @@ async function loadAllTickets(silent = false) {
   const tbody = document.getElementById('ar-tbody');
   if (!tbody) return;
   detachSharedRequestDetail(tbody);
-  if (!silent) tbody.innerHTML = '<tr><td colspan="10" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>';
+  if (!silent) tbody.innerHTML = '<tr><td colspan="13" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>';
 
   if (!sb) {
-    if (!silent) tbody.innerHTML = '<tr><td colspan="10" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">DB 연결 없음</td></tr>';
+    if (!silent) tbody.innerHTML = '<tr><td colspan="13" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">DB 연결 없음</td></tr>';
     return;
   }
 
@@ -7734,7 +7739,7 @@ function renderAllTickets() {
   if (pageCount) pageCount.textContent = totalPages;
 
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="12" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">조건에 맞는 요청이 없습니다.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="13" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">조건에 맞는 요청이 없습니다.</td></tr>';
     return;
   }
   tbody.innerHTML = pageList.map((t) => {
@@ -7749,7 +7754,7 @@ function renderAllTickets() {
     const cells = [
       numCell, TICKET_CELL.title(t), TICKET_CELL.category(t), TICKET_CELL.priority(t), TICKET_CELL.status(t),
       TICKET_CELL.company(t), TICKET_CELL.org(t), TICKET_CELL.requester(t), TICKET_CELL.assignee(t),
-      TICKET_CELL.created(t), dueCell, actionCell,
+      TICKET_CELL.created(t), TICKET_CELL.updated(t), dueCell, actionCell,
     ];
     const span = cells.length;
     return `<tr class="ar-spacer" style="display:none;"><td colspan="${span}" style="padding:0;border:none;height:14px;"></td></tr>
