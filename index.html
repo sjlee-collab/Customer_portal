@@ -4673,11 +4673,7 @@ async function loadDashboard() {
     // 역할별 카테고리 제한 — KPI 카드 숫자와 아래 목록이 반드시 같은 범위를 봐야 한다.
     // 예전엔 카드용/목록용 상수가 따로 있었고 목록에만 'other'가 들어 있어서, 영업 계정에서
     // 카드는 3건인데 목록은 4건으로 어긋났다(기타 문의 건이 카드에서만 빠짐). 하나로 합친다.
-    const DASH_ALLOWED_CATS = {
-      tech_support: ['tech_support', 'other'],
-      sales:        ['contract', 'license', 'other'],
-      education:    ['education'],
-    };
+    const DASH_ALLOWED_CATS = {}; // 스태프 전 카테고리 조회 — 카테고리 제한 없음
     const statCats = DASH_ALLOWED_CATS[role] || null;
     const applyStatCat = (q) => statCats ? q.in('category', statCats) : q;
 
@@ -7549,7 +7545,7 @@ function updateTkFilterButtonStates() { filterUpdateButtons('tk'); }
 
 // 요청 관리 티켓 조회 — 전체 로드와 델타 폴링이 같은 select·역할필터를 쓰도록 공용화.
 const AR_TICKET_SELECT = 'id, ticket_number, title, category, priority, status, created_at, updated_at, due_date, cc_emails, unit_name, assigned_to_name, company_name, created_by_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name,email)';
-const AR_ROLE_ALLOWED_CATS = { tech_support: ['tech_support', 'other'], sales: ['contract', 'license', 'other'], education: ['education'] };
+const AR_ROLE_ALLOWED_CATS = {}; // 스태프(영업/기술/교육/관리자) 전 카테고리 조회 — 카테고리 제한 없음
 function _arBaseQuery() {
   const allowedCats = AR_ROLE_ALLOWED_CATS[currentUser?.role] || null;
   let q = sb.from('tickets').select(AR_TICKET_SELECT).order('created_at', { ascending: false });
@@ -7794,7 +7790,7 @@ async function goToManageTicket(ticketId) {
   updateArFilterButtonStates();
 
   // 대상 티켓이 있는 페이지로 옮겨야 그 행이 실제로 DOM에 그려져서 펼칠 수 있다.
-  const ROLE_ALLOWED_CATS_HOME = { tech_support: ['tech_support', 'other'], sales: ['contract', 'license', 'other'], education: ['education'] };
+  const ROLE_ALLOWED_CATS_HOME = {}; // 스태프 전 카테고리 조회 — 카테고리 제한 없음
   const allowedCats = ROLE_ALLOWED_CATS_HOME[currentUser?.role] || null;
   const visibleList = allowedCats ? allMgTickets.filter(t => allowedCats.includes(t.category)) : allMgTickets;
   const idx = visibleList.findIndex(t => t.id === ticketId);
