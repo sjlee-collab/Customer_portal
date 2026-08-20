@@ -1816,7 +1816,10 @@ textarea{resize:vertical;min-height:100px;}
       <div style="font-size:15px;font-weight:800;">연동 계약 상세 <span id="contract-detail-count" style="color:var(--faint);font-weight:600;font-size:13px;"></span></div>
       <button onclick="closeModal('modal-contract-detail')" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--faint);">✕</button>
     </div>
-    <div style="overflow-x:auto;">
+    <!-- 표를 모달 벽에서 떼고 테두리로 감싼다 — 여백은 머리글의 좌우 20px에 맞췄다.
+         감싸지 않으면 좁은 화면에서 가로 스크롤 시 표가 모달 가장자리에 붙은 채 잘린다. -->
+    <div style="padding:16px 20px 20px;">
+      <div style="overflow-x:auto;border:1px solid var(--border-md);border-radius:var(--r-md);">
       <table class="tbl" style="width:100%;border-collapse:collapse;min-width:640px;">
         <thead><tr style="background:var(--surface2);text-align:left;color:var(--muted);">
           <th style="padding:8px 12px;font-size:11px;font-weight:600;">계약명</th>
@@ -1829,6 +1832,7 @@ textarea{resize:vertical;min-height:100px;}
         </tr></thead>
         <tbody id="contract-detail-tbody"></tbody>
       </table>
+      </div>
     </div>
   </div>
 </div>
