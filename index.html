@@ -6751,14 +6751,14 @@ async function savePermissions() {
 function _renderStatsDau(series) {
   const el = document.getElementById('stats-dau'); if (!el) return;
   if (!series.length) { el.innerHTML = '<div style="height:150px;display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:12px;">아직 로그인 기록이 없습니다</div>'; return; }
-  const W = 640, H = 150, pL = 26, pR = 8, pT = 10, pB = 18, n = series.length, mx = Math.max(1, ...series.map(s => s.n));
+  const W = Math.max(320, el.clientWidth || 900), H = 150, pL = 26, pR = 8, pT = 10, pB = 18, n = series.length, mx = Math.max(1, ...series.map(s => s.n));
   const iw = W - pL - pR, ih = H - pT - pB;
   const X = i => n === 1 ? pL + iw / 2 : pL + i * (iw / (n - 1)), Y = v => pT + (1 - v / mx) * ih;
   const pts = series.map((s, i) => X(i) + ',' + Y(s.n)).join(' ');
   const area = 'M' + X(0) + ',' + (pT + ih) + ' L' + series.map((s, i) => X(i) + ',' + Y(s.n)).join(' L') + ' L' + X(n - 1) + ',' + (pT + ih) + ' Z';
   let gl = '', lab = '';
   [0, Math.round(mx / 2), mx].forEach(v => { const y = Y(v); gl += `<line x1="${pL}" y1="${y}" x2="${W - pR}" y2="${y}" stroke="var(--border)" stroke-width="1"/>`; lab += `<text x="2" y="${y + 3}" font-size="10" fill="var(--faint)">${v}</text>`; });
-  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="일별 DAU 추이">${gl}<path d="${area}" fill="var(--accent-l)"/><polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>${lab}</svg>`;
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block" role="img" aria-label="일별 DAU 추이">${gl}<path d="${area}" fill="var(--accent-l)"/><polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>${lab}</svg>`;
 }
 
 async function loadStats() {
