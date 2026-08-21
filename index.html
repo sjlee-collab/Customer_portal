@@ -7833,7 +7833,7 @@ function renderAllTickets() {
   if (!tbody) return;
   detachSharedRequestDetail(tbody);
 
-  const ROLE_ALLOWED_CATS_RENDER = { tech_support: ['tech_support', 'other'], sales: ['contract', 'license', 'other'], education: ['education'] };
+  const ROLE_ALLOWED_CATS_RENDER = {}; // 스태프 전 카테고리 조회 — 카테고리 제한 없음(조회/필터팝업/상세목록/홈과 동일)
   const renderAllowedCats = ROLE_ALLOWED_CATS_RENDER[currentUser?.role] || null;
   const q = (document.getElementById('ar-search')?.value || '').toLowerCase();
   const list = allMgTickets.filter(t => {
