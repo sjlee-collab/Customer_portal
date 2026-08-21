@@ -1413,8 +1413,8 @@ textarea{resize:vertical;min-height:100px;}
 
               <!-- 본문 + 사이드바 분리 레이아웃 -->
               <div class="card" style="padding:0;overflow:hidden;margin-bottom:0;"><div id="rd-inner-grid" style="display:grid;grid-template-columns:1fr 340px;gap:0;align-items:stretch;">
-                <!-- 좌측: 본문 카드 -->
-                <div style="min-width:0;padding:16px 20px;">
+                <!-- 좌측: 본문 카드 (하단 패딩 0 — 셀 td 하단 여백만 남김) -->
+                <div style="min-width:0;padding:16px 20px 0;">
                     <!-- 제목 + 수정 (같은 줄) -->
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;">
                       <div style="font-size:17px;font-weight:800;word-break:break-word;overflow-wrap:break-word;" id="rd-title">—</div>
@@ -1452,7 +1452,7 @@ textarea{resize:vertical;min-height:100px;}
                     </div>
                 </div>
                 <!-- 우측: 메타 사이드바 -->
-                <div id="rd-meta-sidebar" style="padding:16px;min-width:0;border-left:1px solid var(--border);background:var(--surface2);">
+                <div id="rd-meta-sidebar" style="padding:16px 16px 0;min-width:0;border-left:1px solid var(--border);background:var(--surface2);">
                     <!-- 연동 계약 (요청 등록 시점에 스냅샷된 계약) -->
                     <div style="padding-bottom:9px;margin-bottom:9px;border-bottom:1px solid var(--border);">
                       <div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">연동 계약</div>
