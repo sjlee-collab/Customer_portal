@@ -1794,65 +1794,34 @@ textarea{resize:vertical;min-height:100px;}
         <div style="margin-top:10px;font-size:11px;color:var(--muted);">* 관리자 권한은 고정값으로 변경할 수 없습니다.</div>
       </div>
 
-      <!-- ══ 사용 통계 ══ -->
+      <!-- ══ 사용 통계 (접속·계정 중심) ══ -->
       <div id="p-stats" class="page u-page">
         <div class="section-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
           <div>
             <div class="section-title">사용 통계</div>
-            <div class="section-sub">포탈 이용 현황(요청·접속·자료·알림)을 한눈에 봅니다.</div>
+            <div class="section-sub">접속 활동과 계정 현황을 봅니다.</div>
           </div>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <div id="stats-period" style="display:flex;border:1px solid var(--border-md);border-radius:var(--r-md);overflow:hidden;">
-              <span class="stats-seg" data-days="7"  onclick="setStatsPeriod(7)"  style="font-size:12px;padding:6px 12px;cursor:pointer;color:var(--faint);">7일</span>
-              <span class="stats-seg" data-days="30" onclick="setStatsPeriod(30)" style="font-size:12px;padding:6px 12px;cursor:pointer;color:var(--faint);">30일</span>
-              <span class="stats-seg" data-days="90" onclick="setStatsPeriod(90)" style="font-size:12px;padding:6px 12px;cursor:pointer;color:var(--faint);">90일</span>
-            </div>
-            <button class="btn btn-outline btn-sm" onclick="loadStats()"><span id="stats-refresh-ico">↻</span> 새로고침</button>
-          </div>
-        </div>
-
-        <div class="stats" id="stats-kpi" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;">
-          <div style="padding:20px;text-align:center;color:var(--faint);grid-column:1/-1;">불러오는 중...</div>
-        </div>
-
-        <div class="card">
-          <div class="card-title" style="display:flex;align-items:center;gap:8px;">요청 추이 <span style="font-size:11px;color:var(--faint);font-weight:400;">주별 · 생성 vs 완료</span>
-            <span style="margin-left:auto;font-size:11px;color:var(--muted);display:flex;gap:12px;">
-              <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--accent);vertical-align:middle;"></span> 생성</span>
-              <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--green);vertical-align:middle;"></span> 완료</span>
-            </span>
-          </div>
-          <div id="stats-trend" style="min-height:200px;"></div>
+          <button class="btn btn-outline btn-sm" onclick="loadStats()"><span id="stats-refresh-ico">↻</span> 새로고침</button>
         </div>
 
         <div class="card">
           <div class="card-title">접속 활동 <span style="font-size:11px;color:var(--faint);font-weight:400;">고유 로그인 사용자</span></div>
-          <div id="stats-active" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:14px;"></div>
-          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;"><span style="display:inline-block;width:14px;height:2px;background:var(--accent);vertical-align:middle;"></span> 일별 DAU</div>
+          <div id="stats-active" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:14px;">
+            <div style="padding:16px;text-align:center;color:var(--faint);grid-column:1/-1;">불러오는 중...</div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;"><span style="display:inline-block;width:14px;height:2px;background:var(--accent);vertical-align:middle;"></span> 일별 DAU (최근 30일)</div>
           <div id="stats-dau" style="min-height:150px;"></div>
           <div style="font-size:11px;color:var(--faint);margin-top:10px;">ⓘ 접속 지표는 로그인 이벤트 기록 시작 이후부터 누적됩니다(소급 집계 없음).</div>
         </div>
 
-        <!-- 상세 지표: 접기/펼치기 (기본 접힘) — 첫 화면은 KPI·요청추이·접속활동만 -->
-        <div class="card" style="padding:0;overflow:hidden;">
-          <div onclick="toggleStatsDetail()" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:14px 16px;">
-            <span class="card-title" style="margin-bottom:0;">상세 지표</span>
-            <span style="font-size:11px;color:var(--faint);">분포 · 자료실 · 계정 · 알림</span>
-            <span id="stats-detail-arrow" style="margin-left:auto;color:var(--accent);font-size:12px;font-weight:600;">펼치기 ▾</span>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;">
+          <div class="card">
+            <div class="card-title">계정 현황</div>
+            <div id="stats-accounts"></div>
           </div>
-          <div id="stats-detail-body" style="display:none;padding:0 16px 16px;border-top:1px solid var(--border);">
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px;margin-top:16px;margin-bottom:18px;">
-              <div><div class="card-title">상태별 분포</div><div id="stats-status"></div></div>
-              <div><div class="card-title">카테고리별 분포</div><div id="stats-cat"></div></div>
-            </div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:18px;">
-              <div><div class="card-title" style="display:flex;">자료실 다운로드 Top <span id="stats-dl-total" style="margin-left:auto;font-size:11px;color:var(--faint);font-weight:400;"></span></div><div id="stats-downloads"></div></div>
-              <div><div class="card-title">계정 현황 · 최근 로그인</div><div id="stats-accounts"></div></div>
-            </div>
-            <div>
-              <div class="card-title" style="display:flex;">알림 · 연동 상태 <span id="stats-notify-sub" style="margin-left:auto;font-size:11px;color:var(--muted);font-weight:400;"></span></div>
-              <div style="height:9px;border-radius:999px;background:var(--surface2);overflow:hidden;"><div id="stats-notify-bar" style="height:100%;background:var(--green);width:0;"></div></div>
-            </div>
+          <div class="card">
+            <div class="card-title">최근 로그인</div>
+            <div id="stats-recent"></div>
           </div>
         </div>
       </div>
@@ -6776,47 +6745,8 @@ async function savePermissions() {
   showToast('권한 설정이 저장됐습니다.');
 }
 
-// ── 사용 통계 (stats_view) ─────────────────────────────────────
-// 접속 활동(DAU/WAU/MAU)은 서버 집계(GET /stats/active-users)로, 나머지는 data-api 조회로 클라 집계.
-let _statsDays = 30;
-function setStatsPeriod(d) { _statsDays = d; loadStats(); }
-
-// 상세 지표(분포·자료실·계정·알림) 접기/펼치기 — 첫 화면을 KPI·요청추이·접속활동으로 짧게 유지.
-function toggleStatsDetail() {
-  const body = document.getElementById('stats-detail-body');
-  const arrow = document.getElementById('stats-detail-arrow');
-  if (!body) return;
-  const open = body.style.display !== 'none';
-  body.style.display = open ? 'none' : '';
-  if (arrow) arrow.textContent = open ? '펼치기 ▾' : '접기 ▴';
-}
-
-function _statsBars(elId, rows) {
-  const el = document.getElementById(elId); if (!el) return;
-  const max = Math.max(1, ...rows.map(r => r.v));
-  el.innerHTML = rows.length ? rows.map(r => {
-    const pct = Math.round(r.v / max * 100);
-    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">
-      <span style="width:72px;font-size:12px;color:var(--muted);flex:none;">${escHtml(r.k)}</span>
-      <span style="flex:1;height:14px;border-radius:4px;background:var(--surface2);overflow:hidden;"><span style="display:block;height:100%;width:${pct}%;background:var(--accent);border-radius:4px;"></span></span>
-      <span style="width:34px;text-align:right;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;">${r.v}</span></div>`;
-  }).join('') : '<div style="color:var(--faint);font-size:12px;">데이터 없음</div>';
-}
-
-function _renderStatsTrend(created, done) {
-  const el = document.getElementById('stats-trend'); if (!el) return;
-  const max = Math.max(1, ...created, ...done);
-  const labels = ['5주전', '4주전', '3주전', '2주전', '지난주', '이번주'];
-  el.innerHTML = `<div style="display:flex;align-items:flex-end;gap:14px;height:170px;padding-top:6px;">${
-    created.map((c, i) => {
-      const h1 = Math.round(c / max * 150), h2 = Math.round(done[i] / max * 150);
-      return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;">
-        <div style="display:flex;align-items:flex-end;gap:5px;height:150px;">
-          <div title="생성 ${c}" style="width:16px;height:${h1}px;background:var(--accent);border-radius:4px 4px 0 0;"></div>
-          <div title="완료 ${done[i]}" style="width:16px;height:${h2}px;background:var(--green);border-radius:4px 4px 0 0;"></div>
-        </div><span style="font-size:11px;color:var(--faint);white-space:nowrap;">${labels[i]}</span></div>`;
-    }).join('')}</div>`;
-}
+// ── 사용 통계 (stats_view) — 접속 활동(DAU/WAU/MAU) + 계정 현황 + 최근 로그인 ──
+// DAU/WAU/MAU·일별 DAU는 서버 집계(GET /stats/active-users), 계정 현황·최근 로그인은 data-api(users/companies).
 
 function _renderStatsDau(series) {
   const el = document.getElementById('stats-dau'); if (!el) return;
@@ -6832,101 +6762,48 @@ function _renderStatsDau(series) {
 }
 
 async function loadStats() {
-  const days = _statsDays;
-  document.querySelectorAll('#stats-period .stats-seg').forEach(s => {
-    const on = +s.dataset.days === days;
-    s.style.background = on ? 'var(--accent-l)' : '';
-    s.style.color = on ? 'var(--accent)' : 'var(--faint)';
-    s.style.fontWeight = on ? '600' : '400';
-  });
   const ico = document.getElementById('stats-refresh-ico'); if (ico) ico.classList.add('spin');
   try {
-    const since = new Date(Date.now() - days * 864e5);
     // 접속 활동(서버 집계)
     let active = { dau: 0, wau: 0, mau: 0, stickiness: 0, series: [] };
     try { const r = await fetch(`${API_BASE}/stats/active-users`, { headers: { ...authHeaders() } }); if (r.ok) active = await r.json(); } catch (e) {}
-    // data-api 집계
-    const [tk, docs, us, ln, co] = await Promise.all([
-      sb.from('tickets').select('id,status,category,created_at,updated_at,due_date').limit(10000),
-      sb.from('content_documents').select('id,title,download_count').limit(3000),
+    // 계정 현황·최근 로그인용 조회
+    const [us, co] = await Promise.all([
       sb.from('users').select('id,role,is_active,last_login,name,company_id').limit(10000),
-      sb.from('log_notification').select('status').limit(10000),
-      sb.from('companies').select('id,name,status').limit(3000),
+      sb.from('companies').select('id,name').limit(3000),
     ]);
-    const tickets = tk.data || [], documents = docs.data || [], users = us.data || [], notis = ln.data || [], companies = co.data || [];
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const OPEN = t => !['completed', 'cancelled'].includes(t.status);
+    const users = us.data || [], companies = co.data || [];
 
-    // ── KPI ──
-    const newReq = tickets.filter(t => new Date(t.created_at) >= since).length;
-    const doneReq = tickets.filter(t => t.status === 'completed' && new Date(t.updated_at) >= since).length;
-    const durs = tickets.filter(t => t.status === 'completed').map(t => (new Date(t.updated_at) - new Date(t.created_at)) / 864e5).filter(x => x >= 0);
-    const avgDays = durs.length ? Math.round(durs.reduce((a, b) => a + b, 0) / durs.length * 10) / 10 : 0;
-    const openCnt = tickets.filter(OPEN).length;
-    const overdue = tickets.filter(t => OPEN(t) && t.due_date && new Date(t.due_date) < today).length;
-    const activeCo = companies.filter(c => c.status === 'active').length;
-    const kpis = [['신규 요청', newReq], ['완료 요청', doneReq], ['평균 처리시간', avgDays + '일'], ['미해결', openCnt], ['지연(기한초과)', overdue, overdue > 0], ['활성 고객사', activeCo]];
-    document.getElementById('stats-kpi').innerHTML = kpis.map(([l, v, danger]) => `
-      <div style="background:var(--surface2);border-radius:var(--r-md);padding:14px 16px;">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">${l}</div>
-        <div style="font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;${danger ? 'color:var(--red);' : ''}">${v}</div></div>`).join('');
-
-    // ── 요청 추이(주별 6주) ──
-    const WEEKS = 6, wkC = Array(WEEKS).fill(0), wkD = Array(WEEKS).fill(0), now = Date.now();
-    const wIdx = ts => { const d = Math.floor((now - new Date(ts)) / (7 * 864e5)); return d >= 0 && d < WEEKS ? WEEKS - 1 - d : -1; };
-    tickets.forEach(t => { const i = wIdx(t.created_at); if (i >= 0) wkC[i]++; if (t.status === 'completed') { const j = wIdx(t.updated_at); if (j >= 0) wkD[j]++; } });
-    _renderStatsTrend(wkC, wkD);
-
-    // ── 접속 활동 ──
-    document.getElementById('stats-active').innerHTML = [['DAU', '일간', active.dau], ['WAU', '7일', active.wau], ['MAU', '30일', active.mau], ['고착도', 'DAU/MAU', active.stickiness + '%']]
-      .map(([l, s, v], i) => `<div style="background:var(--surface2);border-radius:var(--r-md);padding:14px 16px;">
+    // ── 접속 활동 (DAU/WAU/MAU) ──
+    document.getElementById('stats-active').innerHTML = [['DAU', '일간', active.dau], ['WAU', '7일', active.wau], ['MAU', '30일', active.mau]]
+      .map(([l, s, v]) => `<div style="background:var(--surface2);border-radius:var(--r-md);padding:14px 16px;">
         <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">${l} <span style="font-size:10px;color:var(--faint);">${s}</span></div>
-        <div style="font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;${i === 3 ? 'color:var(--accent);' : ''}">${v}</div></div>`).join('');
+        <div style="font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;">${v}</div></div>`).join('');
     _renderStatsDau(active.series || []);
 
-    // ── 분포 ──
-    const stC = {}, catC = {};
-    tickets.forEach(t => { stC[t.status] = (stC[t.status] || 0) + 1; catC[t.category] = (catC[t.category] || 0) + 1; });
-    _statsBars('stats-status', Object.entries(stC).sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ k: STATUS_LABELS[k] || k, v })));
-    _statsBars('stats-cat', Object.entries(catC).sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ k: CATEGORY_LABELS[k] || k, v })));
-
-    // ── 자료실 다운로드 ──
-    const totalDl = documents.reduce((a, d) => a + (d.download_count || 0), 0);
-    const dlTotEl = document.getElementById('stats-dl-total'); if (dlTotEl) dlTotEl.textContent = `누계 ${totalDl}건`;
-    const top = documents.filter(d => (d.download_count || 0) > 0).sort((a, b) => (b.download_count || 0) - (a.download_count || 0)).slice(0, 5);
-    document.getElementById('stats-downloads').innerHTML = top.length ? top.map((d, i) => `
-      <div style="display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;">
-        <span style="width:18px;color:var(--faint);flex:none;">${i + 1}</span>
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(d.title || '—')}</span>
-        <span style="color:var(--accent);font-weight:700;flex:none;">${d.download_count}</span></div>`).join('') : '<div style="color:var(--faint);font-size:12px;">다운로드 기록 없음</div>';
-
-    // ── 계정 현황·최근 로그인 ──
+    // ── 계정 현황 ──
     const cust = users.filter(u => u.role === 'customer');
     const withLogin = cust.filter(u => u.last_login).length;
-    const recent = users.filter(u => u.last_login).sort((a, b) => (b.last_login || '').localeCompare(a.last_login || '')).slice(0, 3);
-    const coName = id => (companies.find(c => c.id === id) || {}).name || '';
     document.getElementById('stats-accounts').innerHTML = `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
-        <div><div style="font-size:11px;color:var(--faint);">전체 계정</div><div style="font-size:19px;font-weight:800;">${users.length}</div></div>
-        <div><div style="font-size:11px;color:var(--faint);">고객 계정</div><div style="font-size:19px;font-weight:800;">${cust.length}</div></div>
-        <div><div style="font-size:11px;color:var(--faint);">로그인 이력(고객)</div><div style="font-size:19px;font-weight:800;color:var(--accent);">${withLogin}</div></div>
-        <div><div style="font-size:11px;color:var(--faint);">미접속(고객)</div><div style="font-size:19px;font-weight:800;color:var(--muted);">${cust.length - withLogin}</div></div>
-      </div>
-      <div style="border-top:1px solid var(--border);padding-top:8px;">${
-        recent.length ? recent.map(u => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12.5px;">
-          <span>${escHtml(u.name || '—')}</span><span style="color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(coName(u.company_id))}</span>
-          <span style="margin-left:auto;color:var(--muted);flex:none;font-variant-numeric:tabular-nums;">${(u.last_login || '').slice(0, 16).replace('T', ' ')}</span></div>`).join('')
-          : '<div style="color:var(--faint);font-size:12px;">로그인 기록 없음</div>'
-      }</div>`;
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div><div style="font-size:11px;color:var(--faint);">전체 계정</div><div style="font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;">${users.length}</div></div>
+        <div><div style="font-size:11px;color:var(--faint);">고객 계정</div><div style="font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;">${cust.length}</div></div>
+        <div><div style="font-size:11px;color:var(--faint);">로그인 이력(고객)</div><div style="font-size:20px;font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums;">${withLogin}</div></div>
+        <div><div style="font-size:11px;color:var(--faint);">미접속(고객)</div><div style="font-size:20px;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums;">${cust.length - withLogin}</div></div>
+      </div>`;
 
-    // ── 알림·연동 ──
-    const total = notis.length, ok = notis.filter(n => ['success', 'sent'].includes(n.status)).length;
-    const rate = total ? Math.round(ok / total * 100) : 0;
-    const nsub = document.getElementById('stats-notify-sub'); if (nsub) nsub.textContent = `발송 ${total}건 · 성공률 ${rate}%`;
-    const nbar = document.getElementById('stats-notify-bar'); if (nbar) nbar.style.width = rate + '%';
+    // ── 최근 로그인 ──
+    const recent = users.filter(u => u.last_login).sort((a, b) => (b.last_login || '').localeCompare(a.last_login || '')).slice(0, 8);
+    const coName = id => (companies.find(c => c.id === id) || {}).name || '';
+    document.getElementById('stats-recent').innerHTML = recent.length ? recent.map(u => `
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;">
+        <span style="flex:none;">${escHtml(u.name || '—')}</span>
+        <span style="color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(coName(u.company_id))}</span>
+        <span style="margin-left:auto;color:var(--muted);flex:none;font-variant-numeric:tabular-nums;">${(u.last_login || '').slice(0, 16).replace('T', ' ')}</span></div>`).join('')
+      : '<div style="color:var(--faint);font-size:12px;">로그인 기록 없음</div>';
   } catch (e) {
     console.error('loadStats 오류', e);
-    const kpi = document.getElementById('stats-kpi'); if (kpi) kpi.innerHTML = '<div style="grid-column:1/-1;color:var(--red);font-size:13px;padding:12px;">통계를 불러오지 못했습니다.</div>';
+    const el = document.getElementById('stats-active'); if (el) el.innerHTML = '<div style="grid-column:1/-1;color:var(--red);font-size:13px;padding:12px;">통계를 불러오지 못했습니다.</div>';
   } finally {
     if (ico) ico.classList.remove('spin');
   }
