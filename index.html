@@ -1833,21 +1833,27 @@ textarea{resize:vertical;min-height:100px;}
           <div style="font-size:11px;color:var(--faint);margin-top:10px;">ⓘ 접속 지표는 로그인 이벤트 기록 시작 이후부터 누적됩니다(소급 집계 없음).</div>
         </div>
 
-        <div class="card">
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px;">
-            <div><div class="card-title">상태별 분포</div><div id="stats-status"></div></div>
-            <div><div class="card-title">카테고리별 분포</div><div id="stats-cat"></div></div>
+        <!-- 상세 지표: 접기/펼치기 (기본 접힘) — 첫 화면은 KPI·요청추이·접속활동만 -->
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div onclick="toggleStatsDetail()" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:14px 16px;">
+            <span class="card-title" style="margin-bottom:0;">상세 지표</span>
+            <span style="font-size:11px;color:var(--faint);">분포 · 자료실 · 계정 · 알림</span>
+            <span id="stats-detail-arrow" style="margin-left:auto;color:var(--accent);font-size:12px;font-weight:600;">펼치기 ▾</span>
           </div>
-        </div>
-
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;">
-          <div class="card"><div class="card-title" style="display:flex;">자료실 다운로드 Top <span id="stats-dl-total" style="margin-left:auto;font-size:11px;color:var(--faint);font-weight:400;"></span></div><div id="stats-downloads"></div></div>
-          <div class="card"><div class="card-title">계정 현황 · 최근 로그인</div><div id="stats-accounts"></div></div>
-        </div>
-
-        <div class="card">
-          <div class="card-title" style="display:flex;">알림 · 연동 상태 <span id="stats-notify-sub" style="margin-left:auto;font-size:11px;color:var(--muted);font-weight:400;"></span></div>
-          <div style="height:9px;border-radius:999px;background:var(--surface2);overflow:hidden;"><div id="stats-notify-bar" style="height:100%;background:var(--green);width:0;"></div></div>
+          <div id="stats-detail-body" style="display:none;padding:0 16px 16px;border-top:1px solid var(--border);">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px;margin-top:16px;margin-bottom:18px;">
+              <div><div class="card-title">상태별 분포</div><div id="stats-status"></div></div>
+              <div><div class="card-title">카테고리별 분포</div><div id="stats-cat"></div></div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:18px;">
+              <div><div class="card-title" style="display:flex;">자료실 다운로드 Top <span id="stats-dl-total" style="margin-left:auto;font-size:11px;color:var(--faint);font-weight:400;"></span></div><div id="stats-downloads"></div></div>
+              <div><div class="card-title">계정 현황 · 최근 로그인</div><div id="stats-accounts"></div></div>
+            </div>
+            <div>
+              <div class="card-title" style="display:flex;">알림 · 연동 상태 <span id="stats-notify-sub" style="margin-left:auto;font-size:11px;color:var(--muted);font-weight:400;"></span></div>
+              <div style="height:9px;border-radius:999px;background:var(--surface2);overflow:hidden;"><div id="stats-notify-bar" style="height:100%;background:var(--green);width:0;"></div></div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -6774,6 +6780,16 @@ async function savePermissions() {
 // 접속 활동(DAU/WAU/MAU)은 서버 집계(GET /stats/active-users)로, 나머지는 data-api 조회로 클라 집계.
 let _statsDays = 30;
 function setStatsPeriod(d) { _statsDays = d; loadStats(); }
+
+// 상세 지표(분포·자료실·계정·알림) 접기/펼치기 — 첫 화면을 KPI·요청추이·접속활동으로 짧게 유지.
+function toggleStatsDetail() {
+  const body = document.getElementById('stats-detail-body');
+  const arrow = document.getElementById('stats-detail-arrow');
+  if (!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : '';
+  if (arrow) arrow.textContent = open ? '펼치기 ▾' : '접기 ▴';
+}
 
 function _statsBars(elId, rows) {
   const el = document.getElementById(elId); if (!el) return;
