@@ -610,6 +610,13 @@ async function login(body) {
     { sub: user.id, role: user.role, company_id: user.company_id || null, contract_id: user.contract_id || null, unit_ids: unitIds },
     JWT_SECRET, TOKEN_TTL_SECONDS
   );
+  // 사용 통계(DAU/WAU/MAU)용 로그인 이벤트 기록 — 베스트에포트: 실패해도 로그인은 정상 진행.
+  try {
+    await query(
+      'insert into login_events (user_id, role, company_id) values ($1,$2,$3)',
+      [user.id, user.role, user.company_id || null]
+    );
+  } catch (e) { console.error('login_events insert 실패(무시):', e); }
   return json(200, {
     token,
     user: {
@@ -618,6 +625,30 @@ async function login(body) {
       unit_id: user.unit_id || null, unit_ids: unitIds, units,
       phone: user.phone || '', company: companyName === '-' ? '' : companyName,
     },
+  });
+}
+
+// ── GET /stats/active-users ──
+// 사용 통계 화면의 접속 활동(DAU/WAU/MAU + 일별 DAU 추이). login_events를 서버에서 distinct 집계한다.
+// login_events는 전 사용자 접속시각이라 민감 → stats_view 권한(또는 admin)만 조회 가능.
+async function statsActiveUsers(event) {
+  const authz = getAuthz(event);
+  if (!(await hasPermission(authz.role, 'stats_view'))) return json(403, { error: '권한이 없습니다' });
+  // 오늘(KST) 자정 이후 = DAU. KST 자정을 timestamptz로 만들어 created_at(timestamptz)과 비교.
+  const [d] = await query(
+    `select count(distinct user_id)::int n from login_events
+      where created_at >= (date_trunc('day', now() at time zone 'Asia/Seoul') at time zone 'Asia/Seoul')`);
+  const [w] = await query(
+    `select count(distinct user_id)::int n from login_events where created_at >= now() - interval '7 days'`);
+  const [m] = await query(
+    `select count(distinct user_id)::int n from login_events where created_at >= now() - interval '30 days'`);
+  const series = await query(
+    `select to_char((created_at at time zone 'Asia/Seoul')::date, 'YYYY-MM-DD') d, count(distinct user_id)::int n
+       from login_events where created_at >= now() - interval '30 days' group by 1 order by 1`);
+  return json(200, {
+    dau: d.n, wau: w.n, mau: m.n,
+    stickiness: m.n ? Math.round((d.n / m.n) * 100) : 0,
+    series,
   });
 }
 
@@ -960,6 +991,9 @@ export const handler = async (event) => {
     }
     if (method === 'GET' && path === '/my/account-manager') {
       return await getMyAccountManager(event);
+    }
+    if (method === 'GET' && path === '/stats/active-users') {
+      return await statsActiveUsers(event);
     }
     if (method === 'POST' && path === '/auth/admin-reset-password') {
       return await adminResetPassword(body, event);
