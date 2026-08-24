@@ -18,7 +18,7 @@ create table public.companies (
   name                      text not null,
   salesforce_id             text,
   status                    text not null default 'active'
-                            check (status = any (array['active','expiring_soon','expired','inactive'])),
+                            check (status = any (array['active','inactive','prospect','suspended','expiring_soon','expired'])),
   account_manager           text,
   created_at                timestamptz not null default now(),
   updated_at                timestamptz not null default now(),
