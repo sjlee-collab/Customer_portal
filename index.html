@@ -1824,11 +1824,11 @@ textarea{resize:vertical;min-height:100px;}
           <div class="card-title" style="display:flex;align-items:baseline;gap:8px;">사용자 로그인 이력 <span style="font-size:11px;color:var(--faint);font-weight:400;">로그인 이벤트 전체</span></div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
             <input id="lh-search" class="search-box" style="flex:1;min-width:180px;box-sizing:border-box;" placeholder="이름·고객사 검색" onkeydown="if(event.key==='Enter')applyLhFilter()">
-            <select id="lh-role" onchange="applyLhFilter()">
+            <select id="lh-role" onchange="applyLhFilter()" style="width:140px;flex:none;">
               <option value="">전체 역할</option><option value="customer">고객</option><option value="admin">관리자</option>
               <option value="sales">영업</option><option value="tech_support">기술지원</option><option value="education">교육</option><option value="internal">내부</option>
             </select>
-            <select id="lh-days" onchange="applyLhFilter()">
+            <select id="lh-days" onchange="applyLhFilter()" style="width:130px;flex:none;">
               <option value="0">전체 기간</option><option value="7">최근 7일</option><option value="30">최근 30일</option><option value="90">최근 90일</option>
             </select>
           </div>
