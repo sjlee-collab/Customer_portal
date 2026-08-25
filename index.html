@@ -6835,6 +6835,16 @@ function changeLhPage(delta) {
 }
 let _lhTotal = 0;
 
+// 로그인 일시를 KST(Asia/Seoul) 'YYYY-MM-DD HH:MM'으로 — 다른 화면과 시간대 일치(원본 created_at은 UTC).
+function _lhFmtKst(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  const p = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+    .formatToParts(d).reduce((a, x) => (a[x.type] = x.value, a), {});
+  return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
+}
+
 async function loadLoginHistory() {
   const tbody = document.getElementById('lh-tbody');
   if (!tbody) return;
@@ -6854,7 +6864,7 @@ async function loadLoginHistory() {
   _lhTotal = data.total || 0;
   const rows = data.rows || [];
   tbody.innerHTML = rows.length ? rows.map(r => {
-    const dt = (r.created_at || '').slice(0, 16).replace('T', ' ');
+    const dt = _lhFmtKst(r.created_at);
     return `<tr>
       <td>${escHtml(r.name || '—')}</td>
       <td>${LH_ROLE_LABEL[r.role] || escHtml(r.role || '—')}</td>
