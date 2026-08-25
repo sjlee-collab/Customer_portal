@@ -613,8 +613,8 @@ async function login(body) {
   // 사용 통계(DAU/WAU/MAU)용 로그인 이벤트 기록 — 베스트에포트: 실패해도 로그인은 정상 진행.
   try {
     await query(
-      'insert into login_events (user_id, role, company_id) values ($1,$2,$3)',
-      [user.id, user.role, user.company_id || null]
+      'insert into login_events (user_id, user_name, role, company_id, company_name) values ($1,$2,$3,$4,$5)',
+      [user.id, user.name, user.role, user.company_id || null, companyName === '-' ? null : companyName]
     );
   } catch (e) { console.error('login_events insert 실패(무시):', e); }
   return json(200, {
@@ -650,6 +650,31 @@ async function statsActiveUsers(event) {
     stickiness: m.n ? Math.round((d.n / m.n) * 100) : 0,
     series,
   });
+}
+
+// ── GET /stats/login-history ──
+// 로그인 이벤트 전체 이력(감사로그). 스냅샷(user_name/company_name)만 읽어 무조인. stats_view 강제.
+// 쿼리스트링: q(이름·고객사 검색), role, days(기간), limit, offset.
+async function statsLoginHistory(event) {
+  const authz = getAuthz(event);
+  if (!(await hasPermission(authz.role, 'stats_view'))) return json(403, { error: '권한이 없습니다' });
+  const qs = event.queryStringParameters || {};
+  const where = [], params = [];
+  const q = (qs.q || '').trim();
+  if (q) { params.push('%' + q + '%'); where.push(`(coalesce(user_name,'') ilike $${params.length} or coalesce(company_name,'') ilike $${params.length})`); }
+  if (qs.role) { params.push(qs.role); where.push(`role = $${params.length}`); }
+  const days = Math.min(3650, Math.max(0, parseInt(qs.days, 10) || 0));
+  if (days > 0) where.push(`created_at >= now() - interval '${days} days'`);
+  const limit = Math.min(200, Math.max(1, parseInt(qs.limit, 10) || 50));
+  const offset = Math.max(0, parseInt(qs.offset, 10) || 0);
+  const wsql = where.length ? 'where ' + where.join(' and ') : '';
+  const [{ n: total }] = await query(`select count(*)::int n from login_events ${wsql}`, params);
+  const rows = await query(
+    `select id, coalesce(user_name,'(삭제된 사용자)') as name, role,
+            coalesce(company_name,'') as company, created_at
+       from login_events ${wsql}
+      order by created_at desc limit ${limit} offset ${offset}`, params);
+  return json(200, { total, limit, offset, rows });
 }
 
 // ── POST /auth/verify-password ──
@@ -994,6 +1019,9 @@ export const handler = async (event) => {
     }
     if (method === 'GET' && path === '/stats/active-users') {
       return await statsActiveUsers(event);
+    }
+    if (method === 'GET' && path === '/stats/login-history') {
+      return await statsLoginHistory(event);
     }
     if (method === 'POST' && path === '/auth/admin-reset-password') {
       return await adminResetPassword(body, event);

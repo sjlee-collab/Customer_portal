@@ -219,6 +219,7 @@ button,input,select,textarea{font-family:inherit;}
    고객/내부 탭 패널이 한 겹 더 있어서 패널까지 flex 사슬에 넣는다.
    (숨은 패널은 인라인 display:none이 이 규칙보다 우선하므로 그대로 감춰진다.) */
 .body>#p-users.active{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;}
+.body>#p-stats.active{flex:1;min-height:0;overflow-y:auto;}
 #p-users.active>#users-panel-customer,
 #p-users.active>#users-panel-internal{flex:1;display:flex;flex-direction:column;min-height:0;}
 #p-users.active>div>.card{flex:1;display:flex;flex-direction:column;min-height:0;margin-bottom:0;}
@@ -1814,15 +1815,34 @@ textarea{resize:vertical;min-height:100px;}
           <div style="font-size:11px;color:var(--faint);margin-top:10px;">ⓘ 접속 지표는 로그인 이벤트 기록 시작 이후부터 누적됩니다(소급 집계 없음).</div>
         </div>
 
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;">
-          <div class="card">
-            <div class="card-title">계정 현황</div>
-            <div id="stats-accounts"></div>
+        <div class="card">
+          <div class="card-title">계정 현황</div>
+          <div id="stats-accounts"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" style="display:flex;align-items:baseline;gap:8px;">사용자 로그인 이력 <span style="font-size:11px;color:var(--faint);font-weight:400;">로그인 이벤트 전체</span></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+            <input id="lh-search" class="search-box" style="flex:1;min-width:180px;box-sizing:border-box;" placeholder="이름·고객사 검색" onkeydown="if(event.key==='Enter')applyLhFilter()">
+            <select id="lh-role" onchange="applyLhFilter()">
+              <option value="">전체 역할</option><option value="customer">고객</option><option value="admin">관리자</option>
+              <option value="sales">영업</option><option value="tech_support">기술지원</option><option value="education">교육</option><option value="internal">내부</option>
+            </select>
+            <select id="lh-days" onchange="applyLhFilter()">
+              <option value="0">전체 기간</option><option value="7">최근 7일</option><option value="30">최근 30일</option><option value="90">최근 90일</option>
+            </select>
           </div>
-          <div class="card">
-            <div class="card-title">최근 로그인</div>
-            <div id="stats-recent"></div>
+          <div class="tbl-scroll"><table class="tbl">
+            <thead><tr><th>사용자</th><th>역할</th><th>고객사</th><th style="text-align:right;">로그인 일시</th></tr></thead>
+            <tbody id="lh-tbody"><tr><td colspan="4" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr></tbody>
+          </table></div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:12px;font-size:12px;color:var(--muted);">
+            <span style="margin-right:auto;" id="lh-total"></span>
+            <button class="btn btn-outline btn-sm" onclick="changeLhPage(-1)">← 이전</button>
+            <span id="lh-page" style="font-variant-numeric:tabular-nums;">1</span>
+            <button class="btn btn-outline btn-sm" onclick="changeLhPage(1)">다음 →</button>
           </div>
+          <div style="font-size:11px;color:var(--faint);margin-top:10px;">ⓘ 로그인 이력은 기록 시작 이후부터 누적됩니다. 삭제된 사용자는 "(삭제된 사용자)"로 표시됩니다.</div>
         </div>
       </div>
 
@@ -6769,12 +6789,9 @@ async function loadStats() {
     // 접속 활동(서버 집계)
     let active = { dau: 0, wau: 0, mau: 0, stickiness: 0, series: [] };
     try { const r = await fetch(`${API_BASE}/stats/active-users`, { headers: { ...authHeaders() } }); if (r.ok) active = await r.json(); } catch (e) {}
-    // 계정 현황·최근 로그인용 조회
-    const [us, co] = await Promise.all([
-      sb.from('users').select('id,role,is_active,last_login,name,company_id').limit(10000),
-      sb.from('companies').select('id,name').limit(3000),
-    ]);
-    const users = us.data || [], companies = co.data || [];
+    // 계정 현황용 조회
+    const us = await sb.from('users').select('id,role,is_active,last_login').limit(10000);
+    const users = us.data || [];
 
     // ── 접속 활동 (DAU/WAU/MAU) ──
     document.getElementById('stats-active').innerHTML = [['DAU', '일간', active.dau], ['WAU', '7일', active.wau], ['MAU', '30일', active.mau]]
@@ -6794,21 +6811,59 @@ async function loadStats() {
         <div><div style="font-size:11px;color:var(--faint);">미접속(고객)</div><div style="font-size:20px;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums;">${cust.length - withLogin}</div></div>
       </div>`;
 
-    // ── 최근 로그인 ──
-    const recent = users.filter(u => u.last_login).sort((a, b) => (b.last_login || '').localeCompare(a.last_login || '')).slice(0, 8);
-    const coName = id => (companies.find(c => c.id === id) || {}).name || '';
-    document.getElementById('stats-recent').innerHTML = recent.length ? recent.map(u => `
-      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;">
-        <span style="flex:none;">${escHtml(u.name || '—')}</span>
-        <span style="color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(coName(u.company_id))}</span>
-        <span style="margin-left:auto;color:var(--muted);flex:none;font-variant-numeric:tabular-nums;">${(u.last_login || '').slice(0, 16).replace('T', ' ')}</span></div>`).join('')
-      : '<div style="color:var(--faint);font-size:12px;">로그인 기록 없음</div>';
+    // ── 로그인 이력 ──
+    _lhOffset = 0;
+    await loadLoginHistory();
   } catch (e) {
     console.error('loadStats 오류', e);
     const el = document.getElementById('stats-active'); if (el) el.innerHTML = '<div style="grid-column:1/-1;color:var(--red);font-size:13px;padding:12px;">통계를 불러오지 못했습니다.</div>';
   } finally {
     if (ico) ico.classList.remove('spin');
   }
+}
+
+// ── 로그인 이력 (GET /stats/login-history, 서버 필터·페이지네이션) ──
+let _lhOffset = 0;
+const LH_PAGE_SIZE = 50;
+const LH_ROLE_LABEL = { customer:'고객', internal:'내부', tech_support:'기술지원', sales:'영업', education:'교육', admin:'관리자' };
+
+function applyLhFilter() { _lhOffset = 0; loadLoginHistory(); }
+function changeLhPage(delta) {
+  const next = _lhOffset + delta * LH_PAGE_SIZE;
+  if (next < 0 || next >= (_lhTotal || 0)) return;
+  _lhOffset = next; loadLoginHistory();
+}
+let _lhTotal = 0;
+
+async function loadLoginHistory() {
+  const tbody = document.getElementById('lh-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="4" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>';
+  const q    = (document.getElementById('lh-search')?.value || '').trim();
+  const role = document.getElementById('lh-role')?.value || '';
+  const days = document.getElementById('lh-days')?.value || '0';
+  const params = new URLSearchParams({ limit: String(LH_PAGE_SIZE), offset: String(_lhOffset) });
+  if (q) params.set('q', q);
+  if (role) params.set('role', role);
+  if (days && days !== '0') params.set('days', days);
+  let data = { total: 0, rows: [] };
+  try {
+    const r = await fetch(`${API_BASE}/stats/login-history?${params}`, { headers: { ...authHeaders() } });
+    if (r.ok) data = await r.json();
+  } catch (e) { console.error('loadLoginHistory 오류', e); }
+  _lhTotal = data.total || 0;
+  const rows = data.rows || [];
+  tbody.innerHTML = rows.length ? rows.map(r => {
+    const dt = (r.created_at || '').slice(0, 16).replace('T', ' ');
+    return `<tr>
+      <td>${escHtml(r.name || '—')}</td>
+      <td>${LH_ROLE_LABEL[r.role] || escHtml(r.role || '—')}</td>
+      <td style="color:var(--muted);">${escHtml(r.company || '')}</td>
+      <td style="text-align:right;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;">${dt}</td></tr>`;
+  }).join('') : '<tr><td colspan="4" style="padding:16px;text-align:center;color:var(--faint);">로그인 기록이 없습니다.</td></tr>';
+  const totalEl = document.getElementById('lh-total'); if (totalEl) totalEl.textContent = `총 ${_lhTotal}건`;
+  const pageEl = document.getElementById('lh-page');
+  if (pageEl) pageEl.textContent = `${Math.floor(_lhOffset / LH_PAGE_SIZE) + 1} / ${Math.max(1, Math.ceil(_lhTotal / LH_PAGE_SIZE))}`;
 }
 
 // ── 알림 로그 ──────────────────────────────────────────────────

@@ -26,6 +26,8 @@ const PORTAL_URL       = process.env.PORTAL_URL || '';
 // 통합테스트용: 설정돼있으면 실제 수신자 대신 이 주소로만 발송 (원래 수신자는 제목에 표시).
 // 테스트 끝나면 이 환경변수를 지워서 꺼야 한다.
 const TEST_EMAIL_OVERRIDE = process.env.TEST_EMAIL_OVERRIDE || '';
+// 테스트 모드 표기 — 하네스 email-safe.sh on 이면 '[테스트]'가 설정되어 제목에 접두된다(없으면 기존 [TEST]).
+const TEST_TAG = process.env.TEST_TAG || '';
 
 const CATEGORY_KO = {
   tech_support: '기술지원', contract: '계약 문의', license: '라이선스 문의',
@@ -81,7 +83,7 @@ function withTestBanner(html, originalTo) {
 
 async function sendAndLog(to, subject, html, ticketId, eventType, results) {
   const actualTo = TEST_EMAIL_OVERRIDE || to;
-  const actualSubject = TEST_EMAIL_OVERRIDE ? `[TEST] ${subject}` : subject;
+  const actualSubject = TEST_TAG ? `${TEST_TAG} ${subject}` : (TEST_EMAIL_OVERRIDE ? `[TEST] ${subject}` : subject);
   const actualHtml = withTestBanner(html, to);
   try {
     await sendMail(actualTo, actualSubject, actualHtml);

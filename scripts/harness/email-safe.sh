@@ -29,17 +29,17 @@ case "$MODE" in on) OV="$SINK"; TG="$TAG" ;; off) OV=""; TG="" ;; *) echo "사�
 
 apply() { # $1=함수명  $2=setov(1이면 TEST_EMAIL_OVERRIDE도 설정)  $3=override값  $4=tag값
   FN="$1" SETOV="$2" OV="$3" TG="$4" python - <<'PY'
-import os, json, subprocess, tempfile
-env=dict(os.environ); env['AWS_PROFILE']=env.get('AWS_PROFILE','customer_portal')
+import os, json, subprocess
+env=dict(os.environ); env['AWS_PROFILE']=env.get('AWS_PROFILE','customer_portal'); env['PYTHONIOENCODING']='utf-8'
 fn=os.environ['FN']
 r=subprocess.run(['aws','lambda','get-function-configuration','--function-name',fn,'--region','ap-northeast-2','--query','Environment.Variables','--output','json'],capture_output=True,text=True,env=env)
 vars=json.loads(r.stdout or '{}')
 if os.environ.get('SETOV')=='1': vars['TEST_EMAIL_OVERRIDE']=os.environ['OV']
 vars['TEST_TAG']=os.environ['TG']
-pf=tempfile.NamedTemporaryFile('w',suffix='.json',delete=False,encoding='utf-8'); pf.write(json.dumps({'Variables':vars},ensure_ascii=False)); pf.close()
-u=subprocess.run(['aws','lambda','update-function-configuration','--function-name',fn,'--region','ap-northeast-2','--environment','file://'+pf.name,'--query','LastUpdateStatus','--output','text'],capture_output=True,text=True,env=env)
-os.remove(pf.name)
-print('  update %-32s %s %s'%(fn, u.stdout.strip(), u.stderr.strip()[:100]))
+# 인라인 JSON으로 전달(파일 인코딩 회피). subprocess args라 셸 인용 불필요.
+payload=json.dumps({'Variables':vars},ensure_ascii=False)
+u=subprocess.run(['aws','lambda','update-function-configuration','--function-name',fn,'--region','ap-northeast-2','--environment',payload,'--query','LastUpdateStatus','--output','text'],capture_output=True,text=True,env=env)
+print('  update %-32s %s %s'%(fn, u.stdout.strip(), u.stderr.strip()[:120]))
 PY
 }
 

@@ -25,6 +25,14 @@ def run():
         rc = api('GET', '/stats/active-users', None, role='customer', userId='zz-c', companyId='zz')
         t.check('고객 차단 403', rc.get('status') == 403, 'status=%s' % rc.get('status'))
 
+        # 로그인 이력: admin 200 + 구조 / 고객 403
+        lh = api('GET', '/stats/login-history', None, role='admin', userId='zz-admin')
+        lb = lh.get('body') or {}
+        t.check('로그인이력 admin 200', lh.get('status') == 200, 'status=%s' % lh.get('status'))
+        t.check('로그인이력 구조(total/rows)', ('total' in lb) and isinstance(lb.get('rows'), list), 'keys=%s' % list(lb)[:5])
+        lhc = api('GET', '/stats/login-history', None, role='customer', userId='zz-c', companyId='zz')
+        t.check('로그인이력 고객 403', lhc.get('status') == 403, 'status=%s' % lhc.get('status'))
+
         # 권한 동적 토글: 영업 stats_view OFF→403, ON→200
         rows = dget('role_permissions', {'select': 'id,enabled', 'role': 'eq.sales', 'feature_key': 'eq.stats_view'}, role='admin').get('body') or []
         row = rows[0] if rows else None

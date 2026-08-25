@@ -267,16 +267,19 @@ create table public.role_permissions (
 );
 comment on table public.role_permissions is '역할별 메뉴/기능 접근 권한 (권한 관리 화면 백엔드)';
 
--- ── login_events (로그인 이벤트 로그) ──
--- 사용 통계 화면의 DAU/WAU/MAU 집계용. 로그인 성공 시 api-layer가 1행 insert(비차단).
--- user 삭제 시 함께 삭제(on delete cascade)해 사용자 삭제가 FK로 막히지 않게 한다.
--- 민감정보(전 사용자 접속시각)라 data-api ALLOWED_TABLES에 넣지 않고 GET /stats 집계로만 노출.
+-- ── login_events (로그인 이벤트 로그 / 감사로그) ──
+-- 사용 통계의 DAU/WAU/MAU + 로그인 이력 화면용. 로그인 성공 시 api-layer가 1행 insert(비차단).
+-- 감사로그라 user_name/company_name을 로그인 시점 스냅샷으로 남기고, 사용자 삭제 시 user_id만
+-- SET NULL 되어 이력(당시 이름 포함)은 보존된다(사용자 삭제도 FK로 막히지 않음).
+-- 민감정보(전 사용자 접속시각)라 data-api ALLOWED_TABLES에 넣지 않고 GET /stats/* 로만 노출.
 create table public.login_events (
-  id          uuid primary key default gen_random_uuid(),
-  user_id     uuid not null references public.users(id) on delete cascade,
-  role        text,
-  company_id  uuid,
-  created_at  timestamptz not null default now()
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid references public.users(id) on delete set null,
+  user_name    text,
+  role         text,
+  company_id   uuid,
+  company_name text,
+  created_at   timestamptz not null default now()
 );
 create index if not exists idx_login_events_created on public.login_events (created_at desc);
 create index if not exists idx_login_events_user    on public.login_events (user_id);

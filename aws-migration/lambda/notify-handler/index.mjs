@@ -28,6 +28,8 @@ const SLACK_WEBHOOK_SALES  = process.env.SLACK_WEBHOOK_SALES || '';
 const SLACK_WEBHOOK_TECH   = process.env.SLACK_WEBHOOK_TECH || '';
 const SLACK_WEBHOOK_EDU    = process.env.SLACK_WEBHOOK_EDU || '';
 const PORTAL_URL           = process.env.PORTAL_URL || 'https://support.bigxdata.io';
+// 테스트 모드 표기 — 하네스 email-safe.sh on 이면 TEST_TAG='[테스트]'가 설정되어 슬랙 헤더에 접두된다.
+const TEST_TAG             = process.env.TEST_TAG || '';
 
 const STATUS_KO = {
   received: '접수', classifying: '분류 중', assigned: '담당자 배정', in_progress: '처리 중',
@@ -51,7 +53,7 @@ async function sendSlack(webhookUrl, recipientName, ticketId, eventType, header,
       body: JSON.stringify({
         blocks: [
           { type: 'divider' },
-          { type: 'section', text: { type: 'mrkdwn', text: `${header}\n${body}` } },
+          { type: 'section', text: { type: 'mrkdwn', text: `${TEST_TAG ? TEST_TAG + ' ' : ''}${header}\n${body}` } },
         ],
       }),
     });
