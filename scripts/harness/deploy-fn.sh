@@ -17,7 +17,8 @@ case "$KEY" in
   send-email)     FN=customer_portal_send-email;          SRC="$LDIR/send-email" ;;
   storage-api)    FN=customer_portal_storage-api;         SRC="$LDIR/storage-api" ;;
   jwt-authorizer) FN=customer_portal_jwt-authorizer;      SRC="$LDIR/jwt-authorizer" ;;
-  *) echo "사용: deploy-fn.sh <api-layer|data-api|public-inquiry|send-email|storage-api|jwt-authorizer>"; exit 2 ;;
+  notify-handler) FN=customer_portal_notify-handler;      SRC="$LDIR/notify-handler" ;;
+  *) echo "사용: deploy-fn.sh <api-layer|data-api|public-inquiry|send-email|storage-api|jwt-authorizer|notify-handler>"; exit 2 ;;
 esac
 
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT

@@ -34,7 +34,14 @@
 - [ ] api-layer/data-api에서 `hasPermission(role,'키')`로 서버 강제
 - [ ] `run-regression.sh`
 
-## 메일 안전 (알림 트리거되는 테스트)
-- 켜기: `email-safe.sh on` → 테스트 → **끄기: `email-safe.sh off`** (공유 운영이라 켠 동안 실고객 메일도 리다이렉트됨 — 창을 짧게)
-- 테스트 데이터는 이름/제목에 `[테스트]` 라벨(lib/itest.py `tname()`/`temail()`) + admin 직접 insert(알림 없음) + 종료 시 정리.
+## 알림 안전 (슬랙·메일이 트리거되는 테스트) — 필수 규칙
+테스트로 나가는 **모든 슬랙·메일 알림은 "테스트용"임이 명시**돼야 한다. 세 겹으로 보장:
+1. **메일 무발송**: `email-safe.sh on` → send-email `TEST_EMAIL_OVERRIDE=sink`로 전 메일을 sjlee 싱크로 리다이렉트(실 고객 무발송). 끝나면 **반드시 `off`**.
+2. **[테스트] 태그**: 같은 `on`이 send-email·notify-handler에 `TEST_TAG='[테스트]'`를 설정 → **메일 제목/슬랙 헤더에 `[테스트]` 접두**. (이 접두는 두 Lambda가 `TEST_TAG`를 읽도록 배포된 뒤 활성화 — 사용통계 기능 배포 시 포함. 그 전에도 아래 3으로 식별됨.)
+3. **데이터 라벨**: 테스트 데이터는 이름/제목에 `[테스트]` 라벨(lib/itest.py `tname()`/`temail()`) → 슬랙 본문 "제목:"·메일 제목에 그대로 노출. + admin 직접 insert(알림 없음) + 종료 시 정리.
+- ⚠️ `on` 상태에선 **실 알림/매일 09:00 배치 슬랙도 리다이렉트·태그**되므로 창을 짧게, 끝나면 `off`. 상태 확인: `email-safe.sh status`.
 - 중단 등으로 남은 잔여물은 `bash scripts/harness/sweep.sh`(미리보기) / `--delete`(삭제)로 라벨 기반 청소.
+
+## 알림 Lambda(notify-handler/send-email) 변경 시
+- `TEST_TAG` env가 있으면 슬랙 헤더·메일 제목에 그 값을 접두하도록 유지(테스트 표기 규칙 2의 근거).
+- 배포는 `deploy-fn.sh notify-handler` / `deploy-fn.sh send-email`(drift 진단 → 배포). notify-handler도 매핑에 포함됨.
