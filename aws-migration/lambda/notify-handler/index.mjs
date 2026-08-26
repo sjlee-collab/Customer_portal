@@ -176,8 +176,13 @@ async function handleTicketInsert(payload, results) {
   const urgentPrefix = isUrgent ? '[긴급] ' : '';
   const emoji = isUrgent ? '🚨' : '🟦';
 
-  const msgHeader = `${emoji} *${urgentPrefix}${categoryLabel} 등록*`;
-  const msgBody = buildBaseMessage(ticket, payload) + attLine + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`;
+  // 대리 등록(내부직원이 고객 대신 접수) — 헤더 태그 + 본문 별도 줄로 구분(신규 등록 알림에만).
+  const isProxy = !!ticket.registered_by;
+  const proxyTag = isProxy ? ' · 👤 *대리 등록*' : '';
+  const proxyLine = isProxy ? `\n• *대리 등록:* 빅스데이터 ${ticket.registered_by_name ?? '-'}가 대신 접수` : '';
+
+  const msgHeader = `${emoji} *${urgentPrefix}${categoryLabel} 등록*${proxyTag}`;
+  const msgBody = buildBaseMessage(ticket, payload) + proxyLine + attLine + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`;
   const evtType = isUrgent ? 'urgent' : 'new_ticket';
 
   await sendSlack(SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, evtType, msgHeader, msgBody, results);
