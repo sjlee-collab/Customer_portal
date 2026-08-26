@@ -247,6 +247,9 @@ button,input,select,textarea{font-family:inherit;}
 .proxy-badge{display:inline-flex;align-items:center;font-size:10px;font-weight:600;line-height:1.5;padding:0 6px;border-radius:99px;background:var(--accent-l);color:var(--accent);border:1px solid #C7D2FE;vertical-align:middle;}
 /* 대리 등록 모달 — 콤보박스 필드/드롭다운 */
 .pxy-fld label{display:block;font-size:11.5px;color:var(--muted);margin-bottom:4px;}
+.pxy-inp{position:relative;}
+.pxy-inp input[type=text]{padding-right:28px;}
+.pxy-caret{position:absolute;right:9px;top:50%;transform:translateY(-50%);color:var(--faint);cursor:pointer;font-size:11px;line-height:1;user-select:none;padding:4px;}
 .pxy-list{position:absolute;left:0;right:0;top:100%;z-index:10;background:var(--surface);border:1px solid var(--border-md);border-radius:var(--r-md);box-shadow:0 8px 24px rgba(20,20,50,.18);max-height:190px;overflow-y:auto;margin-top:2px;}
 .pxy-list .opt{padding:7px 11px;font-size:12.5px;cursor:pointer;}
 .pxy-list .opt:hover{background:var(--surface2);}
@@ -2095,11 +2098,14 @@ textarea{resize:vertical;min-height:100px;}
           <div style="background:var(--accent-l);border:1px solid #C7D2FE;border-radius:var(--r-md);padding:12px 14px;">
             <div style="font-size:11.5px;font-weight:800;color:var(--accent);margin-bottom:10px;">👤 대리 등록 대상 <span style="font-weight:500;color:var(--muted);">· 고객 명의로 접수됩니다</span></div>
             <div style="display:flex;gap:12px;margin-bottom:10px;">
-              <div class="pxy-fld" style="flex:1;position:relative;">
+              <div class="pxy-fld" style="flex:1;">
                 <label>고객사 <span class="req">*</span></label>
-                <input type="text" id="pxy-company-search" autocomplete="off" placeholder="고객사명 입력 또는 ▾" oninput="pxyFilterCompany()" onfocus="pxyFilterCompany(true)">
-                <input type="hidden" id="pxy-company-id">
-                <div id="pxy-company-list" class="pxy-list" style="display:none;"></div>
+                <div class="pxy-inp" id="pxy-company-wrap">
+                  <input type="text" id="pxy-company-search" autocomplete="off" placeholder="검색 또는 ▾ 선택" oninput="pxyFilterCompany()" onfocus="pxyFilterCompany()">
+                  <span class="pxy-caret" onclick="pxyToggle('company')">▾</span>
+                  <input type="hidden" id="pxy-company-id">
+                  <div id="pxy-company-list" class="pxy-list" style="display:none;"></div>
+                </div>
               </div>
               <div class="pxy-fld" style="flex:1;">
                 <label>조직</label>
@@ -2111,11 +2117,14 @@ textarea{resize:vertical;min-height:100px;}
                 <label>고객(요청자) <span class="req">*</span></label>
                 <select id="pxy-customer" onchange="pxyRenderNote()"><option value="">고객사를 먼저 선택</option></select>
               </div>
-              <div class="pxy-fld" style="flex:1;position:relative;">
+              <div class="pxy-fld" style="flex:1;">
                 <label>빅스데이터 담당자</label>
-                <input type="text" id="pxy-staff-search" autocomplete="off" placeholder="담당자 입력 또는 ▾" oninput="pxyFilterStaff()" onfocus="pxyFilterStaff(true)">
-                <input type="hidden" id="pxy-staff-id">
-                <div id="pxy-staff-list" class="pxy-list" style="display:none;"></div>
+                <div class="pxy-inp" id="pxy-staff-wrap">
+                  <input type="text" id="pxy-staff-search" autocomplete="off" placeholder="검색 또는 ▾ 선택" oninput="pxyFilterStaff()" onfocus="pxyFilterStaff()">
+                  <span class="pxy-caret" onclick="pxyToggle('staff')">▾</span>
+                  <input type="hidden" id="pxy-staff-id">
+                  <div id="pxy-staff-list" class="pxy-list" style="display:none;"></div>
+                </div>
               </div>
             </div>
             <div id="pxy-note" style="font-size:11px;color:var(--muted);margin-top:9px;display:none;"></div>
@@ -5429,20 +5438,29 @@ function pxyResetSelection() {
   const note = document.getElementById('pxy-note'); if (note) note.style.display = 'none';
 }
 
-function _pxyRenderList(boxId, items, onPick) {
+function _pxyRenderList(boxId, items, onPick, emptyLabel) {
   const box = document.getElementById(boxId);
   if (!box) return;
-  if (!items.length) { box.innerHTML = '<div class="opt-empty">검색 결과 없음</div>'; box.style.display = ''; return; }
+  if (!items.length) { box.innerHTML = `<div class="opt-empty">${emptyLabel || '검색 결과 없음'}</div>`; box.style.display = ''; return; }
   box.innerHTML = items.map((it, i) => `<div class="opt" data-i="${i}">${escHtml(it.label)}</div>`).join('');
   box.style.display = '';
   box.querySelectorAll('.opt').forEach(o => o.onclick = () => { onPick(items[+o.dataset.i]); box.style.display = 'none'; });
+}
+
+// 캐럿(▾) 클릭 — 열려있으면 닫고, 아니면 전체 목록을 펼친다(검색어 무시).
+function pxyToggle(kind) {
+  const listId = kind === 'company' ? 'pxy-company-list' : 'pxy-staff-list';
+  const box = document.getElementById(listId);
+  if (box && box.style.display !== 'none') { box.style.display = 'none'; return; }
+  if (kind === 'company') pxyFilterCompany(true); else pxyFilterStaff(true);
+  document.getElementById(kind === 'company' ? 'pxy-company-search' : 'pxy-staff-search')?.focus();
 }
 
 function pxyFilterCompany(showAll) {
   const q = (document.getElementById('pxy-company-search')?.value || '').trim().toLowerCase();
   const items = _pxyCompanies.filter(c => showAll || !q || (c.name || '').toLowerCase().includes(q)).slice(0, 50)
     .map(c => ({ id: c.id, label: c.name }));
-  _pxyRenderList('pxy-company-list', items, pxyPickCompany);
+  _pxyRenderList('pxy-company-list', items, pxyPickCompany, _pxyBootstrapped ? '검색 결과 없음' : '불러오는 중…');
 }
 
 async function pxyPickCompany(c) {
@@ -5470,7 +5488,7 @@ function pxyFilterStaff(showAll) {
   const q = (document.getElementById('pxy-staff-search')?.value || '').trim().toLowerCase();
   const items = _pxyStaff.filter(s => showAll || !q || (s.name || '').toLowerCase().includes(q)).slice(0, 50)
     .map(s => ({ id: s.id, label: `${s.name} (${ROLE_KO_SHORT[s.role] || s.role})` }));
-  _pxyRenderList('pxy-staff-list', items, pxyPickStaff);
+  _pxyRenderList('pxy-staff-list', items, pxyPickStaff, _pxyBootstrapped ? '검색 결과 없음' : '불러오는 중…');
 }
 
 function pxyPickStaff(s) {
@@ -5493,10 +5511,10 @@ function pxyRenderNote() {
   } else { note.style.display = 'none'; }
 }
 
-// 콤보 바깥 클릭 시 드롭다운 닫기
+// 콤보 바깥 클릭 시 드롭다운 닫기(입력·캐럿·목록을 감싼 wrap 밖을 클릭했을 때만)
 document.addEventListener('click', (e) => {
-  if (!e.target.closest('#pxy-company-search') && !e.target.closest('#pxy-company-list')) { const b = document.getElementById('pxy-company-list'); if (b) b.style.display = 'none'; }
-  if (!e.target.closest('#pxy-staff-search') && !e.target.closest('#pxy-staff-list')) { const b = document.getElementById('pxy-staff-list'); if (b) b.style.display = 'none'; }
+  if (!e.target.closest('#pxy-company-wrap')) { const b = document.getElementById('pxy-company-list'); if (b) b.style.display = 'none'; }
+  if (!e.target.closest('#pxy-staff-wrap')) { const b = document.getElementById('pxy-staff-list'); if (b) b.style.display = 'none'; }
 });
 
 async function submitRequest() {
