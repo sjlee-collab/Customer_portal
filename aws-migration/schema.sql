@@ -101,9 +101,13 @@ create table public.tickets (
   created_by_name     text,
   unit_id             uuid,
   unit_name           text,
-  cc_emails           text[]
+  cc_emails           text[],
+  registered_by       uuid references public.users(id) on delete set null,
+  registered_by_name  text
 );
 comment on table public.tickets is '고객 기술지원 요청 티켓';
+comment on column public.tickets.registered_by is '대리 등록한 내부직원 계정 id. 값이 있으면 대리 등록(내부직원이 고객 대신 접수), null이면 고객이 직접 등록. 계정 삭제 시 SET NULL.';
+comment on column public.tickets.registered_by_name is '대리 등록자 이름 스냅샷 — registered_by 계정이 삭제돼도 "대리" 배지/이력 표시를 위해 보존.';
 comment on column public.tickets.cc_emails is '상태변경 메일의 추가 수신자(참조) 주소. 요청 관리 모달에서 마지막으로 입력한 값을 티켓별로 기억한다.';
 comment on column public.tickets.assigned_to_name is '담당자 이름 스냅샷 — assigned_to 계정이 삭제(FK SET NULL)되어도 이력 표시를 위해 보존';
 comment on column public.tickets.contract_id is '요청 등록자의 contract_id 스냅샷 — 계약 단위로 요청 목록을 스코프하기 위함. 조직(unit_id) 도입 후에는 폴백 경로.';

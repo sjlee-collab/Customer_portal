@@ -243,6 +243,14 @@ button,input,select,textarea{font-family:inherit;}
 .b-gray{background:#F3F4F6;color:#4B5563;border-color:#E5E7EB;}
 /* 시안의 "처리 중" 파랑. JS가 예전부터 b-blue를 참조했는데 정의가 없어 무색으로 나가고 있었다. */
 .b-blue{background:#EFF6FF;color:#2563EB;border-color:#BFDBFE;}
+/* 대리 등록 배지 — 내부직원이 고객 대신 남긴 요청. 상태/역할 배지와 겹치지 않는 인디고 아웃라인. */
+.proxy-badge{display:inline-flex;align-items:center;font-size:10px;font-weight:600;line-height:1.5;padding:0 6px;border-radius:99px;background:var(--accent-l);color:var(--accent);border:1px solid #C7D2FE;vertical-align:middle;}
+/* 대리 등록 모달 — 콤보박스 필드/드롭다운 */
+.pxy-fld label{display:block;font-size:11.5px;color:var(--muted);margin-bottom:4px;}
+.pxy-list{position:absolute;left:0;right:0;top:100%;z-index:10;background:var(--surface);border:1px solid var(--border-md);border-radius:var(--r-md);box-shadow:0 8px 24px rgba(20,20,50,.18);max-height:190px;overflow-y:auto;margin-top:2px;}
+.pxy-list .opt{padding:7px 11px;font-size:12.5px;cursor:pointer;}
+.pxy-list .opt:hover{background:var(--surface2);}
+.pxy-list .opt-empty{padding:7px 11px;font-size:12px;color:var(--faint);}
 
 /* ── buttons ── */
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:var(--r-md);font-size:13px;font-weight:600;border:none;cursor:pointer;transition:.15s;}
@@ -2082,6 +2090,37 @@ textarea{resize:vertical;min-height:100px;}
     </div>
     <div style="padding:18px 22px;">
       <div class="form-grid" style="gap:11px 16px;">
+        <!-- 대리 등록 대상 — 내부(internal) 계정에게만 노출. 고객 명의로 요청을 접수한다. -->
+        <div class="form-group span2" id="nw-proxy" style="display:none;">
+          <div style="background:var(--accent-l);border:1px solid #C7D2FE;border-radius:var(--r-md);padding:12px 14px;">
+            <div style="font-size:11.5px;font-weight:800;color:var(--accent);margin-bottom:10px;">👤 대리 등록 대상 <span style="font-weight:500;color:var(--muted);">· 고객 명의로 접수됩니다</span></div>
+            <div style="display:flex;gap:12px;margin-bottom:10px;">
+              <div class="pxy-fld" style="flex:1;position:relative;">
+                <label>고객사 <span class="req">*</span></label>
+                <input type="text" id="pxy-company-search" autocomplete="off" placeholder="고객사명 입력 또는 ▾" oninput="pxyFilterCompany()" onfocus="pxyFilterCompany(true)">
+                <input type="hidden" id="pxy-company-id">
+                <div id="pxy-company-list" class="pxy-list" style="display:none;"></div>
+              </div>
+              <div class="pxy-fld" style="flex:1;">
+                <label>조직</label>
+                <select id="pxy-org"><option value="">—</option></select>
+              </div>
+            </div>
+            <div style="display:flex;gap:12px;">
+              <div class="pxy-fld" style="flex:1;">
+                <label>고객(요청자) <span class="req">*</span></label>
+                <select id="pxy-customer" onchange="pxyRenderNote()"><option value="">고객사를 먼저 선택</option></select>
+              </div>
+              <div class="pxy-fld" style="flex:1;position:relative;">
+                <label>빅스데이터 담당자</label>
+                <input type="text" id="pxy-staff-search" autocomplete="off" placeholder="담당자 입력 또는 ▾" oninput="pxyFilterStaff()" onfocus="pxyFilterStaff(true)">
+                <input type="hidden" id="pxy-staff-id">
+                <div id="pxy-staff-list" class="pxy-list" style="display:none;"></div>
+              </div>
+            </div>
+            <div id="pxy-note" style="font-size:11px;color:var(--muted);margin-top:9px;display:none;"></div>
+          </div>
+        </div>
         <div class="form-group span2">
           <label>요청 제목 <span class="req">*</span></label>
           <input type="text" id="f-title" placeholder="문제를 간략하게 설명해 주세요">
@@ -2121,7 +2160,7 @@ textarea{resize:vertical;min-height:100px;}
             <div id="file-list" style="margin-top:6px;font-size:12px;text-align:left;"></div>
           </div>
         </div>
-        <div class="form-group span2">
+        <div class="form-group span2" id="nw-self-note">
           <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;background:var(--surface2);border-radius:var(--r-md);padding:9px 12px;font-size:12.5px;">
             <span><span style="color:var(--faint);margin-right:5px;">고객사</span><b id="nw-company-txt"></b><input type="text" id="nw-company" style="display:none;" readonly></span>
             <span style="margin-left:auto;font-size:11px;color:var(--faint);">로그인 계정 기준 자동 입력 · 접수 확인 메일 자동 발송</span>
@@ -4386,6 +4425,18 @@ function openModal(id) {
     const _co = (currentUser && currentUser.company) || '';
     if (companyEl) companyEl.value = _co;
     if (companyTxt) companyTxt.textContent = _co || '—';
+    // 대리 등록 패널 — 내부(internal) 계정에게만 노출. 이때 "본인 계정 자동입력" 안내는 숨긴다.
+    const proxyPanel = document.getElementById('nw-proxy');
+    const selfNote = document.getElementById('nw-self-note');
+    if (currentUser?.role === 'internal') {
+      if (proxyPanel) proxyPanel.style.display = '';
+      if (selfNote) selfNote.style.display = 'none';
+      pxyResetSelection();
+      pxyBootstrap();
+    } else {
+      if (proxyPanel) proxyPanel.style.display = 'none';
+      if (selfNote) selfNote.style.display = '';
+    }
     // 요청 조직 선택기: 조직 2개 이상 배정된 고객에게만 노출(1개면 서버가 대표로 자동 스냅샷)
     const orgGroup = document.getElementById('nw-org-group');
     const orgSel = document.getElementById('nw-org');
@@ -5110,7 +5161,7 @@ async function loadTickets() {
 
   let query = sb
     .from('tickets')
-    .select('id, ticket_number, title, description, category, product, priority, status, created_at, updated_at, due_date, unit_name, assigned_to_name, company_name, created_by_name, assignee:assigned_to(name), company:company_id(name), requester:created_by(name)')
+    .select('id, ticket_number, title, description, category, product, priority, status, created_at, updated_at, due_date, unit_name, assigned_to_name, company_name, created_by_name, registered_by, registered_by_name, assignee:assigned_to(name), company:company_id(name), requester:created_by(name)')
     .order('created_at', { ascending: false });
 
   if (DEMO_COMPANY_ID) query = query.eq('company_id', DEMO_COMPANY_ID);
@@ -5203,7 +5254,7 @@ const TICKET_CELL = {
   status:    t => `<td><span class="badge ${STATUS_BADGE[t.status]||'b-gray'}">${STATUS_LABELS[t.status]||t.status||'—'}</span></td>`,
   company:   t => `<td style="font-size:12px;">${t.company?.name?escHtml(t.company.name):(t.company_name?escHtml(t.company_name):'<span style="color:var(--faint);">—</span>')}</td>`,
   org:       t => `<td style="font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(t.unit_name||'')}">${t.unit_name?escHtml(t.unit_name):'<span style="color:var(--faint);">—</span>'}</td>`,
-  requester: t => `<td style="font-size:12px;">${t.requester?.name?escHtml(t.requester.name):(t.created_by_name?escHtml(t.created_by_name):'<span style="color:var(--faint);">—</span>')}</td>`,
+  requester: t => `<td style="font-size:12px;">${t.requester?.name?escHtml(t.requester.name):(t.created_by_name?escHtml(t.created_by_name):'<span style="color:var(--faint);">—</span>')}${t.registered_by?` <span class="proxy-badge" title="빅스데이터 ${escHtml(t.registered_by_name||'')} 대리 등록">대리</span>`:''}</td>`,
   assignee:  t => `<td style="font-size:12px;">${t.assignee?.name?escHtml(t.assignee.name):(t.assigned_to_name?escHtml(t.assigned_to_name)+' <span style="color:var(--faint);font-size:10px;">(탈퇴)</span>':'<span style="color:var(--faint);">미배정</span>')}</td>`,
   created:   t => `<td style="color:var(--faint);font-size:12px;">${t.created_at?t.created_at.slice(0,10):'—'}</td>`,
   // 접수일과 달리 시각까지 보여주므로 UTC 문자열을 그대로 자르면 안 되고 KST로 변환한다.
@@ -5352,8 +5403,104 @@ function handleFileDrop(event) {
   _addAttachFiles(event.dataTransfer.files);
 }
 
+// ── 대리 등록(내부 계정) — 고객사/고객/조직/담당자 로드 + 콤보박스 ──
+// 내부(internal)는 data-api로 회사/사용자/조직 목록을 못 읽으므로 api-layer 전용 엔드포인트
+// (/proxy/bootstrap, /proxy/customers)로 최소 정보만 받아 드롭다운을 채운다.
+let _pxyCompanies = [], _pxyStaff = [], _pxyCustomers = [], _pxyUnits = [], _pxyBootstrapped = false;
+const ROLE_KO_SHORT = { admin: '관리자', sales: '영업', tech_support: '기술지원', education: '교육' };
+
+async function pxyBootstrap() {
+  if (_pxyBootstrapped) return;
+  try {
+    const r = await fetch(`${API_BASE}/proxy/bootstrap`, { headers: { ...authHeaders() } });
+    if (!r.ok) throw new Error('bootstrap ' + r.status);
+    const d = await r.json();
+    _pxyCompanies = d.companies || [];
+    _pxyStaff = d.staff || [];
+    _pxyBootstrapped = true;
+  } catch (e) { console.error('[proxy bootstrap]', e); showToast('대리 등록 목록을 불러오지 못했습니다.', true); }
+}
+
+function pxyResetSelection() {
+  _pxyCustomers = []; _pxyUnits = [];
+  ['pxy-company-search', 'pxy-company-id', 'pxy-staff-search', 'pxy-staff-id'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const cust = document.getElementById('pxy-customer'); if (cust) cust.innerHTML = '<option value="">고객사를 먼저 선택</option>';
+  const org = document.getElementById('pxy-org'); if (org) org.innerHTML = '<option value="">—</option>';
+  const note = document.getElementById('pxy-note'); if (note) note.style.display = 'none';
+}
+
+function _pxyRenderList(boxId, items, onPick) {
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  if (!items.length) { box.innerHTML = '<div class="opt-empty">검색 결과 없음</div>'; box.style.display = ''; return; }
+  box.innerHTML = items.map((it, i) => `<div class="opt" data-i="${i}">${escHtml(it.label)}</div>`).join('');
+  box.style.display = '';
+  box.querySelectorAll('.opt').forEach(o => o.onclick = () => { onPick(items[+o.dataset.i]); box.style.display = 'none'; });
+}
+
+function pxyFilterCompany(showAll) {
+  const q = (document.getElementById('pxy-company-search')?.value || '').trim().toLowerCase();
+  const items = _pxyCompanies.filter(c => showAll || !q || (c.name || '').toLowerCase().includes(q)).slice(0, 50)
+    .map(c => ({ id: c.id, label: c.name }));
+  _pxyRenderList('pxy-company-list', items, pxyPickCompany);
+}
+
+async function pxyPickCompany(c) {
+  document.getElementById('pxy-company-search').value = c.label;
+  document.getElementById('pxy-company-id').value = c.id;
+  const cust = document.getElementById('pxy-customer');
+  const org = document.getElementById('pxy-org');
+  cust.innerHTML = '<option value="">불러오는 중…</option>';
+  org.innerHTML = '<option value="">—</option>';
+  try {
+    const r = await fetch(`${API_BASE}/proxy/customers?company_id=${encodeURIComponent(c.id)}`, { headers: { ...authHeaders() } });
+    if (!r.ok) throw new Error('customers ' + r.status);
+    const d = await r.json();
+    _pxyCustomers = d.customers || [];
+    _pxyUnits = d.units || [];
+    cust.innerHTML = _pxyCustomers.length
+      ? '<option value="">고객(요청자) 선택</option>' + _pxyCustomers.map(u => `<option value="${u.id}">${escHtml(u.name)}${u.email ? ' · ' + escHtml(u.email) : ''}</option>`).join('')
+      : '<option value="">등록된 고객이 없습니다</option>';
+    org.innerHTML = '<option value="">— 조직 미지정 —</option>' + _pxyUnits.map(u => `<option value="${u.id}">${escHtml(u.unit_no)} · ${escHtml(u.unit_name)}</option>`).join('');
+  } catch (e) { console.error('[proxy customers]', e); cust.innerHTML = '<option value="">불러오기 실패</option>'; }
+  pxyRenderNote();
+}
+
+function pxyFilterStaff(showAll) {
+  const q = (document.getElementById('pxy-staff-search')?.value || '').trim().toLowerCase();
+  const items = _pxyStaff.filter(s => showAll || !q || (s.name || '').toLowerCase().includes(q)).slice(0, 50)
+    .map(s => ({ id: s.id, label: `${s.name} (${ROLE_KO_SHORT[s.role] || s.role})` }));
+  _pxyRenderList('pxy-staff-list', items, pxyPickStaff);
+}
+
+function pxyPickStaff(s) {
+  document.getElementById('pxy-staff-search').value = s.label;
+  document.getElementById('pxy-staff-id').value = s.id;
+  pxyRenderNote();
+}
+
+function pxyRenderNote() {
+  const note = document.getElementById('pxy-note'); if (!note) return;
+  const custSel = document.getElementById('pxy-customer');
+  const custName = custSel?.selectedOptions?.[0]?.text?.split(' · ')[0];
+  const custVal = custSel?.value;
+  const coName = document.getElementById('pxy-company-search')?.value;
+  const staffName = (document.getElementById('pxy-staff-search')?.value || '').split(' (')[0];
+  if (custVal && custName) {
+    note.innerHTML = `→ 이 요청은 <b>${escHtml(custName)}${coName ? '(' + escHtml(coName) + ')' : ''}</b> 계정에 등록됩니다`
+      + (staffName ? `, 담당자는 <b>${escHtml(staffName)}</b>` : '') + '.';
+    note.style.display = '';
+  } else { note.style.display = 'none'; }
+}
+
+// 콤보 바깥 클릭 시 드롭다운 닫기
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#pxy-company-search') && !e.target.closest('#pxy-company-list')) { const b = document.getElementById('pxy-company-list'); if (b) b.style.display = 'none'; }
+  if (!e.target.closest('#pxy-staff-search') && !e.target.closest('#pxy-staff-list')) { const b = document.getElementById('pxy-staff-list'); if (b) b.style.display = 'none'; }
+});
+
 async function submitRequest() {
-  const title       = document.getElementById('f-title')?.value?.trim()       || document.querySelector('#modal-new input[type=text]')?.value?.trim();
+  const title       = document.getElementById('f-title')?.value?.trim() || '';
   const category    = document.getElementById('f-category')?.value;
   const product     = document.getElementById('f-product')?.value;
   const priority    = document.getElementById('f-priority')?.value || 'normal';
@@ -5395,6 +5542,23 @@ async function submitRequest() {
   const orgGroup = document.getElementById('nw-org-group');
   const orgSel = document.getElementById('nw-org');
   if (orgGroup && orgGroup.style.display !== 'none' && orgSel?.value) payload.unit_id = orgSel.value;
+
+  // 대리 등록(internal) — 대상 고객/담당자/조직을 함께 전송. created_by/company/contract는
+  // 서버가 대상 고객 기준으로 다시 채우므로 body 값은 무시된다(신뢰경계).
+  if (currentUser?.role === 'internal') {
+    const onBehalf = document.getElementById('pxy-customer')?.value;
+    const coId = document.getElementById('pxy-company-id')?.value;
+    if (!coId || !onBehalf) {
+      showToast('대리 등록: 고객사와 고객(요청자)을 선택해 주세요.', true);
+      if (btn) { btn.disabled = false; btn.textContent = '요청 접수'; }
+      return;
+    }
+    payload.on_behalf_of = onBehalf;
+    const staffId = document.getElementById('pxy-staff-id')?.value;
+    if (staffId) payload.assigned_to = staffId;
+    const orgVal = document.getElementById('pxy-org')?.value;
+    if (orgVal) payload.unit_id = orgVal; else delete payload.unit_id;
+  }
 
   const { data, error } = await apiCreateTicket(payload);
 
@@ -7894,7 +8058,7 @@ function clearTkFilter(key) { filterPopClear('tk', key); }
 function updateTkFilterButtonStates() { filterUpdateButtons('tk'); }
 
 // 요청 관리 티켓 조회 — 전체 로드와 델타 폴링이 같은 select·역할필터를 쓰도록 공용화.
-const AR_TICKET_SELECT = 'id, ticket_number, title, category, priority, status, created_at, updated_at, due_date, cc_emails, unit_name, assigned_to_name, company_name, created_by_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name,email)';
+const AR_TICKET_SELECT = 'id, ticket_number, title, category, priority, status, created_at, updated_at, due_date, cc_emails, unit_name, assigned_to_name, company_name, created_by_name, registered_by, registered_by_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name,email)';
 const AR_ROLE_ALLOWED_CATS = {}; // 스태프(영업/기술/교육/관리자) 전 카테고리 조회 — 카테고리 제한 없음
 function _arBaseQuery() {
   const allowedCats = AR_ROLE_ALLOWED_CATS[currentUser?.role] || null;

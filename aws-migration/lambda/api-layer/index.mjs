@@ -189,19 +189,41 @@ async function createTicket(body, event) {
   const { title, category, description, product, priority = 'normal' } = body;
   if (!title || !category) return json(400, { error: 'title, category는 필수입니다' });
 
-  const requester = await getUser(authz.userId);
-  if (!requester) return json(400, { error: '존재하지 않는 사용자입니다' });
+  const actor = await getUser(authz.userId);
+  if (!actor) return json(400, { error: '존재하지 않는 사용자입니다' });
 
-  const created_by = authz.userId;
+  // ── 대리 등록(proxy) ── 내부(internal) 계정이 고객을 대신해 요청을 등록하는 경로.
+  // 평상시엔 created_by/company/contract를 절대 body로 안 믿지만(사칭 방지), 이 경로에 한해
+  // 역할(internal)·권한(ticket_create)·대상(role=customer)을 서버에서 검증한 뒤에만 적용한다.
+  // 요청은 대상 고객 명의로 남고(registered_by에 실제 등록자=내부직원을 스냅샷으로 기록).
+  const isProxy = authz.role === 'internal' && body.on_behalf_of && body.on_behalf_of !== authz.userId;
+  let registeredBy = null, registeredByName = null;
+  let requester; // 요청 명의(대리 등록이면 대상 고객, 아니면 본인)
+  if (isProxy) {
+    if (!(await hasPermission(authz.role, 'ticket_create'))) {
+      return json(403, { error: '요청을 등록할 권한이 없습니다' });
+    }
+    const target = await getUser(body.on_behalf_of);
+    if (!target || target.role !== 'customer') {
+      return json(400, { error: '대리 등록 대상은 고객 계정이어야 합니다' });
+    }
+    requester = target;
+    registeredBy = actor.id;
+    registeredByName = actor.name;
+  } else {
+    requester = actor;
+  }
+
+  const created_by = requester.id;
   const company_id = requester.company_id ?? null;
   const contract_id = requester.contract_id ?? null;
 
-  // 조직 스냅샷 — body로 unit_id를 받되(다중 조직 사용자의 "요청 조직" 선택),
-  // 반드시 본인 배정 목록(user_org_units)에 있는 조직만 허용한다. 없으면 대표 조직.
-  const myUnits = Array.isArray(requester.unit_ids) ? requester.unit_ids : [];
+  // 조직 스냅샷 — body로 unit_id를 받되(다중 조직 사용자의 "요청 조직" 선택), 반드시 요청 명의
+  // (일반=본인, 대리=대상 고객)의 배정 목록(user_org_units)에 있는 조직만 허용. 없으면 대표 조직.
+  const reqUnits = Array.isArray(requester.unit_ids) ? requester.unit_ids : [];
   let unit_id = requester.unit_id ?? null;
   if (body.unit_id) {
-    if (!myUnits.includes(body.unit_id) && !STAFF_ROLES.has(authz.role)) {
+    if (!reqUnits.includes(body.unit_id) && !STAFF_ROLES.has(authz.role)) {
       return json(403, { error: '배정되지 않은 조직으로는 요청을 등록할 수 없습니다' });
     }
     unit_id = body.unit_id;
@@ -213,19 +235,28 @@ async function createTicket(body, event) {
     if (!unit_name) unit_id = null; // 존재하지 않는 조직 id 방어
   }
 
+  // 담당자 — 대리 등록은 선택한 스태프(role 검증), 그 외/미선택은 기존 카테고리 자동배정 규칙.
   let assignedTo = null, assignedToName = null;
-  const defaultAssignee = DEFAULT_ASSIGNEE_BY_CATEGORY[category];
-  if (defaultAssignee) {
-    assignedTo = defaultAssignee.id;
-    assignedToName = defaultAssignee.name;
+  if (isProxy && body.assigned_to) {
+    const staff = await getUser(body.assigned_to);
+    if (!staff || !STAFF_ROLES.has(staff.role)) {
+      return json(400, { error: '담당자는 빅스데이터 스태프여야 합니다' });
+    }
+    assignedTo = staff.id; assignedToName = staff.name;
   } else {
-    const managerField = COMPANY_MANAGER_FIELD_BY_CATEGORY[category];
-    if (managerField && company_id) {
-      const companyRows = await query(`select ${managerField} as manager_name from companies where id=$1`, [company_id]);
-      const managerName = companyRows[0]?.manager_name;
-      if (managerName) {
-        const mgrRows = await query('select id, name from users where name=$1 and is_active=true', [managerName]);
-        if (mgrRows[0]) { assignedTo = mgrRows[0].id; assignedToName = mgrRows[0].name; }
+    const defaultAssignee = DEFAULT_ASSIGNEE_BY_CATEGORY[category];
+    if (defaultAssignee) {
+      assignedTo = defaultAssignee.id;
+      assignedToName = defaultAssignee.name;
+    } else {
+      const managerField = COMPANY_MANAGER_FIELD_BY_CATEGORY[category];
+      if (managerField && company_id) {
+        const companyRows = await query(`select ${managerField} as manager_name from companies where id=$1`, [company_id]);
+        const managerName = companyRows[0]?.manager_name;
+        if (managerName) {
+          const mgrRows = await query('select id, name from users where name=$1 and is_active=true', [managerName]);
+          if (mgrRows[0]) { assignedTo = mgrRows[0].id; assignedToName = mgrRows[0].name; }
+        }
       }
     }
   }
@@ -233,16 +264,56 @@ async function createTicket(body, event) {
   const companyName = await getCompanyName(company_id);
 
   const inserted = await query(
-    `insert into tickets (title, category, description, status, priority, product, created_by, created_by_name, company_id, company_name, contract_id, unit_id, unit_name, assigned_to, assigned_to_name)
-     values ($1,$2,$3,'received',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+    `insert into tickets (title, category, description, status, priority, product, created_by, created_by_name, company_id, company_name, contract_id, unit_id, unit_name, assigned_to, assigned_to_name, registered_by, registered_by_name)
+     values ($1,$2,$3,'received',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
      returning *`,
-    [title, category, description ?? null, priority, product ?? null, created_by, requester.name, company_id ?? null, companyName, contract_id ?? null, unit_id, unit_name, assignedTo, assignedToName]
+    [title, category, description ?? null, priority, product ?? null, created_by, requester.name, company_id ?? null, companyName, contract_id ?? null, unit_id, unit_name, assignedTo, assignedToName, registeredBy, registeredByName]
   );
   const ticket = inserted[0];
 
   await deferNotify('create', { ticketId: ticket.id });
 
   return json(201, { ticket });
+}
+
+// ── 대리 등록 지원 조회 (내부 계정 전용) ──
+// 내부(internal) 계정은 data-api에서 companies/users 전체목록·org_units를 못 읽는다
+// (테넌트 격리 + STAFF_ONLY). 대리 등록 모달의 드롭다운을 채우려면 이 정보가 필요하므로,
+// 권한(internal + ticket_create)을 서버에서 확인한 뒤 최소 필드만 추려 돌려준다.
+function proxyAuthz(event) {
+  const authz = getAuthz(event);
+  if (!authz.userId) return { deny: json(401, { error: '인증이 필요합니다' }) };
+  if (authz.role !== 'internal') return { deny: json(403, { error: '대리 등록 권한이 없습니다' }) };
+  return { authz };
+}
+
+async function proxyBootstrap(event) {
+  const { authz, deny } = proxyAuthz(event);
+  if (deny) return deny;
+  if (!(await hasPermission(authz.role, 'ticket_create'))) return json(403, { error: '요청을 등록할 권한이 없습니다' });
+  const [companies, staff] = await Promise.all([
+    query('select id, name from companies order by name'),
+    query('select id, name, role from users where role = any($1) and coalesce(is_active,true)=true order by name', [[...STAFF_ROLES]]),
+  ]);
+  return json(200, { companies, staff });
+}
+
+async function proxyCustomers(event) {
+  const { authz, deny } = proxyAuthz(event);
+  if (deny) return deny;
+  if (!(await hasPermission(authz.role, 'ticket_create'))) return json(403, { error: '요청을 등록할 권한이 없습니다' });
+  const companyId = event.queryStringParameters?.company_id;
+  if (!companyId) return json(400, { error: 'company_id는 필수입니다' });
+  const [customers, units] = await Promise.all([
+    query(
+      `select u.id, u.name, u.email,
+              array(select unit_id from user_org_units where user_id=u.id) as unit_ids
+       from users u
+       where u.company_id=$1 and u.role='customer' and coalesce(u.is_active,true)=true
+       order by u.name`, [companyId]),
+    query("select id, unit_no, unit_name from org_units where company_id=$1 and status='active' order by unit_no", [companyId]),
+  ]);
+  return json(200, { customers, units });
 }
 
 async function notifyForCreate(ticketId) {
@@ -253,7 +324,9 @@ async function notifyForCreate(ticketId) {
 
   await notifySlack({ type: 'TICKET_INSERT', ticket, ...notifyPayload, attachmentFileNames: [] });
 
-  if (!requester?.email) return;
+  // 대리 등록(registered_by 있음) 요청은 접수 확인 메일을 고객에게 보내지 않는다 —
+  // 내부직원이 고객 대신 접수한 것이라 고객에게 직접 메일이 가면 안 된다(Slack 내부 알림은 유지).
+  if (!requester?.email || ticket.registered_by) return;
 
   // send-email Lambda는 INSERT 타입 호출마다 요청자에게 접수 확인 메일을 보낸다.
   // 조건별로 notifyEmail을 여러 번 호출하면 접수 확인 메일이 중복 발송되므로,
@@ -1025,6 +1098,12 @@ export const handler = async (event) => {
     }
     if (method === 'POST' && path === '/auth/admin-reset-password') {
       return await adminResetPassword(body, event);
+    }
+    if (method === 'GET' && path === '/proxy/bootstrap') {
+      return await proxyBootstrap(event);
+    }
+    if (method === 'GET' && path === '/proxy/customers') {
+      return await proxyCustomers(event);
     }
     if (method === 'POST' && path === '/tickets') {
       return await createTicket(body, event);
