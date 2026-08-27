@@ -326,14 +326,14 @@ async function notifyForCreate(ticketId) {
 
   await notifySlack({ type: 'TICKET_INSERT', ticket, ...notifyPayload, attachmentFileNames: [] });
 
-  // 대리 등록(registered_by 있음) 요청은 접수 확인 메일을 고객에게 보내지 않는다 —
-  // 내부직원이 고객 대신 접수한 것이라 고객에게 직접 메일이 가면 안 된다(Slack 내부 알림은 유지).
-  if (!requester?.email || ticket.registered_by) return;
+  if (!requester?.email) return;
 
   // send-email Lambda는 INSERT 타입 호출마다 요청자에게 접수 확인 메일을 보낸다.
   // 조건별로 notifyEmail을 여러 번 호출하면 접수 확인 메일이 중복 발송되므로,
   // 계약/라이선스·긴급 여부에 필요한 정보를 모두 모아 단 한 번만 호출한다.
+  // 대리 등록(registered_by 있음)이면 registeredByName을 함께 넘겨 메일에 "담당자가 등록했습니다" 안내를 표시한다.
   const emailPayload = { ticket, companyName: ticket.company_name, requesterEmail: requester.email, requesterName: ticket.created_by_name };
+  if (ticket.registered_by) emailPayload.registeredByName = ticket.registered_by_name;
 
   if (['contract', 'license'].includes(ticket.category)) {
     emailPayload.accountManagerEmail = await getAccountManagerEmail(ticket.company_id, 'account_manager');

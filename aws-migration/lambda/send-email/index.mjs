@@ -141,10 +141,12 @@ function customerStatusChangeHtml(ticket, companyName, requesterName, prevStatus
   return layout(subtitle, `${alertHtml}<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">안녕하세요, <strong>${requesterName}</strong>님.<br>요청 처리 상태가 변경되었습니다.</p><div class="lbl">변경 정보</div><table class="info"><tr><td>요청번호</td><td><strong>${ticket.ticket_number ?? '—'}</strong></td></tr><tr><td>제목</td><td>${ticket.title ?? '—'}</td></tr><tr><td>고객사</td><td>${companyName}</td></tr><tr><td>이전 상태</td><td>${prevKo}</td></tr><tr><td>변경 상태</td><td><span class="badge ${badgeCls}">${newKo}</span></td></tr><tr><td>변경 일시</td><td>${dateStr}</td></tr></table>${btn}`);
 }
 
-function customerNewTicketHtml(ticket, companyName, requesterName) {
+function customerNewTicketHtml(ticket, companyName, requesterName, registeredByName) {
   const btn = portalLinkBtn(ticket.ticket_number, '요청 확인하기');
   const dateStr = ticket.created_at ? new Date(ticket.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : '—';
-  return layout('요청 접수 확인', `<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">안녕하세요, <strong>${requesterName}</strong>님.<br>고객지원 요청이 정상적으로 접수되었습니다.<br>담당자 배정 후 순차적으로 처리해 드리겠습니다.</p><div class="lbl">접수 정보</div><table class="info"><tr><td>요청번호</td><td><strong>${ticket.ticket_number ?? '—'}</strong></td></tr><tr><td>제목</td><td>${ticket.title ?? '—'}</td></tr><tr><td>고객사</td><td>${companyName}</td></tr><tr><td>카테고리</td><td>${CATEGORY_KO[ticket.category] ?? ticket.category ?? '—'}</td></tr><tr><td>긴급도</td><td>${PRIORITY_KO[ticket.priority] ?? ticket.priority ?? '—'}</td></tr><tr><td>접수일시</td><td>${dateStr}</td></tr></table>${btn}`);
+  // 대리 등록(빅스데이터 담당자가 고객 대신 접수)이면 안내 문구를 덧붙인다.
+  const proxyLine = registeredByName ? `<br><span style="color:#6b7280;">빅스데이터 담당자(${registeredByName})가 등록했습니다.</span>` : '';
+  return layout('요청 접수 확인', `<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">안녕하세요, <strong>${requesterName}</strong>님.<br>고객지원 요청이 정상적으로 접수되었습니다.<br>담당자 배정 후 순차적으로 처리해 드리겠습니다.${proxyLine}</p><div class="lbl">접수 정보</div><table class="info"><tr><td>요청번호</td><td><strong>${ticket.ticket_number ?? '—'}</strong></td></tr><tr><td>제목</td><td>${ticket.title ?? '—'}</td></tr><tr><td>고객사</td><td>${companyName}</td></tr><tr><td>카테고리</td><td>${CATEGORY_KO[ticket.category] ?? ticket.category ?? '—'}</td></tr><tr><td>긴급도</td><td>${PRIORITY_KO[ticket.priority] ?? ticket.priority ?? '—'}</td></tr><tr><td>접수일시</td><td>${dateStr}</td></tr></table>${btn}`);
 }
 
 function internalSalesHtml(ticket, companyName, requesterName, requesterEmail) {
@@ -246,7 +248,7 @@ export const handler = async (event) => {
 
     const {
       type, ticket, companyName, requesterEmail, requesterName,
-      prevStatus, ccEmails, accountManagerEmail, adminEmails,
+      prevStatus, ccEmails, accountManagerEmail, adminEmails, registeredByName,
     } = payload;
     if (!ticket || !requesterEmail) return { statusCode: 400, body: 'missing ticket/requesterEmail' };
 
@@ -270,7 +272,7 @@ export const handler = async (event) => {
       jobs.push(sendAndLog(
         requesterEmail,
         `[빅스데이터 고객지원] 요청 접수 확인 - ${ticket.ticket_number}`,
-        customerNewTicketHtml(ticket, companyName, requesterName),
+        customerNewTicketHtml(ticket, companyName, requesterName, registeredByName),
         ticket.id, 'new_ticket_customer', results
       ));
     }
