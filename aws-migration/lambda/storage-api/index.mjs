@@ -50,7 +50,7 @@ function resolveBucket(logicalName) {
 // 실제 통제가 됨. 각 버킷의 클라이언트 accept/실제 용도 기준으로 맞춤.
 const ALLOWED_EXTENSIONS_BY_BUCKET = {
   documents: ['.pdf', '.docx', '.pptx', '.xlsx', '.png', '.jpg', '.jpeg', '.gif', '.zip', '.mp4'],
-  'ticket-attachments': ['.pdf', '.log', '.txt', '.zip', '.xlsx', '.docx', '.pptx', '.twbx', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'],
+  'ticket-attachments': ['.pdf', '.log', '.txt', '.zip', '.xlsx', '.docx', '.pptx', '.twbx', '.twb', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'],
   'contract-attachments': ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.png', '.jpg', '.jpeg', '.gif', '.zip'],
 };
 const MAX_UPLOAD_SIZE = 20 * 1024 * 1024; // 20MB — 클라이언트 accept/hint는 우회 가능하므로 서버에서도 확인
