@@ -11,6 +11,11 @@ import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
 // 계정 문의 알림도 공통 채널(#고객지원포탈-공통)로 보낸다. 변수명 오타(WEEBHOOK)는 기존 그대로.
 const SLACK_WEBHOOK = process.env.SLACK_WEEBHOOK_COMMON || '';
+// 하네스 테스트 모드 — email-safe.sh on 이면 실 채널 대신 테스트 채널로만 보낸다.
+// 웹훅 주소는 비밀값이라 레포가 아닌 Lambda 환경변수로만 보관한다.
+const SLACK_WEBHOOK_TEST = process.env.SLACK_WEBHOOK_TEST || '';
+const SLACK_REDIRECT     = process.env.SLACK_REDIRECT === '1';
+const TEST_TAG           = process.env.TEST_TAG || '';
 const SEND_EMAIL_FN = process.env.SEND_EMAIL_FN || 'customer_portal_send-email';
 const lambda = new LambdaClient({});
 
@@ -71,11 +76,12 @@ export async function handler(event) {
 
   // ② Slack 발송 (best-effort)
   let slackOk = false;
-  if (SLACK_WEBHOOK) {
+  const slackHook = (SLACK_REDIRECT && SLACK_WEBHOOK_TEST) ? SLACK_WEBHOOK_TEST : SLACK_WEBHOOK;
+  if (slackHook) {
     try {
       const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false });
       const lines = [
-        '📩 *신규 계정 요청*',
+        (TEST_TAG ? TEST_TAG + ' ' : '') + '📩 *신규 계정 요청*',
         `• 성함: ${name}`,
         `• 기업명: ${company}`,
         `• 연락처: ${phone}`,
@@ -83,7 +89,7 @@ export async function handler(event) {
       ];
       if (message) lines.push(`• 내용: ${message}`);
       lines.push(`• 접수: ${now}`);
-      const r = await fetch(SLACK_WEBHOOK, {
+      const r = await fetch(slackHook, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: lines.join('\n') }),
       });

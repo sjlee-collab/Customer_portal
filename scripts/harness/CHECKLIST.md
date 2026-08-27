@@ -36,6 +36,7 @@
 
 ## 알림 안전 (슬랙·메일이 트리거되는 테스트) — 필수 규칙
 테스트로 나가는 **모든 슬랙·메일 알림은 "테스트용"임이 명시**돼야 한다. 세 겹으로 보장:
+0. **슬랙 테스트 채널**: `email-safe.sh on` → `SLACK_REDIRECT=1` → notify-handler·public-inquiry의 슬랙이 실 채널 대신 테스트 채널(`SLACK_WEBHOOK_TEST`)로만 발송. 본문에 `(원래 대상: 채널명)` 표기. 주소는 Lambda 환경변수에만 보관(레포에 없음).
 1. **메일 무발송**: `email-safe.sh on` → send-email `TEST_EMAIL_OVERRIDE=sink`로 전 메일을 sjlee 싱크로 리다이렉트(실 고객 무발송). 끝나면 **반드시 `off`**.
 2. **[테스트] 태그**: 같은 `on`이 send-email·notify-handler에 `TEST_TAG='[테스트]'`를 설정 → **메일 제목/슬랙 헤더에 `[테스트]` 접두**. (이 접두는 두 Lambda가 `TEST_TAG`를 읽도록 배포된 뒤 활성화 — 사용통계 기능 배포 시 포함. 그 전에도 아래 3으로 식별됨.)
 3. **데이터 라벨**: 테스트 데이터는 이름/제목에 `[테스트]` 라벨(lib/itest.py `tname()`/`temail()`) → 슬랙 본문 "제목:"·메일 제목에 그대로 노출. + admin 직접 insert(알림 없음) + 종료 시 정리.

@@ -30,6 +30,11 @@ const SLACK_WEBHOOK_EDU    = process.env.SLACK_WEBHOOK_EDU || '';
 const PORTAL_URL           = process.env.PORTAL_URL || 'https://support.bigxdata.io';
 // 테스트 모드 표기 — 하네스 email-safe.sh on 이면 TEST_TAG='[테스트]'가 설정되어 슬랙 헤더에 접두된다.
 const TEST_TAG             = process.env.TEST_TAG || '';
+// 테스트 모드 슬랙 리다이렉트 — email-safe.sh on 이 SLACK_REDIRECT=1을 설정하면
+// 모든 슬랙 알림이 실 채널 대신 테스트 채널(SLACK_WEBHOOK_TEST)로만 간다.
+// 웹훅 주소는 비밀값이라 레포에 두지 않고 Lambda 환경변수로만 보관한다.
+const SLACK_WEBHOOK_TEST   = process.env.SLACK_WEBHOOK_TEST || '';
+const SLACK_REDIRECT       = process.env.SLACK_REDIRECT === '1';
 
 const STATUS_KO = {
   received: '접수', classifying: '분류 중', assigned: '담당자 배정', in_progress: '처리 중',
@@ -42,18 +47,23 @@ const CATEGORY_KO = {
 const PRIORITY_KO = { normal: '일반', high: '빠른 확인 필요', critical: '긴급' };
 
 async function sendSlack(webhookUrl, recipientName, ticketId, eventType, header, body, results) {
-  if (!webhookUrl) {
+  // 테스트 모드면 실 채널로 보내지 않고 테스트 채널로 돌린다.
+  // 원래 어느 채널로 갈 알림이었는지는 본문에 남겨 확인할 수 있게 한다.
+  const redirected = SLACK_REDIRECT && SLACK_WEBHOOK_TEST;
+  const target     = redirected ? SLACK_WEBHOOK_TEST : webhookUrl;
+  const origin     = redirected ? ' _(원래 대상: '+recipientName+')_' : '';
+  if (!target) {
     results.push({ channel: 'slack', eventType, recipient: recipientName, ticketId, status: 'failure', errorMessage: `webhook not set (${recipientName})` });
     return;
   }
   try {
-    const res = await fetch(webhookUrl, {
+    const res = await fetch(target, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         blocks: [
           { type: 'divider' },
-          { type: 'section', text: { type: 'mrkdwn', text: `${TEST_TAG ? TEST_TAG + ' ' : ''}${header}\n${body}` } },
+          { type: 'section', text: { type: 'mrkdwn', text: `${TEST_TAG ? TEST_TAG + ' ' : ''}${header}${origin}\n${body}` } },
         ],
       }),
     });
