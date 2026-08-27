@@ -1830,7 +1830,7 @@ textarea{resize:vertical;min-height:100px;}
             <div style="padding:16px;text-align:center;color:var(--faint);grid-column:1/-1;">불러오는 중...</div>
           </div>
           <div style="font-size:11px;color:var(--muted);margin-bottom:6px;"><span style="display:inline-block;width:14px;height:2px;background:var(--accent);vertical-align:middle;"></span> 일별 DAU (최근 30일)</div>
-          <div id="stats-dau" style="min-height:150px;"></div>
+          <div id="stats-dau" style="min-height:176px;"></div>
           <div style="font-size:11px;color:var(--faint);margin-top:10px;">ⓘ 접속 지표는 로그인 이벤트 기록 시작 이후부터 누적됩니다(소급 집계 없음).</div>
         </div>
 
@@ -6986,15 +6986,24 @@ async function savePermissions() {
 
 function _renderStatsDau(series) {
   const el = document.getElementById('stats-dau'); if (!el) return;
-  if (!series.length) { el.innerHTML = '<div style="height:150px;display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:12px;">아직 로그인 기록이 없습니다</div>'; return; }
-  const W = Math.max(320, el.clientWidth || 900), H = 150, pL = 26, pR = 8, pT = 10, pB = 18, n = series.length, mx = Math.max(1, ...series.map(s => s.n));
+  if (!series.length) { el.innerHTML = '<div style="height:176px;display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:12px;">아직 로그인 기록이 없습니다</div>'; return; }
+  // H·pB를 키워(150→176, 18→30) 하단 날짜 축 라벨 공간을 확보한다.
+  const W = Math.max(320, el.clientWidth || 900), H = 176, pL = 26, pR = 8, pT = 10, pB = 30, n = series.length, mx = Math.max(1, ...series.map(s => s.n));
   const iw = W - pL - pR, ih = H - pT - pB;
   const X = i => n === 1 ? pL + iw / 2 : pL + i * (iw / (n - 1)), Y = v => pT + (1 - v / mx) * ih;
   const pts = series.map((s, i) => X(i) + ',' + Y(s.n)).join(' ');
   const area = 'M' + X(0) + ',' + (pT + ih) + ' L' + series.map((s, i) => X(i) + ',' + Y(s.n)).join(' L') + ' L' + X(n - 1) + ',' + (pT + ih) + ' Z';
   let gl = '', lab = '';
   [0, Math.round(mx / 2), mx].forEach(v => { const y = Y(v); gl += `<line x1="${pL}" y1="${y}" x2="${W - pR}" y2="${y}" stroke="var(--border)" stroke-width="1"/>`; lab += `<text x="2" y="${y + 3}" font-size="10" fill="var(--faint)">${v}</text>`; });
-  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block" role="img" aria-label="일별 DAU 추이">${gl}<path d="${area}" fill="var(--accent-l)"/><polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>${lab}</svg>`;
+  // 하단 날짜 축 — 약 6개 눈금(첫날·마지막날 포함), series[i].d('YYYY-MM-DD') → MM-DD.
+  let xlab = '';
+  const step = Math.max(1, Math.ceil((n - 1) / 5));
+  const idxSet = new Set(); for (let i = 0; i < n; i += step) idxSet.add(i); idxSet.add(n - 1);
+  [...idxSet].sort((a, b) => a - b).forEach(i => {
+    const x = X(i), mmdd = (series[i].d || '').slice(5), anchor = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
+    xlab += `<line x1="${x}" y1="${pT + ih}" x2="${x}" y2="${pT + ih + 4}" stroke="var(--border)" stroke-width="1"/><text x="${x}" y="${pT + ih + 16}" font-size="10" fill="var(--faint)" text-anchor="${anchor}">${mmdd}</text>`;
+  });
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block" role="img" aria-label="일별 DAU 추이">${gl}<path d="${area}" fill="var(--accent-l)"/><polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>${lab}${xlab}</svg>`;
 }
 
 async function loadStats() {
