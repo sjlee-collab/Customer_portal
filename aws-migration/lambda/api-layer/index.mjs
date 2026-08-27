@@ -108,6 +108,8 @@ function getAuthz(event) {
 }
 
 const STAFF_ROLES = new Set(['admin', 'sales', 'tech_support', 'education']);
+// 대리 등록 가능 역할 = 내부 + 전 스태프(고객 제외). 실제 허용은 여기에 더해 ticket_create 권한까지 확인.
+const PROXY_ROLES = new Set(['internal', 'admin', 'sales', 'tech_support', 'education']);
 
 // role_permissions 테이블의 실제 설정을 그대로 따른다(하드코딩 admin 체크가 아님) —
 // data-api 쪽과 동일한 기준으로, 권한 관리 화면에서 커스터마이징한 값이 진짜 기준이다.
@@ -192,11 +194,11 @@ async function createTicket(body, event) {
   const actor = await getUser(authz.userId);
   if (!actor) return json(400, { error: '존재하지 않는 사용자입니다' });
 
-  // ── 대리 등록(proxy) ── 내부(internal) 계정이 고객을 대신해 요청을 등록하는 경로.
+  // ── 대리 등록(proxy) ── 내부·스태프 계정이 고객을 대신해 요청을 등록하는 경로.
   // 평상시엔 created_by/company/contract를 절대 body로 안 믿지만(사칭 방지), 이 경로에 한해
-  // 역할(internal)·권한(ticket_create)·대상(role=customer)을 서버에서 검증한 뒤에만 적용한다.
-  // 요청은 대상 고객 명의로 남고(registered_by에 실제 등록자=내부직원을 스냅샷으로 기록).
-  const isProxy = authz.role === 'internal' && body.on_behalf_of && body.on_behalf_of !== authz.userId;
+  // 역할(내부+전 스태프)·권한(ticket_create)·대상(role=customer)을 서버에서 검증한 뒤에만 적용한다.
+  // 요청은 대상 고객 명의로 남고(registered_by에 실제 등록자를 스냅샷으로 기록). 고객 역할은 불가.
+  const isProxy = PROXY_ROLES.has(authz.role) && body.on_behalf_of && body.on_behalf_of !== authz.userId;
   let registeredBy = null, registeredByName = null;
   let requester; // 요청 명의(대리 등록이면 대상 고객, 아니면 본인)
   if (isProxy) {
@@ -283,7 +285,7 @@ async function createTicket(body, event) {
 function proxyAuthz(event) {
   const authz = getAuthz(event);
   if (!authz.userId) return { deny: json(401, { error: '인증이 필요합니다' }) };
-  if (authz.role !== 'internal') return { deny: json(403, { error: '대리 등록 권한이 없습니다' }) };
+  if (!PROXY_ROLES.has(authz.role)) return { deny: json(403, { error: '대리 등록 권한이 없습니다' }) };
   return { authz };
 }
 

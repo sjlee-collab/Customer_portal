@@ -1306,6 +1306,7 @@ textarea{resize:vertical;min-height:100px;}
       <div id="p-all-requests" class="page u-page">
         <div class="section-header">
           <div><div class="section-title">요청 관리</div><div class="section-sub">접수된 요청에 담당자를 지정하고 상태를 변경합니다. <span id="ar-count" style="color:var(--muted);font-weight:600;"></span></div></div>
+          <button class="btn btn-primary" id="ar-proxy-btn" data-show-roles="admin,sales,tech_support,education" data-perm="ticket_create" style="margin-left:auto;display:none;" onclick="openModal('modal-new')">+ 대리 등록</button>
         </div>
         <div class="filter-bar">
           <input class="search-box" id="ar-search" placeholder="요청 번호, 제목 검색..." oninput="renderAllTickets()">
@@ -4434,10 +4435,10 @@ function openModal(id) {
     const _co = (currentUser && currentUser.company) || '';
     if (companyEl) companyEl.value = _co;
     if (companyTxt) companyTxt.textContent = _co || '—';
-    // 대리 등록 패널 — 내부(internal) 계정에게만 노출. 이때 "본인 계정 자동입력" 안내는 숨긴다.
+    // 대리 등록 패널 — 내부+전 스태프에게 노출(고객 제외). 이때 "본인 계정 자동입력" 안내는 숨긴다.
     const proxyPanel = document.getElementById('nw-proxy');
     const selfNote = document.getElementById('nw-self-note');
-    if (currentUser?.role === 'internal') {
+    if (currentUser && currentUser.role !== 'customer') {
       if (proxyPanel) proxyPanel.style.display = '';
       if (selfNote) selfNote.style.display = 'none';
       pxyResetSelection();
@@ -5561,9 +5562,9 @@ async function submitRequest() {
   const orgSel = document.getElementById('nw-org');
   if (orgGroup && orgGroup.style.display !== 'none' && orgSel?.value) payload.unit_id = orgSel.value;
 
-  // 대리 등록(internal) — 대상 고객/담당자/조직을 함께 전송. created_by/company/contract는
-  // 서버가 대상 고객 기준으로 다시 채우므로 body 값은 무시된다(신뢰경계).
-  if (currentUser?.role === 'internal') {
+  // 대리 등록(내부+전 스태프) — 대상 고객/담당자/조직을 함께 전송. created_by/company/contract는
+  // 서버가 대상 고객 기준으로 다시 채우므로 body 값은 무시된다(신뢰경계). 고객 역할은 이 분기 안 탐.
+  if (currentUser && currentUser.role !== 'customer') {
     const onBehalf = document.getElementById('pxy-customer')?.value;
     const coId = document.getElementById('pxy-company-id')?.value;
     if (!coId || !onBehalf) {
@@ -6861,9 +6862,9 @@ const PERM_COLS = [
 const PERM_DEFAULT = {
   admin:        { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:1,library_view:1,library_manage:1,company_manage:1,user_manage:1,integration:1,notify_log:1,stats_view:1,permission:1 },
   internal:     { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:0,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0 },
-  sales:        { ticket_view:1,ticket_create:0,ticket_delete:1,ticket_manage:1,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0 },
-  tech_support: { ticket_view:1,ticket_create:0,ticket_delete:1,ticket_manage:1,library_view:1,library_manage:1,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0 },
-  education:    { ticket_view:1,ticket_create:0,ticket_delete:1,ticket_manage:0,library_view:1,library_manage:1,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0 },
+  sales:        { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:1,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0 },
+  tech_support: { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:1,library_view:1,library_manage:1,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0 },
+  education:    { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:0,library_view:1,library_manage:1,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0 },
   customer:     { ticket_view:1,ticket_create:1,ticket_delete:0,ticket_manage:0,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0 },
 };
 let permState = JSON.parse(JSON.stringify(PERM_DEFAULT));

@@ -21,7 +21,7 @@ def api_get_qs(path, qs, role, **c):
 
 def run():
     t = Checker('L1 대리 등록(proxy register)')
-    co_id = cust_id = int_id = None
+    co_id = cust_id = int_id = sales_id = None
     tickets = []
     perm_row = None; perm_orig = None
     try:
@@ -39,6 +39,11 @@ def run():
                                'role': 'internal', 'is_active': True}, role='admin').get('body')
         int_id = (intu[0] if isinstance(intu, list) else intu or {}).get('id')
         t.check('테스트 내부직원 생성', bool(int_id))
+
+        su = dpost('users', {'name': tname('대리영업'), 'email': temail('proxysales'),
+                             'role': 'sales', 'is_active': True}, role='admin').get('body')
+        sales_id = (su[0] if isinstance(su, list) else su or {}).get('id')
+        t.check('테스트 스태프(영업) 생성', bool(sales_id))
 
         # internal의 ticket_create 권한 보장(없으면 대리 등록 403)
         rows = dget('role_permissions', {'select': 'id,enabled', 'role': 'eq.internal', 'feature_key': 'eq.ticket_create'}, role='admin').get('body') or []
@@ -79,6 +84,18 @@ def run():
         t.check('company_id = 고객 회사', tk.get('company_id') == co_id, 'company_id=%s' % tk.get('company_id'))
         t.check('담당자 = 선택 스태프', tk.get('assigned_to') == staff_id, 'assigned_to=%s' % tk.get('assigned_to'))
 
+        # ── 스태프(영업)도 대리 등록 가능 (확대안: 내부 + 전 스태프) ──
+        sb = api_get_qs('/proxy/bootstrap', {}, role='sales', userId=sales_id)
+        t.check('bootstrap 스태프(영업) 200', sb.get('status') == 200, 'status=%s' % sb.get('status'))
+        rs = api('POST', '/tickets', {'title': tname('대리요청-영업'), 'category': 'customer',
+                                      'description': 'staff proxy', 'on_behalf_of': cust_id,
+                                      'assigned_to': staff_id}, role='sales', userId=sales_id)
+        tks = (rs.get('body') or {}).get('ticket') or {}
+        if tks.get('id'): tickets.append(tks['id'])
+        t.check('스태프 대리 등록 201', rs.get('status') == 201, 'status=%s body=%s' % (rs.get('status'), rs.get('body')))
+        t.check('스태프: created_by = 고객', tks.get('created_by') == cust_id, 'created_by=%s' % tks.get('created_by'))
+        t.check('스태프: registered_by = 영업직원', tks.get('registered_by') == sales_id, 'registered_by=%s' % tks.get('registered_by'))
+
         # ── 신뢰경계: 고객이 on_behalf_of를 줘도 무시(사칭 방지) ──
         r2 = api('POST', '/tickets', {'title': tname('비대리요청'), 'category': 'customer',
                                       'description': 'boundary test', 'on_behalf_of': int_id},
@@ -92,6 +109,7 @@ def run():
         for tid in tickets: wipe_ticket(tid)
         if cust_id: ddel('users', cust_id, role='admin')
         if int_id: ddel('users', int_id, role='admin')
+        if sales_id: ddel('users', sales_id, role='admin')
         if co_id: ddel('companies', co_id, role='admin')
         if perm_row and perm_orig is False:  # 켰던 경우만 원복
             dpatch('role_permissions', perm_row['id'], {'enabled': False}, role='admin')
