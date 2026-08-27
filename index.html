@@ -3332,6 +3332,13 @@ function applyRoleUI(role) {
     el.style.display = (roleOk && permOk(el)) ? '' : 'none';
   });
 
+  // 요청 등록 버튼 라벨 — 내부 계정은 고객 대신 등록(대리)만 하므로 '대리 등록'으로 표기.
+  // 고객은 '새 요청 등록'(본인 접수) 유지. 스태프 요청관리 버튼(#ar-proxy-btn)은 항상 '대리 등록'.
+  document.querySelectorAll('button[onclick*="modal-new"]').forEach(b => {
+    if (b.id === 'ar-proxy-btn') return;
+    b.textContent = (role === 'internal') ? '+ 대리 등록' : '+ 새 요청 등록';
+  });
+
   // 상단 역할 뱃지 업데이트
   const ROLE_LABELS = {
     customer:     { text: '고객', cls: 'b-accent' },
