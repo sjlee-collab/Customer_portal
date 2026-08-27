@@ -55,6 +55,23 @@
 - 관련 테이블(총 16개, `data-api`의 `ALLOWED_TABLES` 기준): `companies`, `company_contracts`, `company_licenses`, `users`, `tickets`, `log_notification`, `content_documents`, `ticket_history`, `log_integration`, `ticket_replies`, `ticket_memos`, `ticket_attachments`, `content_notices`, `role_permissions`, `org_units`, `user_org_units`
 - `org_units`(조직)·`user_org_units`(사용자↔조직 N:M)·`ticket_memos`·`log_integration`은 **스태프 전용**이라 고객/내부 역할로는 조회조차 안 된다(`data-api`의 `STAFF_ONLY_TABLES`). 고객 화면에서 조직 정보가 필요하면 JWT의 `unit_ids` 클레임과 `tickets.unit_name` 스냅샷을 쓴다.
 
+### 변경 하네스 (운영 변경 시 표준 절차) — `scripts/harness/`
+운영 백엔드가 dev와 공유되고 병렬 세션이 같은 워크트리를 쓰기 때문에, 변경은 아래 루프를 따른다.
+설계·상세는 **[scripts/harness/README.md](scripts/harness/README.md)**, 변경 유형별 절차는 **[scripts/harness/CHECKLIST.md](scripts/harness/CHECKLIST.md)** 에 있다. 작업 전 이 두 문서를 먼저 읽을 것.
+
+표준 루프: 편집 → 프론트 스모크 → (백엔드면) `deploy-fn.sh <fn>` → (DDL이면 마이그레이션 경로) → `run-regression.sh` → `guard-commit.sh <파일…>` → commit → `promote.sh`
+
+| 명령 | 용도 |
+|---|---|
+| `bash scripts/harness/run-regression.sh` | 회귀 스위트 전체(권한/격리·요청삭제·고객 전 기능) |
+| `bash scripts/harness/deploy-fn.sh <fn>` | Lambda 안전 재배포(drift 진단→배포→스모크). api-layer 소스 4개 동봉 문제를 자동 처리 |
+| `bash scripts/harness/guard-commit.sh [파일…]` | 커밋 전 clobber 점검 — 병렬 세션 변경이 섞였는지 확인 |
+| `bash scripts/harness/promote.sh` | main → dev/Design/QA ff 전파 + SHA 일치 검증 |
+| `bash scripts/harness/email-safe.sh on\|off\|status` | 테스트 중 메일 무발송(싱크 리다이렉트) + 슬랙·메일 `[테스트]` 태그. **끝나면 반드시 off** |
+| `bash scripts/harness/sweep.sh [--delete]` | `[테스트]` 라벨 잔여 데이터 청소 |
+
+**테스트 데이터 규칙(필수)**: 하네스가 만드는 모든 데이터는 이름/제목에 `[테스트]` 라벨을 붙인다(`lib/itest.py`의 `tname()`/`temail()`). 실 고객에게 메일이 가면 안 되므로 주소는 `temail()`의 sink를 쓴다. 정리는 각 테스트의 `finally` + `sweep.sh`이며, 라벨 없는 운영 데이터는 절대 건드리지 않는다.
+
 ### 스모크 테스트(회귀 안전망)
 배포/리팩터 후 핵심 경로가 살아있는지 빠르게(비파괴) 점검한다. `amplify.yml`이 `index.html`만 배포하므로 `scripts/`는 웹에 노출되지 않는다.
 - **백엔드**: `bash scripts/smoke.sh` (비인증 경로) / `SMOKE_EMAIL=.. SMOKE_PASSWORD=.. bash scripts/smoke.sh` (로그인·조회까지). 로그인 엔드포인트·계정신청(허니팟 비파괴)·인증보호·(선택)티켓조회 확인, 실패 시 종료코드 1.
