@@ -303,8 +303,6 @@ textarea{resize:vertical;min-height:100px;}
 .tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
 .list-scroll{max-height:560px;overflow-y:auto;}
 .list-scroll thead th{position:sticky;top:0;background:var(--surface2);z-index:3;will-change:transform;backface-visibility:hidden;}
-/* 로그인 이력: 목록만 카드 안에서 스크롤(머리글 고정) — 검색·필터·페이지네이션은 위/아래 고정 */
-#lh-scroll{max-height:56vh;overflow-y:auto;}
 /* 시안의 표 머리는 대문자 라벨 대신 회색 바탕 + 보통 굵기 텍스트를 쓴다. */
 .tbl th{font-size:11.5px;font-weight:600;color:var(--muted);background:var(--surface2);padding:10px 12px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;}
 .th-filter{font-size:11.5px;font-weight:600;color:var(--muted);border:none;background:transparent;cursor:pointer;padding:0;margin:0;width:100%;appearance:auto;-webkit-appearance:auto;}
@@ -1853,7 +1851,7 @@ textarea{resize:vertical;min-height:100px;}
               <option value="0">전체 기간</option><option value="7">최근 7일</option><option value="30">최근 30일</option><option value="90">최근 90일</option>
             </select>
           </div>
-          <div class="tbl-scroll list-scroll" id="lh-scroll"><table class="tbl">
+          <div class="tbl-scroll"><table class="tbl">
             <thead><tr><th>사용자</th><th>역할</th><th>고객사</th><th style="text-align:right;">로그인 일시</th></tr></thead>
             <tbody id="lh-tbody"><tr><td colspan="4" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr></tbody>
           </table></div>
@@ -7040,7 +7038,7 @@ async function loadStats() {
 
 // ── 로그인 이력 (GET /stats/login-history, 서버 필터·페이지네이션) ──
 let _lhOffset = 0;
-const LH_PAGE_SIZE = 50;
+const LH_PAGE_SIZE = 12;
 const LH_ROLE_LABEL = { customer:'고객', internal:'내부', tech_support:'기술지원', sales:'영업', education:'교육', admin:'관리자' };
 
 function applyLhFilter() { _lhOffset = 0; loadLoginHistory(); }
