@@ -245,6 +245,10 @@ button,input,select,textarea{font-family:inherit;}
 .b-blue{background:#EFF6FF;color:#2563EB;border-color:#BFDBFE;}
 /* 대리 등록 배지 — 내부직원이 고객 대신 남긴 요청. 상태/역할 배지와 겹치지 않는 인디고 아웃라인. */
 .proxy-badge{display:inline-flex;align-items:center;font-size:10px;font-weight:600;line-height:1.5;padding:0 6px;border-radius:99px;background:var(--accent-l);color:var(--accent);border:1px solid #C7D2FE;vertical-align:middle;}
+/* 요청 유형 토글(일반/대리) */
+.nw-seg{display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:3px;gap:3px;}
+.nw-seg button{flex:1;height:34px;border:none;border-radius:7px;background:transparent;color:var(--muted);font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;}
+.nw-seg button.on{background:var(--surface);color:var(--accent);box-shadow:0 1px 3px rgba(20,20,50,.12);}
 /* 대리 등록 모달 — 콤보박스 필드/드롭다운 */
 .pxy-fld label{display:block;font-size:11.5px;color:var(--muted);margin-bottom:4px;}
 .pxy-inp{position:relative;}
@@ -1306,7 +1310,7 @@ textarea{resize:vertical;min-height:100px;}
       <div id="p-all-requests" class="page u-page">
         <div class="section-header">
           <div><div class="section-title">요청 관리</div><div class="section-sub">접수된 요청에 담당자를 지정하고 상태를 변경합니다. <span id="ar-count" style="color:var(--muted);font-weight:600;"></span></div></div>
-          <button class="btn btn-primary" id="ar-proxy-btn" data-show-roles="admin,sales,tech_support,education" data-perm="ticket_create" style="margin-left:auto;display:none;" onclick="openModal('modal-new')">+ 대리 등록</button>
+          <button class="btn btn-primary" id="ar-proxy-btn" data-show-roles="admin,sales,tech_support,education" data-perm="ticket_create" style="margin-left:auto;display:none;" onclick="openModal('modal-new')">+ 새 요청 등록</button>
         </div>
         <div class="filter-bar">
           <input class="search-box" id="ar-search" placeholder="요청 번호, 제목 검색..." oninput="renderAllTickets()">
@@ -2094,7 +2098,14 @@ textarea{resize:vertical;min-height:100px;}
     </div>
     <div style="padding:18px 22px;">
       <div class="form-grid" style="gap:11px 16px;">
-        <!-- 대리 등록 대상 — 내부(internal) 계정에게만 노출. 고객 명의로 요청을 접수한다. -->
+        <!-- 요청 유형 토글 — 내부+전 스태프에게만 노출. 고객은 숨김(일반 요청만). -->
+        <div class="form-group span2" id="nw-type-seg" style="display:none;">
+          <div class="nw-seg">
+            <button type="button" class="on" data-mode="self" onclick="setReqType('self')">📝 일반 요청</button>
+            <button type="button" data-mode="proxy" onclick="setReqType('proxy')">👤 대리 요청</button>
+          </div>
+        </div>
+        <!-- 대리 등록 대상 — 대리 요청 토글 선택 시에만 노출. 고객 명의로 요청을 접수한다. -->
         <div class="form-group span2" id="nw-proxy" style="display:none;">
           <div style="background:var(--accent-l);border:1px solid #C7D2FE;border-radius:var(--r-md);padding:12px 14px;">
             <div style="font-size:11.5px;font-weight:800;color:var(--accent);margin-bottom:10px;">👤 대리 등록 대상 <span style="font-weight:500;color:var(--muted);">· 고객 명의로 접수됩니다</span></div>
@@ -3332,13 +3343,6 @@ function applyRoleUI(role) {
     el.style.display = (roleOk && permOk(el)) ? '' : 'none';
   });
 
-  // 요청 등록 버튼 라벨 — 내부 계정은 고객 대신 등록(대리)만 하므로 '대리 등록'으로 표기.
-  // 고객은 '새 요청 등록'(본인 접수) 유지. 스태프 요청관리 버튼(#ar-proxy-btn)은 항상 '대리 등록'.
-  document.querySelectorAll('button[onclick*="openModal(\'modal-new\')"]').forEach(b => {
-    if (b.id === 'ar-proxy-btn') return;
-    b.textContent = (role === 'internal') ? '+ 대리 등록' : '+ 새 요청 등록';
-  });
-
   // 상단 역할 뱃지 업데이트
   const ROLE_LABELS = {
     customer:     { text: '고객', cls: 'b-accent' },
@@ -4442,17 +4446,19 @@ function openModal(id) {
     const _co = (currentUser && currentUser.company) || '';
     if (companyEl) companyEl.value = _co;
     if (companyTxt) companyTxt.textContent = _co || '—';
-    // 대리 등록 패널 — 내부+전 스태프에게 노출(고객 제외). 이때 "본인 계정 자동입력" 안내는 숨긴다.
-    const proxyPanel = document.getElementById('nw-proxy');
-    const selfNote = document.getElementById('nw-self-note');
+    // 요청 유형 토글 — 내부+전 스태프에게만 노출(고객 제외). 기본은 '일반 요청'(본인 명의).
+    // 대리 패널은 토글에서 '대리 요청'을 골랐을 때만 setReqType가 펼친다.
+    const typeSeg = document.getElementById('nw-type-seg');
     if (currentUser && currentUser.role !== 'customer') {
-      if (proxyPanel) proxyPanel.style.display = '';
-      if (selfNote) selfNote.style.display = 'none';
-      pxyResetSelection();
-      pxyBootstrap();
+      if (typeSeg) typeSeg.style.display = '';
+      setReqType('self'); // 기본 일반
     } else {
+      if (typeSeg) typeSeg.style.display = 'none';
+      const proxyPanel = document.getElementById('nw-proxy');
+      const selfNote = document.getElementById('nw-self-note');
       if (proxyPanel) proxyPanel.style.display = 'none';
       if (selfNote) selfNote.style.display = '';
+      window._nwReqMode = 'self';
     }
     // 요청 조직 선택기: 조직 2개 이상 배정된 고객에게만 노출(1개면 서버가 대표로 자동 스냅샷)
     const orgGroup = document.getElementById('nw-org-group');
@@ -5420,6 +5426,20 @@ function handleFileDrop(event) {
   _addAttachFiles(event.dataTransfer.files);
 }
 
+// 요청 유형 토글 — 'self'(일반, 본인 명의) / 'proxy'(대리, 고객 명의). 내부+스태프만 전환 가능.
+// submitRequest는 window._nwReqMode === 'proxy'일 때만 대리 필드를 전송한다.
+window._nwReqMode = 'self';
+function setReqType(mode) {
+  window._nwReqMode = mode;
+  const isProxy = mode === 'proxy';
+  const proxyPanel = document.getElementById('nw-proxy');
+  const selfNote = document.getElementById('nw-self-note');
+  if (proxyPanel) proxyPanel.style.display = isProxy ? '' : 'none';
+  if (selfNote) selfNote.style.display = isProxy ? 'none' : '';
+  document.querySelectorAll('#nw-type-seg button').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
+  if (isProxy) { pxyResetSelection(); pxyBootstrap(); }
+}
+
 // ── 대리 등록(내부 계정) — 고객사/고객/조직/담당자 로드 + 콤보박스 ──
 // 내부(internal)는 data-api로 회사/사용자/조직 목록을 못 읽으므로 api-layer 전용 엔드포인트
 // (/proxy/bootstrap, /proxy/customers)로 최소 정보만 받아 드롭다운을 채운다.
@@ -5569,9 +5589,10 @@ async function submitRequest() {
   const orgSel = document.getElementById('nw-org');
   if (orgGroup && orgGroup.style.display !== 'none' && orgSel?.value) payload.unit_id = orgSel.value;
 
-  // 대리 등록(내부+전 스태프) — 대상 고객/담당자/조직을 함께 전송. created_by/company/contract는
-  // 서버가 대상 고객 기준으로 다시 채우므로 body 값은 무시된다(신뢰경계). 고객 역할은 이 분기 안 탐.
-  if (currentUser && currentUser.role !== 'customer') {
+  // 대리 요청 모드일 때만 대상 고객/담당자/조직을 함께 전송(토글에서 '대리 요청' 선택 시).
+  // created_by/company/contract는 서버가 대상 고객 기준으로 다시 채우므로 body 값은 무시된다(신뢰경계).
+  // 일반 요청 모드면 on_behalf_of를 안 보내므로 서버가 본인 명의(created_by=본인)로 등록한다.
+  if (window._nwReqMode === 'proxy') {
     const onBehalf = document.getElementById('pxy-customer')?.value;
     const coId = document.getElementById('pxy-company-id')?.value;
     if (!coId || !onBehalf) {
