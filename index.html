@@ -245,6 +245,10 @@ button,input,select,textarea{font-family:inherit;}
 .b-blue{background:#EFF6FF;color:#2563EB;border-color:#BFDBFE;}
 /* 대리 등록 배지 — 내부직원이 고객 대신 남긴 요청. 상태/역할 배지와 겹치지 않는 인디고 아웃라인. */
 .proxy-badge{display:inline-flex;align-items:center;font-size:10px;font-weight:600;line-height:1.5;padding:0 6px;border-radius:99px;background:var(--accent-l);color:var(--accent);border:1px solid #C7D2FE;vertical-align:middle;}
+/* 사용 통계 탭(접속 활동 / 계정) — 밑줄형 */
+.stab-bar{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:16px;}
+.stab-bar button{appearance:none;border:none;background:none;font-family:inherit;font-size:13.5px;font-weight:700;color:var(--muted);padding:10px 16px;cursor:pointer;position:relative;top:1px;border-bottom:2px solid transparent;}
+.stab-bar button.on{color:var(--accent);border-bottom-color:var(--accent);}
 /* 요청 유형 토글(일반/대리) */
 .nw-seg{display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:3px;gap:3px;}
 .nw-seg button{flex:1;height:34px;border:none;border-radius:7px;background:transparent;color:var(--muted);font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;}
@@ -1824,6 +1828,13 @@ textarea{resize:vertical;min-height:100px;}
           <button class="btn btn-outline btn-sm" onclick="loadStats()"><span id="stats-refresh-ico">↻</span> 새로고침</button>
         </div>
 
+        <!-- 사용 통계 탭 (접속 활동 / 계정) -->
+        <div class="stab-bar" id="stats-tabs">
+          <button type="button" class="on" data-stab="act" onclick="switchStatsTab('act')">📈 접속 활동</button>
+          <button type="button" data-stab="acct" onclick="switchStatsTab('acct')">👥 계정</button>
+        </div>
+
+        <div class="stab-panel" id="stab-act">
         <div class="card">
           <div class="card-title">접속 활동 <span style="font-size:11px;color:var(--faint);font-weight:400;">고유 로그인 사용자</span></div>
           <div id="stats-active" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:14px;">
@@ -1833,7 +1844,9 @@ textarea{resize:vertical;min-height:100px;}
           <div id="stats-dau" style="min-height:176px;"></div>
           <div style="font-size:11px;color:var(--faint);margin-top:10px;">ⓘ 접속 지표는 로그인 이벤트 기록 시작 이후부터 누적됩니다(소급 집계 없음).</div>
         </div>
+        </div><!-- /stab-act -->
 
+        <div class="stab-panel" id="stab-acct" style="display:none;">
         <div class="card">
           <div class="card-title">계정 현황</div>
           <div id="stats-accounts"></div>
@@ -1863,6 +1876,7 @@ textarea{resize:vertical;min-height:100px;}
           </div>
           <div style="font-size:11px;color:var(--faint);margin-top:10px;">ⓘ 로그인 이력은 기록 시작 이후부터 누적됩니다. 삭제된 사용자는 "(삭제된 사용자)"로 표시됩니다.</div>
         </div>
+        </div><!-- /stab-acct -->
       </div>
 
       <!-- ══ 연동 관리 ══ -->
@@ -7004,6 +7018,14 @@ function _renderStatsDau(series) {
     xlab += `<line x1="${x}" y1="${pT + ih}" x2="${x}" y2="${pT + ih + 4}" stroke="var(--border)" stroke-width="1"/><text x="${x}" y="${pT + ih + 16}" font-size="10" fill="var(--faint)" text-anchor="${anchor}">${mmdd}</text>`;
   });
   el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block" role="img" aria-label="일별 DAU 추이">${gl}<path d="${area}" fill="var(--accent-l)"/><polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>${lab}${xlab}</svg>`;
+}
+
+// 사용 통계 탭 전환 — 접속 활동(act) / 계정(acct). 데이터는 loadStats가 한 번에 로드하므로 표시만 토글.
+function switchStatsTab(tab) {
+  document.querySelectorAll('#stats-tabs button').forEach(b => b.classList.toggle('on', b.dataset.stab === tab));
+  const act = document.getElementById('stab-act'), acct = document.getElementById('stab-acct');
+  if (act) act.style.display = tab === 'act' ? '' : 'none';
+  if (acct) acct.style.display = tab === 'acct' ? '' : 'none';
 }
 
 async function loadStats() {
