@@ -1867,10 +1867,8 @@ textarea{resize:vertical;min-height:100px;}
         </div><!-- /stab-act -->
 
         <div class="stab-panel" id="stab-acct" style="display:none;">
-        <div class="card">
-          <div class="card-title">계정 현황</div>
-          <div id="stats-accounts"></div>
-        </div>
+        <div class="card-title" style="margin-bottom:12px;">계정 현황</div>
+        <div id="stats-accounts" style="margin-bottom:16px;"></div>
 
         <div class="card">
           <div class="card-title" style="display:flex;align-items:baseline;gap:8px;">사용자 로그인 이력 <span style="font-size:11px;color:var(--faint);font-weight:400;">로그인 이벤트 전체</span></div>
@@ -7141,13 +7139,19 @@ async function loadStats() {
     // ── 계정 현황 ──
     const cust = users.filter(u => u.role === 'customer');
     const withLogin = cust.filter(u => u.last_login).length;
-    document.getElementById('stats-accounts').innerHTML = `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-        <div><div style="font-size:11px;color:var(--faint);">전체 계정</div><div style="font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;">${users.length}</div></div>
-        <div><div style="font-size:11px;color:var(--faint);">고객 계정</div><div style="font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;">${cust.length}</div></div>
-        <div><div style="font-size:11px;color:var(--faint);">로그인 이력(고객)</div><div style="font-size:20px;font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums;">${withLogin}</div></div>
-        <div><div style="font-size:11px;color:var(--faint);">미접속(고객)</div><div style="font-size:20px;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums;">${cust.length - withLogin}</div></div>
-      </div>`;
+    // 각 항목을 별도 카드로 가로 4열(좁으면 자동 접힘)
+    const _acctCards = [
+      ['전체 계정', users.length, ''],
+      ['고객 계정', cust.length, ''],
+      ['로그인 이력(고객)', withLogin, 'var(--accent)'],
+      ['미접속(고객)', cust.length - withLogin, 'var(--muted)'],
+    ];
+    document.getElementById('stats-accounts').innerHTML =
+      `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;">` +
+      _acctCards.map(([k, v, c]) => `<div class="card" style="padding:16px 18px;">
+        <div style="font-size:12px;color:var(--muted);">${k}</div>
+        <div style="font-size:28px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.01em;margin-top:10px;${c ? 'color:' + c + ';' : ''}">${v}</div></div>`).join('') +
+      `</div>`;
 
     // ── 로그인 이력 ──
     _lhOffset = 0;
