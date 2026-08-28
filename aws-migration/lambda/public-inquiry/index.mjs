@@ -51,6 +51,19 @@ export async function handler(event) {
   let data;
   try { data = JSON.parse(event.body || '{}'); } catch { return resp(400, { ok: false, error: 'bad json' }); }
 
+  // 이메일 중복 확인(계정 신청 폼) — users에 이미 있는 이메일이면 안내용. 대소문자 무시.
+  if (data.action === 'check-email') {
+    const em = (typeof data.email === 'string' ? data.email.trim().slice(0, 150) : '');
+    if (!em || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) return resp(200, { ok: true, exists: false });
+    try {
+      const rows = await query('select 1 from public.users where lower(email) = lower($1) limit 1', [em]);
+      return resp(200, { ok: true, exists: (rows || []).length > 0 });
+    } catch (e) {
+      console.error('[inquiry] check-email 실패', e);
+      return resp(200, { ok: true, exists: false }); // 오류 시 신청을 막지 않는다
+    }
+  }
+
   // 허니팟: 사람에겐 보이지 않는 필드가 채워졌으면 봇으로 간주하고 조용히 성공 처리.
   if (data.website) return resp(200, { ok: true });
 
@@ -63,6 +76,12 @@ export async function handler(event) {
 
   if (!name || !company || !phone || !email) return resp(400, { ok: false, error: 'missing required fields' });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return resp(400, { ok: false, error: 'invalid email' });
+
+  // 이미 가입된 이메일이면 계정 신청을 막는다(프론트 버튼잠금의 서버측 방어).
+  try {
+    const dup = await query('select 1 from public.users where lower(email) = lower($1) limit 1', [email]);
+    if ((dup || []).length) return resp(409, { ok: false, exists: true, error: 'already registered' });
+  } catch (e) { console.error('[inquiry] 중복확인 실패', e); }
 
   // ① DB 기록 (실패해도 Slack은 시도)
   let dbOk = false;

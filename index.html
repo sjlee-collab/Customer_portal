@@ -843,7 +843,8 @@ textarea{resize:vertical;min-height:100px;}
         </div>
         <div>
           <label style="font-size:11.5px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;">이메일 <span style="color:#d64545;">*</span></label>
-          <input id="inq-email" type="email" maxlength="150" placeholder="hong@company.com" style="width:100%;height:38px;border:1px solid var(--border-md,#d3d6df);border-radius:8px;padding:0 12px;font-size:13px;box-sizing:border-box;">
+          <input id="inq-email" type="email" maxlength="150" placeholder="hong@company.com" oninput="clearInqEmailError()" onblur="checkInquiryEmail()" style="width:100%;height:38px;border:1px solid var(--border-md,#d3d6df);border-radius:8px;padding:0 12px;font-size:13px;box-sizing:border-box;">
+          <div id="inq-email-msg" style="display:none;margin-top:6px;font-size:11.5px;color:#d64545;line-height:1.5;">⚠ 이미 등록된 이메일입니다. 로그인하거나 비밀번호 재설정을 이용해 주세요.</div>
         </div>
         <!-- 허니팟: 사람에겐 안 보임, 봇이 채우면 서버가 무시 -->
         <input id="inq-website" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
@@ -2868,6 +2869,34 @@ function formatInquiryPhone(el) {
     : v.slice(0, 3) + '-' + v.slice(3, 7) + '-' + v.slice(7);
 }
 
+// 계정 신청 이메일 중복 확인 — 이미 users에 있으면 안내 문구 + 신청 버튼 잠금.
+let _inqEmailDup = false;
+function clearInqEmailError() {
+  _inqEmailDup = false;
+  const el = document.getElementById('inq-email'), msg = document.getElementById('inq-email-msg'), btn = document.getElementById('inq-submit');
+  if (el) el.style.borderColor = '';
+  if (msg) msg.style.display = 'none';
+  if (btn) btn.disabled = false;
+}
+async function checkInquiryEmail() {
+  const el = document.getElementById('inq-email'); const email = (el?.value || '').trim();
+  clearInqEmailError();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+  try {
+    const res = await fetch(`${API_BASE}/public/account-inquiry`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'check-email', email }),
+    });
+    const j = await res.json().catch(() => null);
+    if (res.ok && j && j.exists) {
+      _inqEmailDup = true;
+      if (el) el.style.borderColor = '#d64545';
+      const msg = document.getElementById('inq-email-msg'); if (msg) msg.style.display = '';
+      const btn = document.getElementById('inq-submit'); if (btn) btn.disabled = true;
+    }
+  } catch (e) { /* 네트워크 오류 시 신청을 막지 않는다 */ }
+}
+
 async function submitAccountInquiry() {
   const name    = document.getElementById('inq-name')?.value.trim();
   const company = document.getElementById('inq-company')?.value.trim();
@@ -2876,6 +2905,7 @@ async function submitAccountInquiry() {
   const website = document.getElementById('inq-website')?.value || ''; // 허니팟
   if (!name || !company || !phone || !email) { showToast('성함·기업명·연락처·이메일을 모두 입력해 주세요.', true); return; }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('이메일 형식을 확인해 주세요.', true); return; }
+  if (_inqEmailDup) { showToast('이미 등록된 이메일입니다.', true); return; }
 
   const btn = document.getElementById('inq-submit');
   if (btn) { btn.disabled = true; btn.textContent = '보내는 중...'; }
@@ -2888,14 +2918,22 @@ async function submitAccountInquiry() {
     if (res.ok && j?.ok) {
       showToast('문의가 접수되었습니다. 담당자가 확인 후 연락드립니다.');
       ['inq-name', 'inq-company', 'inq-phone', 'inq-email'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+      clearInqEmailError();
       closeModal('modal-contact-support');
+    } else if (j && j.exists) {
+      // 서버측 중복 방어(프론트 우회 대비) — 안내 문구 + 버튼 잠금.
+      _inqEmailDup = true;
+      const el = document.getElementById('inq-email'); if (el) el.style.borderColor = '#d64545';
+      const msg = document.getElementById('inq-email-msg'); if (msg) msg.style.display = '';
+      showToast('이미 등록된 이메일입니다.', true);
     } else {
       showToast('접수에 실패했습니다. 잠시 후 다시 시도해 주세요.', true);
     }
   } catch (e) {
     showToast('네트워크 오류로 접수하지 못했습니다.', true);
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '계정 신청'; }
+    // 중복 이메일이면 버튼을 다시 잠근 상태로 둔다.
+    if (btn) { btn.disabled = _inqEmailDup; btn.textContent = '계정 신청'; }
   }
 }
 
