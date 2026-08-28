@@ -7321,7 +7321,7 @@ async function loadNotifyLog() {
   }
 
   let q = sb.from('log_notification')
-    .select(`id, ticket_id, channel, event_type, recipient, status, error_message, sent_at, created_at, retry_count,
+    .select(`id, ticket_id, channel, event_type, recipient, status, error_message, sent_at, created_at, retry_count, content,
              ticket:ticket_id(ticket_number, title, category, priority, created_at, assigned_to_name, company_name, created_by_name)`)
     .order('created_at', { ascending: false })
     .limit(200);
@@ -7453,7 +7453,14 @@ async function loadNotifyLog() {
           <div style="font-size:12px;color:var(--red-d);white-space:pre-wrap;word-break:break-all;background:var(--red-l);border-radius:var(--r-sm);padding:8px 10px;">${escHtml(n.error_message || '사유 정보 없음')}</div>
         </div>`
       : '';
-    const detailRows = ticketDetailRows + failReasonBlock;
+    // 아웃룩(email) 알림이고 발송 본문(body)이 저장돼 있으면 "실제 보낸 메일"을 그대로 보여준다.
+    // 저장 HTML을 그대로 화면에 넣으면 XSS 위험이 있어 sandbox iframe(권한 전무)에 srcdoc로 격리한다.
+    // srcdoc 속성값이라 escHtml(&,<,>)에 더해 큰따옴표(")까지 이스케이프해야 속성이 깨지지 않는다.
+    const mailPreview = (n.channel === 'email' && n.content)
+      ? `<div style="font-size:11px;color:var(--faint);margin-bottom:8px;">보낸 메일 내용</div>
+         <iframe sandbox title="발송 메일 미리보기" srcdoc="${escHtml(n.content).replace(/"/g,'&quot;')}" style="width:100%;height:460px;border:1px solid var(--border);border-radius:8px;background:#fff;"></iframe>`
+      : '';
+    const detailRows = (mailPreview || ticketDetailRows) + failReasonBlock;
 
     const isInternal = isInternalRecipient(n);
     const accountTypeBadge = isInternal

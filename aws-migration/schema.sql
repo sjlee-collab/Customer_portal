@@ -129,6 +129,7 @@ create table public.log_notification (
   retry_count       integer not null default 0
 );
 comment on table public.log_notification is 'Slack / Outlook 알림 발송 이력';
+comment on column public.log_notification.content is '발송한 메일 본문 HTML(이메일 알림 전용, 알림 로그 상세 미리보기용). 슬랙은 NULL';
 
 -- ── 6. content_documents ──
 create table public.content_documents (

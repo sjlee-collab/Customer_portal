@@ -87,9 +87,12 @@ async function sendAndLog(to, subject, html, ticketId, eventType, results) {
   const actualHtml = withTestBanner(html, to);
   try {
     await sendMail(actualTo, actualSubject, actualHtml);
-    results.push({ channel: 'email', eventType, recipient: to, subject, ticketId, status: 'sent' });
+    // 알림 로그 상세에서 "실제 보낸 메일"을 그대로 보여주기 위해 생성한 본문 HTML을 함께 반환한다.
+    // (log_notification.content 컬럼에 저장 — 기존 미사용 컬럼 재사용) 테스트 배너는 운영에선 없고
+    // 있어도 저장 불필요하므로 순수 html을 넘긴다.
+    results.push({ channel: 'email', eventType, recipient: to, subject, ticketId, status: 'sent', content: html });
   } catch (err) {
-    results.push({ channel: 'email', eventType, recipient: to, subject, ticketId, status: 'failed', errorMessage: String(err) });
+    results.push({ channel: 'email', eventType, recipient: to, subject, ticketId, status: 'failed', errorMessage: String(err), content: html });
   }
 }
 
