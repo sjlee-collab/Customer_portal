@@ -720,9 +720,18 @@ async function statsActiveUsers(event) {
   const series = await query(
     `select to_char((created_at at time zone 'Asia/Seoul')::date, 'YYYY-MM-DD') d, count(distinct user_id)::int n
        from login_events where created_at >= now() - interval '30 days' group by 1 order by 1`);
+  // 총 로그인 횟수(중복 포함, 30일) — DAU/WAU/MAU(고유)와 달리 재접속 빈도를 본다.
+  const [tot] = await query(
+    `select count(*)::int n from login_events where created_at >= now() - interval '30 days'`);
+  // 역할별 고유 접속자(30일) — 접속 비중 도넛용. login_events.role(로그인 시점 스냅샷) 기준.
+  const byRole = await query(
+    `select role, count(distinct user_id)::int n from login_events
+       where created_at >= now() - interval '30 days' group by role order by n desc`);
   return json(200, {
     dau: d.n, wau: w.n, mau: m.n,
     stickiness: m.n ? Math.round((d.n / m.n) * 100) : 0,
+    totalLogins: tot.n,
+    byRole,
     series,
   });
 }

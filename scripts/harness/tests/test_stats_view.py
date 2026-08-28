@@ -20,6 +20,7 @@ def run():
         t.check('admin 조회 200', ra.get('status') == 200, 'status=%s' % ra.get('status'))
         t.check('집계 구조(dau/wau/mau/series)', all(k in body for k in ('dau', 'wau', 'mau', 'series')), 'keys=%s' % list(body)[:6])
         t.check('series 배열', isinstance(body.get('series'), list))
+        t.check('확장 지표(totalLogins/byRole)', ('totalLogins' in body) and isinstance(body.get('byRole'), list), 'keys=%s' % sorted(body)[:8])
 
         # 고객: 403
         rc = api('GET', '/stats/active-users', None, role='customer', userId='zz-c', companyId='zz')

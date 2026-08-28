@@ -1860,6 +1860,10 @@ textarea{resize:vertical;min-height:100px;}
           <div id="stats-dau" style="min-height:176px;"></div>
           <div style="font-size:11px;color:var(--faint);margin-top:10px;">ⓘ 접속 지표는 로그인 이벤트 기록 시작 이후부터 누적됩니다(소급 집계 없음).</div>
         </div>
+        <div class="card">
+          <div class="card-title">역할별 접속 비중 <span style="font-size:11px;color:var(--faint);font-weight:400;">최근 30일 고유 접속자</span></div>
+          <div id="stats-byrole"></div>
+        </div>
         </div><!-- /stab-act -->
 
         <div class="stab-panel" id="stab-acct" style="display:none;">
@@ -7073,6 +7077,35 @@ function _renderStatsDau(series) {
   el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block" role="img" aria-label="일별 DAU 추이">${gl}<path d="${area}" fill="var(--accent-l)"/><polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>${lab}${xlab}</svg>`;
 }
 
+// 역할별 접속 비중 도넛 — byRole([{role,n}])을 받아 SVG 도넛 + 범례로 렌더.
+const STATS_ROLE_KO = { customer: '고객', internal: '내부일반', tech_support: '기술지원', sales: '영업', education: '교육', admin: '관리자' };
+const STATS_ROLE_COLOR = { customer: '#3987e5', internal: '#7b74e0', tech_support: '#d55181', sales: '#e0a020', admin: '#8a5a05', education: '#199e70' };
+function _renderStatsByRole(rows) {
+  const el = document.getElementById('stats-byrole'); if (!el) return;
+  const data = (rows || []).filter(r => r && r.n > 0);
+  const total = data.reduce((a, r) => a + r.n, 0);
+  if (!total) { el.innerHTML = '<div style="padding:16px;color:var(--faint);font-size:12px;">아직 접속 기록이 없습니다</div>'; return; }
+  const C = 2 * Math.PI * 46; let off = 0, seg = '';
+  data.forEach(r => {
+    const col = STATS_ROLE_COLOR[r.role] || '#9aa3ad', len = r.n / total * C;
+    seg += `<circle cx="64" cy="64" r="46" fill="none" stroke="${col}" stroke-width="16" stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-off}" transform="rotate(-90 64 64)"/>`;
+    off += len;
+  });
+  const legend = data.map(r => {
+    const col = STATS_ROLE_COLOR[r.role] || '#9aa3ad', ko = STATS_ROLE_KO[r.role] || r.role, p = Math.round(r.n / total * 100);
+    return `<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;padding:3px 0;">
+      <span style="width:10px;height:10px;border-radius:3px;background:${col};flex:none;"></span>
+      <span style="color:var(--muted);">${escHtml(ko)}</span>
+      <span style="margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums;">${r.n}</span>
+      <span style="color:var(--faint);font-size:11px;width:38px;text-align:right;">${p}%</span></div>`;
+  }).join('');
+  el.innerHTML = `<div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
+    <svg width="128" height="128" viewBox="0 0 128 128">${seg}
+      <text x="64" y="61" text-anchor="middle" font-size="21" font-weight="800" fill="var(--text)">${total}</text>
+      <text x="64" y="77" text-anchor="middle" font-size="9" fill="var(--faint)">접속자</text></svg>
+    <div style="flex:1;min-width:200px;max-width:340px;">${legend}</div></div>`;
+}
+
 // 사용 통계 탭 전환 — 접속 활동(act) / 계정(acct). 데이터는 loadStats가 한 번에 로드하므로 표시만 토글.
 function switchStatsTab(tab) {
   document.querySelectorAll('#stats-tabs button').forEach(b => b.classList.toggle('on', b.dataset.stab === tab));
@@ -7091,12 +7124,19 @@ async function loadStats() {
     const us = await sb.from('users').select('id,role,is_active,last_login').limit(10000);
     const users = us.data || [];
 
-    // ── 접속 활동 (DAU/WAU/MAU) ──
-    document.getElementById('stats-active').innerHTML = [['DAU', '일간', active.dau], ['WAU', '7일', active.wau], ['MAU', '30일', active.mau]]
-      .map(([l, s, v]) => `<div style="background:var(--surface2);border-radius:var(--r-md);padding:14px 16px;">
+    // ── 접속 활동 (DAU/WAU/MAU + 고착도·총 로그인·평균 일일) ──
+    const _series = active.series || [];
+    const _avgDaily = _series.length ? (_series.reduce((a, s) => a + (s.n || 0), 0) / _series.length) : 0;
+    document.getElementById('stats-active').innerHTML = [
+      ['DAU', '일간', active.dau], ['WAU', '7일', active.wau], ['MAU', '30일', active.mau],
+      ['고착도', 'DAU/MAU', (active.stickiness || 0) + '%'],
+      ['총 로그인', '30일', (active.totalLogins || 0) + '회'],
+      ['평균 일일', '30일', _avgDaily.toFixed(1) + '명'],
+    ].map(([l, s, v]) => `<div style="background:var(--surface2);border-radius:var(--r-md);padding:14px 16px;">
         <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">${l} <span style="font-size:10px;color:var(--faint);">${s}</span></div>
         <div style="font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;">${v}</div></div>`).join('');
-    _renderStatsDau(active.series || []);
+    _renderStatsDau(_series);
+    _renderStatsByRole(active.byRole || []);
 
     // ── 계정 현황 ──
     const cust = users.filter(u => u.role === 'customer');
