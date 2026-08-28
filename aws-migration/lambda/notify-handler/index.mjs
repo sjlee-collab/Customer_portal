@@ -65,6 +65,9 @@ async function sendSlack(webhookUrl, recipientName, ticketId, eventType, header,
     return;
   }
   const tag = toTest ? '[테스트]' : (TEST_TAG || '');
+  // 실제 보낼 메시지 텍스트(mrkdwn). 알림 로그 상세에서 "보낸 슬랙 메시지"로 보여주려고
+  // 동일 값을 results.content로 반환한다(caller가 log_notification.content에 저장).
+  const msgText = `${tag ? tag + ' ' : ''}${header}${origin}\n${body}`;
   try {
     const res = await fetch(target, {
       method: 'POST',
@@ -72,18 +75,18 @@ async function sendSlack(webhookUrl, recipientName, ticketId, eventType, header,
       body: JSON.stringify({
         blocks: [
           { type: 'divider' },
-          { type: 'section', text: { type: 'mrkdwn', text: `${tag ? tag + ' ' : ''}${header}${origin}\n${body}` } },
+          { type: 'section', text: { type: 'mrkdwn', text: msgText } },
         ],
       }),
     });
     if (!res.ok) {
       const msg = await res.text();
-      results.push({ channel: 'slack', eventType, recipient: recipientName, ticketId, status: 'failure', errorMessage: `HTTP ${res.status}: ${msg}` });
+      results.push({ channel: 'slack', eventType, recipient: recipientName, ticketId, status: 'failure', errorMessage: `HTTP ${res.status}: ${msg}`, content: msgText });
     } else {
-      results.push({ channel: 'slack', eventType, recipient: recipientName, ticketId, status: 'success' });
+      results.push({ channel: 'slack', eventType, recipient: recipientName, ticketId, status: 'success', content: msgText });
     }
   } catch (e) {
-    results.push({ channel: 'slack', eventType, recipient: recipientName, ticketId, status: 'failure', errorMessage: e?.message ?? String(e) });
+    results.push({ channel: 'slack', eventType, recipient: recipientName, ticketId, status: 'failure', errorMessage: e?.message ?? String(e), content: msgText });
   }
 }
 
