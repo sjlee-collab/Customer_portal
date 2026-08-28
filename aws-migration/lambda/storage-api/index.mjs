@@ -53,7 +53,7 @@ const ALLOWED_EXTENSIONS_BY_BUCKET = {
   'ticket-attachments': ['.pdf', '.log', '.txt', '.zip', '.xlsx', '.xls', '.docx', '.pptx', '.twbx', '.twb', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'],
   'contract-attachments': ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.png', '.jpg', '.jpeg', '.gif', '.zip'],
 };
-const MAX_UPLOAD_SIZE = 20 * 1024 * 1024; // 20MB — 클라이언트 accept/hint는 우회 가능하므로 서버에서도 확인
+const MAX_UPLOAD_SIZE = 10 * 1024 * 1024; // 10MB — 클라이언트 accept/hint는 우회 가능하므로 서버에서도 확인
 
 // 업로드 시점에는(다운로드/삭제와 달리) 아직 메타데이터 행이 없으므로 storage_path로
 // 기존 행을 찾아 소유권을 확인하는 checkAccess()를 그대로 쓸 수 없다. 대신 경로의 첫
@@ -131,7 +131,7 @@ async function handleUploadUrl(body, event) {
     return json(400, { error: `허용되지 않는 파일 형식입니다: ${ext}` });
   }
   if (typeof contentLength === 'number' && contentLength > MAX_UPLOAD_SIZE) {
-    return json(400, { error: `파일이 너무 큽니다. 최대 20MB까지 업로드할 수 있습니다.` });
+    return json(400, { error: `파일이 너무 큽니다. 최대 10MB까지 업로드할 수 있습니다.` });
   }
 
   const allowed = await checkUploadAllowed(bucket, path, event);

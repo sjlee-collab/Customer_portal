@@ -2195,7 +2195,7 @@ textarea{resize:vertical;min-height:100px;}
                ondragover="event.preventDefault();this.style.borderColor='var(--accent-m)'"
                ondragleave="this.style.borderColor=''"
                ondrop="event.preventDefault();this.style.borderColor='';handleFileDrop(event)">
-            <div id="file-drop-label" style="font-size:12.5px;">📎 드래그하거나 클릭하여 업로드 <span style="font-size:11px;color:var(--faint);">· 최대 20MB</span><div style="font-size:11px;color:var(--faint);margin-top:3px;">pdf · docx · xlsx · xls · pptx · twbx · twb · txt · log · zip · png · jpg · gif</div></div>
+            <div id="file-drop-label" style="font-size:12.5px;">📎 드래그하거나 클릭하여 업로드 <span style="font-size:11px;color:var(--faint);">· 최대 10MB</span><div style="font-size:11px;color:var(--faint);margin-top:3px;">pdf · docx · xlsx · xls · pptx · twbx · twb · txt · log · zip · png · jpg · gif</div></div>
             <div id="file-list" style="margin-top:6px;font-size:12px;text-align:left;"></div>
           </div>
         </div>
@@ -2670,7 +2670,7 @@ textarea{resize:vertical;min-height:100px;}
             ondrop="event.preventDefault();this.style.borderColor='var(--border-md)';handleDocFileDrop(event.dataTransfer.files)">
             <div id="d-dropzone-label" style="font-size:13px;color:var(--muted);">클릭하거나 파일을 여기로 드래그하세요</div>
           </div>
-          <div style="font-size:11px;color:var(--faint);margin-top:6px;">.pdf .docx .pptx .xlsx .png .jpg .jpeg .gif .zip .mp4 파일, 20MB 이하</div>
+          <div style="font-size:11px;color:var(--faint);margin-top:6px;">.pdf .docx .pptx .xlsx .png .jpg .jpeg .gif .zip .mp4 파일, 10MB 이하</div>
           <input type="file" id="d-file-input" accept=".pdf,.docx,.pptx,.xlsx,.png,.jpg,.jpeg,.gif,.zip,.mp4" style="display:none;" onchange="handleDocFileDrop(this.files)">
           <input type="hidden" id="d-filename">
         </div>
@@ -4159,7 +4159,7 @@ function downloadCurrentDocFile() {
 }
 
 const ALLOWED_DOC_EXTENSIONS = ['.pdf', '.docx', '.pptx', '.xlsx', '.png', '.jpg', '.jpeg', '.gif', '.zip', '.mp4'];
-const MAX_DOC_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+const MAX_DOC_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 function handleDocFileDrop(files) {
   if (!files || !files.length) return;
@@ -4171,7 +4171,7 @@ function handleDocFileDrop(files) {
     return;
   }
   if (f.size > MAX_DOC_FILE_SIZE) {
-    showToast(`파일이 너무 큽니다 (${(f.size / 1024 / 1024).toFixed(1)}MB). 최대 20MB까지 업로드할 수 있습니다.`, true);
+    showToast(`파일이 너무 큽니다 (${(f.size / 1024 / 1024).toFixed(1)}MB). 최대 10MB까지 업로드할 수 있습니다.`, true);
     return;
   }
   _docFile = f;
