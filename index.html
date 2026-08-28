@@ -245,6 +245,14 @@ button,input,select,textarea{font-family:inherit;}
 .b-blue{background:#EFF6FF;color:#2563EB;border-color:#BFDBFE;}
 /* 대리 등록 배지 — 내부직원이 고객 대신 남긴 요청. 상태/역할 배지와 겹치지 않는 인디고 아웃라인. */
 .proxy-badge{display:inline-flex;align-items:center;font-size:10px;font-weight:600;line-height:1.5;padding:0 6px;border-radius:99px;background:var(--accent-l);color:var(--accent);border:1px solid #C7D2FE;vertical-align:middle;}
+/* 요청 상세 '+ 추가' hover 툴팁 — 업로드 가능 확장자 안내 */
+.rd-add-wrap{position:relative;display:inline-flex;}
+.rd-add-tip{position:absolute;bottom:calc(100% + 9px);right:0;width:248px;background:var(--surface);color:var(--text);border:1px solid var(--border-md,var(--border));border-radius:8px;padding:9px 11px;box-shadow:0 10px 26px rgba(20,20,50,.22);opacity:0;visibility:hidden;transform:translateY(4px);transition:.13s;z-index:20;font-weight:400;text-align:left;}
+.rd-add-wrap:hover .rd-add-tip{opacity:1;visibility:visible;transform:translateY(0);}
+.rd-add-tip .tth{font-size:11px;font-weight:800;margin-bottom:6px;}
+.rd-add-tip .tex{display:flex;flex-wrap:wrap;gap:4px;}
+.rd-add-tip .tex span{font-size:10px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;color:var(--muted);}
+.rd-add-tip .tsz{font-size:10.5px;color:var(--faint);margin-top:7px;}
 /* 사용 통계 탭(접속 활동 / 계정) — 밑줄형 */
 .stab-bar{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:16px;}
 .stab-bar button{appearance:none;border:none;background:none;font-family:inherit;font-size:13.5px;font-weight:700;color:var(--muted);padding:10px 16px;cursor:pointer;position:relative;top:1px;border-bottom:2px solid transparent;}
@@ -1455,7 +1463,14 @@ textarea{resize:vertical;min-height:100px;}
                       <div onclick="toggleRdAttachments()" style="cursor:pointer;font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                         첨부 파일 <span id="rd-attachments-count" style="font-size:11px;color:var(--faint);font-weight:400;"></span>
                         <span id="rd-attachments-arrow" style="font-size:11px;color:var(--faint);font-weight:400;"></span>
-                        <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();document.getElementById('rd-attach-input').click()" style="margin-left:auto;padding:3px 10px;font-size:11px;">+ 추가</button>
+                        <span class="rd-add-wrap" style="margin-left:auto;">
+                          <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();document.getElementById('rd-attach-input').click()" style="padding:3px 10px;font-size:11px;">+ 추가</button>
+                          <div class="rd-add-tip">
+                            <div class="tth">업로드 가능한 형식</div>
+                            <div class="tex"><span>pdf</span><span>docx</span><span>xlsx</span><span>xls</span><span>pptx</span><span>twbx</span><span>twb</span><span>txt</span><span>log</span><span>zip</span><span>png</span><span>jpg</span><span>jpeg</span><span>gif</span><span>webp</span><span>bmp</span></div>
+                            <div class="tsz">파일당 최대 10MB</div>
+                          </div>
+                        </span>
                         <input type="file" id="rd-attach-input" multiple style="display:none;" onclick="event.stopPropagation()" onchange="rdAddAttachments(this)">
                       </div>
                       <div id="rd-attachments" style="display:none;flex-wrap:wrap;gap:8px;margin-top:8px;"></div>
