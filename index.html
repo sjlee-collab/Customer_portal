@@ -7166,7 +7166,7 @@ async function loadStats() {
 
 // ── 로그인 이력 (GET /stats/login-history, 서버 필터·페이지네이션) ──
 let _lhOffset = 0;
-const LH_PAGE_SIZE = 12;
+const LH_PAGE_SIZE = 8;
 const LH_ROLE_LABEL = { customer:'고객', internal:'내부', tech_support:'기술지원', sales:'영업', education:'교육', admin:'관리자' };
 
 function applyLhFilter() { _lhOffset = 0; loadLoginHistory(); }
