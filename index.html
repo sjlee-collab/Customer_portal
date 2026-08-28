@@ -1852,16 +1852,16 @@ textarea{resize:vertical;min-height:100px;}
 
         <div class="stab-panel" id="stab-act">
         <div class="card">
-          <div class="card-title">접속 활동 <span style="font-size:11px;color:var(--faint);font-weight:400;">고유 로그인 사용자</span></div>
+          <div class="card-title">접속 활동 <span style="font-size:11px;color:var(--faint);font-weight:400;">고객 계정 기준 · 고유 로그인 사용자</span></div>
           <div id="stats-active" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:14px;">
             <div style="padding:16px;text-align:center;color:var(--faint);grid-column:1/-1;">불러오는 중...</div>
           </div>
           <div style="font-size:11px;color:var(--muted);margin-bottom:6px;"><span style="display:inline-block;width:14px;height:2px;background:var(--accent);vertical-align:middle;"></span> 일별 DAU (최근 30일)</div>
           <div id="stats-dau" style="min-height:176px;"></div>
-          <div style="font-size:11px;color:var(--faint);margin-top:10px;">ⓘ 접속 지표는 로그인 이벤트 기록 시작 이후부터 누적됩니다(소급 집계 없음).</div>
+          <div style="font-size:11px;color:var(--faint);margin-top:10px;">ⓘ 위 지표(DAU·WAU·MAU·고착도·총 로그인·평균)는 <b style="font-weight:700;">고객 계정만</b> 집계합니다. 로그인 이벤트 기록 시작 이후부터 누적(소급 집계 없음).</div>
         </div>
         <div class="card">
-          <div class="card-title">역할별 접속 비중 <span style="font-size:11px;color:var(--faint);font-weight:400;">최근 30일 고유 접속자</span></div>
+          <div class="card-title">역할별 접속 비중 <span style="font-size:11px;color:var(--faint);font-weight:400;">최근 30일 · 전체 역할</span></div>
           <div id="stats-byrole"></div>
         </div>
         </div><!-- /stab-act -->

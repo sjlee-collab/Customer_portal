@@ -709,21 +709,23 @@ async function login(body) {
 async function statsActiveUsers(event) {
   const authz = getAuthz(event);
   if (!(await hasPermission(authz.role, 'stats_view'))) return json(403, { error: '권한이 없습니다' });
+  // DAU/WAU/MAU·고착도·총로그인·평균(series)은 모두 "고객 계정 기준"(role='customer')으로 집계한다.
+  // 역할별 접속 비중(byRole)만 전체 역할을 대상으로 한다(그 카드의 취지가 역할 분포이므로).
   // 오늘(KST) 자정 이후 = DAU. KST 자정을 timestamptz로 만들어 created_at(timestamptz)과 비교.
   const [d] = await query(
     `select count(distinct user_id)::int n from login_events
-      where created_at >= (date_trunc('day', now() at time zone 'Asia/Seoul') at time zone 'Asia/Seoul')`);
+      where role = 'customer' and created_at >= (date_trunc('day', now() at time zone 'Asia/Seoul') at time zone 'Asia/Seoul')`);
   const [w] = await query(
-    `select count(distinct user_id)::int n from login_events where created_at >= now() - interval '7 days'`);
+    `select count(distinct user_id)::int n from login_events where role = 'customer' and created_at >= now() - interval '7 days'`);
   const [m] = await query(
-    `select count(distinct user_id)::int n from login_events where created_at >= now() - interval '30 days'`);
+    `select count(distinct user_id)::int n from login_events where role = 'customer' and created_at >= now() - interval '30 days'`);
   const series = await query(
     `select to_char((created_at at time zone 'Asia/Seoul')::date, 'YYYY-MM-DD') d, count(distinct user_id)::int n
-       from login_events where created_at >= now() - interval '30 days' group by 1 order by 1`);
-  // 총 로그인 횟수(중복 포함, 30일) — DAU/WAU/MAU(고유)와 달리 재접속 빈도를 본다.
+       from login_events where role = 'customer' and created_at >= now() - interval '30 days' group by 1 order by 1`);
+  // 총 로그인 횟수(중복 포함, 30일, 고객 기준) — DAU/WAU/MAU(고유)와 달리 재접속 빈도를 본다.
   const [tot] = await query(
-    `select count(*)::int n from login_events where created_at >= now() - interval '30 days'`);
-  // 역할별 고유 접속자(30일) — 접속 비중 도넛용. login_events.role(로그인 시점 스냅샷) 기준.
+    `select count(*)::int n from login_events where role = 'customer' and created_at >= now() - interval '30 days'`);
+  // 역할별 고유 접속자(30일) — 접속 비중 도넛용. 전체 역할. login_events.role(로그인 시점 스냅샷) 기준.
   const byRole = await query(
     `select role, count(distinct user_id)::int n from login_events
        where created_at >= now() - interval '30 days' group by role order by n desc`);
