@@ -1921,8 +1921,8 @@ textarea{resize:vertical;min-height:100px;}
             <div class="info-row"><span class="info-label">기술지원 채널</span><span class="info-val">#고객지원포탈-기술지원</span></div>
             <div class="info-row"><span class="info-label">영업 채널</span><span class="info-val">#고객지원포탈-영업</span></div>
             <div class="info-row"><span class="info-label">교육 채널</span><span class="info-val">#고객지원포탈-교육</span></div>
-            <div class="info-row"><span class="info-label">발송 방식</span><span class="info-val">Supabase Edge Function</span></div>
-            <div class="info-row"><span class="info-label">알림 이벤트</span><span class="info-val">신규 요청 · 상태 변경 · 담당자 배정 · 긴급</span></div>
+            <div class="info-row"><span class="info-label">발송 방식</span><span class="info-val">AWS Lambda (notify-handler)</span></div>
+            <div class="info-row"><span class="info-label">알림 이벤트</span><span class="info-val">신규 요청 · 상태 변경 · 담당자 배정 · 긴급 · 완료예정일 초과 · 고객 답변 · 라이선스 만료</span></div>
             <div style="margin-top:12px;padding:10px 12px;background:var(--surface-alt,#f8f9fa);border-radius:6px;font-size:11px;color:var(--muted);line-height:1.7;">
               <div>• 전체 요청 → <strong>#고객지원포탈-공통</strong></div>
               <div>• 기술지원 · 기타 (신규 등록) → <strong>#고객지원포탈-기술지원</strong> 추가 발송</div>
@@ -1951,12 +1951,12 @@ textarea{resize:vertical;min-height:100px;}
             <div class="info-row"><span class="info-label">발신 주소</span><span class="info-val">hr@bigxdata.io</span></div>
             <div class="info-row"><span class="info-label">발송 방식</span><span class="info-val">Microsoft Graph API</span></div>
             <div class="info-row"><span class="info-label">인증 방식</span><span class="info-val">Azure AD · Client Credentials</span></div>
-            <div class="info-row"><span class="info-label">발송 조건 (고객)</span><span class="info-val">상태 변경 (담당자가 수동 발송)</span></div>
-            <div class="info-row"><span class="info-label">발송 조건 (내부)</span><span class="info-val">신규 요청 · 계약/라이선스 · 긴급</span></div>
+            <div class="info-row"><span class="info-label">발송 조건 (고객)</span><span class="info-val">신규 요청 접수확인 · 상태 변경</span></div>
+            <div class="info-row"><span class="info-label">발송 조건 (내부)</span><span class="info-val">계약/라이선스 · 긴급 (신규 등록 시)</span></div>
             <div style="margin-top:12px;padding:10px 12px;background:var(--surface-alt,#f8f9fa);border-radius:6px;font-size:11px;color:var(--muted);line-height:1.7;">
-              <div>• 신규 요청 → 그룹메일 (INTERNAL_NEW_TICKET_EMAIL · 수신자 미설정 시 미발송)</div>
-              <div>• 계약·라이선스 문의 → 담당 영업대표</div>
-              <div>• 긴급 요청 → 담당 영업대표 + 관리자</div>
+              <div>• <strong>고객</strong> 신규 요청 접수확인(자동) · 상태 변경 → 요청자 (대리 등록 시 담당자 등록 안내 포함)</div>
+              <div>• <strong>내부</strong> 계약·라이선스 신규 → 담당 영업대표</div>
+              <div>• <strong>내부</strong> 긴급 신규 → 담당 영업대표 + 관리자</div>
             </div>
             <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px;">
               <div style="font-size:11px;font-weight:700;color:var(--faint);margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px;">최근 이력</div>
