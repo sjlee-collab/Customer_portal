@@ -1455,7 +1455,7 @@ textarea{resize:vertical;min-height:100px;}
                         첨부 파일 <span id="rd-attachments-count" style="font-size:11px;color:var(--faint);font-weight:400;"></span>
                         <span id="rd-attachments-arrow" style="font-size:11px;color:var(--faint);font-weight:400;"></span>
                         <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();document.getElementById('rd-attach-input').click()" style="margin-left:auto;padding:3px 10px;font-size:11px;">+ 추가</button>
-                        <input type="file" id="rd-attach-input" multiple style="display:none;" onchange="rdAddAttachments(this)">
+                        <input type="file" id="rd-attach-input" multiple style="display:none;" onclick="event.stopPropagation()" onchange="rdAddAttachments(this)">
                       </div>
                       <div id="rd-attachments" style="display:none;flex-wrap:wrap;gap:8px;margin-top:8px;"></div>
                     </div>
