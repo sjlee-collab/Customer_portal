@@ -94,13 +94,16 @@ export async function handler(event) {
   } catch (e) { console.error('[inquiry] db insert 실패', e); }
 
   // ② Slack 발송 (best-effort)
+  // 테스트 문의([테스트] 성함/기업명, 또는 예전 SLACK_REDIRECT 모드)면 실 채널이 아닌 테스트 채널로.
   let slackOk = false;
-  const slackHook = (SLACK_REDIRECT && SLACK_WEBHOOK_TEST) ? SLACK_WEBHOOK_TEST : SLACK_WEBHOOK;
+  const isTest = /^\[테스트\]/.test(name) || /^\[테스트\]/.test(company) || SLACK_REDIRECT;
+  const slackHook = isTest ? SLACK_WEBHOOK_TEST : SLACK_WEBHOOK; // 테스트인데 테스트웹훅 없으면 미발송(실 채널로 새지 않음)
+  const tag = isTest ? '[테스트]' : (TEST_TAG || '');
   if (slackHook) {
     try {
       const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false });
       const lines = [
-        (TEST_TAG ? TEST_TAG + ' ' : '') + '📩 *신규 계정 요청*',
+        (tag ? tag + ' ' : '') + '📩 *신규 계정 요청*',
         `• 성함: ${name}`,
         `• 기업명: ${company}`,
         `• 연락처: ${phone}`,

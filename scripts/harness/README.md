@@ -20,7 +20,7 @@
 | `bash scripts/harness/deploy-fn.sh <api-layer\|data-api\|public-inquiry\|send-email\|storage-api\|jwt-authorizer\|notify-handler>` | 안전 재배포(drift 진단→배포→스모크) |
 | `bash scripts/harness/promote.sh` | main → dev/Design/QA ff 전파 + SHA 일치 검증 |
 | `bash scripts/harness/guard-commit.sh [파일…]` | 커밋 전 clobber 점검(origin 최신·의도 파일만) |
-| `bash scripts/harness/email-safe.sh on\|off\|status` | 테스트 모드 토글 — **메일은 항상 운영**(실수신자 발송, 테스트 메일은 temail() 싱크로만 sjlee行) + 슬랙만 **테스트 채널 리다이렉트**(SLACK_REDIRECT) + 슬랙 `[테스트]` 태그(TEST_TAG) |
+| `bash scripts/harness/email-safe.sh on\|off\|status` | 운영 상태 리셋(잔여 리다이렉트/태그 env 제거). 테스트 격리는 자동 — **메일=temail() 싱크 수신자**, **슬랙=`[테스트]` 제목/기업명 자동 라우팅**(SLACK_WEBHOOK_TEST). status로 현재 env 확인 |
 | `bash scripts/harness/apigw-route.sh list\|add "METHOD /path"` | API GW 라우트 조회/추가 |
 | `bash scripts/harness/sweep.sh [--delete]` | `[테스트]` 라벨 잔여 데이터 미리보기/삭제(중단 뒷정리) |
 
@@ -39,11 +39,11 @@
 - `tests/test_customer_e2e.py` — **고객 계정 전 기능 정상성**(등록·목록·상세·수정·답글·첨부·계약/자료 조회·내정보) + 보안 차단
 - `tests/smoke_frontend.js` — 프리뷰 콘솔에 붙여 프론트 핵심 확인(L2)
 - 데이터 원칙: `[테스트]` 라벨 + admin 직접 insert(알림 없음) + 종료 시 정리(+ 잔여물 `sweep`). 개별 실행: `python scripts/harness/tests/test_customer_e2e.py`
-- **슬랙 테스트 채널(필수)**: `email-safe.sh on` 이면 `SLACK_REDIRECT=1`이 설정되어 notify-handler·public-inquiry의 모든 슬랙 알림이
-  실 채널(공통/영업/기술지원/교육) 대신 **테스트 전용 채널로만** 간다. 메시지 본문에 `(원래 대상: 채널명)`이 붙어 어디로 갈 알림이었는지 알 수 있다.
-  테스트 채널 웹훅 주소는 **비밀값이라 레포에 두지 않고** 두 Lambda의 환경변수 `SLACK_WEBHOOK_TEST`에만 보관한다(등록 여부는 `email-safe.sh status`로 확인).
-  주소를 바꾸려면 해당 Lambda의 환경변수만 교체하면 되고, 코드·스크립트 수정은 필요 없다.
-- **메일 원칙(필수)**: 운영 메일은 항상 정상 발송(실수신자), **테스트 메일만 sjlee**. send-email엔 전역 리다이렉트를 걸지 않으며(운영 차단 방지), 테스트 메일은 `temail()` 싱크 수신자(`sjlee+태그@bigxdata.io`)로 보내므로 그것만 sjlee로 간다. ⚠️ 알림-트리거 테스트는 **반드시 temail() 싱크 수신자** 사용. 슬랙은 채널 발송이라 `email-safe.sh on`으로 테스트 채널 리다이렉트 후 끝나면 `off`. 상세는 CHECKLIST "알림 안전" 참고.
+- **슬랙 원칙 — `[테스트]` 라벨로 자동 라우팅(필수)**: notify-handler·public-inquiry는 알림 대상 데이터의 **제목/기업명이 `[테스트]`로 시작하면**
+  실 채널(공통/영업/기술지원/교육) 대신 **테스트 전용 채널로만** 보낸다(운영 알림은 항상 실 채널). 메시지 본문에 `(원래 대상: 채널명)`이 붙어 어디로 갈 알림이었는지 알 수 있다.
+  즉 `email-safe.sh on/off`와 무관하게 코드가 라벨로 상시 자동 구분하므로, 알림-트리거 테스트는 **반드시 `tname()`/`temail()`로 `[테스트]` 라벨**을 붙여야 실 채널로 새지 않는다.
+  테스트 채널 웹훅 주소는 **비밀값이라 레포에 두지 않고** 두 Lambda의 환경변수 `SLACK_WEBHOOK_TEST`에만 보관한다(등록 여부는 `email-safe.sh status`로 확인). 주소 변경 시 환경변수만 교체하면 되고 코드·스크립트 수정은 불필요.
+- **메일 원칙(필수)**: 운영 메일은 항상 정상 발송(실수신자), **테스트 메일만 sjlee**. send-email엔 전역 리다이렉트를 걸지 않으며(운영 차단 방지), 테스트 메일은 `temail()` 싱크 수신자(`sjlee+태그@bigxdata.io`)로 보내므로 그것만 sjlee로 간다. ⚠️ 알림-트리거 테스트는 **반드시 temail() 싱크 수신자** 사용. `email-safe.sh on/off`는 예전 리다이렉트/태그 잔여값을 지워 **운영 상태로 리셋**하는 용도(테스트 격리는 메일=싱크·슬랙=라벨로 자동). 상세는 CHECKLIST "알림 안전" 참고.
 
 ## 한계
 - 완전 격리는 별도 dev 환경이 있어야 완성(현재 공유 운영). 그전까진 안전 패턴(`[테스트]` 라벨·admin insert·cleanup/sweep·OVERRIDE)으로 최소화.

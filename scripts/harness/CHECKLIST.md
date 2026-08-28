@@ -37,9 +37,9 @@
 ## 알림 안전 (슬랙·메일이 트리거되는 테스트) — 필수 규칙
 원칙: **운영 메일은 항상 정상 발송(실수신자), 테스트성 메일만 sjlee로.**
 1. **메일 — 수신자 주소로 구분(전역 리다이렉트 없음)**: send-email은 on/off 무관하게 **항상 운영**(TEST_EMAIL_OVERRIDE/TEST_TAG 비움). 테스트가 만드는 메일은 `lib/itest.py`의 `temail()`이 수신자를 sjlee 싱크(`sjlee+태그@bigxdata.io`)로 지정하므로 **그 메일만 sjlee로** 간다. ⚠️ **알림-트리거 테스트는 반드시 `temail()` 싱크 수신자를 쓸 것**(실주소를 쓰면 실발송됨). 예전의 전역 sink 리다이렉트는 운영 메일까지 막아서 제거함.
-2. **슬랙 테스트 채널**: 슬랙은 수신자 지정이 안 되므로(채널로 감) 여전히 안전장치 필요. `email-safe.sh on` → `SLACK_REDIRECT=1` → notify-handler·public-inquiry의 슬랙이 실 채널 대신 테스트 채널(`SLACK_WEBHOOK_TEST`)로만 발송(본문에 `(원래 대상: 채널명)` 표기) + `TEST_TAG='[테스트]'` 헤더 접두. 주소는 Lambda 환경변수에만 보관(레포에 없음).
-3. **데이터 라벨**: 테스트 데이터는 이름/제목에 `[테스트]` 라벨(`tname()`/`temail()`) → 슬랙 본문·메일 제목에 그대로 노출. + admin 직접 insert(알림 없음) + 종료 시 정리.
-- ⚠️ `on` 상태에선 **실 슬랙 알림/매일 09:00 배치 슬랙도 테스트 채널로 리다이렉트**되므로 창을 짧게, 끝나면 `off`. (메일은 항상 운영이라 영향 없음.) 상태 확인: `email-safe.sh status`.
+2. **슬랙 — `[테스트]` 제목/기업명으로 자동 라우팅(전역 스위치 없음)**: notify-handler·public-inquiry는 알림 대상 데이터의 **제목 또는 기업명이 `[테스트]`로 시작하면** 실 채널 대신 테스트 채널(`SLACK_WEBHOOK_TEST`)로만 발송(본문에 `(원래 대상: 채널명)` 표기 + `[테스트]` 헤더 접두). **운영 알림은 항상 실 채널.** 즉 `email-safe.sh on/off`와 무관하게 코드가 라벨로 자동 구분한다. 테스트웹훅 주소는 Lambda 환경변수(`SLACK_WEBHOOK_TEST`)에만 보관(레포에 없음). ⚠️ **알림-트리거 테스트는 반드시 `tname()`/`temail()`로 `[테스트]` 라벨을 붙일 것**(안 붙이면 실 채널로 감).
+3. **데이터 라벨**: 테스트 데이터는 이름/제목에 `[테스트]` 라벨(`tname()`/`temail()`) → 슬랙 라우팅 판정·본문·메일 제목에 그대로 반영. + admin 직접 insert(알림 없음) + 종료 시 정리.
+- 라벨 라우팅은 상시 동작이라 별도 on/off 창이 필요 없다. `email-safe.sh on/off`는 예전 `SLACK_REDIRECT`/`TEST_EMAIL_OVERRIDE` 잔여값을 지워 **운영 상태로 리셋**하는 용도(둘 다 동일 동작). 매일 09:00 배치도 실 티켓이면 실 채널로 정상 발송. 상태 확인: `email-safe.sh status`.
 - 중단 등으로 남은 잔여물은 `bash scripts/harness/sweep.sh`(미리보기) / `--delete`(삭제)로 라벨 기반 청소.
 
 ## 알림 Lambda(notify-handler/send-email) 변경 시

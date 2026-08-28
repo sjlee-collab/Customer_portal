@@ -46,16 +46,25 @@ const CATEGORY_KO = {
 };
 const PRIORITY_KO = { normal: '일반', high: '빠른 확인 필요', critical: '긴급' };
 
-async function sendSlack(webhookUrl, recipientName, ticketId, eventType, header, body, results) {
-  // 테스트 모드면 실 채널로 보내지 않고 테스트 채널로 돌린다.
-  // 원래 어느 채널로 갈 알림이었는지는 본문에 남겨 확인할 수 있게 한다.
-  const redirected = SLACK_REDIRECT && SLACK_WEBHOOK_TEST;
-  const target     = redirected ? SLACK_WEBHOOK_TEST : webhookUrl;
-  const origin     = redirected ? ' _(원래 대상: '+recipientName+')_' : '';
+// 알림 대상 데이터가 테스트용([테스트] 접두)인지 — 제목 또는 고객사명으로 판정.
+function isTestTicket(t) {
+  const re = /^\[테스트\]/;
+  return !!t && (re.test(t.title || '') || re.test(t.company_name || ''));
+}
+
+async function sendSlack(webhookUrl, recipientName, ticketId, eventType, header, body, results, isTest = false) {
+  // 테스트 알림([테스트] 데이터, 또는 예전 SLACK_REDIRECT 모드)이면 실 채널이 아닌 테스트 채널로.
+  // 운영 알림은 항상 실 채널로 간다. 원래 어느 채널로 갈 알림이었는지는 본문에 남긴다.
+  const toTest = isTest || SLACK_REDIRECT;
+  const target = toTest ? SLACK_WEBHOOK_TEST : webhookUrl;
+  const origin = toTest ? ' _(원래 대상: '+recipientName+')_' : '';
   if (!target) {
-    results.push({ channel: 'slack', eventType, recipient: recipientName, ticketId, status: 'failure', errorMessage: `webhook not set (${recipientName})` });
+    // 테스트 알림인데 테스트 웹훅이 없으면 실 채널로 새지 않도록 skip.
+    results.push({ channel: 'slack', eventType, recipient: recipientName, ticketId, status: 'failure',
+      errorMessage: toTest ? 'test webhook not set (skipped)' : `webhook not set (${recipientName})` });
     return;
   }
+  const tag = toTest ? '[테스트]' : (TEST_TAG || '');
   try {
     const res = await fetch(target, {
       method: 'POST',
@@ -63,7 +72,7 @@ async function sendSlack(webhookUrl, recipientName, ticketId, eventType, header,
       body: JSON.stringify({
         blocks: [
           { type: 'divider' },
-          { type: 'section', text: { type: 'mrkdwn', text: `${TEST_TAG ? TEST_TAG + ' ' : ''}${header}${origin}\n${body}` } },
+          { type: 'section', text: { type: 'mrkdwn', text: `${tag ? tag + ' ' : ''}${header}${origin}\n${body}` } },
         ],
       }),
     });
@@ -118,7 +127,7 @@ async function handleOverdueBatch(payload, results) {
       SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, 'overdue',
       `⏰ *완료예정일 초과 (+${overdueDays}일)*`,
       buildBaseMessage(ticket, item) + `\n• *완료예정일:* ${dueDateStr}` + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`,
-      results
+      results, isTestTicket(ticket)
     );
   }));
 }
@@ -194,17 +203,18 @@ async function handleTicketInsert(payload, results) {
   const msgHeader = `${emoji} *${urgentPrefix}${categoryLabel} 등록*${proxyTag}`;
   const msgBody = buildBaseMessage(ticket, payload) + proxyLine + attLine + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`;
   const evtType = isUrgent ? 'urgent' : 'new_ticket';
+  const isTest = isTestTicket(ticket);
 
-  await sendSlack(SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, evtType, msgHeader, msgBody, results);
+  await sendSlack(SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, evtType, msgHeader, msgBody, results, isTest);
 
   if (['contract', 'license'].includes(ticket.category) && SLACK_WEBHOOK_SALES) {
-    await sendSlack(SLACK_WEBHOOK_SALES, '#영업-슬랙채널', ticket.id, evtType, msgHeader, msgBody, results);
+    await sendSlack(SLACK_WEBHOOK_SALES, '#영업-슬랙채널', ticket.id, evtType, msgHeader, msgBody, results, isTest);
   }
   if (ticket.category === 'tech_support' && SLACK_WEBHOOK_TECH) {
-    await sendSlack(SLACK_WEBHOOK_TECH, '#기술지원-슬랙채널', ticket.id, evtType, msgHeader, msgBody, results);
+    await sendSlack(SLACK_WEBHOOK_TECH, '#기술지원-슬랙채널', ticket.id, evtType, msgHeader, msgBody, results, isTest);
   }
   if (ticket.category === 'education' && SLACK_WEBHOOK_EDU) {
-    await sendSlack(SLACK_WEBHOOK_EDU, '#교육-슬랙채널', ticket.id, evtType, msgHeader, msgBody, results);
+    await sendSlack(SLACK_WEBHOOK_EDU, '#교육-슬랙채널', ticket.id, evtType, msgHeader, msgBody, results, isTest);
   }
 }
 
@@ -212,9 +222,10 @@ async function handleTicketAssigned(payload, results) {
   const { ticket, prevAssigneeName } = payload;
   const header = `👤 *담당자 배정* (${prevAssigneeName ?? '미배정'} → ${payload.assigneeName ?? '미배정'})`;
   const body = buildBaseMessage(ticket, payload) + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`;
-  await sendSlack(SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, 'assigned', header, body, results);
+  const isTest = isTestTicket(ticket);
+  await sendSlack(SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, 'assigned', header, body, results, isTest);
   if (ticket.category === 'education' && SLACK_WEBHOOK_EDU) {
-    await sendSlack(SLACK_WEBHOOK_EDU, '#교육-슬랙채널', ticket.id, 'assigned', header, body, results);
+    await sendSlack(SLACK_WEBHOOK_EDU, '#교육-슬랙채널', ticket.id, 'assigned', header, body, results, isTest);
   }
 }
 
@@ -226,9 +237,10 @@ async function handleTicketStatus(payload, results) {
   const evtType = ticket.status === 'completed' ? 'completed' : 'pending_customer';
   const header = `${emoji} *상태 변경* (${from} → ${to})`;
   const body = buildBaseMessage(ticket, payload) + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`;
-  await sendSlack(SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, evtType, header, body, results);
+  const isTest = isTestTicket(ticket);
+  await sendSlack(SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, evtType, header, body, results, isTest);
   if (ticket.category === 'education' && SLACK_WEBHOOK_EDU) {
-    await sendSlack(SLACK_WEBHOOK_EDU, '#교육-슬랙채널', ticket.id, evtType, header, body, results);
+    await sendSlack(SLACK_WEBHOOK_EDU, '#교육-슬랙채널', ticket.id, evtType, header, body, results, isTest);
   }
 }
 
@@ -236,15 +248,16 @@ async function handleTicketReply(payload, results) {
   const { ticket } = payload;
   const header = `💬 *고객 답글 등록*`;
   const body = buildBaseMessage(ticket, payload) + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`;
-  await sendSlack(SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, 'reply', header, body, results);
+  const isTest = isTestTicket(ticket);
+  await sendSlack(SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, 'reply', header, body, results, isTest);
   if (['contract', 'license'].includes(ticket.category) && SLACK_WEBHOOK_SALES) {
-    await sendSlack(SLACK_WEBHOOK_SALES, '#영업-슬랙채널', ticket.id, 'reply', header, body, results);
+    await sendSlack(SLACK_WEBHOOK_SALES, '#영업-슬랙채널', ticket.id, 'reply', header, body, results, isTest);
   }
   if (ticket.category === 'tech_support' && SLACK_WEBHOOK_TECH) {
-    await sendSlack(SLACK_WEBHOOK_TECH, '#기술지원-슬랙채널', ticket.id, 'reply', header, body, results);
+    await sendSlack(SLACK_WEBHOOK_TECH, '#기술지원-슬랙채널', ticket.id, 'reply', header, body, results, isTest);
   }
   if (ticket.category === 'education' && SLACK_WEBHOOK_EDU) {
-    await sendSlack(SLACK_WEBHOOK_EDU, '#교육-슬랙채널', ticket.id, 'reply', header, body, results);
+    await sendSlack(SLACK_WEBHOOK_EDU, '#교육-슬랙채널', ticket.id, 'reply', header, body, results, isTest);
   }
 }
 
@@ -255,7 +268,7 @@ async function handleTicketOverdue(payload, results) {
     SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, 'overdue',
     overdueDays != null ? `⏰ *완료예정일 초과 (+${overdueDays}일)*` : `⏰ *완료예정일 초과*`,
     buildBaseMessage(ticket, payload) + `\n• *완료예정일:* ${dueDateStr}` + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`,
-    results
+    results, isTestTicket(ticket)
   );
 }
 
