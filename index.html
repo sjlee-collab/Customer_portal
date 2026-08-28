@@ -1774,6 +1774,9 @@ textarea{resize:vertical;min-height:100px;}
                 <option value="customer">고객</option>
               </select></th>
               <th>수신자</th>
+              <th><select id="notify-filter-company" onchange="loadNotifyLog()" class="th-filter">
+                <option value="">고객사</option>
+              </select></th>
               <th><select id="notify-filter-status" onchange="loadNotifyLog()" class="th-filter">
                 <option value="">발송 상태</option>
                 <option value="sent">성공</option>
@@ -1784,7 +1787,7 @@ textarea{resize:vertical;min-height:100px;}
               <th><button onclick="document.querySelectorAll('[id^=notify-filter-]').forEach(s=>s.value='');loadNotifyLog();" style="font-size:11px;padding:2px 8px;border:1px solid var(--border-md);border-radius:4px;background:transparent;cursor:pointer;color:var(--muted);">초기화</button></th>
             </tr></thead>
             <tbody id="notify-tbody">
-              <tr><td colspan="10" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
+              <tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
             </tbody>
           </table></div>
           <div id="notify-pager" style="padding:12px 18px;border-top:1px solid var(--border);display:none;align-items:center;justify-content:flex-end;gap:10px;background:var(--surface2);flex-shrink:0;">
@@ -7304,15 +7307,16 @@ async function refreshNotifyLog() {
 async function loadNotifyLog() {
   const tbody = document.getElementById('notify-tbody');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="9" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>';
 
   const typeFilter    = document.getElementById('notify-filter-type')?.value    || '';
   const eventFilter   = document.getElementById('notify-filter-event')?.value   || '';
   const accountFilter = document.getElementById('notify-filter-account')?.value || '';
+  const companyFilter = document.getElementById('notify-filter-company')?.value || '';
   const statusFilter  = document.getElementById('notify-filter-status')?.value  || '';
 
   if (!sb) {
-    tbody.innerHTML = '<tr><td colspan="9" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">DB 연결 없음</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">DB 연결 없음</td></tr>';
     return;
   }
 
@@ -7332,13 +7336,13 @@ async function loadNotifyLog() {
   if (error) {
     _notifyRowsHtml = [];
     if (pager) pager.style.display = 'none';
-    tbody.innerHTML = `<tr><td colspan="10" style="padding:20px;text-align:center;color:var(--red);font-size:13px;">오류: ${escHtml(error.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--red);font-size:13px;">오류: ${escHtml(error.message)}</td></tr>`;
     return;
   }
   if (!data || !data.length) {
     _notifyRowsHtml = [];
     if (pager) pager.style.display = 'none';
-    tbody.innerHTML = '<tr><td colspan="10" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">알림 로그가 없습니다.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">알림 로그가 없습니다.</td></tr>';
     document.getElementById('notify-count').textContent = '총 0건';
     return;
   }
@@ -7389,9 +7393,21 @@ async function loadNotifyLog() {
     return (email.split('@')[1] || '') === 'bigxdata.io';
   };
 
-  const filteredData = accountFilter
+  // 고객사 필터 옵션 — 로드된 로그(최대 200건)에 등장한 고객사만 자동 수집(가나다순).
+  // 계정유형 필터처럼 클라이언트에서 걸며, 재조회 시 선택값을 유지한다.
+  const compSel = document.getElementById('notify-filter-company');
+  if (compSel) {
+    const cur = compSel.value;
+    const names = [...new Set(data.map(n => n.ticket?.company_name).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, 'ko'));
+    compSel.innerHTML = '<option value="">고객사</option>' +
+      names.map(nm => `<option value="${escHtml(nm)}"${nm === cur ? ' selected' : ''}>${escHtml(nm)}</option>`).join('');
+  }
+
+  let filteredData = accountFilter
     ? data.filter(n => (accountFilter === 'internal' ? isInternalRecipient(n) : !isInternalRecipient(n)))
     : data;
+  if (companyFilter) filteredData = filteredData.filter(n => (n.ticket?.company_name || '') === companyFilter);
 
   document.getElementById('notify-count').textContent = `총 ${filteredData.length}건`;
   _notifyRowsHtml = filteredData.map(n => {
@@ -7455,13 +7471,14 @@ async function loadNotifyLog() {
       <td style="font-size:12px;">${escHtml(EVENT_TYPE_KO[n.event_type] || n.event_type || '—')}</td>
       <td>${accountTypeBadge}</td>
       <td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(n.recipient || '—')}</td>
+      <td style="font-size:12px;">${t?.company_name ? escHtml(t.company_name) : '<span style="color:var(--faint);">—</span>'}</td>
       <td>${statusBadge}</td>
       <td style="font-size:11px;color:var(--red);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(n.error_message || '')}">${escHtml(n.error_message || '—')}</td>
       <td style="font-size:12px;white-space:nowrap;">${sentAt}</td>
       <td style="text-align:center;">${retryBtn}</td>
     </tr>
     <tr class="notify-detail-row" style="display:none;">
-      <td colspan="10" style="padding:0;">
+      <td colspan="11" style="padding:0;">
         <div style="padding:14px 20px 14px 32px;background:var(--surface2);border-top:1px solid var(--border);">
           ${detailRows}
         </div>
