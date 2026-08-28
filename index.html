@@ -226,6 +226,14 @@ button,input,select,textarea{font-family:inherit;}
 #p-users.active .list-scroll{flex:1;min-height:0;max-height:none;overflow-y:auto;}
 #p-users.active .tbl-scroll.list-scroll{overflow-y:auto;}
 
+/* 사용 통계 > 계정 탭: 로그인 이력 표가 남는 세로 공간을 모두 차지해 브라우저 하단까지 채운다.
+   페이지 자체는 스크롤되지 않고, 표시 행 수는 JS(calcLhPageSize)가 높이에 맞춰 계산한다. */
+.body>#p-stats.active.acct-mode{display:flex;flex-direction:column;overflow:hidden;}
+#p-stats.acct-mode>#stab-acct{flex:1;display:flex;flex-direction:column;min-height:0;overflow-y:auto;}
+#p-stats.acct-mode>#stab-acct>.card{flex:1;display:flex;flex-direction:column;min-height:0;margin-bottom:0;}
+/* min-height: 창이 아주 낮을 때 표 영역이 0으로 찌그러지지 않게 하한을 둔다(이땐 패널이 대신 스크롤). */
+#p-stats.acct-mode #lh-scroll{flex:1;min-height:132px;overflow-y:auto;}
+
 /* ── cards ── */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px 24px;margin-bottom:16px;box-shadow:var(--shadow-sm);}
 /* CSS Grid 자식 요소가 nowrap 텍스트 때문에 트랙을 밀어내지 않도록 방지 */
@@ -1882,7 +1890,7 @@ textarea{resize:vertical;min-height:100px;}
               <option value="0">전체 기간</option><option value="7">최근 7일</option><option value="30">최근 30일</option><option value="90">최근 90일</option>
             </select>
           </div>
-          <div class="tbl-scroll"><table class="tbl tbl-compact">
+          <div class="tbl-scroll" id="lh-scroll"><table class="tbl tbl-compact">
             <thead><tr><th>사용자</th><th>역할</th><th>고객사</th><th style="text-align:right;">로그인 일시</th></tr></thead>
             <tbody id="lh-tbody"><tr><td colspan="4" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr></tbody>
           </table></div>
@@ -7123,7 +7131,18 @@ function switchStatsTab(tab) {
   const act = document.getElementById('stab-act'), acct = document.getElementById('stab-acct');
   if (act) act.style.display = tab === 'act' ? '' : 'none';
   if (acct) acct.style.display = tab === 'acct' ? '' : 'none';
+  // 계정 탭에서만 페이지를 뷰포트 높이에 고정하고(acct-mode) 목록으로 남는 공간을 채운다.
+  document.getElementById('p-stats')?.classList.toggle('acct-mode', tab === 'acct');
+  if (tab === 'acct') requestAnimationFrame(() => fitLhPageSize(true)); // 레이아웃 반영 후 측정
 }
+
+// 창 크기가 바뀌면 표시 행 수를 다시 맞춘다 — 계정 탭이 열려 있을 때만.
+let _lhResizeT = null;
+window.addEventListener('resize', () => {
+  if (!document.getElementById('p-stats')?.classList.contains('acct-mode')) return;
+  clearTimeout(_lhResizeT);
+  _lhResizeT = setTimeout(() => fitLhPageSize(true), 180);
+});
 
 async function loadStats() {
   const ico = document.getElementById('stats-refresh-ico'); if (ico) ico.classList.add('spin');
@@ -7180,7 +7199,29 @@ async function loadStats() {
 
 // ── 로그인 이력 (GET /stats/login-history, 서버 필터·페이지네이션) ──
 let _lhOffset = 0;
-const LH_PAGE_SIZE = 6;
+// 표시 행 수는 고정이 아니라 목록 영역 높이에 맞춰 계산한다 — 계정 탭에서 표가 브라우저 하단까지
+// 빈틈·스크롤 없이 채워지도록. 높이를 잴 수 없을 때(탭이 숨겨진 동안)는 직전 값을 그대로 쓴다.
+let LH_PAGE_SIZE = 6;
+let _lhRowH = 0;         // 실제 렌더된 행 높이(측정값). 폰트·패딩이 바뀌어도 따라간다.
+let _lhRowHFixed = false; // 측정 후 재조회는 1회만 — 무한 재조회 방지
+function calcLhPageSize() {
+  const box = document.getElementById('lh-scroll');
+  if (!box || !box.clientHeight) return LH_PAGE_SIZE;   // 숨겨져 있으면 판단 불가
+  const head = box.querySelector('thead');
+  const headH = head ? head.getBoundingClientRect().height : 27;
+  const avail = box.clientHeight - headH - 2;           // 2px 여유 — 반올림 오차로 스크롤이 생기지 않게
+  return Math.max(3, Math.floor(avail / (_lhRowH || 28)));
+}
+// 계산값이 현재와 다르면 반영한다(reload=true면 다시 조회). 보고 있던 위치는 최대한 유지.
+function fitLhPageSize(reload) {
+  const n = calcLhPageSize();
+  if (n === LH_PAGE_SIZE) return false;
+  const first = _lhOffset;
+  LH_PAGE_SIZE = n;
+  _lhOffset = Math.floor(first / n) * n;
+  if (reload) loadLoginHistory();
+  return true;
+}
 const LH_ROLE_LABEL = { customer:'고객', internal:'내부', tech_support:'기술지원', sales:'영업', education:'교육', admin:'관리자' };
 
 function applyLhFilter() { _lhOffset = 0; loadLoginHistory(); }
@@ -7230,6 +7271,11 @@ async function loadLoginHistory() {
   const totalEl = document.getElementById('lh-total'); if (totalEl) totalEl.textContent = `총 ${_lhTotal}건`;
   const pageEl = document.getElementById('lh-page');
   if (pageEl) pageEl.textContent = `${Math.floor(_lhOffset / LH_PAGE_SIZE) + 1} / ${Math.max(1, Math.ceil(_lhTotal / LH_PAGE_SIZE))}`;
+  // 첫 실제 렌더에서 행 높이를 재고, 그 값으로 표시 행 수를 한 번 더 맞춘다(추정 28px → 실측).
+  if (!_lhRowHFixed && rows.length) {
+    const h = tbody.querySelector('tr')?.getBoundingClientRect().height || 0;
+    if (h > 0) { _lhRowH = h; _lhRowHFixed = true; fitLhPageSize(true); }
+  }
 }
 
 // ── 알림 로그 ──────────────────────────────────────────────────
