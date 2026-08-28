@@ -7104,6 +7104,19 @@ function _renderStatsByRole(rows) {
     <div style="flex:1;min-width:200px;max-width:340px;">${legend}</div></div>`;
 }
 
+// 계정 현황 카드 클릭 → 하단 로그인 이력을 역할로 필터(+선택 표시·목록으로 스크롤).
+function filterLhFromCard(role, el) {
+  const sel = document.getElementById('lh-role'); if (sel) sel.value = role || '';
+  applyLhFilter(); // _lhOffset=0 + loadLoginHistory
+  document.querySelectorAll('#stats-accounts .acct-card').forEach(c => { c.style.outline = ''; c.style.outlineOffset = ''; });
+  if (el) { el.style.outline = '2px solid var(--accent)'; el.style.outlineOffset = '-1px'; }
+  document.getElementById('lh-search')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+// 미접속(고객)은 로그인 이벤트가 없어 이력 목록에 대상이 없다 — 안내만.
+function lhNoRecordNote() {
+  showToast('미접속 고객은 로그인 이력이 없어 필터를 적용하지 않습니다.', true);
+}
+
 // 사용 통계 탭 전환 — 접속 활동(act) / 계정(acct). 데이터는 loadStats가 한 번에 로드하므로 표시만 토글.
 function switchStatsTab(tab) {
   document.querySelectorAll('#stats-tabs button').forEach(b => b.classList.toggle('on', b.dataset.stab === tab));
@@ -7139,16 +7152,17 @@ async function loadStats() {
     // ── 계정 현황 ──
     const cust = users.filter(u => u.role === 'customer');
     const withLogin = cust.filter(u => u.last_login).length;
-    // 각 항목을 별도 카드로 가로 4열(좁으면 자동 접힘)
+    // 각 항목을 별도 카드로 가로 4열(좁으면 자동 접힘). 카드 클릭 시 하단 로그인 이력을 역할로 필터.
+    // [라벨, 값, 색, onclick] — 미접속(고객)은 로그인 이벤트가 없으므로 안내만.
     const _acctCards = [
-      ['전체 계정', users.length, ''],
-      ['고객 계정', cust.length, ''],
-      ['로그인 이력(고객)', withLogin, 'var(--accent)'],
-      ['미접속(고객)', cust.length - withLogin, 'var(--muted)'],
+      ['전체 계정', users.length, '', `filterLhFromCard('', this)`],
+      ['고객 계정', cust.length, '', `filterLhFromCard('customer', this)`],
+      ['로그인 이력(고객)', withLogin, 'var(--accent)', `filterLhFromCard('customer', this)`],
+      ['미접속(고객)', cust.length - withLogin, 'var(--muted)', `lhNoRecordNote(this)`],
     ];
     document.getElementById('stats-accounts').innerHTML =
       `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;">` +
-      _acctCards.map(([k, v, c]) => `<div class="card" style="padding:16px 18px;">
+      _acctCards.map(([k, v, c, act]) => `<div class="card acct-card" style="padding:16px 18px;cursor:pointer;" title="클릭하면 하단 로그인 이력에 필터가 적용됩니다" onclick="${act}">
         <div style="font-size:12px;color:var(--muted);">${k}</div>
         <div style="font-size:28px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.01em;margin-top:10px;${c ? 'color:' + c + ';' : ''}">${v}</div></div>`).join('') +
       `</div>`;
