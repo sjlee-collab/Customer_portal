@@ -392,7 +392,7 @@ async function notifyForStatus(ticketId, prevStatus) {
     await notifyEmail({ type: 'STATUS_CHANGE', ticket, companyName, requesterEmail: requester.email, requesterName: requester.name, prevStatus });
   }
 
-  if (!['completed', 'cancelled'].includes(nextStatus) && ticket.due_date && new Date(ticket.due_date) < new Date()) {
+  if (!['completed', 'cancelled'].includes(nextStatus) && isOverdue(ticket.due_date)) {
     await notifySlack({ type: 'TICKET_OVERDUE', ticket, ...notifyBase });
   }
 }
@@ -634,7 +634,7 @@ async function notifyForManage(job) {
   if (statusChanged && ['pending_customer', 'completed'].includes(ticket.status)) {
     await notifySlack({ type: 'TICKET_STATUS', ticket, ...notifyBase, prevStatus });
   }
-  if (statusChanged && !['completed', 'cancelled'].includes(ticket.status) && ticket.due_date && new Date(ticket.due_date) < new Date()) {
+  if (statusChanged && !['completed', 'cancelled'].includes(ticket.status) && isOverdue(ticket.due_date)) {
     await notifySlack({ type: 'TICKET_OVERDUE', ticket, ...notifyBase });
   }
   if (statusChanged && sendEmail && isNotifiableRequester(requester, ticket)) {
@@ -936,9 +936,25 @@ async function resetPassword(body) {
   return json(200, { ok: true });
 }
 
+// 완료예정일 초과 판정 — 날짜만 비교한다(마감일 당일은 초과가 아니다).
+// due_date는 날짜 컬럼이라 UTC 자정(=KST 09시) Date로 읽히는데, 예전 코드가 이걸 시각까지
+// 비교해서 마감일 당일 오전 9시만 지나면 초과로 오판했다.
+function kstToday() {
+  return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+function dueDateOnly(v) {
+  if (!v) return null;
+  if (typeof v === 'string') return v.slice(0, 10);
+  return new Date(v).toISOString().slice(0, 10);   // pg date → UTC 자정 Date
+}
+function isOverdue(dueDate) {
+  const d = dueDateOnly(dueDate);
+  return !!d && d < kstToday();
+}
+
 // ── EventBridge Scheduler가 매일 09:00 KST에 {"task":"overdue_batch"} 페이로드로 직접 호출 ──
 async function runOverdueBatch() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = kstToday();
   const overdueTickets = await query(
     `select * from tickets where due_date < $1 and status not in ('completed','cancelled') and due_date is not null`,
     [today]
