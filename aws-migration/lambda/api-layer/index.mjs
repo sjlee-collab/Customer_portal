@@ -375,6 +375,9 @@ async function updateStatus(ticketId, body, event) {
   return json(200, { ticket });
 }
 
+// 상태 변경 시 슬랙 알림을 보낼 상태들. 접수(received)는 최초 생성 상태라 제외하고 나머지 전부.
+const SLACK_STATUS_CHANGE = new Set(['classifying', 'in_progress', 'pending_customer', 'on_hold', 'completed', 'cancelled']);
+
 async function notifyForStatus(ticketId, prevStatus) {
   const ticket = await getTicket(ticketId);
   if (!ticket) return;
@@ -384,7 +387,7 @@ async function notifyForStatus(ticketId, prevStatus) {
   const assignee = await getUser(ticket.assigned_to);
   const notifyBase = { companyName, requesterName: requester?.name, assigneeName: assignee?.name ?? '미배정' };
 
-  if (['pending_customer', 'completed'].includes(nextStatus)) {
+  if (SLACK_STATUS_CHANGE.has(nextStatus)) {
     await notifySlack({ type: 'TICKET_STATUS', ticket, ...notifyBase, prevStatus });
   }
 
@@ -631,7 +634,7 @@ async function notifyForManage(job) {
     const prevAssignee = await getUser(prevAssigneeId);
     await notifySlack({ type: 'TICKET_ASSIGNED', ticket, ...notifyBase, prevAssigneeName: prevAssignee?.name ?? '미배정' });
   }
-  if (statusChanged && ['pending_customer', 'completed'].includes(ticket.status)) {
+  if (statusChanged && SLACK_STATUS_CHANGE.has(ticket.status)) {
     await notifySlack({ type: 'TICKET_STATUS', ticket, ...notifyBase, prevStatus });
   }
   if (statusChanged && !['completed', 'cancelled'].includes(ticket.status) && isOverdue(ticket.due_date)) {

@@ -236,8 +236,11 @@ async function handleTicketStatus(payload, results) {
   const { ticket, prevStatus } = payload;
   const from = STATUS_KO[prevStatus] ?? prevStatus;
   const to = STATUS_KO[ticket.status] ?? ticket.status;
-  const emoji = ticket.status === 'completed' ? '✅' : '👀';
-  const evtType = ticket.status === 'completed' ? 'completed' : 'pending_customer';
+  // 완료·고객확인은 기존 라벨 유지, 그 외 상태변경(분류중·처리중·보류·취소 등)은 status_change로 기록.
+  const emoji = ticket.status === 'completed' ? '✅' : ticket.status === 'pending_customer' ? '👀' : '🔄';
+  const evtType = ticket.status === 'completed' ? 'completed'
+                : ticket.status === 'pending_customer' ? 'pending_customer'
+                : 'status_change';
   const header = `${emoji} *상태 변경* (${from} → ${to})`;
   const body = buildBaseMessage(ticket, payload) + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`;
   const isTest = isTestTicket(ticket);
