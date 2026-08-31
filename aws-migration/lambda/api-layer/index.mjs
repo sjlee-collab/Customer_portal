@@ -29,7 +29,7 @@ function corsHeaders(event) {
   return {
     'Access-Control-Allow-Origin': ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
     'Access-Control-Allow-Headers': 'authorization, content-type',
-    'Access-Control-Allow-Methods': 'GET,POST,PATCH,OPTIONS',
+    'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS',
     'Vary': 'Origin',
   };
 }
@@ -108,6 +108,8 @@ function getAuthz(event) {
 }
 
 const STAFF_ROLES = new Set(['admin', 'sales', 'tech_support', 'education']);
+// 대리 등록 가능 역할 = 내부 + 전 스태프(고객 제외). 실제 허용은 여기에 더해 ticket_create 권한까지 확인.
+const PROXY_ROLES = new Set(['internal', 'admin', 'sales', 'tech_support', 'education']);
 
 // role_permissions 테이블의 실제 설정을 그대로 따른다(하드코딩 admin 체크가 아님) —
 // data-api 쪽과 동일한 기준으로, 권한 관리 화면에서 커스터마이징한 값이 진짜 기준이다.
@@ -127,9 +129,9 @@ async function ticketBelongsToRequester(ticketId, authz) {
   if (STAFF_ROLES.has(authz.role)) return true;
   if (!ticketId) return false;
   const { role, userId, companyId, contractId, unitIds } = authz;
+  if (role === 'internal') return true; // 내부직원: 전체 티켓 답글 허용
   let sql, params;
-  if (role === 'internal') { sql = 'select 1 from tickets where id=$1 and created_by=$2'; params = [ticketId, userId]; }
-  else if (unitIds?.length) { sql = 'select 1 from tickets where id=$1 and (unit_id = any($2::uuid[]) or created_by=$3)'; params = [ticketId, unitIds, userId]; }
+  if (unitIds?.length) { sql = 'select 1 from tickets where id=$1 and (unit_id = any($2::uuid[]) or created_by=$3)'; params = [ticketId, unitIds, userId]; }
   else if (contractId)     { sql = 'select 1 from tickets where id=$1 and contract_id=$2'; params = [ticketId, contractId]; }
   else if (companyId)      { sql = 'select 1 from tickets where id=$1 and company_id=$2'; params = [ticketId, companyId]; }
   else return false;
@@ -189,19 +191,41 @@ async function createTicket(body, event) {
   const { title, category, description, product, priority = 'normal' } = body;
   if (!title || !category) return json(400, { error: 'title, category는 필수입니다' });
 
-  const requester = await getUser(authz.userId);
-  if (!requester) return json(400, { error: '존재하지 않는 사용자입니다' });
+  const actor = await getUser(authz.userId);
+  if (!actor) return json(400, { error: '존재하지 않는 사용자입니다' });
 
-  const created_by = authz.userId;
+  // ── 대리 등록(proxy) ── 내부·스태프 계정이 고객을 대신해 요청을 등록하는 경로.
+  // 평상시엔 created_by/company/contract를 절대 body로 안 믿지만(사칭 방지), 이 경로에 한해
+  // 역할(내부+전 스태프)·권한(ticket_create)·대상(role=customer)을 서버에서 검증한 뒤에만 적용한다.
+  // 요청은 대상 고객 명의로 남고(registered_by에 실제 등록자를 스냅샷으로 기록). 고객 역할은 불가.
+  const isProxy = PROXY_ROLES.has(authz.role) && body.on_behalf_of && body.on_behalf_of !== authz.userId;
+  let registeredBy = null, registeredByName = null;
+  let requester; // 요청 명의(대리 등록이면 대상 고객, 아니면 본인)
+  if (isProxy) {
+    if (!(await hasPermission(authz.role, 'ticket_create'))) {
+      return json(403, { error: '요청을 등록할 권한이 없습니다' });
+    }
+    const target = await getUser(body.on_behalf_of);
+    if (!target || target.role !== 'customer') {
+      return json(400, { error: '대리 등록 대상은 고객 계정이어야 합니다' });
+    }
+    requester = target;
+    registeredBy = actor.id;
+    registeredByName = actor.name;
+  } else {
+    requester = actor;
+  }
+
+  const created_by = requester.id;
   const company_id = requester.company_id ?? null;
   const contract_id = requester.contract_id ?? null;
 
-  // 조직 스냅샷 — body로 unit_id를 받되(다중 조직 사용자의 "요청 조직" 선택),
-  // 반드시 본인 배정 목록(user_org_units)에 있는 조직만 허용한다. 없으면 대표 조직.
-  const myUnits = Array.isArray(requester.unit_ids) ? requester.unit_ids : [];
+  // 조직 스냅샷 — body로 unit_id를 받되(다중 조직 사용자의 "요청 조직" 선택), 반드시 요청 명의
+  // (일반=본인, 대리=대상 고객)의 배정 목록(user_org_units)에 있는 조직만 허용. 없으면 대표 조직.
+  const reqUnits = Array.isArray(requester.unit_ids) ? requester.unit_ids : [];
   let unit_id = requester.unit_id ?? null;
   if (body.unit_id) {
-    if (!myUnits.includes(body.unit_id) && !STAFF_ROLES.has(authz.role)) {
+    if (!reqUnits.includes(body.unit_id) && !STAFF_ROLES.has(authz.role)) {
       return json(403, { error: '배정되지 않은 조직으로는 요청을 등록할 수 없습니다' });
     }
     unit_id = body.unit_id;
@@ -213,19 +237,28 @@ async function createTicket(body, event) {
     if (!unit_name) unit_id = null; // 존재하지 않는 조직 id 방어
   }
 
+  // 담당자 — 대리 등록은 선택한 스태프(role 검증), 그 외/미선택은 기존 카테고리 자동배정 규칙.
   let assignedTo = null, assignedToName = null;
-  const defaultAssignee = DEFAULT_ASSIGNEE_BY_CATEGORY[category];
-  if (defaultAssignee) {
-    assignedTo = defaultAssignee.id;
-    assignedToName = defaultAssignee.name;
+  if (isProxy && body.assigned_to) {
+    const staff = await getUser(body.assigned_to);
+    if (!staff || !STAFF_ROLES.has(staff.role)) {
+      return json(400, { error: '담당자는 빅스데이터 스태프여야 합니다' });
+    }
+    assignedTo = staff.id; assignedToName = staff.name;
   } else {
-    const managerField = COMPANY_MANAGER_FIELD_BY_CATEGORY[category];
-    if (managerField && company_id) {
-      const companyRows = await query(`select ${managerField} as manager_name from companies where id=$1`, [company_id]);
-      const managerName = companyRows[0]?.manager_name;
-      if (managerName) {
-        const mgrRows = await query('select id, name from users where name=$1 and is_active=true', [managerName]);
-        if (mgrRows[0]) { assignedTo = mgrRows[0].id; assignedToName = mgrRows[0].name; }
+    const defaultAssignee = DEFAULT_ASSIGNEE_BY_CATEGORY[category];
+    if (defaultAssignee) {
+      assignedTo = defaultAssignee.id;
+      assignedToName = defaultAssignee.name;
+    } else {
+      const managerField = COMPANY_MANAGER_FIELD_BY_CATEGORY[category];
+      if (managerField && company_id) {
+        const companyRows = await query(`select ${managerField} as manager_name from companies where id=$1`, [company_id]);
+        const managerName = companyRows[0]?.manager_name;
+        if (managerName) {
+          const mgrRows = await query('select id, name from users where name=$1 and is_active=true', [managerName]);
+          if (mgrRows[0]) { assignedTo = mgrRows[0].id; assignedToName = mgrRows[0].name; }
+        }
       }
     }
   }
@@ -233,16 +266,56 @@ async function createTicket(body, event) {
   const companyName = await getCompanyName(company_id);
 
   const inserted = await query(
-    `insert into tickets (title, category, description, status, priority, product, created_by, created_by_name, company_id, company_name, contract_id, unit_id, unit_name, assigned_to, assigned_to_name)
-     values ($1,$2,$3,'received',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+    `insert into tickets (title, category, description, status, priority, product, created_by, created_by_name, company_id, company_name, contract_id, unit_id, unit_name, assigned_to, assigned_to_name, registered_by, registered_by_name)
+     values ($1,$2,$3,'received',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
      returning *`,
-    [title, category, description ?? null, priority, product ?? null, created_by, requester.name, company_id ?? null, companyName, contract_id ?? null, unit_id, unit_name, assignedTo, assignedToName]
+    [title, category, description ?? null, priority, product ?? null, created_by, requester.name, company_id ?? null, companyName, contract_id ?? null, unit_id, unit_name, assignedTo, assignedToName, registeredBy, registeredByName]
   );
   const ticket = inserted[0];
 
   await deferNotify('create', { ticketId: ticket.id });
 
   return json(201, { ticket });
+}
+
+// ── 대리 등록 지원 조회 (내부 계정 전용) ──
+// 내부(internal) 계정은 data-api에서 companies/users 전체목록·org_units를 못 읽는다
+// (테넌트 격리 + STAFF_ONLY). 대리 등록 모달의 드롭다운을 채우려면 이 정보가 필요하므로,
+// 권한(internal + ticket_create)을 서버에서 확인한 뒤 최소 필드만 추려 돌려준다.
+function proxyAuthz(event) {
+  const authz = getAuthz(event);
+  if (!authz.userId) return { deny: json(401, { error: '인증이 필요합니다' }) };
+  if (!PROXY_ROLES.has(authz.role)) return { deny: json(403, { error: '대리 등록 권한이 없습니다' }) };
+  return { authz };
+}
+
+async function proxyBootstrap(event) {
+  const { authz, deny } = proxyAuthz(event);
+  if (deny) return deny;
+  if (!(await hasPermission(authz.role, 'ticket_create'))) return json(403, { error: '요청을 등록할 권한이 없습니다' });
+  const [companies, staff] = await Promise.all([
+    query('select id, name from companies order by name'),
+    query('select id, name, role from users where role = any($1) and coalesce(is_active,true)=true order by name', [[...STAFF_ROLES]]),
+  ]);
+  return json(200, { companies, staff });
+}
+
+async function proxyCustomers(event) {
+  const { authz, deny } = proxyAuthz(event);
+  if (deny) return deny;
+  if (!(await hasPermission(authz.role, 'ticket_create'))) return json(403, { error: '요청을 등록할 권한이 없습니다' });
+  const companyId = event.queryStringParameters?.company_id;
+  if (!companyId) return json(400, { error: 'company_id는 필수입니다' });
+  const [customers, units] = await Promise.all([
+    query(
+      `select u.id, u.name, u.email,
+              array(select unit_id from user_org_units where user_id=u.id) as unit_ids
+       from users u
+       where u.company_id=$1 and u.role='customer' and coalesce(u.is_active,true)=true
+       order by u.name`, [companyId]),
+    query("select id, unit_no, unit_name from org_units where company_id=$1 and status='active' order by unit_no", [companyId]),
+  ]);
+  return json(200, { customers, units });
 }
 
 async function notifyForCreate(ticketId) {
@@ -258,7 +331,9 @@ async function notifyForCreate(ticketId) {
   // send-email Lambda는 INSERT 타입 호출마다 요청자에게 접수 확인 메일을 보낸다.
   // 조건별로 notifyEmail을 여러 번 호출하면 접수 확인 메일이 중복 발송되므로,
   // 계약/라이선스·긴급 여부에 필요한 정보를 모두 모아 단 한 번만 호출한다.
+  // 대리 등록(registered_by 있음)이면 registeredByName을 함께 넘겨 메일에 "담당자가 등록했습니다" 안내를 표시한다.
   const emailPayload = { ticket, companyName: ticket.company_name, requesterEmail: requester.email, requesterName: ticket.created_by_name };
+  if (ticket.registered_by) emailPayload.registeredByName = ticket.registered_by_name;
 
   if (['contract', 'license'].includes(ticket.category)) {
     emailPayload.accountManagerEmail = await getAccountManagerEmail(ticket.company_id, 'account_manager');
@@ -300,6 +375,9 @@ async function updateStatus(ticketId, body, event) {
   return json(200, { ticket });
 }
 
+// 상태 변경 시 슬랙 알림을 보낼 상태들. 접수(received)는 최초 생성 상태라 제외하고 나머지 전부.
+const SLACK_STATUS_CHANGE = new Set(['classifying', 'in_progress', 'pending_customer', 'on_hold', 'completed', 'cancelled']);
+
 async function notifyForStatus(ticketId, prevStatus) {
   const ticket = await getTicket(ticketId);
   if (!ticket) return;
@@ -309,7 +387,7 @@ async function notifyForStatus(ticketId, prevStatus) {
   const assignee = await getUser(ticket.assigned_to);
   const notifyBase = { companyName, requesterName: requester?.name, assigneeName: assignee?.name ?? '미배정' };
 
-  if (['pending_customer', 'completed'].includes(nextStatus)) {
+  if (SLACK_STATUS_CHANGE.has(nextStatus)) {
     await notifySlack({ type: 'TICKET_STATUS', ticket, ...notifyBase, prevStatus });
   }
 
@@ -317,7 +395,7 @@ async function notifyForStatus(ticketId, prevStatus) {
     await notifyEmail({ type: 'STATUS_CHANGE', ticket, companyName, requesterEmail: requester.email, requesterName: requester.name, prevStatus });
   }
 
-  if (!['completed', 'cancelled'].includes(nextStatus) && ticket.due_date && new Date(ticket.due_date) < new Date()) {
+  if (!['completed', 'cancelled'].includes(nextStatus) && isOverdue(ticket.due_date)) {
     await notifySlack({ type: 'TICKET_OVERDUE', ticket, ...notifyBase });
   }
 }
@@ -384,6 +462,10 @@ async function addReply(ticketId, body, event) {
     `insert into ticket_replies (ticket_id, note, changed_by) values ($1,$2,$3)`,
     [ticketId, note, changed_by]
   );
+  // 답글도 "이 요청에 오늘 무슨 일이 있었나"에 해당하므로 티켓의 갱신 시각을 올린다.
+  // 대시보드의 "오늘 업데이트된 요청" 카드가 updated_at을 기준으로 세는데, 이게 없으면
+  // 고객이 답글만 단 요청은 아무도 손대지 않은 것처럼 보인다.
+  await query(`update tickets set updated_at=now() where id=$1`, [ticketId]);
 
   if (author?.role === 'customer') {
     await deferNotify('reply', { ticketId });
@@ -401,6 +483,62 @@ async function notifyForReply(ticketId) {
     type: 'TICKET_REPLY', ticket, companyName: ticket.company_name,
     requesterName: requester?.name, assigneeName: ticket.assigned_to_name,
   });
+}
+
+// ── PATCH /tickets/{id} — 작성자 본인(또는 스태프)의 요청 내용 수정 ──
+// index.html의 "요청 수정" 모달(saveEditRequest) 전용. 제목/카테고리/제품/긴급도/내용만
+// 수정하며 상태·담당자는 건드리지 않는다(그건 /manage). tickets는 data-api 직접쓰기가 막혀
+// 있어(전용 API 강제) 이 엔드포인트를 통해서만 수정된다. 남의 요청 수정을 막기 위해
+// created_by === 로그인 본인인지 확인한다(스태프는 ticket_manage 권한으로 허용).
+async function editTicket(ticketId, body, event) {
+  const authz = getAuthz(event);
+  if (!authz.userId) return json(401, { error: '인증이 필요합니다' });
+
+  const before = await query('select created_by from tickets where id=$1', [ticketId]);
+  if (!before[0]) return json(404, { error: '요청을 찾을 수 없습니다' });
+
+  const isOwner = before[0].created_by === authz.userId;
+  const isStaff = await hasPermission(authz.role, 'ticket_manage');
+  if (!isOwner && !isStaff) return json(403, { error: '본인이 등록한 요청만 수정할 수 있습니다' });
+
+  const VALID_CATEGORIES = new Set(['tech_support', 'contract', 'license', 'education', 'customer', 'other']);
+  const VALID_PRIORITIES = new Set(['normal', 'high', 'critical']);
+  const title = (body.title ?? '').trim();
+  const description = (body.description ?? '').trim();
+  const category = body.category;
+  const product = body.product ?? null;
+  const priority = body.priority ?? 'normal';
+  if (!title || !category || !description) return json(400, { error: 'title, category, description은 필수입니다' });
+  if (!VALID_CATEGORIES.has(category)) return json(400, { error: '허용되지 않은 카테고리입니다' });
+  if (!VALID_PRIORITIES.has(priority)) return json(400, { error: '허용되지 않은 긴급도입니다' });
+
+  const updated = await query(
+    `update tickets set title=$1, category=$2, product=$3, priority=$4, description=$5, updated_at=now()
+     where id=$6 returning *`,
+    [title, category, product, priority, description, ticketId]
+  );
+  return json(200, { ticket: updated[0] });
+}
+
+// ── DELETE /tickets/{id} — 요청 삭제 (자식행 포함, 트랜잭션). 권한: ticket_delete ──
+// 첨부 S3 객체는 프론트가 이 호출 전에 storage-api로 먼저 제거한다(여기선 DB만 원자적 삭제).
+async function deleteTicket(ticketId, event) {
+  const authz = getAuthz(event);
+  if (!authz.userId) return json(401, { error: '인증이 필요합니다' });
+  if (!(await hasPermission(authz.role, 'ticket_delete'))) {
+    return json(403, { error: '요청을 삭제할 권한이 없습니다' });
+  }
+  const before = await query('select id from tickets where id=$1', [ticketId]);
+  if (!before[0]) return json(404, { error: '요청을 찾을 수 없습니다' });
+  await withTransaction(async (q) => {
+    await q('delete from ticket_history where ticket_id=$1', [ticketId]);
+    await q('delete from ticket_replies where ticket_id=$1', [ticketId]);
+    await q('delete from ticket_memos where ticket_id=$1', [ticketId]);
+    await q('delete from ticket_attachments where ticket_id=$1', [ticketId]);
+    await q('delete from log_notification where ticket_id=$1', [ticketId]);
+    await q('delete from tickets where id=$1', [ticketId]);
+  });
+  return json(200, { ok: true });
 }
 
 // ── PATCH /tickets/{id}/manage ──
@@ -446,8 +584,15 @@ async function manageTicket(ticketId, body, event) {
   // 이력은 안 남는 부분 반영이 생겼다(감사추적 누락). 이제 하나라도 실패하면 전부 롤백된다.
   const ticket = await withTransaction(async (q) => {
     const updated = await q(
-      `update tickets set category=$1, status=$2, assigned_to=$3, assigned_to_name=$4, due_date=$5, updated_at=now() where id=$6 returning *`,
-      [nextCategory, nextStatus, assigned_to ?? null, assignedToName, due_date ?? null, ticketId]
+      // cc_emails(추가 수신자)도 함께 저장한다 — 지금까지는 메일 발송에만 쓰고 버려서
+      // 모달을 다시 열면 매번 빈 칸이었다. 티켓별로 마지막 입력을 기억한다.
+      // 값을 아예 안 보낸 호출(cc_emails === undefined)은 기존 값을 덮어쓰지 않는다.
+      `update tickets set category=$1, status=$2, assigned_to=$3, assigned_to_name=$4, due_date=$5,
+              cc_emails = case when $6 then cc_emails else $7::text[] end,
+              updated_at=now()
+        where id=$8 returning *`,
+      [nextCategory, nextStatus, assigned_to ?? null, assignedToName, due_date ?? null,
+       cc_emails === undefined, Array.isArray(cc_emails) ? cc_emails : null, ticketId]
     );
     if (statusChanged) {
       await q(
@@ -489,10 +634,10 @@ async function notifyForManage(job) {
     const prevAssignee = await getUser(prevAssigneeId);
     await notifySlack({ type: 'TICKET_ASSIGNED', ticket, ...notifyBase, prevAssigneeName: prevAssignee?.name ?? '미배정' });
   }
-  if (statusChanged && ['pending_customer', 'completed'].includes(ticket.status)) {
+  if (statusChanged && SLACK_STATUS_CHANGE.has(ticket.status)) {
     await notifySlack({ type: 'TICKET_STATUS', ticket, ...notifyBase, prevStatus });
   }
-  if (statusChanged && !['completed', 'cancelled'].includes(ticket.status) && ticket.due_date && new Date(ticket.due_date) < new Date()) {
+  if (statusChanged && !['completed', 'cancelled'].includes(ticket.status) && isOverdue(ticket.due_date)) {
     await notifySlack({ type: 'TICKET_OVERDUE', ticket, ...notifyBase });
   }
   if (statusChanged && sendEmail && isNotifiableRequester(requester, ticket)) {
@@ -543,6 +688,13 @@ async function login(body) {
     { sub: user.id, role: user.role, company_id: user.company_id || null, contract_id: user.contract_id || null, unit_ids: unitIds },
     JWT_SECRET, TOKEN_TTL_SECONDS
   );
+  // 사용 통계(DAU/WAU/MAU)용 로그인 이벤트 기록 — 베스트에포트: 실패해도 로그인은 정상 진행.
+  try {
+    await query(
+      'insert into login_events (user_id, user_name, role, company_id, company_name) values ($1,$2,$3,$4,$5)',
+      [user.id, user.name, user.role, user.company_id || null, companyName === '-' ? null : companyName]
+    );
+  } catch (e) { console.error('login_events insert 실패(무시):', e); }
   return json(200, {
     token,
     user: {
@@ -552,6 +704,620 @@ async function login(body) {
       phone: user.phone || '', company: companyName === '-' ? '' : companyName,
     },
   });
+}
+
+// ── GET /stats/active-users ──
+// 사용 통계 화면의 접속 활동(DAU/WAU/MAU + 일별 DAU 추이). login_events를 서버에서 distinct 집계한다.
+// login_events는 전 사용자 접속시각이라 민감 → stats_view 권한(또는 admin)만 조회 가능.
+async function statsActiveUsers(event) {
+  const authz = getAuthz(event);
+  if (!(await hasPermission(authz.role, 'stats_view'))) return json(403, { error: '권한이 없습니다' });
+  // DAU/WAU/MAU·고착도·총로그인·평균(series)은 모두 "고객 계정 기준"(role='customer')으로 집계한다.
+  // 역할별 접속 비중(byRole)만 전체 역할을 대상으로 한다(그 카드의 취지가 역할 분포이므로).
+  // 오늘(KST) 자정 이후 = DAU. KST 자정을 timestamptz로 만들어 created_at(timestamptz)과 비교.
+  const [d] = await query(
+    `select count(distinct user_id)::int n from login_events
+      where role = 'customer' and created_at >= (date_trunc('day', now() at time zone 'Asia/Seoul') at time zone 'Asia/Seoul')`);
+  const [w] = await query(
+    `select count(distinct user_id)::int n from login_events where role = 'customer' and created_at >= now() - interval '7 days'`);
+  const [m] = await query(
+    `select count(distinct user_id)::int n from login_events where role = 'customer' and created_at >= now() - interval '30 days'`);
+  const series = await query(
+    `select to_char((created_at at time zone 'Asia/Seoul')::date, 'YYYY-MM-DD') d, count(distinct user_id)::int n
+       from login_events where role = 'customer' and created_at >= now() - interval '30 days' group by 1 order by 1`);
+  // 총 로그인 횟수(중복 포함, 30일, 고객 기준) — DAU/WAU/MAU(고유)와 달리 재접속 빈도를 본다.
+  const [tot] = await query(
+    `select count(*)::int n from login_events where role = 'customer' and created_at >= now() - interval '30 days'`);
+  // 역할별 고유 접속자(30일) — 접속 비중 도넛용. 전체 역할. login_events.role(로그인 시점 스냅샷) 기준.
+  const byRole = await query(
+    `select role, count(distinct user_id)::int n from login_events
+       where created_at >= now() - interval '30 days' group by role order by n desc`);
+  return json(200, {
+    dau: d.n, wau: w.n, mau: m.n,
+    stickiness: m.n ? Math.round((d.n / m.n) * 100) : 0,
+    totalLogins: tot.n,
+    byRole,
+    series,
+  });
+}
+
+// ── POST /docs/download-event ──
+// 자료 다운로드 1건을 기록한다: document_downloads에 스냅샷 1행 + download_count 증가를
+// 한 트랜잭션으로. 예전에는 프런트가 "현재값 읽기 → +1 UPDATE"로 카운터만 올렸는데,
+// 동시 다운로드에서 증가가 유실되는 경합이 있었고 주체·시각도 남지 않았다.
+// 권한: 인증된 사용자 전원(자료실을 볼 수 있으면 다운로드도 하므로 별도 권한 없음).
+async function docDownloadEvent(event, body) {
+  const authz = getAuthz(event);
+  if (!authz.userId) return json(401, { error: '인증이 필요합니다' });
+  const docId = body && body.docId;
+  if (!/^[0-9a-fA-F-]{36}$/.test(String(docId || ''))) return json(400, { error: 'docId가 필요합니다' });
+
+  // 이름·회사명 스냅샷 — 계정이 삭제돼도 이력이 남게 이벤트 행에 박아 둔다.
+  const [u] = await query(
+    `select u.name, c.name company_name from users u
+       left join companies c on c.id = u.company_id where u.id = $1`, [authz.userId]);
+
+  const result = await withTransaction(async (q) => {
+    const rows = await q(
+      `update content_documents set download_count = coalesce(download_count, 0) + 1
+        where id = $1 returning title, download_count`, [docId]);
+    if (!rows.length) return null;
+    await q(
+      `insert into document_downloads (doc_id, doc_title, user_id, user_name, role, company_id, company_name)
+       values ($1,$2,$3,$4,$5,$6,$7)`,
+      [docId, rows[0].title, authz.userId, u ? u.name : null, authz.role,
+       authz.companyId || null, u ? u.company_name : null]);
+    return rows[0];
+  });
+  if (!result) return json(404, { error: '자료를 찾을 수 없습니다' });
+  return json(200, { ok: true, downloadCount: result.download_count });
+}
+
+// ── GET /stats/documents ──
+// 사용 통계 > 자료실 활용 탭. content_documents 단독 집계.
+//
+// ⚠ download_count는 다운로드할 때마다 1씩 올리는 누적 카운터이지 이벤트 로그가 아니다.
+// "총 몇 번"은 알 수 있어도 "언제·누가"는 남지 않으므로, 이 탭에는 추이 그래프도
+// 사용자별 분해도 없다(있는 척하면 안 된다). 화면에도 그 사실을 적어 둔다.
+// 쿼리스트링: category, product, visibility(public=고객 공개 / private=내부 전용),
+//             limit/offset(다운로드 0건 목록 페이지네이션용).
+//
+// ⚠ 고객사별 필터는 없다(만들 수 없다). content_documents에 company_id가 없고 자료실은
+// 전 고객 공용이며, 다운로드도 누적 카운터뿐이라 누가 받았는지 기록이 없다. 고객과 연결할
+// 고리 자체가 없으므로, 고객 관점 필터는 "고객에게 보이는가"(is_public)가 최선이다.
+// 다운로드 이력이 있는 계정 목록(사람 필터 옵션용). 스냅샷 기준이라 계정이 삭제돼도 남는다.
+async function _dlDownloaders() {
+  return query(
+    `select user_id id, coalesce(nullif(user_name,''), '(이름 없음)') name,
+            role, coalesce(nullif(company_name,''), '') company,
+            (role = 'customer') is_customer, count(*)::int n
+       from document_downloads where user_id is not null
+      group by 1, 2, 3, 4, 5 order by n desc limit 50`);
+}
+
+async function statsDocuments(event) {
+  const authz = getAuthz(event);
+  if (!(await hasPermission(authz.role, 'stats_view'))) return json(403, { error: '권한이 없습니다' });
+
+  const qs = event.queryStringParameters || {};
+  const params = [];
+  const where = [];
+  if (qs.category) { params.push(qs.category); where.push(`category = $${params.length}`); }
+  if (qs.product)  { params.push(qs.product);  where.push(`product = $${params.length}`); }
+  if (qs.visibility === 'public') where.push('is_public');
+  else if (qs.visibility === 'private') where.push('not is_public');
+  const w = where.length ? 'where ' + where.join(' and ') : '';
+
+  // ── 다운로드 주체 필터 (who=customer|internal, person=user uuid) ──
+  // 이 필터는 document_downloads 이벤트 기준이라 기록 시작(2026-08-31) 이후만 집계된다.
+  // 누적 카운터(download_count)와 모집단이 달라서, 필터가 걸리면 이벤트 기반 응답으로 갈아탄다.
+  const who = qs.who === 'customer' || qs.who === 'internal' ? qs.who : '';
+  const person = /^[0-9a-fA-F-]{36}$/.test(String(qs.person || '')) ? qs.person : '';
+  if (who || person) {
+    const ep = [], ew = [];
+    // internal = 고객이 아닌 전 역할(internal/admin/tech_support/sales/education) — 화면의 "내부 계정"과 일치.
+    if (who === 'customer') ew.push(`d.role = 'customer'`);
+    else if (who === 'internal') ew.push(`d.role <> 'customer'`);
+    if (person) { ep.push(person); ew.push(`d.user_id = $${ep.length}`); }
+    if (qs.category) { ep.push(qs.category); ew.push(`cd.category = $${ep.length}`); }
+    const eWhere = ew.length ? 'where ' + ew.join(' and ') : '';
+    const joined = `from document_downloads d left join content_documents cd on cd.id = d.doc_id`;
+
+    const [es] = await query(
+      `select count(*)::int n, count(distinct d.doc_id)::int docs,
+              max(d.created_at) last, min(d.created_at) first
+         ${joined} ${eWhere}`, ep);
+    const etop = await query(
+      `select coalesce(cd.title, d.doc_title, '(삭제된 자료)') title,
+              coalesce(cd.category, '') category, count(*)::int n
+         ${joined} ${eWhere} group by 1, 2 order by n desc limit 8`, ep);
+    const downloaders = await _dlDownloaders();
+    const [tot] = await query(`select count(*)::int n, min(created_at) since from document_downloads`);
+    return json(200, {
+      eventMode: true,
+      eventSummary: { n: es.n, docs: es.docs, last: es.last, first: es.first },
+      eventTop: etop, downloaders,
+      eventInfo: { total: tot.n, since: tot.since },
+    });
+  }
+
+  const [sum] = await query(
+    `select count(*)::int docs,
+            count(*) filter (where is_public)::int public_n,
+            count(*) filter (where not is_public)::int private_n,
+            coalesce(sum(download_count), 0)::int downloads,
+            count(*) filter (where coalesce(download_count, 0) = 0)::int zero,
+            coalesce(max(download_count), 0)::int max_dl,
+            coalesce(sum(file_size), 0)::bigint bytes
+       from content_documents ${w}`, params);
+
+  // 최다 다운로드 자료의 제목 — KPI 카드 부제로 쓴다.
+  const [topDoc] = await query(
+    `select title from content_documents ${w}
+      order by download_count desc nulls last, created_at desc limit 1`, params);
+
+  const top = await query(
+    `select title, category, coalesce(nullif(product,''), '') product,
+            coalesce(download_count, 0)::int n
+       from content_documents ${w ? w + ' and' : 'where'} coalesce(download_count, 0) > 0
+      order by n desc, created_at desc limit 8`, params);
+
+  // 카테고리별 등록 수와 그중 0건 수를 함께 낸다 — 두 값을 나란히 놔야
+  // "이 카테고리는 통째로 안 쓰인다"가 보인다(예: edu 9개 중 9개가 0건).
+  const byCategory = await query(
+    `select category, count(*)::int n,
+            count(*) filter (where coalesce(download_count, 0) = 0)::int zero,
+            count(*) filter (where not is_public)::int private_n,
+            coalesce(sum(download_count), 0)::int downloads
+       from content_documents ${w} group by 1 order by n desc`, params);
+
+  const limit = Math.min(100, Math.max(1, parseInt(qs.limit, 10) || 10));
+  const offset = Math.max(0, parseInt(qs.offset, 10) || 0);
+  const zeroList = await query(
+    `select id, title, category, coalesce(nullif(product,''), '') product, is_public,
+            to_char(created_at at time zone 'Asia/Seoul', 'YYYY-MM-DD') created,
+            coalesce(file_size, 0)::bigint file_size
+       from content_documents ${w ? w + ' and' : 'where'} coalesce(download_count, 0) = 0
+      order by created_at desc limit ${limit} offset ${offset}`, params);
+
+  // 필터 선택지는 전체 데이터 기준으로 뽑는다 — 필터를 건 뒤 선택지가 사라지면
+  // 다른 값으로 바꿀 수가 없다.
+  const catOptions = await query(
+    `select category k, count(*)::int n from content_documents group by 1 order by n desc`);
+  const productOptions = await query(
+    `select product k, count(*)::int n from content_documents
+      where coalesce(product,'') <> '' group by 1 order by n desc`);
+
+  return json(200, {
+    summary: {
+      docs: sum.docs, publicN: sum.public_n, privateN: sum.private_n,
+      downloads: sum.downloads, zero: sum.zero, maxDownload: sum.max_dl,
+      maxTitle: topDoc ? topDoc.title : '', bytes: Number(sum.bytes),
+    },
+    top, byCategory, zeroTotal: sum.zero, zeroList, catOptions, productOptions,
+    downloaders: await _dlDownloaders(),
+    eventInfo: await query(`select count(*)::int n, min(created_at) since from document_downloads`).then(r => ({ total: r[0].n, since: r[0].since })),
+  });
+}
+
+// ── GET /stats/system ──
+// 사용 통계 > 시스템 현황 탭. 알림(log_notification)·연동(log_integration) 건전성.
+//
+// ⚠ 값 정규화를 쿼리에서 흡수한다 — 발송 상태를 채널마다 다른 단어로 기록해 왔다
+// (슬랙 'success', 메일 'sent'). 채널도 'Slack'/'slack' 대소문자가 섞여 있다. DB 값을
+// 고치는 대신 집계에서 lower() + 성공값 집합으로 정규화한다(기록 코드는 건드리지 않음 —
+// 두 채널이 각자 일관되게 쓰고 있어서 지금 고치면 병렬 세션의 알림 코드와 충돌 위험만 있다).
+async function statsSystem(event) {
+  const authz = getAuthz(event);
+  if (!(await hasPermission(authz.role, 'stats_view'))) return json(403, { error: '권한이 없습니다' });
+
+  const qs = event.queryStringParameters || {};
+  const days = Math.min(3650, Math.max(0, parseInt(qs.days, 10) || 0));
+  const period = days > 0 ? `where created_at >= now() - interval '${days} days'` : '';
+  const OK = `lower(status) in ('success','sent')`;
+
+  // ── 알림 ──
+  const [noti] = await query(
+    `select count(*)::int total,
+            count(*) filter (where ${OK})::int ok,
+            count(*) filter (where not ${OK})::int fail,
+            count(*) filter (where retry_count > 0)::int retried,
+            count(*) filter (where lower(channel) = 'slack')::int slack,
+            count(*) filter (where lower(channel) = 'email')::int email
+       from log_notification ${period}`);
+  const byEvent = await query(
+    `select coalesce(nullif(event_type,''), '(미지정)') k, count(*)::int n
+       from log_notification ${period} group by 1 order by n desc limit 10`);
+  const notiFails = await query(
+    `select lower(channel) channel, coalesce(event_type,'') event_type,
+            coalesce(error_message,'') error, recipient,
+            to_char(created_at at time zone 'Asia/Seoul', 'MM-DD HH24:MI') at
+       from log_notification ${period ? period + ' and' : 'where'} not ${OK}
+      order by created_at desc limit 10`);
+
+  // ── 연동 ──
+  const bySystem = await query(
+    `select system,
+            count(*)::int total,
+            count(*) filter (where status = 'success')::int ok,
+            count(*) filter (where status = 'failed')::int fail
+       from log_integration ${period} group by 1 order by total desc`);
+  const [dur] = await query(
+    `select coalesce(percentile_cont(0.5) within group (order by duration_ms), 0)::int median,
+            coalesce(avg(duration_ms), 0)::int avg,
+            coalesce(max(duration_ms), 0)::int max
+       from log_integration ${period ? period + ' and' : 'where'} duration_ms is not null`);
+  const integFails = await query(
+    `select system, action, direction, coalesce(error_message,'') error,
+            coalesce(duration_ms, 0)::int duration_ms,
+            to_char(created_at at time zone 'Asia/Seoul', 'MM-DD HH24:MI') at
+       from log_integration ${period ? period + ' and' : 'where'} status = 'failed'
+      order by created_at desc limit 10`);
+
+  return json(200, { noti, byEvent, notiFails, bySystem, duration: dur, integFails });
+}
+
+// ── GET /stats/companies ──
+// 사용 통계 > 고객 활용 탭. 고객사별 활용도(접속·계정·요청·계약)를 한 줄씩 집계한다.
+// 397개 고객사를 한 쿼리로 모아 정렬·페이지네이션까지 서버에서 끝낸다.
+//
+// 등급 규칙. 접속·계정 중심이고 요청은 적체로만 보조 반영한다 — 요청 0건을 위험으로
+// 잡으면 티켓이 적은 지금 거의 전부가 빨강이 되어 신호가 죽는다.
+//
+// ⚠ '한 번도 안 들어온 곳'을 위험으로 묶지 않는 이유: 실제로 402개사 중 387개사가 여기
+// 해당해서(2026-08-31 기준) 위험에 넣으면 96%가 빨강이 되어 우선순위를 못 가린다.
+// 성격도 다르다 — 쓰다가 끊긴 곳(이탈)과 아직 시작을 안 한 곳(온보딩)은 대응이 다르므로
+// 'none'으로 따로 뺀다. 그래야 빨강이 "쓰던 고객이 이탈 중"이라는 진짜 신호가 된다.
+//   미접속(none) = 로그인한 적 있는 계정이 하나도 없음(계정 미발급 포함)
+//   위험(bad)   = 접속 이력은 있으나 90일 넘게 무접속
+//   주의(mid)   = 활성화율 30% 미만 / 30~90일 무접속 / 30일+ 적체 보유
+//   양호(ok)    = 나머지
+// 접속 이벤트(login_events)는 기록 시작 이후만 있으므로 무접속 판정은 users.last_login을
+// 쓴다(전체 기간 유효). 기간 내 접속자 수만 login_events에서 센다.
+function _companyGradeSql() {
+  return `case
+    when coalesce(u.activated, 0) = 0 then 'none'
+    when u.last_login < now() - interval '90 days' then 'bad'
+    when (u.total > 0 and coalesce(u.activated, 0)::numeric / u.total < 0.3)
+      or u.last_login < now() - interval '30 days'
+      or coalesce(t.oldest_open_days, 0) >= 30 then 'mid'
+    else 'ok' end`;
+}
+
+async function statsCompanies(event) {
+  const authz = getAuthz(event);
+  if (!(await hasPermission(authz.role, 'stats_view'))) return json(403, { error: '권한이 없습니다' });
+
+  const qs = event.queryStringParameters || {};
+  const days = Math.min(3650, Math.max(0, parseInt(qs.days, 10) || 0));
+  const period = days > 0 ? `and created_at >= now() - interval '${days} days'` : '';
+  const params = [];
+
+  // 고객사 필터(검색·유형·담당영업·상태). 조건은 전부 바깥 래퍼에서 걸므로
+  // CTE 별칭(co./u./t./c.)이 아니라 select 결과 컬럼명을 쓴다.
+  const outer = [];
+  const q = (qs.q || '').trim();
+  if (q) { params.push('%' + q + '%'); outer.push(`name ilike $${params.length}`); }
+  if (qs.type)    { params.push(qs.type);    outer.push(`customer_type = $${params.length}`); }
+  if (qs.manager) { params.push(qs.manager); outer.push(`account_manager = $${params.length}`); }
+  if (qs.status)  { params.push(qs.status);  outer.push(`status = $${params.length}`); }
+
+  const base = `
+    with u as (
+      select company_id,
+             count(*)::int total,
+             count(*) filter (where last_login is not null)::int activated,
+             max(last_login) last_login
+        from users where role = 'customer' and company_id is not null group by 1),
+    t as (
+      select company_id,
+             count(*)::int tickets,
+             count(*) filter (where status not in ('completed','cancelled'))::int open_cnt,
+             count(*) filter (where registered_by is not null)::int proxy,
+             max(case when status not in ('completed','cancelled')
+                      then (extract(epoch from (now() - created_at)) / 86400)::int end) oldest_open_days
+        from tickets where company_id is not null ${period} group by 1),
+    v as (
+      select company_id, count(distinct user_id)::int visitors
+        from login_events where company_id is not null ${period} group by 1),
+    c as (
+      select company_id, min(end_date) next_end
+        from company_contracts where end_date >= current_date group by 1)
+    select co.id, co.name, co.status, co.customer_type, co.account_manager,
+           coalesce(u.total, 0)::int users_total,
+           coalesce(u.activated, 0)::int users_activated,
+           u.last_login,
+           coalesce(v.visitors, 0)::int visitors,
+           coalesce(t.tickets, 0)::int tickets,
+           coalesce(t.open_cnt, 0)::int open_cnt,
+           coalesce(t.proxy, 0)::int proxy,
+           t.oldest_open_days,
+           c.next_end,
+           case when c.next_end is null then null
+                else (c.next_end - current_date)::int end dday,
+           ${_companyGradeSql()} grade
+      from companies co
+      left join u on u.company_id = co.id
+      left join t on t.company_id = co.id
+      left join v on v.company_id = co.id
+      left join c on c.company_id = co.id`;
+
+  // 프리셋 — 표를 실제로 쓰게 만드는 장치. 컬럼명은 위 select의 출력 이름을 쓴다.
+  const preset = qs.preset || '';
+  if (preset === 'risk') {
+    // 이탈 위험: 쓰던 고객이 끊긴 곳(등급 위험) 또는 주의 상태에서 계약 만료가 임박한 곳
+    outer.push(`(grade = 'bad' or (grade = 'mid' and next_end is not null and next_end <= current_date + 90))`);
+  } else if (preset === 'onboard') {
+    // 온보딩 필요: 계정은 발급했는데 아무도 로그인한 적이 없는 곳(계정 미발급은 제외 —
+    // 아직 줄 계정이 없는 것과 주고도 안 쓰는 것은 다른 문제다)
+    outer.push(`grade = 'none' and users_total > 0`);
+  } else if (preset === 'heavy') {
+    outer.push(`tickets > 0`);
+  }
+  const filtered = outer.length ? `select * from (${base}) x where ${outer.join(' and ')}` : base;
+
+  // 정렬 — 기본은 위험도순(위험 → 주의 → 양호, 같은 등급이면 오래 안 들어온 순).
+  const SORTS = {
+    risk:       `case grade when 'bad' then 0 when 'mid' then 1 when 'none' then 2 else 3 end,
+                 last_login asc nulls last, users_total desc`,
+    tickets:    `tickets desc`,
+    open:       `open_cnt desc`,
+    visitors:   `visitors desc`,
+    activation: `case when users_total = 0 then 0 else users_activated::numeric / users_total end asc`,
+    dday:       `dday asc nulls last`,
+    name:       `name asc`,
+  };
+  const order = SORTS[qs.sort] || SORTS.risk;
+  const limit = Math.min(200, Math.max(1, parseInt(qs.limit, 10) || 20));
+  const offset = Math.max(0, parseInt(qs.offset, 10) || 0);
+
+  const [{ n: total }] = await query(`select count(*)::int n from (${filtered}) z`, params);
+  const rows = await query(`select * from (${filtered}) z order by ${order} limit ${limit} offset ${offset}`, params);
+
+  // ── 요약 KPI ── (프리셋·페이지와 무관하게 전체 모집단 기준)
+  const [sum] = await query(`
+    select count(*)::int companies,
+           count(*) filter (where coalesce(v.visitors,0) > 0 or coalesce(t.tickets,0) > 0)::int active,
+           count(*) filter (where coalesce(u.activated,0) = 0 and coalesce(u.total,0) > 0)::int never_in,
+           count(*) filter (where coalesce(t.tickets,0) = 0)::int no_ticket,
+           coalesce(sum(t.open_cnt), 0)::int open_total,
+           count(*) filter (where c.next_end is not null and c.next_end <= current_date + 90)::int expiring
+      from companies co
+      left join (select company_id, count(*)::int total,
+                        count(*) filter (where last_login is not null)::int activated
+                   from users where role='customer' and company_id is not null group by 1) u on u.company_id = co.id
+      left join (select company_id, count(*)::int tickets,
+                        count(*) filter (where status not in ('completed','cancelled'))::int open_cnt
+                   from tickets where company_id is not null ${period} group by 1) t on t.company_id = co.id
+      left join (select company_id, count(distinct user_id)::int visitors
+                   from login_events where company_id is not null ${period} group by 1) v on v.company_id = co.id
+      left join (select company_id, min(end_date) next_end from company_contracts
+                  where end_date >= current_date group by 1) c on c.company_id = co.id`);
+
+  // 등급 분포(도넛) — 표 필터와 무관하게 전체 고객사 기준
+  const grades = await query(`select grade, count(*)::int n from (${base}) g group by 1`, []);
+
+  // 담당영업·고객유형 필터 옵션(화면에서 하드코딩하지 않도록 실제 값을 내려준다)
+  const managers = await query(
+    `select distinct account_manager m from companies
+      where coalesce(account_manager,'') <> '' order by 1`);
+  const types = await query(
+    `select distinct customer_type t from companies
+      where coalesce(customer_type,'') <> '' order by 1`);
+
+  return json(200, {
+    total, rows, summary: sum, grades,
+    managers: managers.map(r => r.m), types: types.map(r => r.t),
+  });
+}
+
+// ── GET /stats/company-detail ──
+// 고객사 한 곳을 펼쳤을 때의 상세. 경로 파라미터 대신 쿼리스트링을 쓴다
+// (API Gateway가 캐치올 없이 경로를 하나씩 등록하는 구조라 라우트를 덜 만든다).
+async function statsCompanyDetail(event) {
+  const authz = getAuthz(event);
+  if (!(await hasPermission(authz.role, 'stats_view'))) return json(403, { error: '권한이 없습니다' });
+  const qs = event.queryStringParameters || {};
+  const id = qs.id || '';
+  if (!/^[0-9a-fA-F-]{36}$/.test(id)) return json(400, { error: 'id가 필요합니다' });
+  const days = Math.min(3650, Math.max(0, parseInt(qs.days, 10) || 0));
+  const period = days > 0 ? `and created_at >= now() - interval '${days} days'` : '';
+
+  // 월별 요청 수 + 접속자 수 (최근 6개월 고정 — 추이는 기간 필터와 무관하게 흐름을 본다)
+  const series = await query(
+    `with m as (select to_char(generate_series(
+                  date_trunc('month', now() at time zone 'Asia/Seoul') - interval '5 months',
+                  date_trunc('month', now() at time zone 'Asia/Seoul'), interval '1 month'), 'YYYY-MM') ym)
+     select m.ym,
+            (select count(*)::int from tickets
+              where company_id = $1
+                and to_char(created_at at time zone 'Asia/Seoul', 'YYYY-MM') = m.ym) tickets,
+            (select count(distinct user_id)::int from login_events
+              where company_id = $1
+                and to_char(created_at at time zone 'Asia/Seoul', 'YYYY-MM') = m.ym) visitors
+       from m order by m.ym`, [id]);
+
+  const byStatus = await query(
+    `select status, count(*)::int n from tickets where company_id = $1 ${period} group by 1`, [id]);
+  const byCategory = await query(
+    `select category, count(*)::int n from tickets where company_id = $1 ${period} group by 1 order by n desc`, [id]);
+  const [intake] = await query(
+    `select count(*) filter (where registered_by is null)::int direct,
+            count(*) filter (where registered_by is not null)::int proxy
+       from tickets where company_id = $1 ${period}`, [id]);
+  const openList = await query(
+    `select ticket_number, title, status, coalesce(nullif(assigned_to_name,''), '') assignee,
+            (extract(epoch from (now() - created_at)) / 86400)::int days
+       from tickets where company_id = $1 and status not in ('completed','cancelled')
+      order by created_at asc limit 10`, [id]);
+  // 계정별 활동 — 고객사 안에서 누가 창구 노릇을 하는지. last_login은 전체 기간 기준이라
+  // 접속 이벤트 기록 시작 이전 접속도 반영된다.
+  const users = await query(
+    `select u.name, u.last_login,
+            (select count(*)::int from tickets where created_by = u.id) tickets
+       from users u where u.company_id = $1 and u.role = 'customer'
+      order by u.last_login desc nulls last, u.name limit 12`, [id]);
+  const [cnt] = await query(
+    `select count(*)::int n from users where company_id = $1 and role = 'customer'`, [id]);
+
+  return json(200, { series, byStatus, byCategory, intake, openList, users, usersTotal: cnt.n });
+}
+
+// ── GET /stats/tickets ──
+// 사용 통계 > 요청 현황 탭. 티켓 집계를 서버(SQL)에서 끝낸다 — data-api의 범용 조회는
+// limit이 1000으로 캡되므로 전건을 프런트로 내려 집계하면 건수가 늘어난 뒤 조용히 틀린 값이 된다.
+// 쿼리스트링: days(기간, 0=전체), category, product, priority, assignee(미배정은 'none'),
+//             path(direct=고객 직접 / proxy=대리 등록), agent(대리 등록자 uuid).
+// 반환 지표는 tickets 단독 집계라 ticket_history의 상태전이 파싱에 의존하지 않는다.
+async function statsTickets(event) {
+  const authz = getAuthz(event);
+  if (!(await hasPermission(authz.role, 'stats_view'))) return json(403, { error: '권한이 없습니다' });
+
+  const qs = event.queryStringParameters || {};
+  // 기간 필터는 접수(created_at) 기준. 0/미지정이면 전체 기간.
+  const days = Math.min(3650, Math.max(0, parseInt(qs.days, 10) || 0));
+  const where = [], params = [];
+  if (days > 0) where.push(`created_at >= now() - interval '${days} days'`);
+  if (qs.category) { params.push(qs.category); where.push(`category = $${params.length}`); }
+  if (qs.product)  { params.push(qs.product);  where.push(`product = $${params.length}`); }
+  if (qs.priority) { params.push(qs.priority); where.push(`priority = $${params.length}`); }
+  if (qs.assignee === 'none') where.push('assigned_to is null');
+  else if (qs.assignee) { params.push(qs.assignee); where.push(`assigned_to = $${params.length}`); }
+
+  // 접수 경로 필터. 경로를 뺀 조건(wBase)을 따로 들고 있다가 "전체 대비 몇 %"를 낼 때 쓴다 —
+  // 경로로 걸러진 상태에서 대리 등록 비율을 재면 항상 100%/0%가 되어 지표가 죽는다.
+  const wBase = where.length ? 'where ' + where.join(' and ') : '';
+  const baseParamCount = params.length;
+  if (qs.path === 'direct') where.push('registered_by is null');
+  else if (qs.path === 'proxy') where.push('registered_by is not null');
+  if (qs.agent) { params.push(qs.agent); where.push(`registered_by = $${params.length}`); }
+  const w = where.length ? 'where ' + where.join(' and ') : '';
+
+  // 미해결 = 완료·취소를 제외한 모든 상태. 적체·미배정 지표가 모두 이 정의를 따른다.
+  const OPEN = `status not in ('completed','cancelled')`;
+
+  // ── 요약 KPI ──
+  const [sum] = await query(
+    `select count(*)::int total,
+            count(*) filter (where status = 'completed')::int completed,
+            count(*) filter (where status = 'cancelled')::int cancelled,
+            count(*) filter (where ${OPEN})::int "open",
+            count(*) filter (where ${OPEN} and created_at < now() - interval '30 days')::int aged,
+            count(*) filter (where ${OPEN} and assigned_to is null)::int unassigned,
+            count(*) filter (where ${OPEN} and due_date is not null and due_date < current_date)::int overdue,
+            count(*) filter (where registered_by is not null)::int proxy
+       from tickets ${w}`, params);
+
+  // 직전 동일 기간 대비 증감(days=0이면 비교 대상이 없어 null).
+  let prev = null;
+  if (days > 0) {
+    const pWhere = where.map(c => c.startsWith('created_at >=')
+      ? `created_at >= now() - interval '${days * 2} days' and created_at < now() - interval '${days} days'`
+      : c);
+    const [p] = await query(
+      `select count(*)::int total, count(*) filter (where registered_by is not null)::int proxy
+         from tickets where ${pWhere.join(' and ')}`, params);
+    prev = { total: p.total, proxy: p.proxy };
+  }
+
+  // ── 접수 추이 (주 단위 × 카테고리, KST 월요일 시작) ──
+  // 전체 기간이면 최근 12주(84일)만 그린다 — 막대가 무한히 늘어나지 않게.
+  const trend = await query(
+    `select to_char(date_trunc('week', created_at at time zone 'Asia/Seoul'), 'YYYY-MM-DD') wk,
+            category, count(*)::int n
+       from tickets ${w ? w + ' and' : 'where'} created_at >= now() - interval '${days > 0 ? days : 84} days'
+      group by 1, 2 order by 1`, params);
+
+  // ── 분포 ──
+  const byStatus   = await query(`select status, count(*)::int n from tickets ${w} group by 1`, params);
+  const byCategory = await query(`select category, count(*)::int n from tickets ${w} group by 1 order by n desc`, params);
+  const byPriority = await query(`select priority, count(*)::int n from tickets ${w} group by 1`, params);
+  const byProduct  = await query(
+    `select coalesce(nullif(product, ''), '(미지정)') p, count(*)::int n
+       from tickets ${w} group by 1 order by n desc limit 8`, params);
+
+  // ── 접수 시간대 히트맵 (요일 0=일~6=토, 시각 0~23, KST) ──
+  const heatmap = await query(
+    `select extract(dow  from created_at at time zone 'Asia/Seoul')::int d,
+            extract(hour from created_at at time zone 'Asia/Seoul')::int h,
+            count(*)::int n
+       from tickets ${w} group by 1, 2`, params);
+
+  // ── 담당자 부하 ──
+  // 화면의 모든 블록이 같은 범위(= 선택한 기간에 접수된 요청 + 필터)를 쓴다. 여기만 전체 기간을
+  // 보면 KPI의 미배정 수와 이 차트의 미배정 막대가 서로 다른 값이 되어 어느 쪽을 믿을지 알 수 없다.
+  // 이름은 assigned_to_name 스냅샷을 써서 계정이 삭제돼도 이력이 남는다.
+  const workload = await query(
+    `select coalesce(nullif(assigned_to_name, ''), '(미배정)') name,
+            count(*) filter (where ${OPEN})::int "open",
+            count(*) filter (where status = 'completed')::int "done"
+       from tickets ${w} group by 1 order by 2 desc, 3 desc limit 12`, params);
+
+  // ── 적체: 경과일 버킷 + 오래된 순 목록 ──
+  // 버킷 경계(7일·30일)는 접수 시각 기준 경과일이며, 위 KPI의 aged(30일+)와 같은 정의를 쓴다.
+  const openWhere = w ? `${w} and ${OPEN}` : `where ${OPEN}`;
+  const [age] = await query(
+    `select count(*) filter (where created_at >= now() - interval '7 days')::int b0,
+            count(*) filter (where created_at <  now() - interval '7 days'
+                               and created_at >= now() - interval '30 days')::int b1,
+            count(*) filter (where created_at <  now() - interval '30 days')::int b2
+       from tickets ${openWhere}`, params);
+  const oldest = await query(
+    `select ticket_number, title, coalesce(company_name, '') company, category, status,
+            coalesce(nullif(assigned_to_name, ''), '') assignee,
+            (extract(epoch from (now() - created_at)) / 86400)::int days
+       from tickets ${openWhere} order by created_at asc limit 10`, params);
+
+  // 경로 필터를 뺀 총계 — "전체 대비 N%" 계산용. 필터가 없으면 total과 같으므로 재조회하지 않는다.
+  let pathTotal = sum.total;
+  if (qs.path || qs.agent) {
+    const [pt] = await query(`select count(*)::int n from tickets ${wBase}`, params.slice(0, baseParamCount));
+    pathTotal = pt.n;
+  }
+
+  // 대리 등록자 목록 — 실제로 대신 접수한 적이 있는 사람만. 담당자 필터와 달리 전체 스태프를
+  // 넣지 않는다(대리 등록 이력이 없는 사람은 고를 이유가 없다). 경로 필터는 빼고 집계해야
+  // 대리 등록을 고른 뒤에도 선택지가 그대로 남는다.
+  const agents = await query(
+    `select registered_by id, coalesce(nullif(registered_by_name,''), '(이름 없음)') name, count(*)::int n
+       from tickets ${wBase ? wBase + ' and' : 'where'} registered_by is not null
+      group by 1, 2 order by n desc limit 20`, params.slice(0, baseParamCount));
+
+  return json(200, {
+    summary: {
+      total: sum.total, completed: sum.completed, cancelled: sum.cancelled,
+      open: sum.open, aged: sum.aged, unassigned: sum.unassigned,
+      overdue: sum.overdue, proxy: sum.proxy, pathTotal,
+    },
+    prev, trend, byStatus, byCategory, byPriority, byProduct, heatmap, workload, agents,
+    aging: { lt7: age.b0, d7to30: age.b1, gt30: age.b2 },
+    oldest,
+  });
+}
+
+// ── GET /stats/login-history ──
+// 로그인 이벤트 전체 이력(감사로그). 스냅샷(user_name/company_name)만 읽어 무조인. stats_view 강제.
+// 쿼리스트링: q(이름·고객사 검색), role, days(기간), limit, offset.
+async function statsLoginHistory(event) {
+  const authz = getAuthz(event);
+  if (!(await hasPermission(authz.role, 'stats_view'))) return json(403, { error: '권한이 없습니다' });
+  const qs = event.queryStringParameters || {};
+  const where = [], params = [];
+  const q = (qs.q || '').trim();
+  if (q) { params.push('%' + q + '%'); where.push(`(coalesce(user_name,'') ilike $${params.length} or coalesce(company_name,'') ilike $${params.length})`); }
+  if (qs.role) { params.push(qs.role); where.push(`role = $${params.length}`); }
+  const days = Math.min(3650, Math.max(0, parseInt(qs.days, 10) || 0));
+  if (days > 0) where.push(`created_at >= now() - interval '${days} days'`);
+  const limit = Math.min(200, Math.max(1, parseInt(qs.limit, 10) || 50));
+  const offset = Math.max(0, parseInt(qs.offset, 10) || 0);
+  const wsql = where.length ? 'where ' + where.join(' and ') : '';
+  const [{ n: total }] = await query(`select count(*)::int n from login_events ${wsql}`, params);
+  const rows = await query(
+    `select id, coalesce(user_name,'(삭제된 사용자)') as name, role,
+            coalesce(company_name,'') as company, created_at
+       from login_events ${wsql}
+      order by created_at desc limit ${limit} offset ${offset}`, params);
+  return json(200, { total, limit, offset, rows });
 }
 
 // ── POST /auth/verify-password ──
@@ -727,9 +1493,25 @@ async function resetPassword(body) {
   return json(200, { ok: true });
 }
 
+// 완료예정일 초과 판정 — 날짜만 비교한다(마감일 당일은 초과가 아니다).
+// due_date는 날짜 컬럼이라 UTC 자정(=KST 09시) Date로 읽히는데, 예전 코드가 이걸 시각까지
+// 비교해서 마감일 당일 오전 9시만 지나면 초과로 오판했다.
+function kstToday() {
+  return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+function dueDateOnly(v) {
+  if (!v) return null;
+  if (typeof v === 'string') return v.slice(0, 10);
+  return new Date(v).toISOString().slice(0, 10);   // pg date → UTC 자정 Date
+}
+function isOverdue(dueDate) {
+  const d = dueDateOnly(dueDate);
+  return !!d && d < kstToday();
+}
+
 // ── EventBridge Scheduler가 매일 09:00 KST에 {"task":"overdue_batch"} 페이로드로 직접 호출 ──
 async function runOverdueBatch() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = kstToday();
   const overdueTickets = await query(
     `select * from tickets where due_date < $1 and status not in ('completed','cancelled') and due_date is not null`,
     [today]
@@ -894,8 +1676,38 @@ export const handler = async (event) => {
     if (method === 'GET' && path === '/my/account-manager') {
       return await getMyAccountManager(event);
     }
+    if (method === 'GET' && path === '/stats/active-users') {
+      return await statsActiveUsers(event);
+    }
+    if (method === 'GET' && path === '/stats/login-history') {
+      return await statsLoginHistory(event);
+    }
+    if (method === 'GET' && path === '/stats/tickets') {
+      return await statsTickets(event);
+    }
+    if (method === 'GET' && path === '/stats/companies') {
+      return await statsCompanies(event);
+    }
+    if (method === 'GET' && path === '/stats/documents') {
+      return await statsDocuments(event);
+    }
+    if (method === 'GET' && path === '/stats/system') {
+      return await statsSystem(event);
+    }
+    if (method === 'POST' && path === '/docs/download-event') {
+      return await docDownloadEvent(event, body);
+    }
+    if (method === 'GET' && path === '/stats/company-detail') {
+      return await statsCompanyDetail(event);
+    }
     if (method === 'POST' && path === '/auth/admin-reset-password') {
       return await adminResetPassword(body, event);
+    }
+    if (method === 'GET' && path === '/proxy/bootstrap') {
+      return await proxyBootstrap(event);
+    }
+    if (method === 'GET' && path === '/proxy/customers') {
+      return await proxyCustomers(event);
     }
     if (method === 'POST' && path === '/tickets') {
       return await createTicket(body, event);
@@ -915,6 +1727,14 @@ export const handler = async (event) => {
     const replyMatch = path.match(/^\/tickets\/([^/]+)\/reply$/);
     if (method === 'POST' && replyMatch) {
       return await addReply(replyMatch[1], body, event);
+    }
+    // 접미사 없는 /tickets/{id} — 작성자 본인 요청 내용 수정(위 접미사 라우트가 우선 매칭됨)
+    const editMatch = path.match(/^\/tickets\/([^/]+)$/);
+    if (method === 'PATCH' && editMatch) {
+      return await editTicket(editMatch[1], body, event);
+    }
+    if (method === 'DELETE' && editMatch) {
+      return await deleteTicket(editMatch[1], event);
     }
     return json(404, { error: 'not found' });
   } catch (err) {

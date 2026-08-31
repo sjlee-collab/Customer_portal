@@ -1,0 +1,98 @@
+"""L1 백엔드 계약 테스트 — 슬랙 알림 카테고리 팬아웃 + 답글 알림 조건.
+
+실행: python scripts/harness/tests/test_notify_routing.py
+검증 (notify-handler의 카테고리 라우팅 매트릭스):
+  - 신규 등록(TICKET_INSERT): 공통 + 카테고리 채널
+      other        → 공통만
+      tech_support → 공통 + #기술지원-슬랙채널
+      contract     → 공통 + #영업-슬랙채널
+      education    → 공통 + #교육-슬랙채널
+  - 답글(TICKET_REPLY): 작성자가 customer일 때만 발송(공통 + 카테고리 채널),
+    스태프 답글은 무알림 (api-layer addReply의 role==='customer' 게이트)
+  - 등록 시 접수 확인 메일 1통(요청자에게)
+
+판정은 log_notification.recipient(채널 표시명)로 한다 — '[테스트]' 라벨이라 실제 발송은
+테스트 채널로 리다이렉트되지만 recipient에는 원래 대상 채널명이 남는다.
+카테고리 채널 분기는 해당 웹훅 env(SLACK_WEBHOOK_SALES/TECH/EDU)가 설정된 환경 전제
+(미설정이면 분기 자체를 건너뛰어 행이 안 남는다 — 운영 Lambda에는 설정돼 있음).
+
+메일 주의: 등록은 실제 경로(POST /tickets)라 접수 확인 메일이 나간다. 요청자 주소가
+temail() 싱크이므로 실행당 4통이 sjlee 싱크로 들어온다.
+"""
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'lib'))
+from itest import dget, dpost, ddel, api, wipe_ticket, notif_rows, wait_notif, tname, temail, Checker
+
+COMMON = '#고객지원포탈-공통'
+# 카테고리 → 등록/답글 알림이 추가로 가야 하는 채널 (notify-handler 라우팅 기준)
+EXTRA = {
+    'other':        set(),
+    'tech_support': {'#기술지원-슬랙채널'},
+    'contract':     {'#영업-슬랙채널'},
+    'education':    {'#교육-슬랙채널'},
+}
+
+
+def run():
+    t = Checker('L1 슬랙 라우팅(카테고리 팬아웃/답글)')
+    created = {'companies': [], 'users': [], 'tickets': []}
+    try:
+        co = dpost('companies', {'name': tname('라우팅 회사'), 'status': 'active'})['body']['id']
+        cu = dpost('users', {'email': temail('routeCust'), 'name': tname('라우팅고객'), 'role': 'customer',
+                             'company_id': co, 'is_active': True})['body']['id']
+        # 알림 게이트는 body의 role이 아니라 DB에서 조회한 작성자(role)로 판정하므로
+        # 스태프 답글 검증에는 실제 스태프 계정이 필요하다.
+        st = dpost('users', {'email': temail('routeStaff'), 'name': tname('라우팅직원'), 'role': 'internal',
+                             'is_active': True})['body']['id']
+        created['companies'].append(co); created['users'] += [cu, st]
+        C = dict(role='customer', userId=cu, companyId=co)
+
+        # ── 신규 등록: 카테고리별 팬아웃 ──
+        tids = {}
+        for cat, extra in EXTRA.items():
+            r = api('POST', '/tickets', {'title': tname('라우팅 ' + cat), 'category': cat,
+                                         'description': '라우팅 테스트', 'priority': 'normal'}, **C)
+            tid = (r.get('body') or {}).get('ticket', {}).get('id')
+            t.check('[%s] 등록 201' % cat, r.get('status') == 201 and tid, 'status=%s' % r.get('status'))
+            if not tid:
+                continue
+            tids[cat] = tid; created['tickets'].append(tid)
+
+            expect = {COMMON} | extra
+            slack = wait_notif(tid, 'slack', len(expect))
+            got = {x.get('recipient') for x in slack if x.get('event_type') in ('new_ticket', 'urgent')}
+            t.check('[%s] 등록 슬랙 채널 %s' % (cat, sorted(expect)), got == expect, '실제=%s' % sorted(got))
+
+            mail = notif_rows(tid, 'email')
+            t.check('[%s] 접수 확인 메일 1통' % cat, len(mail) == 1,
+                    '실제=%d건 %s' % (len(mail), [m.get('event_type') for m in mail]))
+
+        # ── 답글: 고객 답글만 알림, 카테고리 채널까지 팬아웃 ──
+        tid = tids.get('tech_support')
+        if tid:
+            base = len(notif_rows(tid, 'slack'))
+            r = api('POST', '/tickets/%s/reply' % tid, {'note': tname('고객 답글')}, **C)
+            t.check('고객 답글 201', r.get('status') == 201, 'status=%s' % r.get('status'))
+            slack = wait_notif(tid, 'slack', base + 2)
+            reply_ch = {x.get('recipient') for x in slack if x.get('event_type') == 'reply'}
+            t.check('고객 답글 슬랙: 공통+기술', reply_ch == {COMMON, '#기술지원-슬랙채널'},
+                    '실제=%s' % sorted(reply_ch))
+
+            # 스태프 답글 — 무알림 (작성자 role은 DB 기준이므로 실제 스태프 계정으로)
+            n_before = len(notif_rows(tid, 'slack'))
+            r = api('POST', '/tickets/%s/reply' % tid, {'note': tname('직원 답글')}, role='internal', userId=st)
+            t.check('스태프 답글 201', r.get('status') == 201, 'status=%s' % r.get('status'))
+            slack = wait_notif(tid, 'slack', n_before)  # 그대로여야 함
+            t.check('스태프 답글 무알림', len(slack) == n_before,
+                    '이전=%d 이후=%d' % (n_before, len(slack)))
+    finally:
+        for x in created['tickets']:
+            if len(dget('tickets', {'select': 'id', 'id': 'eq.' + x}, role='admin').get('body') or []):
+                wipe_ticket(x)
+        for x in created['users']: ddel('users', x, role='admin')
+        for x in created['companies']: ddel('companies', x, role='admin')
+    return t.report()
+
+
+if __name__ == '__main__':
+    sys.exit(0 if run() else 1)

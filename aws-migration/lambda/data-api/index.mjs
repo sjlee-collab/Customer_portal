@@ -185,9 +185,7 @@ async function tenantRowFilterSql(table, authz, paramOffset, qs) {
     return userId ? { sql: `"id" = $${paramOffset}`, params: [userId] } : { sql: '1=0', params: [] };
   }
   if (table === 'tickets') {
-    if (role === 'internal') {
-      return userId ? { sql: `"created_by" = $${paramOffset}`, params: [userId] } : { sql: '1=0', params: [] };
-    }
+    if (role === 'internal') return null; // 내부직원: 전체 티켓 열람 허용
     // 조직 기반 격리 (신토큰): 배정된 조직들의 티켓 + 본인이 만든 티켓.
     // created_by를 OR로 함께 열어두는 이유 — 조직 배정 전에 만들어진 자기 티켓(unit_id null)이
     // 목록에서 사라지지 않게 하기 위함.
@@ -210,6 +208,8 @@ async function tenantRowFilterSql(table, authz, paramOffset, qs) {
   // (ticket_id가 null인 행 — 연결테스트 등 — 은 이 서브쿼리에 걸리지 않아 자동으로 제외됨).
   if (table === 'ticket_replies' || table === 'ticket_attachments' || table === 'ticket_history' || table === 'log_notification') {
     if (role === 'internal') {
+      // 내부직원: 답글/첨부/이력은 전체 열람, 단 알림로그(log_notification)는 본인 작성분만 유지
+      if (table !== 'log_notification') return null;
       return userId
         ? { sql: `"ticket_id" in (select id from tickets where created_by = $${paramOffset})`, params: [userId] }
         : { sql: '1=0', params: [] };
@@ -251,9 +251,9 @@ async function ticketBelongsToRequester(ticketId, authz) {
   if (STAFF_ROLES.has(authz.role)) return true;
   if (!ticketId) return false;
   const { role, userId, companyId, contractId, unitIds } = authz;
+  if (role === 'internal') return true; // 내부직원: 전체 티켓에 답글/첨부 쓰기 허용
   let sql, params;
-  if (role === 'internal') { sql = 'select 1 from tickets where id=$1 and created_by=$2'; params = [ticketId, userId]; }
-  else if (unitIds?.length) { sql = 'select 1 from tickets where id=$1 and (unit_id = any($2::uuid[]) or created_by=$3)'; params = [ticketId, unitIds, userId]; }
+  if (unitIds?.length) { sql = 'select 1 from tickets where id=$1 and (unit_id = any($2::uuid[]) or created_by=$3)'; params = [ticketId, unitIds, userId]; }
   else if (contractId)     { sql = 'select 1 from tickets where id=$1 and contract_id=$2'; params = [ticketId, contractId]; }
   else if (companyId)      { sql = 'select 1 from tickets where id=$1 and company_id=$2'; params = [ticketId, companyId]; }
   else return false;

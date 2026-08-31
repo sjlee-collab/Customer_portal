@@ -26,6 +26,8 @@ const PORTAL_URL       = process.env.PORTAL_URL || '';
 // 통합테스트용: 설정돼있으면 실제 수신자 대신 이 주소로만 발송 (원래 수신자는 제목에 표시).
 // 테스트 끝나면 이 환경변수를 지워서 꺼야 한다.
 const TEST_EMAIL_OVERRIDE = process.env.TEST_EMAIL_OVERRIDE || '';
+// 테스트 모드 표기 — 하네스 email-safe.sh on 이면 '[테스트]'가 설정되어 제목에 접두된다(없으면 기존 [TEST]).
+const TEST_TAG = process.env.TEST_TAG || '';
 
 const CATEGORY_KO = {
   tech_support: '기술지원', contract: '계약 문의', license: '라이선스 문의',
@@ -81,13 +83,16 @@ function withTestBanner(html, originalTo) {
 
 async function sendAndLog(to, subject, html, ticketId, eventType, results) {
   const actualTo = TEST_EMAIL_OVERRIDE || to;
-  const actualSubject = TEST_EMAIL_OVERRIDE ? `[TEST] ${subject}` : subject;
+  const actualSubject = TEST_TAG ? `${TEST_TAG} ${subject}` : (TEST_EMAIL_OVERRIDE ? `[TEST] ${subject}` : subject);
   const actualHtml = withTestBanner(html, to);
   try {
     await sendMail(actualTo, actualSubject, actualHtml);
-    results.push({ channel: 'email', eventType, recipient: to, subject, ticketId, status: 'sent' });
+    // 알림 로그 상세에서 "실제 보낸 메일"을 그대로 보여주기 위해 생성한 본문 HTML을 함께 반환한다.
+    // (log_notification.content 컬럼에 저장 — 기존 미사용 컬럼 재사용) 테스트 배너는 운영에선 없고
+    // 있어도 저장 불필요하므로 순수 html을 넘긴다.
+    results.push({ channel: 'email', eventType, recipient: to, subject, ticketId, status: 'sent', content: html });
   } catch (err) {
-    results.push({ channel: 'email', eventType, recipient: to, subject, ticketId, status: 'failed', errorMessage: String(err) });
+    results.push({ channel: 'email', eventType, recipient: to, subject, ticketId, status: 'failed', errorMessage: String(err), content: html });
   }
 }
 
@@ -139,10 +144,14 @@ function customerStatusChangeHtml(ticket, companyName, requesterName, prevStatus
   return layout(subtitle, `${alertHtml}<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">안녕하세요, <strong>${requesterName}</strong>님.<br>요청 처리 상태가 변경되었습니다.</p><div class="lbl">변경 정보</div><table class="info"><tr><td>요청번호</td><td><strong>${ticket.ticket_number ?? '—'}</strong></td></tr><tr><td>제목</td><td>${ticket.title ?? '—'}</td></tr><tr><td>고객사</td><td>${companyName}</td></tr><tr><td>이전 상태</td><td>${prevKo}</td></tr><tr><td>변경 상태</td><td><span class="badge ${badgeCls}">${newKo}</span></td></tr><tr><td>변경 일시</td><td>${dateStr}</td></tr></table>${btn}`);
 }
 
-function customerNewTicketHtml(ticket, companyName, requesterName) {
+function customerNewTicketHtml(ticket, companyName, requesterName, registeredByName) {
   const btn = portalLinkBtn(ticket.ticket_number, '요청 확인하기');
   const dateStr = ticket.created_at ? new Date(ticket.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : '—';
-  return layout('요청 접수 확인', `<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">안녕하세요, <strong>${requesterName}</strong>님.<br>고객지원 요청이 정상적으로 접수되었습니다.<br>담당자 배정 후 순차적으로 처리해 드리겠습니다.</p><div class="lbl">접수 정보</div><table class="info"><tr><td>요청번호</td><td><strong>${ticket.ticket_number ?? '—'}</strong></td></tr><tr><td>제목</td><td>${ticket.title ?? '—'}</td></tr><tr><td>고객사</td><td>${companyName}</td></tr><tr><td>카테고리</td><td>${CATEGORY_KO[ticket.category] ?? ticket.category ?? '—'}</td></tr><tr><td>긴급도</td><td>${PRIORITY_KO[ticket.priority] ?? ticket.priority ?? '—'}</td></tr><tr><td>접수일시</td><td>${dateStr}</td></tr></table>${btn}`);
+  // 대리 등록(빅스데이터 담당자가 고객 대신 접수)이면 인사 문구를 바꾼다. 접수 정보 표는 동일.
+  const intro = registeredByName
+    ? `안녕하세요, <strong>${requesterName}</strong>님.<br>고객지원 요청이 등록되었습니다.<br>빅스데이터 담당자(${registeredByName})가 등록했습니다.`
+    : `안녕하세요, <strong>${requesterName}</strong>님.<br>고객지원 요청이 정상적으로 접수되었습니다.<br>담당자 배정 후 순차적으로 처리해 드리겠습니다.`;
+  return layout('요청 접수 확인', `<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">${intro}</p><div class="lbl">접수 정보</div><table class="info"><tr><td>요청번호</td><td><strong>${ticket.ticket_number ?? '—'}</strong></td></tr><tr><td>제목</td><td>${ticket.title ?? '—'}</td></tr><tr><td>고객사</td><td>${companyName}</td></tr><tr><td>카테고리</td><td>${CATEGORY_KO[ticket.category] ?? ticket.category ?? '—'}</td></tr><tr><td>긴급도</td><td>${PRIORITY_KO[ticket.priority] ?? ticket.priority ?? '—'}</td></tr><tr><td>접수일시</td><td>${dateStr}</td></tr></table>${btn}`);
 }
 
 function internalSalesHtml(ticket, companyName, requesterName, requesterEmail) {
@@ -162,6 +171,17 @@ function internalUrgentHtml(ticket, companyName, requesterName) {
 function accountInviteHtml(userName, setupUrl, validDays) {
   const display = setupUrl.replace(/^https?:\/\//, '');
   return layout('계정 생성 안내', `<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">안녕하세요, <strong>${userName}</strong>님.<br>빅스데이터 고객지원 포탈 계정이 생성되었습니다.<br>아래 버튼을 눌러 사용하실 비밀번호를 직접 설정해주세요.</p><a class="btn" href="${setupUrl}">비밀번호 설정하기</a><div style="font-size:11px;color:#9ca3af;margin-top:8px;">${display}</div><p style="margin:20px 0 0;font-size:12px;color:#9ca3af;">이 링크는 ${validDays}일간 유효합니다. 기간이 지나면 로그인 화면의 "비밀번호를 잊으셨나요?"로 다시 설정하실 수 있습니다.</p>`);
+}
+
+// 신규 계정 신청(로그인 화면 폼) — 관리자에게 신청 정보를 전달. 입력은 외부(비회원) 값이라 이스케이프.
+function accountInquiryHtml(d) {
+  const esc = s => String(s ?? '—').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+  const rows = [['성함', d.name], ['기업명', d.company], ['연락처', d.phone], ['이메일', d.email]];
+  if (d.message) rows.push(['내용', d.message]);
+  rows.push(['접수시각', now]);
+  const table = rows.map(([k, v]) => `<tr><td>${k}</td><td>${esc(v)}</td></tr>`).join('');
+  return layout('신규 계정 신청', `<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">로그인 화면에서 신규 계정 신청이 접수되었습니다.<br>아래 정보를 확인한 뒤 계정을 생성해주세요.</p><div class="lbl">신청 정보</div><table class="info">${table}</table>`);
 }
 
 function passwordResetHtml(userName, resetUrl) {
@@ -209,6 +229,16 @@ export const handler = async (event) => {
       return ok({ ok: true, sent, results });
     }
 
+    if (payload.type === 'ACCOUNT_INQUIRY') {
+      const { adminEmails, name, company, phone, email, message } = payload;
+      const list = Array.isArray(adminEmails) ? adminEmails.filter(e => typeof e === 'string' && e.includes('@')) : [];
+      if (!list.length) return ok({ ok: true, sent: 0, note: 'no admin recipients' });
+      await sendToManyAndLog(list, '[빅스데이터 고객지원] 신규 계정 신청',
+        accountInquiryHtml({ name, company, phone, email, message }), null, 'account_inquiry', results);
+      const sent = results.filter(r => r.status === 'sent').length;
+      return ok({ ok: true, sent, results });
+    }
+
     if (payload.type === 'CONNECTION_TEST') {
       if (!MS_TENANT_ID || !MS_CLIENT_ID || !MS_CLIENT_SECRET) {
         return ok({ ok: false, error: 'MS_TENANT_ID / MS_CLIENT_ID / MS_CLIENT_SECRET 환경변수 미설정' });
@@ -223,7 +253,7 @@ export const handler = async (event) => {
 
     const {
       type, ticket, companyName, requesterEmail, requesterName,
-      prevStatus, ccEmails, accountManagerEmail, adminEmails,
+      prevStatus, ccEmails, accountManagerEmail, adminEmails, registeredByName,
     } = payload;
     if (!ticket || !requesterEmail) return { statusCode: 400, body: 'missing ticket/requesterEmail' };
 
@@ -247,7 +277,7 @@ export const handler = async (event) => {
       jobs.push(sendAndLog(
         requesterEmail,
         `[빅스데이터 고객지원] 요청 접수 확인 - ${ticket.ticket_number}`,
-        customerNewTicketHtml(ticket, companyName, requesterName),
+        customerNewTicketHtml(ticket, companyName, requesterName, registeredByName),
         ticket.id, 'new_ticket_customer', results
       ));
     }

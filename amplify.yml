@@ -9,5 +9,6 @@ frontend:
     baseDirectory: /
     files:
       - index.html
+      - fonts/**
   cache:
     paths: []

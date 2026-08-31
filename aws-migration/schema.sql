@@ -18,7 +18,7 @@ create table public.companies (
   name                      text not null,
   salesforce_id             text,
   status                    text not null default 'active'
-                            check (status = any (array['active','expiring_soon','expired','inactive'])),
+                            check (status = any (array['active','inactive','prospect','suspended','expiring_soon','expired'])),
   account_manager           text,
   created_at                timestamptz not null default now(),
   updated_at                timestamptz not null default now(),
@@ -100,9 +100,15 @@ create table public.tickets (
   company_name        text,
   created_by_name     text,
   unit_id             uuid,
-  unit_name           text
+  unit_name           text,
+  cc_emails           text[],
+  registered_by       uuid references public.users(id) on delete set null,
+  registered_by_name  text
 );
 comment on table public.tickets is '고객 기술지원 요청 티켓';
+comment on column public.tickets.registered_by is '대리 등록한 내부직원 계정 id. 값이 있으면 대리 등록(내부직원이 고객 대신 접수), null이면 고객이 직접 등록. 계정 삭제 시 SET NULL.';
+comment on column public.tickets.registered_by_name is '대리 등록자 이름 스냅샷 — registered_by 계정이 삭제돼도 "대리" 배지/이력 표시를 위해 보존.';
+comment on column public.tickets.cc_emails is '상태변경 메일의 추가 수신자(참조) 주소. 요청 관리 모달에서 마지막으로 입력한 값을 티켓별로 기억한다.';
 comment on column public.tickets.assigned_to_name is '담당자 이름 스냅샷 — assigned_to 계정이 삭제(FK SET NULL)되어도 이력 표시를 위해 보존';
 comment on column public.tickets.contract_id is '요청 등록자의 contract_id 스냅샷 — 계약 단위로 요청 목록을 스코프하기 위함. 조직(unit_id) 도입 후에는 폴백 경로.';
 comment on column public.tickets.unit_id is '요청을 등록한 조직(org_units). 요청 목록 격리의 기준 — 계약이 갱신돼도 이 값은 바뀌지 않는다.';
@@ -123,6 +129,7 @@ create table public.log_notification (
   retry_count       integer not null default 0
 );
 comment on table public.log_notification is 'Slack / Outlook 알림 발송 이력';
+comment on column public.log_notification.content is '발송한 메일 본문 HTML(이메일 알림 전용, 알림 로그 상세 미리보기용). 슬랙은 NULL';
 
 -- ── 6. content_documents ──
 create table public.content_documents (
@@ -251,11 +258,12 @@ create table public.role_permissions (
                check (role = any (array['customer','internal','tech_support','sales','education','admin'])),
   feature_key  text not null
                check (feature_key = any (array[
-                 'ticket_view','ticket_create','ticket_manage',
+                 'ticket_view','ticket_create','ticket_delete','ticket_manage',
                  'library_view','library_manage',
                  'company_view','company_manage',
                  'user_view','user_manage',
-                 'integration','notify_log','permission'
+                 'integration','notify_log','permission',
+                 'stats_view'
                ])),
   enabled      boolean not null default false,
   updated_at   timestamptz not null default now(),
@@ -263,6 +271,23 @@ create table public.role_permissions (
   unique (role, feature_key)
 );
 comment on table public.role_permissions is '역할별 메뉴/기능 접근 권한 (권한 관리 화면 백엔드)';
+
+-- ── login_events (로그인 이벤트 로그 / 감사로그) ──
+-- 사용 통계의 DAU/WAU/MAU + 로그인 이력 화면용. 로그인 성공 시 api-layer가 1행 insert(비차단).
+-- 감사로그라 user_name/company_name을 로그인 시점 스냅샷으로 남기고, 사용자 삭제 시 user_id만
+-- SET NULL 되어 이력(당시 이름 포함)은 보존된다(사용자 삭제도 FK로 막히지 않음).
+-- 민감정보(전 사용자 접속시각)라 data-api ALLOWED_TABLES에 넣지 않고 GET /stats/* 로만 노출.
+create table public.login_events (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid references public.users(id) on delete set null,
+  user_name    text,
+  role         text,
+  company_id   uuid,
+  company_name text,
+  created_at   timestamptz not null default now()
+);
+create index if not exists idx_login_events_created on public.login_events (created_at desc);
+create index if not exists idx_login_events_user    on public.login_events (user_id);
 
 -- ── 15. org_units (조직) ──
 -- 고객사 안에서 사업부·팀·최종고객 등으로 요청을 갈라 봐야 할 때 쓰는 단위.
@@ -433,3 +458,67 @@ create trigger trg_ticket_history_created
 -- 나머지 10개는 RLS 자체가 꺼져있는 상태 — RDS에서는 애초에 브라우저가
 -- DB에 직접 접근하지 않고 API 레이어를 거치므로 RLS 이전 불필요.
 -- ============================================================
+
+-- ============================================================
+-- 성능 인덱스 (2026-08-12 추가) — FK/필터 컬럼. Postgres는 FK에 자동 인덱스를
+-- 만들지 않아 테넌트 격리·티켓 상세·라이선스 조회가 seq scan이던 것을 index scan으로.
+-- ============================================================
+create index if not exists idx_tickets_unit_id on public.tickets (unit_id);
+create index if not exists idx_tickets_company_id on public.tickets (company_id);
+create index if not exists idx_tickets_created_by on public.tickets (created_by);
+create index if not exists idx_tickets_assigned_to on public.tickets (assigned_to);
+create index if not exists idx_tickets_contract_id on public.tickets (contract_id);
+create index if not exists idx_tickets_status on public.tickets (status);
+create index if not exists idx_tickets_due_date on public.tickets (due_date);
+create index if not exists idx_ticket_replies_ticket_id on public.ticket_replies (ticket_id);
+create index if not exists idx_ticket_memos_ticket_id on public.ticket_memos (ticket_id);
+create index if not exists idx_ticket_attachments_ticket_id on public.ticket_attachments (ticket_id);
+create index if not exists idx_ticket_history_ticket_id on public.ticket_history (ticket_id);
+create index if not exists idx_log_notification_ticket_id on public.log_notification (ticket_id);
+create index if not exists idx_user_org_units_user_id on public.user_org_units (user_id);
+create index if not exists idx_user_org_units_unit_id on public.user_org_units (unit_id);
+create index if not exists idx_users_company_id on public.users (company_id);
+create index if not exists idx_users_unit_id on public.users (unit_id);
+create index if not exists idx_users_contract_id on public.users (contract_id);
+create index if not exists idx_company_contracts_company_id on public.company_contracts (company_id);
+create index if not exists idx_company_licenses_company_id on public.company_licenses (company_id);
+create index if not exists idx_company_licenses_contract_id on public.company_licenses (contract_id);
+
+-- ── account_inquiries (2026-08-14) ──
+-- 로그인 전(비인증) "담당자에게 문의" 폼 접수 내역. 공개 엔드포인트
+-- POST /public/account-inquiry → Lambda customer_portal_public-inquiry가 insert.
+-- data-api ALLOWED_TABLES에는 아직 미등록(관리자 조회 화면은 Phase 2).
+create table if not exists public.account_inquiries (
+  id          uuid primary key default gen_random_uuid(),
+  name        text not null,
+  company     text,
+  phone       text,
+  email       text,
+  message     text,
+  status      text not null default 'new' check (status in ('new','handled','spam')),
+  handled_by  uuid,
+  handled_at  timestamptz,
+  note        text,
+  created_at  timestamptz not null default now()
+);
+create index if not exists idx_account_inquiries_created on public.account_inquiries (created_at desc);
+
+-- ── document_downloads (자료 다운로드 이벤트 로그, 2026-08-31) ──
+-- 자료실 통계의 "누가 받았나"용. content_documents.download_count는 누적 카운터일 뿐이라
+-- 주체·시각이 남지 않아서, 다운로드 시 api-layer(POST /docs/download-event)가 카운터 증가와
+-- 함께 1행을 남긴다. login_events와 같은 스냅샷 패턴 — 사용자·자료가 삭제돼도 이력은 보존.
+-- 기록 시작 이전의 누적 다운로드는 주체를 알 수 없다(소급 불가).
+create table if not exists public.document_downloads (
+  id           uuid primary key default gen_random_uuid(),
+  doc_id       uuid not null,
+  doc_title    text,
+  user_id      uuid,
+  user_name    text,
+  role         text,
+  company_id   uuid,
+  company_name text,
+  created_at   timestamptz not null default now()
+);
+create index if not exists idx_document_downloads_doc     on public.document_downloads (doc_id);
+create index if not exists idx_document_downloads_created on public.document_downloads (created_at desc);
+create index if not exists idx_document_downloads_user    on public.document_downloads (user_id);
