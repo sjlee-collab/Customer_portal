@@ -432,7 +432,22 @@ $function$;
 
 create trigger trg_companies_updated_at  before update on public.companies         for each row execute function public.update_updated_at();
 create trigger trg_users_updated_at      before update on public.users             for each row execute function public.update_updated_at();
-create trigger trg_tickets_updated_at    before update on public.tickets           for each row execute function public.update_updated_at();
+-- tickets는 전용 함수를 쓴다: 만족도 컬럼만 바뀐 갱신(평가 제출)은 updated_at을 올리지 않는다.
+create or replace function public.tickets_bump_updated_at()
+ returns trigger
+ language plpgsql
+as $fn$
+BEGIN
+  IF (to_jsonb(NEW) - 'satisfaction_rating' - 'satisfaction_comment' - 'rated_at' - 'updated_at')
+     IS NOT DISTINCT FROM
+     (to_jsonb(OLD) - 'satisfaction_rating' - 'satisfaction_comment' - 'rated_at' - 'updated_at') THEN
+    RETURN NEW;
+  END IF;
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$fn$;
+create trigger trg_tickets_updated_at    before update on public.tickets           for each row execute function public.tickets_bump_updated_at();
 create trigger trg_documents_updated_at  before update on public.content_documents for each row execute function public.update_updated_at();
 create trigger contracts_updated_at      before update on public.company_contracts for each row execute function public.update_updated_at_column();
 create trigger licenses_updated_at       before update on public.company_licenses   for each row execute function public.update_updated_at_column();
