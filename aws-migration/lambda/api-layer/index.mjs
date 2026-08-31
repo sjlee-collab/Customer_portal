@@ -441,6 +441,37 @@ async function notifyForAssign(ticketId, prevAssigneeId) {
   });
 }
 
+// ── POST /tickets/{id}/rate — 완료 건 만족도 제출 ──
+// 요청을 등록한 고객 본인만, 완료 상태에서, 요청당 1회. 제출 후 수정 불가.
+// 별점은 1~5 필수, 한줄평은 선택(200자). 알림은 보내지 않는다.
+async function rateTicket(ticketId, body, event) {
+  const authz = getAuthz(event);
+  if (!authz.userId) return json(401, { error: '인증이 필요합니다' });
+  const rating = Number(body?.rating);
+  const comment = (body?.comment ?? '').toString().trim();
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+    return json(400, { error: '별점은 1~5 사이의 정수여야 합니다' });
+  }
+  if (comment.length > 200) return json(400, { error: '한줄평은 200자 이내여야 합니다' });
+
+  const rows = await query('select id, status, created_by, satisfaction_rating from tickets where id=$1', [ticketId]);
+  const t = rows[0];
+  if (!t) return json(404, { error: '요청을 찾을 수 없습니다' });
+  if (t.created_by !== authz.userId) return json(403, { error: '요청을 등록한 고객만 평가할 수 있습니다' });
+  if (t.status !== 'completed') return json(409, { error: '완료된 요청만 평가할 수 있습니다' });
+  if (t.satisfaction_rating != null) return json(409, { error: '이미 평가가 제출된 요청입니다' });
+
+  // 동시 제출 방지: 아직 미평가일 때만 갱신되는 조건부 UPDATE
+  const updated = await query(
+    `update tickets set satisfaction_rating=$1, satisfaction_comment=$2, rated_at=now()
+      where id=$3 and satisfaction_rating is null
+      returning satisfaction_rating, satisfaction_comment, rated_at`,
+    [rating, comment || null, ticketId]
+  );
+  if (!updated.length) return json(409, { error: '이미 평가가 제출된 요청입니다' });
+  return json(200, { ok: true, ...updated[0] });
+}
+
 // ── POST /tickets/{id}/reply ──
 // 고객/직원 공용 답글 스레드. 답글 작성자가 고객(role='customer')일 때만 담당 Slack
 // 채널로 알림을 보낸다 — 직원끼리의 답글은 알림 대상이 아님.
@@ -1723,6 +1754,10 @@ export const handler = async (event) => {
     const manageMatch = path.match(/^\/tickets\/([^/]+)\/manage$/);
     if (method === 'PATCH' && manageMatch) {
       return await manageTicket(manageMatch[1], body, event);
+    }
+    const rateMatch = path.match(/^\/tickets\/([^/]+)\/rate$/);
+    if (method === 'POST' && rateMatch) {
+      return await rateTicket(rateMatch[1], JSON.parse(event.body ?? '{}'), event);
     }
     const replyMatch = path.match(/^\/tickets\/([^/]+)\/reply$/);
     if (method === 'POST' && replyMatch) {

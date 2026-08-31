@@ -102,6 +102,9 @@ create table public.tickets (
   unit_id             uuid,
   unit_name           text,
   cc_emails           text[],
+  satisfaction_rating smallint constraint tickets_satisfaction_rating_check check (satisfaction_rating is null or satisfaction_rating between 1 and 5),
+  satisfaction_comment text,
+  rated_at            timestamptz,
   registered_by       uuid references public.users(id) on delete set null,
   registered_by_name  text
 );
@@ -109,6 +112,9 @@ comment on table public.tickets is '고객 기술지원 요청 티켓';
 comment on column public.tickets.registered_by is '대리 등록한 내부직원 계정 id. 값이 있으면 대리 등록(내부직원이 고객 대신 접수), null이면 고객이 직접 등록. 계정 삭제 시 SET NULL.';
 comment on column public.tickets.registered_by_name is '대리 등록자 이름 스냅샷 — registered_by 계정이 삭제돼도 "대리" 배지/이력 표시를 위해 보존.';
 comment on column public.tickets.cc_emails is '상태변경 메일의 추가 수신자(참조) 주소. 요청 관리 모달에서 마지막으로 입력한 값을 티켓별로 기억한다.';
+comment on column public.tickets.satisfaction_rating is '완료 건 만족도 별점(1~5). 요청 등록 고객이 완료 후 1회 제출.';
+comment on column public.tickets.satisfaction_comment is '만족도 한줄평(선택, 최대 200자).';
+comment on column public.tickets.rated_at is '만족도 제출 시각. 제출 후 수정 불가, 재오픈돼도 보존.';
 comment on column public.tickets.assigned_to_name is '담당자 이름 스냅샷 — assigned_to 계정이 삭제(FK SET NULL)되어도 이력 표시를 위해 보존';
 comment on column public.tickets.contract_id is '요청 등록자의 contract_id 스냅샷 — 계약 단위로 요청 목록을 스코프하기 위함. 조직(unit_id) 도입 후에는 폴백 경로.';
 comment on column public.tickets.unit_id is '요청을 등록한 조직(org_units). 요청 목록 격리의 기준 — 계약이 갱신돼도 이 값은 바뀌지 않는다.';
