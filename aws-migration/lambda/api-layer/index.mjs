@@ -1007,6 +1007,115 @@ async function statsSystem(event) {
   return json(200, { noti, byEvent, notiFails, bySystem, duration: dur, integFails });
 }
 
+// ── GET /stats/satisfaction ──
+// 사용 통계 > 응답 현황 탭. 완료 건 만족도 조사(tickets.satisfaction_rating 1~5 +
+// satisfaction_comment)를 집계한다. 새 테이블 없음 — 전부 tickets 컬럼에서 나온다.
+// 쿼리스트링: days(rated_at 기준, 0=전체), category, q(고객사명 검색).
+//
+// 응답률 분모는 "완료된 직접 등록 건"이다 — 대리 등록 건(registered_by not null)은
+// 평가할 등록 고객이 없어 응답 자체가 불가능하므로, 분모에 넣으면 응답률이 영구히
+// 왜곡된다(현재 대리 등록이 다수라 특히 그렇다). 완료 시각은 이력에 구조화돼 있지
+// 않아 분모의 기간은 접수(created_at) 기준 근사치다.
+async function statsSatisfaction(event) {
+  const authz = getAuthz(event);
+  if (!(await hasPermission(authz.role, 'stats_view'))) return json(403, { error: '권한이 없습니다' });
+
+  const qs = event.queryStringParameters || {};
+  const days = Math.min(3650, Math.max(0, parseInt(qs.days, 10) || 0));
+  const params = [], extra = [];
+  if (qs.category) { params.push(qs.category); extra.push(`category = $${params.length}`); }
+  const q = (qs.q || '').trim();
+  if (q) { params.push('%' + q + '%'); extra.push(`company_name ilike $${params.length}`); }
+  const extraSql = extra.length ? ' and ' + extra.join(' and ') : '';
+  const ratedPeriod = days > 0 ? ` and rated_at >= now() - interval '${days} days'` : '';
+  const RATED = `satisfaction_rating is not null${ratedPeriod}${extraSql}`;
+
+  // ── 요약 ──
+  const [sum] = await query(
+    `select count(*) filter (where ${RATED})::int responses,
+            coalesce(round(avg(satisfaction_rating) filter (where ${RATED}), 1), 0)::float avg,
+            count(*) filter (where ${RATED} and coalesce(satisfaction_comment,'') <> '')::int comments,
+            count(*) filter (where ${RATED} and satisfaction_rating <= 2)::int low,
+            count(*) filter (where status = 'completed' and registered_by is null
+                             ${days > 0 ? `and created_at >= now() - interval '${days} days'` : ''}${extraSql})::int eligible
+       from tickets`, params);
+
+  // 직전 동일 기간 평균(추이 화살표용). days=0이면 비교 대상 없음.
+  let prevAvg = null;
+  if (days > 0) {
+    const [pv] = await query(
+      `select round(avg(satisfaction_rating), 1)::float a from tickets
+        where satisfaction_rating is not null
+          and rated_at >= now() - interval '${days * 2} days'
+          and rated_at <  now() - interval '${days} days'${extraSql}`, params);
+    prevAvg = pv.a;
+  }
+
+  // ── 월별 평균 추이(최근 6개월, KST) ──
+  const trend = await query(
+    `select to_char(rated_at at time zone 'Asia/Seoul', 'YYYY-MM') ym,
+            round(avg(satisfaction_rating), 2)::float avg, count(*)::int n
+       from tickets where satisfaction_rating is not null${extraSql}
+        and rated_at >= date_trunc('month', now() at time zone 'Asia/Seoul') - interval '5 months'
+      group by 1 order by 1`, params);
+
+  // ── 별점 분포 ──
+  const byRating = await query(
+    `select satisfaction_rating r, count(*)::int n
+       from tickets where ${RATED} group by 1 order by 1 desc`, params);
+
+  // ── 고객사별(응답 2건 이상 · 평균 낮은 순 — 이 표의 목적은 문제 고객사 발견) ──
+  const byCompany = await query(
+    `select coalesce(nullif(company_name,''), '(미지정)') company,
+            round(avg(satisfaction_rating), 1)::float avg, count(*)::int n,
+            max(rated_at) last_rated,
+            (array_agg(satisfaction_comment order by rated_at desc)
+              filter (where coalesce(satisfaction_comment,'') <> ''))[1] last_comment
+       from tickets where ${RATED}
+      group by 1 having count(*) >= 2 order by 2 asc, 3 desc limit 20`, params);
+  // ── 최근 한줄평(낮은 별점 우선 → 최신순) ──
+  const recent = await query(
+    `select ticket_number, coalesce(nullif(company_name,''), '') company, category,
+            satisfaction_rating r, satisfaction_comment comment,
+            to_char(rated_at at time zone 'Asia/Seoul', 'YYYY-MM-DD') at
+       from tickets where ${RATED} and coalesce(satisfaction_comment,'') <> ''
+      order by (satisfaction_rating <= 2) desc, rated_at desc limit 10`, params);
+
+  // ── 키워드(단순 빈도 — 형태소 분석 없음, 한계는 화면에 명시) ──
+  // 한줄평을 공백·구두점으로 잘라 2자 이상 토큰을 세고, 흔한 조사·어미가 붙은 형태는
+  // 대충 걷어낸다. 긍정(4~5점)과 개선(1~3점)을 분리해 각 상위 8개.
+  const allComments = await query(
+    `select satisfaction_rating r, satisfaction_comment c
+       from tickets where ${RATED} and coalesce(satisfaction_comment,'') <> '' limit 500`, params);
+  const STOP = new Set(['합니다','했습니다','있습니다','됩니다','입니다','좋겠어요','좋겠습니다',
+    '너무','정말','아주','조금','그리고','하지만','해서','해요','있어요','같아요','주셔서','감사합니다','감사']);
+  function keywords(rows) {
+    const cnt = new Map();
+    rows.forEach(({ c }) => {
+      String(c).split(/[\s.,!?~()"']+/).forEach(t => {
+        t = t.replace(/(했어요|합니다|해요|이에요|예요|네요|어요|에서|에게|으로|하고|했다|이다|은|는|이|가|을|를|에|도|와|과|요)$/, '');
+        if (t.length >= 2 && !STOP.has(t)) cnt.set(t, (cnt.get(t) || 0) + 1);
+      });
+    });
+    return [...cnt.entries()].filter(([, n]) => n >= 2)
+      .sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, n]) => ({ k, n }));
+  }
+  const kwPos = keywords(allComments.filter(r => r.r >= 4));
+  const kwNeg = keywords(allComments.filter(r => r.r <= 3));
+
+  return json(200, {
+    summary: {
+      responses: sum.responses, avg: sum.avg, comments: sum.comments,
+      low: sum.low, eligible: sum.eligible,
+      rate: sum.eligible ? Math.round((sum.responses / sum.eligible) * 100) : 0,
+      prevAvg,
+    },
+    trend, byRating, byCompany, recent, kwPos, kwNeg,
+    posCount: allComments.filter(r => r.r >= 4).length,
+    negCount: allComments.filter(r => r.r <= 3).length,
+  });
+}
+
 // ── GET /stats/companies ──
 // 사용 통계 > 고객 활용 탭. 고객사별 활용도(접속·계정·요청·계약)를 한 줄씩 집계한다.
 // 397개 고객사를 한 쿼리로 모아 정렬·페이지네이션까지 서버에서 끝낸다.
@@ -1745,6 +1854,9 @@ export const handler = async (event) => {
     }
     if (method === 'GET' && path === '/stats/system') {
       return await statsSystem(event);
+    }
+    if (method === 'GET' && path === '/stats/satisfaction') {
+      return await statsSatisfaction(event);
     }
     if (method === 'POST' && path === '/docs/download-event') {
       return await docDownloadEvent(event, body);

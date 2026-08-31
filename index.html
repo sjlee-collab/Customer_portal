@@ -291,6 +291,19 @@ button,input,select,textarea{font-family:inherit;}
 .rq-age-bad{color:var(--red-d);font-weight:700;} .rq-age-warn{color:var(--amber-d);font-weight:600;}
 .rq-unassigned{color:var(--red-d);font-weight:600;}
 .rq-empty{padding:28px;text-align:center;color:var(--faint);font-size:13px;}
+/* ── 사용 통계 > 응답 현황 탭 ── */
+.sat-stars{color:#F59E0B;letter-spacing:1px;font-size:13px;white-space:nowrap;}
+.sat-stars .off{color:var(--border-md);}
+.sat-kw{display:inline-flex;align-items:center;gap:5px;border-radius:99px;font-weight:600;border:1px solid transparent;white-space:nowrap;}
+.sat-kw i{font-style:normal;font-weight:400;opacity:.65;font-size:.82em;}
+.sat-kw.pos{background:var(--green-l);color:var(--green-d);border-color:#A7F3D0;}
+.sat-kw.neg{background:var(--red-l);color:var(--red-d);border-color:#FECACA;}
+.sat-kw.s1{font-size:11.5px;padding:3px 10px;} .sat-kw.s2{font-size:13px;padding:4px 12px;} .sat-kw.s3{font-size:15px;padding:5px 14px;}
+.sat-quote{border-left:3px solid var(--border-md);padding:6px 12px;margin-bottom:10px;font-size:12.5px;color:var(--muted);line-height:1.6;}
+.sat-quote:last-child{margin-bottom:0;}
+.sat-quote b{color:var(--text);font-weight:600;}
+.sat-quote .m{font-size:10.5px;color:var(--faint);margin-top:2px;}
+.sat-trend-up{color:var(--green-d);font-weight:700;} .sat-trend-dn{color:var(--red-d);font-weight:700;}
 /* 다운로드 상위 자료 — 제목이 FAQ 한 문장이라 한 줄 그리드로는 대부분 잘린다.
    제목을 위에 두 줄까지 펼치고 막대·횟수를 아래 줄에 둔다. */
 .dl-item{padding:9px 0;border-bottom:1px solid var(--border);}
@@ -2015,6 +2028,7 @@ textarea{resize:vertical;min-height:100px;}
           <button type="button" data-stab="req" onclick="switchStatsTab('req')">📮 요청 현황</button>
           <button type="button" data-stab="lib" onclick="switchStatsTab('lib')">📄 자료실 활용</button>
           <button type="button" data-stab="sys" onclick="switchStatsTab('sys')">⚙️ 시스템 현황</button>
+          <button type="button" data-stab="sat" onclick="switchStatsTab('sat')">⭐ 응답 현황</button>
         </div>
 
         <div class="stab-panel" id="stab-act">
@@ -2342,6 +2356,66 @@ textarea{resize:vertical;min-height:100px;}
             </div>
           </div>
         </div><!-- /stab-sys -->
+
+        <div class="stab-panel" id="stab-sat" style="display:none;">
+          <div class="rq-filters">
+            <span class="rq-seg" id="sat-days" role="group" aria-label="기간">
+              <button type="button" onclick="setSatDays(30,this)">30일</button>
+              <button type="button" class="on" onclick="setSatDays(90,this)">90일</button>
+              <button type="button" onclick="setSatDays(180,this)">180일</button>
+              <button type="button" onclick="setSatDays(0,this)">전체</button>
+            </span>
+            <select id="sat-category" onchange="loadSatStats()">
+              <option value="">전체 카테고리</option>
+              <option value="tech_support">기술지원</option><option value="license">라이선스</option>
+              <option value="contract">계약</option><option value="education">교육</option>
+              <option value="customer">고객문의</option><option value="other">기타</option>
+            </select>
+            <input id="sat-q" class="search-box" style="flex:1;min-width:160px;box-sizing:border-box;"
+                   placeholder="고객사명 검색" onkeydown="if(event.key==='Enter')loadSatStats()">
+          </div>
+
+          <div class="rq-kpis" id="sat-kpis">
+            <div class="rq-kpi" style="grid-column:1/-1;"><div class="s" style="margin:0;">불러오는 중...</div></div>
+          </div>
+
+          <div class="rq-g2" style="margin-bottom:16px;">
+            <div class="card" style="margin-bottom:0;">
+              <div class="card-title">만족도 추이 <span style="font-size:11px;color:var(--faint);font-weight:400;">월 평균 · 최근 6개월</span>
+                <span id="sat-trend-right" style="margin-left:auto;font-size:11px;color:var(--muted);font-weight:400;"></span></div>
+              <div id="sat-trend" style="min-height:150px;"></div>
+            </div>
+            <div class="card" style="margin-bottom:0;">
+              <div class="card-title">별점 분포 <span id="sat-dist-sub" style="font-size:11px;color:var(--faint);font-weight:400;"></span></div>
+              <div id="sat-dist"></div>
+              <div class="rq-note" id="sat-dist-note" style="margin-top:12px;"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">고객사별 만족도 <span style="font-size:11px;color:var(--faint);font-weight:400;">응답 2건 이상 · 평균 낮은 순</span></div>
+            <div class="tbl-scroll"><table class="tbl tbl-compact" style="min-width:820px;">
+              <thead><tr><th>고객사</th><th>평균</th><th>별점</th><th style="text-align:right;">응답</th><th>최근 응답</th><th>최근 한줄평</th></tr></thead>
+              <tbody id="sat-company"></tbody>
+            </table></div>
+            <div class="rq-note" id="sat-company-note" style="margin-top:10px;"></div>
+          </div>
+
+          <div class="rq-g2" style="margin-bottom:0;">
+            <div class="card" style="margin-bottom:0;">
+              <div class="card-title">한줄평 키워드 <span style="font-size:11px;color:var(--faint);font-weight:400;">단어 빈도 · 크기 = 언급 수</span></div>
+              <div style="font-size:11px;font-weight:700;color:var(--green-d);margin-bottom:8px;" id="sat-kw-pos-label">긍정 (4~5점)</div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;" id="sat-kw-pos"></div>
+              <div style="font-size:11px;font-weight:700;color:var(--red-d);margin-bottom:8px;" id="sat-kw-neg-label">개선 요청 (1~3점)</div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;" id="sat-kw-neg"></div>
+              <div class="rq-note" style="margin-top:14px;">ⓘ 형태소 분석 없이 단순 빈도로 추출합니다(2회 이상 언급된 단어만). 표본이 적을수록 거칠어지며, 원문 확인이 항상 우선입니다.</div>
+            </div>
+            <div class="card" style="margin-bottom:0;">
+              <div class="card-title">최근 한줄평 <span style="font-size:11px;color:var(--faint);font-weight:400;">낮은 별점 우선 · 최신순</span></div>
+              <div id="sat-recent"></div>
+            </div>
+          </div>
+        </div><!-- /stab-sat -->
       </div>
 
       <!-- ══ 연동 관리 ══ -->
@@ -7581,6 +7655,8 @@ function switchStatsTab(tab) {
   if (lib) lib.style.display = tab === 'lib' ? '' : 'none';
   const sys = document.getElementById('stab-sys');
   if (sys) sys.style.display = tab === 'sys' ? '' : 'none';
+  const sat = document.getElementById('stab-sat');
+  if (sat) sat.style.display = tab === 'sat' ? '' : 'none';
   // 계정 탭에서만 페이지를 뷰포트 높이에 고정하고(acct-mode) 목록으로 남는 공간을 채운다.
   // 요청 현황 탭은 블록이 많아 세로로 길므로 기존처럼 스크롤되게 둔다.
   document.getElementById('p-stats')?.classList.toggle('acct-mode', tab === 'acct');
@@ -7589,6 +7665,7 @@ function switchStatsTab(tab) {
   if (tab === 'cust' && !_cuLoaded) loadCompanyStats();
   if (tab === 'lib' && !_dlLoaded) loadDocStats();
   if (tab === 'sys' && !_sysLoaded) loadSystemStats();
+  if (tab === 'sat' && !_satLoaded) loadSatStats();
 }
 
 // 창 크기가 바뀌면 표시 행 수를 다시 맞춘다 — 계정 탭이 열려 있을 때만.
@@ -7640,6 +7717,7 @@ async function loadStats() {
   if (_cuLoaded) loadCompanyStats();
   if (_dlLoaded) loadDocStats();
   if (_sysLoaded) loadSystemStats();
+  if (_satLoaded) loadSatStats();
   try {
     // 접속 활동(서버 집계)
     let active = { dau: 0, wau: 0, mau: 0, stickiness: 0, series: [] };
@@ -7692,6 +7770,147 @@ async function loadStats() {
   } finally {
     if (ico) ico.classList.remove('spin');
   }
+}
+
+// ── 응답 현황 (GET /stats/satisfaction, 서버 집계) ─────────────────
+// 완료 건 만족도 조사(별점 1~5 + 한줄평) 집계. 전부 tickets 컬럼에서 나온다.
+// 응답률 분모는 "완료된 직접 등록 건" — 대리 등록 건은 평가할 고객이 없어 분모에서 뺀다.
+let _satDays = 90, _satLoaded = false;
+
+function setSatDays(d, btn) {
+  _satDays = d;
+  document.querySelectorAll('#sat-days button').forEach(b => b.classList.toggle('on', b === btn));
+  loadSatStats();
+}
+function _satStars(r) {
+  const full = Math.round(r || 0);
+  return `<span class="sat-stars">${'★'.repeat(full)}<span class="off">${'★'.repeat(5 - full)}</span></span>`;
+}
+
+async function loadSatStats() {
+  const kpis = document.getElementById('sat-kpis');
+  if (!kpis) return;
+  const params = new URLSearchParams({ days: String(_satDays) });
+  const cat = document.getElementById('sat-category')?.value || '';
+  const q = (document.getElementById('sat-q')?.value || '').trim();
+  if (cat) params.set('category', cat);
+  if (q) params.set('q', q);
+
+  kpis.innerHTML = '<div class="rq-kpi" style="grid-column:1/-1;"><div class="s" style="margin:0;">불러오는 중...</div></div>';
+  let d = null;
+  try {
+    const r = await fetch(`${API_BASE}/stats/satisfaction?${params}`, { headers: { ...authHeaders() } });
+    if (r.ok) d = await r.json();
+  } catch (e) { console.error('loadSatStats 오류', e); }
+  _satLoaded = true;
+  if (!d) {
+    kpis.innerHTML = '<div class="rq-kpi" style="grid-column:1/-1;"><div class="s" style="margin:0;">응답 통계를 불러오지 못했습니다.</div></div>';
+    return;
+  }
+  _satRenderKpis(d.summary || {});
+  _satRenderTrend(d.trend || []);
+  _satRenderDist(d.byRating || [], d.summary || {});
+  _satRenderCompany(d.byCompany || []);
+  _satRenderKeywords(d.kwPos || [], d.kwNeg || [], d.posCount || 0, d.negCount || 0);
+  _satRenderRecent(d.recent || []);
+}
+
+function _satRenderKpis(s) {
+  // 표본 30건 미만이면 해석 주의를 부제에 박는다 — 평균 한 건이 수치를 크게 흔드는 구간.
+  const small = s.responses > 0 && s.responses < 30 ? ' · 표본이 적어 해석에 주의' : '';
+  const delta = (s.prevAvg != null && s.avg && s.prevAvg !== s.avg)
+    ? `<span style="font-size:12px;font-weight:700;margin-left:6px;color:${s.avg > s.prevAvg ? 'var(--green-d)' : 'var(--red-d)'};">${s.avg > s.prevAvg ? '▲' : '▼'} ${Math.abs(s.avg - s.prevAvg).toFixed(1)}</span>` : '';
+  document.getElementById('sat-kpis').innerHTML = [
+    `<div class="rq-kpi"><div class="k">평균 만족도</div><div class="v" style="color:#F59E0B;">${s.responses ? s.avg : '—'}<span style="font-size:14px;color:var(--faint);"> / 5</span>${delta}</div><div class="s">${s.responses ? _satStars(s.avg) + ` 응답 ${s.responses}건 기준${small}` : '아직 응답이 없습니다'}</div></div>`,
+    `<div class="rq-kpi good"><div class="k">응답률</div><div class="v">${s.eligible ? s.rate + '%' : '—'}</div><div class="s">완료된 직접 등록 ${s.eligible || 0}건 중 ${s.responses || 0}건 응답</div></div>`,
+    `<div class="rq-kpi"><div class="k">한줄평 작성</div><div class="v">${s.comments || 0}</div><div class="s">${s.responses ? Math.round((s.comments / s.responses) * 100) + '% · 선택 항목' : '선택 항목'}</div></div>`,
+    `<div class="rq-kpi ${s.low ? 'bad' : ''}"><div class="k">불만 응답 (1~2점)</div><div class="v">${s.low || 0}</div><div class="s">${s.responses ? Math.round((s.low / s.responses) * 100) + '% · 후속 확인 대상' : '후속 확인 대상'}</div></div>`,
+  ].join('');
+}
+
+function _satRenderTrend(rows) {
+  const box = document.getElementById('sat-trend');
+  const right = document.getElementById('sat-trend-right');
+  if (!rows.length) {
+    box.innerHTML = '<div class="rq-empty">응답이 쌓이면 월별 평균 추이가 표시됩니다.</div>';
+    right.textContent = '';
+    return;
+  }
+  const W = 640, H = 150, L = 36;
+  const x = i => L + (i * (W - L - 20)) / Math.max(rows.length - 1, 1);
+  const y = v => 14 + ((5 - v) / 3) * (H - 40); // 2.0~5.0 구간을 세로에 매핑
+  const pts = rows.map((r, i) => `${x(i).toFixed(1)},${y(Math.max(r.avg, 2)).toFixed(1)}`).join(' ');
+  const grid = [5, 4, 3].map(v => `<line x1="${L}" y1="${y(v)}" x2="${W}" y2="${y(v)}" stroke="var(--border)"></line>
+    <text x="${L - 6}" y="${y(v) + 3}" text-anchor="end" font-size="10" fill="var(--faint)">${v}.0</text>`).join('');
+  const labels = rows.map((r, i) => `<text x="${x(i).toFixed(1)}" y="${H - 4}" text-anchor="middle" font-size="9.5" fill="var(--faint)">${escHtml(r.ym.slice(5))}월</text>`).join('');
+  const dots = rows.map((r, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(Math.max(r.avg, 2)).toFixed(1)}" r="3"
+      fill="var(--accent)"><title>${escHtml(r.ym)} · 평균 ${r.avg} (${r.n}건)</title></circle>`).join('');
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="none" role="img" aria-label="월별 평균 만족도 추이">
+    ${grid}${rows.length > 1 ? `<polyline fill="none" stroke="var(--accent)" stroke-width="2.5" points="${pts}"></polyline>` : ''}${dots}${labels}</svg>`;
+  const total = rows.reduce((a, r) => a + r.n, 0);
+  right.textContent = `${rows.length}개월 · 응답 ${total}건`;
+}
+
+function _satRenderDist(rows, summary) {
+  const box = document.getElementById('sat-dist');
+  document.getElementById('sat-dist-sub').textContent = summary.responses ? `응답 ${summary.responses}건` : '';
+  if (!rows.length) { box.innerHTML = '<div class="rq-empty">아직 응답이 없습니다.</div>';
+    document.getElementById('sat-dist-note').textContent = ''; return; }
+  const COLOR = { 5:'var(--green)', 4:'#6EE7B7', 3:'var(--amber)', 2:'#F87171', 1:'var(--red)' };
+  const total = rows.reduce((a, r) => a + r.n, 0);
+  const max = Math.max(...rows.map(r => r.n), 1);
+  box.innerHTML = [5, 4, 3, 2, 1].map(k => {
+    const hit = rows.find(r => r.r === k);
+    const n = hit ? hit.n : 0;
+    return `<div class="rq-brow" style="grid-template-columns:76px 1fr 62px;">
+      ${_satStars(k)}
+      <span class="rq-btrack"><span class="rq-bfill" style="width:${(n / max) * 100}%;background:${COLOR[k]};"></span></span>
+      <span class="v">${n} <em>${total ? Math.round((n / total) * 100) : 0}%</em></span></div>`;
+  }).join('');
+  const good = rows.filter(r => r.r >= 4).reduce((a, r) => a + r.n, 0);
+  document.getElementById('sat-dist-note').innerHTML = summary.low
+    ? `4점 이상이 ${Math.round((good / total) * 100)}%입니다. <b style="color:var(--red-d);font-weight:700;">1~2점 ${summary.low}건</b>은 아래 한줄평·고객사 표에서 원인을 확인할 수 있습니다.`
+    : `4점 이상이 ${Math.round((good / total) * 100)}%입니다.`;
+}
+
+function _satRenderCompany(rows) {
+  const tbody = document.getElementById('sat-company');
+  tbody.innerHTML = rows.length
+    ? rows.map(r => {
+        const cls = r.avg <= 2.5 ? 'color:var(--red-d);' : r.avg <= 3.5 ? 'color:var(--amber-d);' : '';
+        return `<tr>
+          <td style="font-weight:700;">${escHtml(r.company)}</td>
+          <td style="text-align:right;font-weight:800;font-variant-numeric:tabular-nums;${cls}">${r.avg}</td>
+          <td>${_satStars(r.avg)}</td>
+          <td style="text-align:right;font-variant-numeric:tabular-nums;">${r.n}</td>
+          <td style="color:var(--muted);font-variant-numeric:tabular-nums;">${escHtml(String(r.last_rated || '').slice(0, 10))}</td>
+          <td style="white-space:normal;color:var(--muted);">${r.last_comment ? '"' + escHtml(r.last_comment) + '"' : '<span style="color:var(--faint);">—</span>'}</td></tr>`;
+      }).join('')
+    : '<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--faint);">응답 2건 이상인 고객사가 아직 없습니다.</td></tr>';
+  document.getElementById('sat-company-note').textContent = rows.length
+    ? '응답 1건뿐인 고객사는 표본이 적어 표에서 제외됩니다(고객사 검색으로 개별 확인 가능).' : '';
+}
+
+function _satRenderKeywords(pos, neg, posCount, negCount) {
+  const size = (n, max) => n >= max * 0.7 ? 's3' : n >= max * 0.4 ? 's2' : 's1';
+  const render = (rows, cls) => {
+    if (!rows.length) return '<span class="rq-note">2회 이상 언급된 단어가 아직 없습니다.</span>';
+    const max = Math.max(...rows.map(r => r.n));
+    return rows.map(r => `<span class="sat-kw ${cls} ${size(r.n, max)}">${escHtml(r.k)} <i>${r.n}</i></span>`).join('');
+  };
+  document.getElementById('sat-kw-pos-label').textContent = `긍정 (4~5점 한줄평 ${posCount}건)`;
+  document.getElementById('sat-kw-neg-label').textContent = `개선 요청 (1~3점 한줄평 ${negCount}건)`;
+  document.getElementById('sat-kw-pos').innerHTML = render(pos, 'pos');
+  document.getElementById('sat-kw-neg').innerHTML = render(neg, 'neg');
+}
+
+function _satRenderRecent(rows) {
+  const CAT = typeof RQ_CAT_KO !== 'undefined' ? RQ_CAT_KO : {};
+  document.getElementById('sat-recent').innerHTML = rows.length
+    ? rows.map(r => `<div class="sat-quote" style="border-left-color:${r.r <= 2 ? 'var(--red)' : r.r >= 4 ? '#A7F3D0' : 'var(--border-md)'};">
+        ${_satStars(r.r)} <b>${escHtml(r.company || '—')}</b> · ${CAT[r.category] || escHtml(r.category)}<br>
+        ${escHtml(r.comment)}<div class="m">${escHtml(r.ticket_number)} · ${escHtml(r.at)}</div></div>`).join('')
+    : '<div class="rq-empty">한줄평이 아직 없습니다. 완료 요청의 고객이 평가를 남기면 여기에 표시됩니다.</div>';
 }
 
 // ── 시스템 현황 (GET /stats/system, 서버 집계) ────────────────────
