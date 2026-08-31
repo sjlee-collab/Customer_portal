@@ -740,35 +740,54 @@ async function login(body) {
 // ── GET /stats/active-users ──
 // 사용 통계 화면의 접속 활동(DAU/WAU/MAU + 일별 DAU 추이). login_events를 서버에서 distinct 집계한다.
 // login_events는 전 사용자 접속시각이라 민감 → stats_view 권한(또는 admin)만 조회 가능.
+// 테스트 트래픽 제외 조건 — 접속 지표 공용.
+// 상설 테스트 계정(test.*@bigxdata.io) 5개의 로그인이 전체 이벤트의 43%를 차지해(2026-08-31
+// 실측 55/127건) 모든 접속 지표가 부풀려져 있었다. 하네스가 만드는 '[테스트]' 라벨 계정의
+// 로그인(test_auth.py 등)도 함께 거른다 — 그 계정들은 정리 시 삭제되어 user_id가 NULL로
+// 남으므로 이름 스냅샷으로 잡는다. 이벤트 행 자체는 지우지 않는다(감사로그 보존, 회귀 무영향).
+const LE_REAL = `(user_name is null or user_name not like '[테스트]%')
+  and (user_id is null or user_id not in (select id from users where email like 'test.%@bigxdata.io'))`;
+
 async function statsActiveUsers(event) {
   const authz = getAuthz(event);
   if (!(await hasPermission(authz.role, 'stats_view'))) return json(403, { error: '권한이 없습니다' });
   // DAU/WAU/MAU·고착도·총로그인·평균(series)은 모두 "고객 계정 기준"(role='customer')으로 집계한다.
-  // 역할별 접속 비중(byRole)만 전체 역할을 대상으로 한다(그 카드의 취지가 역할 분포이므로).
+  // 역할별 접속 비중(byRole)과 시간대 히트맵만 전체 역할 대상(그 카드들의 취지가 분포이므로).
   // 오늘(KST) 자정 이후 = DAU. KST 자정을 timestamptz로 만들어 created_at(timestamptz)과 비교.
+  // days(7|30|90)는 추이·총로그인·비중·히트맵 창에만 적용 — DAU/WAU/MAU는 정의상 창이 고정이다.
+  const qs = event.queryStringParameters || {};
+  const days = [7, 30, 90].includes(parseInt(qs.days, 10)) ? parseInt(qs.days, 10) : 30;
+  const CUST = `role = 'customer' and ${LE_REAL}`;
   const [d] = await query(
     `select count(distinct user_id)::int n from login_events
-      where role = 'customer' and created_at >= (date_trunc('day', now() at time zone 'Asia/Seoul') at time zone 'Asia/Seoul')`);
+      where ${CUST} and created_at >= (date_trunc('day', now() at time zone 'Asia/Seoul') at time zone 'Asia/Seoul')`);
   const [w] = await query(
-    `select count(distinct user_id)::int n from login_events where role = 'customer' and created_at >= now() - interval '7 days'`);
+    `select count(distinct user_id)::int n from login_events where ${CUST} and created_at >= now() - interval '7 days'`);
   const [m] = await query(
-    `select count(distinct user_id)::int n from login_events where role = 'customer' and created_at >= now() - interval '30 days'`);
+    `select count(distinct user_id)::int n from login_events where ${CUST} and created_at >= now() - interval '30 days'`);
   const series = await query(
     `select to_char((created_at at time zone 'Asia/Seoul')::date, 'YYYY-MM-DD') d, count(distinct user_id)::int n
-       from login_events where role = 'customer' and created_at >= now() - interval '30 days' group by 1 order by 1`);
-  // 총 로그인 횟수(중복 포함, 30일, 고객 기준) — DAU/WAU/MAU(고유)와 달리 재접속 빈도를 본다.
+       from login_events where ${CUST} and created_at >= now() - interval '${days} days' group by 1 order by 1`);
+  // 총 로그인 횟수(중복 포함, 선택 기간, 고객 기준) — DAU/WAU/MAU(고유)와 달리 재접속 빈도를 본다.
   const [tot] = await query(
-    `select count(*)::int n from login_events where role = 'customer' and created_at >= now() - interval '30 days'`);
-  // 역할별 고유 접속자(30일) — 접속 비중 도넛용. 전체 역할. login_events.role(로그인 시점 스냅샷) 기준.
+    `select count(*)::int n from login_events where ${CUST} and created_at >= now() - interval '${days} days'`);
+  // 역할별 고유 접속자 — 접속 비중 도넛용. 전체 역할. login_events.role(로그인 시점 스냅샷) 기준.
   const byRole = await query(
     `select role, count(distinct user_id)::int n from login_events
-       where created_at >= now() - interval '30 days' group by role order by n desc`);
+      where ${LE_REAL} and created_at >= now() - interval '${days} days' group by role order by n desc`);
+  // 접속 시간대 히트맵(요일 0=일~6=토 × 시각 0~23, KST) — 점검·배포 창을 정하는 근거.
+  const heatmap = await query(
+    `select extract(dow  from created_at at time zone 'Asia/Seoul')::int d,
+            extract(hour from created_at at time zone 'Asia/Seoul')::int h, count(*)::int n
+       from login_events where ${LE_REAL} and created_at >= now() - interval '${days} days' group by 1, 2`);
   return json(200, {
     dau: d.n, wau: w.n, mau: m.n,
     stickiness: m.n ? Math.round((d.n / m.n) * 100) : 0,
     totalLogins: tot.n,
     byRole,
     series,
+    heatmap,
+    days,
   });
 }
 
@@ -1039,7 +1058,8 @@ async function statsCompanies(event) {
              count(*)::int total,
              count(*) filter (where last_login is not null)::int activated,
              max(last_login) last_login
-        from users where role = 'customer' and company_id is not null group by 1),
+        from users where role = 'customer' and company_id is not null
+          and email not like 'test.%@bigxdata.io' and name not like '[테스트]%' group by 1),
     t as (
       select company_id,
              count(*)::int tickets,
@@ -1050,7 +1070,7 @@ async function statsCompanies(event) {
         from tickets where company_id is not null ${period} group by 1),
     v as (
       select company_id, count(distinct user_id)::int visitors
-        from login_events where company_id is not null ${period} group by 1),
+        from login_events where company_id is not null and ${LE_REAL} ${period} group by 1),
     c as (
       select company_id, min(end_date) next_end
         from company_contracts where end_date >= current_date group by 1)
@@ -1116,12 +1136,13 @@ async function statsCompanies(event) {
       from companies co
       left join (select company_id, count(*)::int total,
                         count(*) filter (where last_login is not null)::int activated
-                   from users where role='customer' and company_id is not null group by 1) u on u.company_id = co.id
+                   from users where role='customer' and company_id is not null
+                     and email not like 'test.%@bigxdata.io' and name not like '[테스트]%' group by 1) u on u.company_id = co.id
       left join (select company_id, count(*)::int tickets,
                         count(*) filter (where status not in ('completed','cancelled'))::int open_cnt
                    from tickets where company_id is not null ${period} group by 1) t on t.company_id = co.id
       left join (select company_id, count(distinct user_id)::int visitors
-                   from login_events where company_id is not null ${period} group by 1) v on v.company_id = co.id
+                   from login_events where company_id is not null and ${LE_REAL} ${period} group by 1) v on v.company_id = co.id
       left join (select company_id, min(end_date) next_end from company_contracts
                   where end_date >= current_date group by 1) c on c.company_id = co.id`);
 
