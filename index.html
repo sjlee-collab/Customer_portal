@@ -1983,6 +1983,7 @@ textarea{resize:vertical;min-height:100px;}
           <button type="button" data-stab="acct" onclick="switchStatsTab('acct')">👥 계정</button>
           <button type="button" data-stab="cust" onclick="switchStatsTab('cust')">🏢 고객 활용</button>
           <button type="button" data-stab="req" onclick="switchStatsTab('req')">📮 요청 현황</button>
+          <button type="button" data-stab="lib" onclick="switchStatsTab('lib')">📄 자료실 활용</button>
         </div>
 
         <div class="stab-panel" id="stab-act">
@@ -2195,6 +2196,47 @@ textarea{resize:vertical;min-height:100px;}
             </div>
           </div>
         </div><!-- /stab-req -->
+
+        <div class="stab-panel" id="stab-lib" style="display:none;">
+          <div class="rq-filters">
+            <select id="dl-category" onchange="applyDlFilter()"><option value="">전체 카테고리</option></select>
+          </div>
+
+          <div class="rq-kpis" id="dl-kpis">
+            <div class="rq-kpi" style="grid-column:1/-1;"><div class="s" style="margin:0;">불러오는 중...</div></div>
+          </div>
+
+          <div class="rq-g2" style="margin-bottom:16px;">
+            <div class="card" style="margin-bottom:0;">
+              <div class="card-title">다운로드 상위 자료
+                <span id="dl-top-right" style="margin-left:auto;font-size:11px;color:var(--muted);font-weight:400;"></span></div>
+              <div id="dl-top"></div>
+            </div>
+            <div class="card" style="margin-bottom:0;">
+              <div class="card-title">카테고리별 <span style="font-size:11px;color:var(--faint);font-weight:400;">등록 수 · 그중 0건</span></div>
+              <div id="dl-cats"></div>
+              <div class="rq-note" id="dl-cats-note" style="margin-top:12px;"></div>
+            </div>
+          </div>
+
+          <div class="card" style="padding:0;overflow:hidden;">
+            <div style="padding:16px 18px 12px;">
+              <div class="card-title" style="margin-bottom:0;">다운로드 0건 자료
+                <span style="font-size:11px;color:var(--faint);font-weight:400;">정리 또는 노출 위치 재검토 대상</span></div>
+            </div>
+            <div class="tbl-scroll"><table class="tbl tbl-compact" style="min-width:760px;">
+              <thead><tr><th>제목</th><th>카테고리</th><th>제품</th><th>공개</th><th>등록일</th><th style="text-align:right;">용량</th></tr></thead>
+              <tbody id="dl-zero"></tbody>
+            </table></div>
+            <div style="padding:11px 18px;border-top:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted);flex-wrap:wrap;">
+              <span id="dl-zero-total"></span>
+              <span class="rq-note" style="margin-right:auto;">ⓘ 다운로드 수는 문서별 누적 카운터입니다. 언제·누가 받았는지는 기록되지 않아 추이와 사용자별 분해는 낼 수 없습니다.</span>
+              <button class="btn btn-outline btn-sm" onclick="changeDlPage(-1)">← 이전</button>
+              <span id="dl-zero-page" style="font-variant-numeric:tabular-nums;">1</span>
+              <button class="btn btn-outline btn-sm" onclick="changeDlPage(1)">다음 →</button>
+            </div>
+          </div>
+        </div><!-- /stab-lib -->
       </div>
 
       <!-- ══ 연동 관리 ══ -->
@@ -7427,12 +7469,15 @@ function switchStatsTab(tab) {
   if (req) req.style.display = tab === 'req' ? '' : 'none';
   const cust = document.getElementById('stab-cust');
   if (cust) cust.style.display = tab === 'cust' ? '' : 'none';
+  const lib = document.getElementById('stab-lib');
+  if (lib) lib.style.display = tab === 'lib' ? '' : 'none';
   // 계정 탭에서만 페이지를 뷰포트 높이에 고정하고(acct-mode) 목록으로 남는 공간을 채운다.
   // 요청 현황 탭은 블록이 많아 세로로 길므로 기존처럼 스크롤되게 둔다.
   document.getElementById('p-stats')?.classList.toggle('acct-mode', tab === 'acct');
   if (tab === 'acct') requestAnimationFrame(() => fitLhPageSize(true)); // 레이아웃 반영 후 측정
   if (tab === 'req' && !_rqLoaded) loadTicketStats();   // 첫 진입에만 자동 조회
   if (tab === 'cust' && !_cuLoaded) loadCompanyStats();
+  if (tab === 'lib' && !_dlLoaded) loadDocStats();
 }
 
 // 창 크기가 바뀌면 표시 행 수를 다시 맞춘다 — 계정 탭이 열려 있을 때만.
@@ -7449,6 +7494,7 @@ async function loadStats() {
   // (한 번이라도 연 적이 있을 때만).
   if (_rqLoaded) loadTicketStats();
   if (_cuLoaded) loadCompanyStats();
+  if (_dlLoaded) loadDocStats();
   try {
     // 접속 활동(서버 집계)
     let active = { dau: 0, wau: 0, mau: 0, stickiness: 0, series: [] };
@@ -7498,6 +7544,121 @@ async function loadStats() {
   } finally {
     if (ico) ico.classList.remove('spin');
   }
+}
+
+// ── 자료실 활용 (GET /stats/documents, 서버 집계) ─────────────────
+// download_count는 누적 카운터이지 이벤트 로그가 아니다 — "언제·누가 받았는지"가 남지
+// 않으므로 이 탭에는 추이 그래프도 사용자별 분해도 없다. 화면 하단에 그 사실을 밝힌다.
+const DL_PAGE_SIZE = 10;
+let _dlOffset = 0, _dlTotal = 0, _dlLoaded = false, _dlCatFilled = false;
+
+function applyDlFilter() { _dlOffset = 0; loadDocStats(); }
+function changeDlPage(delta) {
+  const next = _dlOffset + delta * DL_PAGE_SIZE;
+  if (next < 0 || next >= (_dlTotal || 0)) return;
+  _dlOffset = next; loadDocStats();
+}
+const _dlCat = k => DOC_CAT_LABEL_KO[k] || k;
+const _dlMB = b => (b >= 1048576 ? (b / 1048576).toFixed(1) + 'MB'
+                  : b >= 1024 ? Math.round(b / 1024) + 'KB' : (b || 0) + 'B');
+
+async function loadDocStats() {
+  const kpis = document.getElementById('dl-kpis');
+  if (!kpis) return;
+  const cat = document.getElementById('dl-category')?.value || '';
+  const params = new URLSearchParams({ limit: String(DL_PAGE_SIZE), offset: String(_dlOffset) });
+  if (cat) params.set('category', cat);
+
+  kpis.innerHTML = '<div class="rq-kpi" style="grid-column:1/-1;"><div class="s" style="margin:0;">불러오는 중...</div></div>';
+  let d = null;
+  try {
+    const r = await fetch(`${API_BASE}/stats/documents?${params}`, { headers: { ...authHeaders() } });
+    if (r.ok) d = await r.json();
+  } catch (e) { console.error('loadDocStats 오류', e); }
+  _dlLoaded = true;
+  if (!d) {
+    kpis.innerHTML = '<div class="rq-kpi" style="grid-column:1/-1;"><div class="s" style="margin:0;">자료실 통계를 불러오지 못했습니다.</div></div>';
+    return;
+  }
+  _dlTotal = d.zeroTotal || 0;
+  _dlRenderKpis(d.summary || {});
+  _dlRenderTop(d.top || []);
+  _dlRenderCats(d.byCategory || []);
+  _dlRenderZero(d.zeroList || []);
+  _dlFillCats(d.byCategory || []);
+}
+
+// 카테고리 필터 옵션은 실제 등록된 카테고리에서 채운다(DOC_CATEGORIES에 없는 값이
+// 데이터에 있어도 빠지지 않게 — 라벨만 맵에서 가져오고 목록은 데이터가 기준).
+function _dlFillCats(byCategory) {
+  if (_dlCatFilled) return;
+  const sel = document.getElementById('dl-category');
+  if (!sel || !byCategory.length) return;
+  byCategory.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.category; o.textContent = `${_dlCat(c.category)} (${c.n})`;
+    sel.appendChild(o);
+  });
+  _dlCatFilled = true;
+}
+
+function _dlRenderKpis(s) {
+  const avg = s.docs ? (s.downloads / s.docs).toFixed(1) : '0.0';
+  const zeroPct = s.docs ? Math.round((s.zero / s.docs) * 100) : 0;
+  document.getElementById('dl-kpis').innerHTML = [
+    `<div class="rq-kpi"><div class="k">등록 자료</div><div class="v">${s.docs}</div><div class="s">공개 ${s.publicN} · 비공개 ${s.privateN}</div></div>`,
+    `<div class="rq-kpi good"><div class="k">총 다운로드</div><div class="v">${s.downloads}</div><div class="s">자료당 평균 ${avg}회</div></div>`,
+    `<div class="rq-kpi ${s.zero ? 'bad' : ''}"><div class="k">다운로드 0건</div><div class="v">${s.zero}</div><div class="s">전체의 ${zeroPct}% · 정리 대상</div></div>`,
+    `<div class="rq-kpi"><div class="k">최다 다운로드</div><div class="v">${s.maxDownload}<span style="font-size:15px;font-weight:600;color:var(--faint);">회</span></div><div class="s">${escHtml(s.maxTitle || '—')}</div></div>`,
+    `<div class="rq-kpi"><div class="k">총 용량</div><div class="v">${_dlMB(s.bytes)}</div><div class="s">S3 문서 버킷</div></div>`,
+  ].join('');
+}
+
+function _dlRenderTop(rows) {
+  const box = document.getElementById('dl-top');
+  if (!rows.length) { box.innerHTML = '<div class="rq-empty">다운로드된 자료가 없습니다.</div>'; return; }
+  const max = Math.max(...rows.map(r => r.n), 1);
+  box.innerHTML = rows.map(r => `<div class="rq-brow">
+    <span class="nm" title="${escHtml(r.title)}">${escHtml(r.title)}</span>
+    <span class="rq-btrack"><span class="rq-bfill" style="width:${(r.n / max) * 100}%"></span></span>
+    <span class="v">${r.n}</span></div>`).join('');
+  const sum = rows.reduce((a, r) => a + r.n, 0);
+  document.getElementById('dl-top-right').textContent = `상위 ${rows.length}개가 ${sum}회`;
+}
+
+// 카테고리별 등록 수 + 그중 0건 수. 전부 0건인 카테고리는 빨간 막대로 눈에 띄게 한다 —
+// "이 분류는 통째로 안 쓰인다"는 한 줄 요약보다 색으로 먼저 읽힌다.
+function _dlRenderCats(rows) {
+  const box = document.getElementById('dl-cats');
+  if (!rows.length) { box.innerHTML = '<div class="rq-empty">데이터 없음</div>'; return; }
+  const max = Math.max(...rows.map(r => r.n), 1);
+  box.innerHTML = rows.map(r => {
+    const allZero = r.zero === r.n && r.n > 0;
+    return `<div class="rq-brow">
+      <span class="nm">${escHtml(_dlCat(r.category))}</span>
+      <span class="rq-btrack"><span class="rq-bfill" style="width:${(r.n / max) * 100}%;${allZero ? 'background:var(--red);' : ''}"></span></span>
+      <span class="v">${r.n} <em>0건 ${r.zero}</em></span></div>`;
+  }).join('');
+  const dead = rows.filter(r => r.zero === r.n && r.n > 0);
+  document.getElementById('dl-cats-note').innerHTML = dead.length
+    ? `<b style="color:var(--red-d);font-weight:700;">${dead.map(r => escHtml(_dlCat(r.category))).join(' · ')} 카테고리는 등록된 자료가 전부 다운로드 0회</b>입니다. 노출이 안 되는지, 필요가 없는지 확인이 필요합니다.`
+    : '모든 카테고리에 다운로드 이력이 있습니다.';
+}
+
+function _dlRenderZero(rows) {
+  document.getElementById('dl-zero').innerHTML = rows.length
+    ? rows.map(r => `<tr>
+        <td style="white-space:normal;font-weight:600;">${escHtml(r.title)}</td>
+        <td style="color:var(--muted);">${escHtml(_dlCat(r.category))}</td>
+        <td style="color:var(--muted);">${escHtml(r.product || '—')}</td>
+        <td><span class="badge ${r.is_public ? 'b-green' : 'b-gray'}">${r.is_public ? '공개' : '비공개'}</span></td>
+        <td style="font-variant-numeric:tabular-nums;color:var(--muted);">${escHtml(r.created)}</td>
+        <td style="text-align:right;font-variant-numeric:tabular-nums;">${_dlMB(Number(r.file_size))}</td></tr>`).join('')
+    : '<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--faint);">다운로드 0건인 자료가 없습니다.</td></tr>';
+  document.getElementById('dl-zero-total').textContent =
+    _dlTotal ? `0건 자료 ${_dlTotal}건 중 ${rows.length}건 표시` : '0건 자료 없음';
+  document.getElementById('dl-zero-page').textContent =
+    `${Math.floor(_dlOffset / DL_PAGE_SIZE) + 1} / ${Math.max(1, Math.ceil(_dlTotal / DL_PAGE_SIZE))}`;
 }
 
 // ── 고객 활용 (GET /stats/companies, 서버 집계·정렬·페이지네이션) ──────

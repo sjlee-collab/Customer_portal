@@ -741,6 +741,71 @@ async function statsActiveUsers(event) {
   });
 }
 
+// ── GET /stats/documents ──
+// 사용 통계 > 자료실 활용 탭. content_documents 단독 집계.
+//
+// ⚠ download_count는 다운로드할 때마다 1씩 올리는 누적 카운터이지 이벤트 로그가 아니다.
+// "총 몇 번"은 알 수 있어도 "언제·누가"는 남지 않으므로, 이 탭에는 추이 그래프도
+// 사용자별 분해도 없다(있는 척하면 안 된다). 화면에도 그 사실을 적어 둔다.
+// 쿼리스트링: category, limit/offset(다운로드 0건 목록 페이지네이션용).
+async function statsDocuments(event) {
+  const authz = getAuthz(event);
+  if (!(await hasPermission(authz.role, 'stats_view'))) return json(403, { error: '권한이 없습니다' });
+
+  const qs = event.queryStringParameters || {};
+  const params = [];
+  const where = [];
+  if (qs.category) { params.push(qs.category); where.push(`category = $${params.length}`); }
+  const w = where.length ? 'where ' + where.join(' and ') : '';
+
+  const [sum] = await query(
+    `select count(*)::int docs,
+            count(*) filter (where is_public)::int public_n,
+            count(*) filter (where not is_public)::int private_n,
+            coalesce(sum(download_count), 0)::int downloads,
+            count(*) filter (where coalesce(download_count, 0) = 0)::int zero,
+            coalesce(max(download_count), 0)::int max_dl,
+            coalesce(sum(file_size), 0)::bigint bytes
+       from content_documents ${w}`, params);
+
+  // 최다 다운로드 자료의 제목 — KPI 카드 부제로 쓴다.
+  const [topDoc] = await query(
+    `select title from content_documents ${w}
+      order by download_count desc nulls last, created_at desc limit 1`, params);
+
+  const top = await query(
+    `select title, category, coalesce(nullif(product,''), '') product,
+            coalesce(download_count, 0)::int n
+       from content_documents ${w ? w + ' and' : 'where'} coalesce(download_count, 0) > 0
+      order by n desc, created_at desc limit 8`, params);
+
+  // 카테고리별 등록 수와 그중 0건 수를 함께 낸다 — 두 값을 나란히 놔야
+  // "이 카테고리는 통째로 안 쓰인다"가 보인다(예: edu 9개 중 9개가 0건).
+  const byCategory = await query(
+    `select category, count(*)::int n,
+            count(*) filter (where coalesce(download_count, 0) = 0)::int zero,
+            coalesce(sum(download_count), 0)::int downloads
+       from content_documents ${w} group by 1 order by n desc`, params);
+
+  const limit = Math.min(100, Math.max(1, parseInt(qs.limit, 10) || 10));
+  const offset = Math.max(0, parseInt(qs.offset, 10) || 0);
+  const zeroList = await query(
+    `select id, title, category, coalesce(nullif(product,''), '') product, is_public,
+            to_char(created_at at time zone 'Asia/Seoul', 'YYYY-MM-DD') created,
+            coalesce(file_size, 0)::bigint file_size
+       from content_documents ${w ? w + ' and' : 'where'} coalesce(download_count, 0) = 0
+      order by created_at desc limit ${limit} offset ${offset}`, params);
+
+  return json(200, {
+    summary: {
+      docs: sum.docs, publicN: sum.public_n, privateN: sum.private_n,
+      downloads: sum.downloads, zero: sum.zero, maxDownload: sum.max_dl,
+      maxTitle: topDoc ? topDoc.title : '', bytes: Number(sum.bytes),
+    },
+    top, byCategory, zeroTotal: sum.zero, zeroList,
+  });
+}
+
 // ── GET /stats/companies ──
 // 사용 통계 > 고객 활용 탭. 고객사별 활용도(접속·계정·요청·계약)를 한 줄씩 집계한다.
 // 397개 고객사를 한 쿼리로 모아 정렬·페이지네이션까지 서버에서 끝낸다.
@@ -1471,6 +1536,9 @@ export const handler = async (event) => {
     }
     if (method === 'GET' && path === '/stats/companies') {
       return await statsCompanies(event);
+    }
+    if (method === 'GET' && path === '/stats/documents') {
+      return await statsDocuments(event);
     }
     if (method === 'GET' && path === '/stats/company-detail') {
       return await statsCompanyDetail(event);
