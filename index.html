@@ -291,6 +291,18 @@ button,input,select,textarea{font-family:inherit;}
 .rq-age-bad{color:var(--red-d);font-weight:700;} .rq-age-warn{color:var(--amber-d);font-weight:600;}
 .rq-unassigned{color:var(--red-d);font-weight:600;}
 .rq-empty{padding:28px;text-align:center;color:var(--faint);font-size:13px;}
+/* 다운로드 상위 자료 — 제목이 FAQ 한 문장이라 한 줄 그리드로는 대부분 잘린다.
+   제목을 위에 두 줄까지 펼치고 막대·횟수를 아래 줄에 둔다. */
+.dl-item{padding:9px 0;border-bottom:1px solid var(--border);}
+.dl-item:first-child{padding-top:0;}
+.dl-item:last-child{border-bottom:none;padding-bottom:0;}
+.dl-t{font-size:12.5px;line-height:1.55;color:var(--text);margin-bottom:6px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.dl-b{display:grid;grid-template-columns:1fr 44px;gap:10px;align-items:center;}
+.dl-b .v{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;font-size:12px;}
+.dl-cat{font-size:10.5px;color:var(--faint);margin-left:6px;white-space:nowrap;}
+/* KPI 부제(최다 다운로드 자료 제목)도 두 줄에서 자른다 — 안 그러면 카드 높이가 들쭉날쭉해진다. */
+.rq-kpi .s.clamp2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.45;}
 /* 접수 경로 필터가 켜졌을 때 뜨는 컨텍스트 바 — 지표가 부분집합만 보여줄 때
    그 사실이 화면에서 사라지면 오독으로 이어지므로 숫자 바로 위에 계속 띄운다. */
 .rq-ctx{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;
@@ -2200,6 +2212,12 @@ textarea{resize:vertical;min-height:100px;}
         <div class="stab-panel" id="stab-lib" style="display:none;">
           <div class="rq-filters">
             <select id="dl-category" onchange="applyDlFilter()"><option value="">전체 카테고리</option></select>
+            <select id="dl-product" onchange="applyDlFilter()"><option value="">전체 제품</option></select>
+            <select id="dl-visibility" onchange="applyDlFilter()">
+              <option value="">전체 공개 범위</option>
+              <option value="public">고객 공개</option>
+              <option value="private">내부 전용</option>
+            </select>
           </div>
 
           <div class="rq-kpis" id="dl-kpis">
@@ -7566,8 +7584,12 @@ async function loadDocStats() {
   const kpis = document.getElementById('dl-kpis');
   if (!kpis) return;
   const cat = document.getElementById('dl-category')?.value || '';
+  const prod = document.getElementById('dl-product')?.value || '';
+  const vis = document.getElementById('dl-visibility')?.value || '';
   const params = new URLSearchParams({ limit: String(DL_PAGE_SIZE), offset: String(_dlOffset) });
   if (cat) params.set('category', cat);
+  if (prod) params.set('product', prod);
+  if (vis) params.set('visibility', vis);
 
   kpis.innerHTML = '<div class="rq-kpi" style="grid-column:1/-1;"><div class="s" style="margin:0;">불러오는 중...</div></div>';
   let d = null;
@@ -7585,20 +7607,27 @@ async function loadDocStats() {
   _dlRenderTop(d.top || []);
   _dlRenderCats(d.byCategory || []);
   _dlRenderZero(d.zeroList || []);
-  _dlFillCats(d.byCategory || []);
+  _dlFillOptions(d.catOptions || [], d.productOptions || []);
 }
 
-// 카테고리 필터 옵션은 실제 등록된 카테고리에서 채운다(DOC_CATEGORIES에 없는 값이
-// 데이터에 있어도 빠지지 않게 — 라벨만 맵에서 가져오고 목록은 데이터가 기준).
-function _dlFillCats(byCategory) {
+// 카테고리·제품 옵션은 실제 데이터에서 채운다(코드에 목록을 박으면 낡는다).
+// 서버가 필터와 무관하게 전체 기준으로 내려주므로 필터를 건 뒤에도 선택지가 유지된다.
+function _dlFillOptions(catOptions, productOptions) {
   if (_dlCatFilled) return;
-  const sel = document.getElementById('dl-category');
-  if (!sel || !byCategory.length) return;
-  byCategory.forEach(c => {
+  const c = document.getElementById('dl-category'), pr = document.getElementById('dl-product');
+  if (!c || !pr || !catOptions.length) return;
+  catOptions.forEach(x => {
     const o = document.createElement('option');
-    o.value = c.category; o.textContent = `${_dlCat(c.category)} (${c.n})`;
-    sel.appendChild(o);
+    o.value = x.k; o.textContent = `${_dlCat(x.k)} (${x.n})`;
+    c.appendChild(o);
   });
+  productOptions.forEach(x => {
+    const o = document.createElement('option');
+    o.value = x.k; o.textContent = `${x.k} (${x.n})`;
+    pr.appendChild(o);
+  });
+  // 고를 값이 하나뿐이면 필터가 아니라 장식이다. 값이 늘면 자동으로 다시 나타난다.
+  pr.style.display = productOptions.length >= 2 ? '' : 'none';
   _dlCatFilled = true;
 }
 
@@ -7609,7 +7638,7 @@ function _dlRenderKpis(s) {
     `<div class="rq-kpi"><div class="k">등록 자료</div><div class="v">${s.docs}</div><div class="s">공개 ${s.publicN} · 비공개 ${s.privateN}</div></div>`,
     `<div class="rq-kpi good"><div class="k">총 다운로드</div><div class="v">${s.downloads}</div><div class="s">자료당 평균 ${avg}회</div></div>`,
     `<div class="rq-kpi ${s.zero ? 'bad' : ''}"><div class="k">다운로드 0건</div><div class="v">${s.zero}</div><div class="s">전체의 ${zeroPct}% · 정리 대상</div></div>`,
-    `<div class="rq-kpi"><div class="k">최다 다운로드</div><div class="v">${s.maxDownload}<span style="font-size:15px;font-weight:600;color:var(--faint);">회</span></div><div class="s">${escHtml(s.maxTitle || '—')}</div></div>`,
+    `<div class="rq-kpi"><div class="k">최다 다운로드</div><div class="v">${s.maxDownload}<span style="font-size:15px;font-weight:600;color:var(--faint);">회</span></div><div class="s clamp2" title="${escHtml(s.maxTitle || '')}">${escHtml(s.maxTitle || '—')}</div></div>`,
     `<div class="rq-kpi"><div class="k">총 용량</div><div class="v">${_dlMB(s.bytes)}</div><div class="s">S3 문서 버킷</div></div>`,
   ].join('');
 }
@@ -7618,10 +7647,10 @@ function _dlRenderTop(rows) {
   const box = document.getElementById('dl-top');
   if (!rows.length) { box.innerHTML = '<div class="rq-empty">다운로드된 자료가 없습니다.</div>'; return; }
   const max = Math.max(...rows.map(r => r.n), 1);
-  box.innerHTML = rows.map(r => `<div class="rq-brow">
-    <span class="nm" title="${escHtml(r.title)}">${escHtml(r.title)}</span>
-    <span class="rq-btrack"><span class="rq-bfill" style="width:${(r.n / max) * 100}%"></span></span>
-    <span class="v">${r.n}</span></div>`).join('');
+  box.innerHTML = rows.map(r => `<div class="dl-item">
+    <div class="dl-t" title="${escHtml(r.title)}">${escHtml(r.title)}<span class="dl-cat">${escHtml(_dlCat(r.category))}${r.product ? ' · ' + escHtml(r.product) : ''}</span></div>
+    <div class="dl-b"><span class="rq-btrack"><span class="rq-bfill" style="width:${(r.n / max) * 100}%"></span></span>
+      <span class="v">${r.n}회</span></div></div>`).join('');
   const sum = rows.reduce((a, r) => a + r.n, 0);
   document.getElementById('dl-top-right').textContent = `상위 ${rows.length}개가 ${sum}회`;
 }
@@ -7640,8 +7669,16 @@ function _dlRenderCats(rows) {
       <span class="v">${r.n} <em>0건 ${r.zero}</em></span></div>`;
   }).join('');
   const dead = rows.filter(r => r.zero === r.n && r.n > 0);
+  // 0건인 이유를 갈라준다 — 대부분 비공개라면 "안 쓰인다"가 아니라 "고객이 볼 수 없다"이고,
+  // 그 둘은 해야 할 조치가 완전히 다르다.
   document.getElementById('dl-cats-note').innerHTML = dead.length
-    ? `<b style="color:var(--red-d);font-weight:700;">${dead.map(r => escHtml(_dlCat(r.category))).join(' · ')} 카테고리는 등록된 자료가 전부 다운로드 0회</b>입니다. 노출이 안 되는지, 필요가 없는지 확인이 필요합니다.`
+    ? dead.map(r => {
+        const hidden = r.private_n || 0;
+        const why = hidden >= r.n / 2
+          ? `그중 ${hidden}개가 <b>비공개</b>라 고객에게 보이지 않습니다. 공개 여부부터 확인하세요.`
+          : '전부 고객에게 공개돼 있는데도 받아가지 않았습니다. 노출 위치나 필요성을 확인하세요.';
+        return `<b style="color:var(--red-d);font-weight:700;">${escHtml(_dlCat(r.category))} ${r.n}개는 전부 다운로드 0회</b> — ${why}`;
+      }).join('<br>')
     : '모든 카테고리에 다운로드 이력이 있습니다.';
 }
 

@@ -747,7 +747,12 @@ async function statsActiveUsers(event) {
 // ⚠ download_count는 다운로드할 때마다 1씩 올리는 누적 카운터이지 이벤트 로그가 아니다.
 // "총 몇 번"은 알 수 있어도 "언제·누가"는 남지 않으므로, 이 탭에는 추이 그래프도
 // 사용자별 분해도 없다(있는 척하면 안 된다). 화면에도 그 사실을 적어 둔다.
-// 쿼리스트링: category, limit/offset(다운로드 0건 목록 페이지네이션용).
+// 쿼리스트링: category, product, visibility(public=고객 공개 / private=내부 전용),
+//             limit/offset(다운로드 0건 목록 페이지네이션용).
+//
+// ⚠ 고객사별 필터는 없다(만들 수 없다). content_documents에 company_id가 없고 자료실은
+// 전 고객 공용이며, 다운로드도 누적 카운터뿐이라 누가 받았는지 기록이 없다. 고객과 연결할
+// 고리 자체가 없으므로, 고객 관점 필터는 "고객에게 보이는가"(is_public)가 최선이다.
 async function statsDocuments(event) {
   const authz = getAuthz(event);
   if (!(await hasPermission(authz.role, 'stats_view'))) return json(403, { error: '권한이 없습니다' });
@@ -756,6 +761,9 @@ async function statsDocuments(event) {
   const params = [];
   const where = [];
   if (qs.category) { params.push(qs.category); where.push(`category = $${params.length}`); }
+  if (qs.product)  { params.push(qs.product);  where.push(`product = $${params.length}`); }
+  if (qs.visibility === 'public') where.push('is_public');
+  else if (qs.visibility === 'private') where.push('not is_public');
   const w = where.length ? 'where ' + where.join(' and ') : '';
 
   const [sum] = await query(
@@ -784,6 +792,7 @@ async function statsDocuments(event) {
   const byCategory = await query(
     `select category, count(*)::int n,
             count(*) filter (where coalesce(download_count, 0) = 0)::int zero,
+            count(*) filter (where not is_public)::int private_n,
             coalesce(sum(download_count), 0)::int downloads
        from content_documents ${w} group by 1 order by n desc`, params);
 
@@ -796,13 +805,21 @@ async function statsDocuments(event) {
        from content_documents ${w ? w + ' and' : 'where'} coalesce(download_count, 0) = 0
       order by created_at desc limit ${limit} offset ${offset}`, params);
 
+  // 필터 선택지는 전체 데이터 기준으로 뽑는다 — 필터를 건 뒤 선택지가 사라지면
+  // 다른 값으로 바꿀 수가 없다.
+  const catOptions = await query(
+    `select category k, count(*)::int n from content_documents group by 1 order by n desc`);
+  const productOptions = await query(
+    `select product k, count(*)::int n from content_documents
+      where coalesce(product,'') <> '' group by 1 order by n desc`);
+
   return json(200, {
     summary: {
       docs: sum.docs, publicN: sum.public_n, privateN: sum.private_n,
       downloads: sum.downloads, zero: sum.zero, maxDownload: sum.max_dl,
       maxTitle: topDoc ? topDoc.title : '', bytes: Number(sum.bytes),
     },
-    top, byCategory, zeroTotal: sum.zero, zeroList,
+    top, byCategory, zeroTotal: sum.zero, zeroList, catOptions, productOptions,
   });
 }
 
