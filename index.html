@@ -312,6 +312,13 @@ button,input,select,textarea{font-family:inherit;}
   padding:5px 13px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;
   display:inline-flex;align-items:center;gap:6px;transition:.12s;}
 .cu-preset:hover{border-color:var(--accent-m);color:var(--text);}
+/* 접힌 처리 이력 요약 — 항상 한 줄. 자리가 모자라면 변경 문구만 …로 줄고
+   '누가 언제'는 오른쪽에 끝까지 남는다(사이드바 폭 340px, 글자 폭 307px 기준). */
+.rd-hist-sum{display:flex;align-items:baseline;min-width:0;}
+.rd-hist-sum .h-lab{flex:none;font-size:10.5px;font-weight:700;color:var(--accent);background:var(--accent-l);border:1px solid var(--accent-m);border-radius:5px;padding:0 5px;margin-right:5px;line-height:1.5;}
+.rd-hist-sum .h-txt{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);font-weight:700;}
+.rd-hist-sum .h-tail{flex:none;white-space:nowrap;margin-left:4px;}
+.rd-hist-sum .h-who{color:var(--text);font-weight:700;}
 .cu-preset:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 .cu-preset[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;}
 .cu-preset .dot{width:7px;height:7px;border-radius:50%;flex:none;}
@@ -1650,7 +1657,7 @@ textarea{resize:vertical;min-height:100px;}
                           <span style="font-weight:700;font-size:12px;">처리 이력</span>
                           <span id="rd-history-arrow" style="font-size:11px;color:var(--faint);white-space:nowrap;flex-shrink:0;"></span>
                         </div>
-                        <div id="rd-history-summary" style="color:var(--muted);font-size:11px;margin-top:2px;"></div>
+                        <div id="rd-history-summary" class="rd-hist-sum" style="color:var(--muted);font-size:11px;margin-top:2px;"></div>
                       </div>
                       <div class="timeline" id="rd-history" style="display:none;max-height:220px;overflow-y:auto;padding-right:4px;margin-top:8px;">
                         <div style="color:var(--faint);font-size:12px;padding:6px 0;">불러오는 중...</div>
@@ -9884,7 +9891,18 @@ async function loadRdHistory() {
   }
   const latest      = data[0];
   const latestLabel = ACTION_LABELS[latest.action] || latest.action;
-  if (summaryEl) summaryEl.textContent = `최근: ${latestLabel} · ${fmtTime(latest.created_at)}`;
+  if (summaryEl) {
+    // 접힌 상태에서도 무엇이 어떻게 바뀌었는지·누가 했는지 보이게 한다.
+    // note에 '접수 → 분류 중', '김서연 → 김용현' 형태로 저장돼 있어 그대로 쓴다.
+    // 날짜는 월-일 시:분 — 연도까지 넣으면 긴 상태 조합에서 문구가 잘린다(폭 실측).
+    const who     = latest.changed_by?.name || latest.changed_by_name || '';
+    const whoHtml = who ? `<span class="h-who">${escHtml(who)}</span> · ` : '';
+    const when    = fmtTime(latest.created_at).slice(5);   // 'YYYY-MM-DD HH:MM' → 'MM-DD HH:MM'
+    summaryEl.innerHTML =
+      `<span class="h-lab">${escHtml(latestLabel)}</span>` +
+      `<span class="h-txt">${escHtml(latest.note || '')}</span>` +
+      `<span class="h-tail">· ${whoHtml}${when}</span>`;
+  }
   if (arrowEl) arrowEl.textContent = `전체 ${data.length}건 보기 ▾`;
   container.innerHTML = data.map((h, i) => {
     const color  = ACTION_COLORS[h.action] || 'var(--faint)';
