@@ -9,6 +9,9 @@
   - 관리자 재설정(/auth/admin-reset-password): admin→고객 200(재설정 메일),
     userId 누락 400, 권한상승 차단(user_manage 가진 비관리자가 내부직원 대상 → 403)
   - 초대(/auth/invite): admin 200(초대 메일) / 미등록 이메일 404 / 고객 403(user_manage 없음)
+  - 재설정 요청(/auth/request-reset): 등록 계정 200 + 재설정 메일 발송(log_notification의
+    recipient로 판정 — reset_token 컬럼은 data-api가 차단해 토큰 왕복은 검증 불가),
+    email 누락 400, 미등록 404(현행 — 계정 존재가 응답으로 드러나는 열거 갭, 알려진 잔여 이슈)
   - 담당영업 조회(/my/account-manager): 고객 200 + {name,email} 구조
 주의: 성공 로그인은 login_events를 남기고 itest로 지울 수 없어 오염되므로 하지 않는다.
       401/404는 login_events를 남기지 않으면서도 로그인 핸들러가 살아있음을 증명한다(순단이면 500).
@@ -19,7 +22,7 @@
 """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'lib'))
-from itest import api, dpost, ddel, tname, temail, Checker
+from itest import api, dget, dpost, ddel, tname, temail, Checker
 
 
 def run():
@@ -83,6 +86,33 @@ def run():
         t.check('초대 미등록 이메일 404', ri.get('status') == 404, 'status=%s' % ri.get('status'))
         ri = api('POST', '/auth/invite', {'email': temail('authcust')}, role='customer', userId=uid, companyId=co_id)
         t.check('초대 고객 403', ri.get('status') == 403, 'status=%s' % ri.get('status'))
+
+        # ── 재설정 요청(/auth/request-reset) — 로그인 전 공개 흐름 ──
+        # 메일 판정: PASSWORD_RESET 로그는 ticket_id가 없어 recipient로 조회한다.
+        def reset_mail_rows():
+            return dget('log_notification',
+                        {'select': 'id,event_type,recipient', 'channel': 'eq.email',
+                         'recipient': 'eq.' + temail('authcust'), 'limit': '100'},
+                        role='admin').get('body') or []
+        mails_before = {r['id'] for r in reset_mail_rows()}
+        rq = api('POST', '/auth/request-reset', {'email': temail('authcust')})
+        t.check('재설정 요청 200', rq.get('status') == 200, 'status=%s body=%s' % (rq.get('status'), rq.get('body')))
+        import time as _time
+        new_mails = []
+        deadline = _time.time() + 20
+        while _time.time() < deadline:
+            new_mails = [r for r in reset_mail_rows() if r['id'] not in mails_before]
+            if new_mails: break
+            _time.sleep(2)
+        t.check('재설정 메일 발송 로그', len(new_mails) >= 1,
+                '신규=%s' % [(r.get('event_type'), r.get('recipient')) for r in new_mails])
+        rq = api('POST', '/auth/request-reset', {})
+        t.check('재설정 요청 email 누락 400', rq.get('status') == 400, 'status=%s' % rq.get('status'))
+        rq = api('POST', '/auth/request-reset', {'email': '__no_such__@example.com'})
+        t.check('재설정 요청 미등록 404(현행·열거 갭)', rq.get('status') == 404, 'status=%s' % rq.get('status'))
+        # 이 테스트가 만든 발송 로그는 티켓이 없어 sweep이 못 지우므로 직접 정리
+        for r in new_mails:
+            ddel('log_notification', r['id'], role='admin')
 
         # ── 담당영업 조회(/my/account-manager) — 고객 200 + 구조 ──
         rm = api('GET', '/my/account-manager', None, role='customer', userId=uid, companyId=co_id)

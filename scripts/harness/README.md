@@ -24,6 +24,7 @@
 | `bash scripts/harness/email-safe.sh on\|off\|status` | 운영 상태 리셋(잔여 리다이렉트/태그 env 제거). 테스트 격리는 자동 — **메일=temail() 싱크 수신자**, **슬랙=`[테스트]` 제목/기업명 자동 라우팅**(SLACK_WEBHOOK_TEST). status로 현재 env 확인 |
 | `bash scripts/harness/apigw-route.sh list\|add "METHOD /path"` | API GW 라우트 조회/추가 |
 | `bash scripts/harness/sweep.sh [--delete]` | `[테스트]` 라벨 잔여 데이터 미리보기/삭제(중단 뒷정리) |
+| `bash scripts/harness/drift-check.sh [fn]` | 레포↔배포본 대조(읽기 전용). 재배포·리뷰 전에 drift 확인 — 배포본이 앞서 있으면 역동기화 먼저 |
 
 ## 테스트 데이터 규칙 (중요)
 하네스가 만드는 **모든** 데이터는 이름/제목 필드에 반드시 `[테스트]` 라벨을 붙인다 —
@@ -41,7 +42,7 @@
 - `tests/test_ticket_assign.py` — **담당자 배정(`/assign`)**: 배정/재배정 저장·이름 스냅샷 · `assigned` 슬랙 + content의 (이전→새 담당) 표기 · 동일 담당자 무알림 · assign 경로 이력 미기록(현행) · 400/404/403
 - `tests/test_notify_routing.py` — **슬랙 카테고리 팬아웃**: 등록·답글이 공통+카테고리 채널(영업/기술/교육)로 가는지 `recipient`로 판정 · 답글 알림은 고객 작성만(스태프 무알림) · 등록 접수 메일 1통
 - `tests/test_stats_view.py` — 사용 통계 6개 엔드포인트(`active-users`/`login-history`/`tickets`/`companies`/`documents`/`company-detail`): 구조·고객 403·필터·집계 반영 + `stats_view` 동적 토글
-- `tests/test_auth.py` — 인증: 로그인 분기(404/401) · 비밀번호 변경/확인 · 재설정(무효 토큰·관리자 재설정·권한상승 차단) · 초대 · 담당영업 조회
+- `tests/test_auth.py` — 인증: 로그인 분기(404/401) · 비밀번호 변경/확인 · 재설정(무효 토큰·요청(request-reset)·관리자 재설정·권한상승 차단) · 초대 · 담당영업 조회
 - `tests/test_customer_e2e.py` — **고객 계정 전 기능 정상성**(등록·목록·상세·수정·답글·첨부·계약/자료 조회·내정보) + 보안 차단
 - `tests/smoke_frontend.js` — 프리뷰 콘솔에 붙여 프론트 핵심 확인(L2)
 - 데이터 원칙: `[테스트]` 라벨 + admin 직접 insert(알림 없음) + 종료 시 정리(+ 잔여물 `sweep`). 개별 실행: `python scripts/harness/tests/test_customer_e2e.py`

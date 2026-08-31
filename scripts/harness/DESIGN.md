@@ -129,7 +129,7 @@
 | POST /auth/verify-password | test_auth | |
 | PATCH /auth/change-password | test_auth | currentPassword 재확인 |
 | POST /auth/reset-password | test_auth | 무효 토큰 거부 |
-| **POST /auth/request-reset** | **❌ 미커버** | 실메일 경로 — temail 계정으로 추가 가능 |
+| POST /auth/request-reset | test_auth | 발송 로그는 recipient로 판정(토큰 왕복은 data-api 차단으로 불가) · 미등록 404는 현행(열거 갭) 고정 |
 | POST /auth/invite | test_auth | 404/403 포함 |
 | POST /auth/admin-reset-password | test_auth | 권한상승 차단(비관리자→내부직원 403) |
 | GET /my/account-manager | test_auth | |
@@ -196,10 +196,10 @@ invoke 방식이 authorizer를 우회하므로 JWT 검증 자체(서명·만료�
 smoke.sh의 "인증보호" 항목이 무토큰 거부만 확인한다. 보강하려면 실 JWT를 발급받는 경로가
 필요한데 이는 성공 로그인 문제와 같은 뿌리다.
 
-### 6.5 drift 감지가 배포 시점에만 있다
-`deploy-fn.sh`가 배포 직전 진단하지만, **커밋·리뷰 시점**에는 레포가 배포본과 다른지 알 수 없다
-(R4 실사례는 우연히 발견). 후보: 배포본 zip을 받아 `.mjs`를 CRLF 무시 diff하는
-`drift-check.sh`를 만들어 guard-commit 또는 주기 점검에 붙인다.
+### 6.5 drift 감지 — `drift-check.sh`로 해소 (2026-08-31)
+`deploy-fn.sh`의 배포 직전 진단만으로는 커밋·리뷰 시점 drift를 못 잡았다(R4 실사례는 우연히 발견).
+`drift-check.sh [fn]`이 배포본 zip을 받아 `.mjs`를 CRLF 무시 diff한다 — 읽기 전용, 종료코드로
+훅·주기 점검에 연결 가능. 남은 판단: pre-push 훅에 상시로 걸지(느림 — 7함수 다운로드) 여부.
 
 ### 6.6 수동 실행 의존 (CI 부재)
 회귀는 사람이 돌려야 한다. 레포에 CI가 없고(빌드 자체가 없음), AWS 자격증명이 필요해
@@ -213,12 +213,12 @@ guard-commit + (선택) 회귀를 거는 것. 운영 DB를 치는 테스트라 �
 
 | 순위 | 항목 | 근거 | 비용 |
 |---|---|---|---|
-| P1 | `drift-check.sh` (배포본↔레포 자동 대조) | R4 실사례 — 모르는 drift가 롤백 사고로 직결 | 스크립트 1개, 운영 무변경 |
-| P2 | `/auth/request-reset` 테스트 추가 | 유일하게 남은 미커버 일반 라우트 | 테스트 수십 줄 |
+| ~~P1~~ | ~~`drift-check.sh`~~ — **완료(2026-08-31)** | R4 실사례 — 모르는 drift가 롤백 사고로 직결 | 완료 |
+| ~~P2~~ | ~~`/auth/request-reset` 테스트~~ — **완료(2026-08-31)** | 마지막 미커버 일반 라우트 | 완료 |
 | P3 | 배치 `only_test` 모드 + 배치 테스트 | 마감일 오판 같은 배치 버그의 직접 검증 수단 확보 | 운영 코드 수정 필요 — 신중 |
 | P4 | login_events 테스트 오염 해소 → 성공 로그인·JWT 검증 | §6.3·§6.4의 공통 선결 과제 | 운영 코드 수정 필요 |
 | P5 | L2 자동화(헤드리스 브라우저) | 수동 스모크의 자동화 | 도구 도입 |
 | P6 | 임시 dev 환경 설계 | 근본 해결이나 비용·운영 부담 최대 | 인프라 |
 
-P1·P2는 운영 코드를 건드리지 않아 바로 진행 가능. P3부터는 운영 Lambda 수정이 필요하므로
+P1·P2는 2026-08-31 완료(일반 라우트 22/22 커버). P3부터는 운영 Lambda 수정이 필요하므로
 변경 자체를 이 하네스의 표준 루프로 진행한다.
