@@ -11,7 +11,7 @@ echo "로컬 HEAD=$LOCAL / origin/main=$ORIGIN"
 [ "$LOCAL" != "$ORIGIN" ] && echo "  ⚠ 로컬과 origin/main이 다름 — 형제 세션 커밋 가능. push 시 ff 여부 확인 필요."
 
 echo "── 워킹트리 변경 파일(노이즈 제외) ──"
-CHANGED=$(git status --porcelain | grep -v 'node_modules\|package-lock\|__pycache__\|\.claude/launch.json\|scratchpad' | awk '{print $2}')
+CHANGED=$(git status --porcelain | grep -v 'node_modules\|__pycache__\|\.claude/launch.json\|scratchpad' | awk '{print $2}')
 echo "$CHANGED" | sed 's/^/  /'
 
 if [ "$#" -gt 0 ]; then
