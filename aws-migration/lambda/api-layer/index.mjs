@@ -950,7 +950,8 @@ async function statsCompanyDetail(event) {
 // ── GET /stats/tickets ──
 // 사용 통계 > 요청 현황 탭. 티켓 집계를 서버(SQL)에서 끝낸다 — data-api의 범용 조회는
 // limit이 1000으로 캡되므로 전건을 프런트로 내려 집계하면 건수가 늘어난 뒤 조용히 틀린 값이 된다.
-// 쿼리스트링: days(기간, 0=전체), category, product, priority, assignee(미배정은 'none').
+// 쿼리스트링: days(기간, 0=전체), category, product, priority, assignee(미배정은 'none'),
+//             path(direct=고객 직접 / proxy=대리 등록), agent(대리 등록자 uuid).
 // 반환 지표는 tickets 단독 집계라 ticket_history의 상태전이 파싱에 의존하지 않는다.
 async function statsTickets(event) {
   const authz = getAuthz(event);
@@ -966,6 +967,14 @@ async function statsTickets(event) {
   if (qs.priority) { params.push(qs.priority); where.push(`priority = $${params.length}`); }
   if (qs.assignee === 'none') where.push('assigned_to is null');
   else if (qs.assignee) { params.push(qs.assignee); where.push(`assigned_to = $${params.length}`); }
+
+  // 접수 경로 필터. 경로를 뺀 조건(wBase)을 따로 들고 있다가 "전체 대비 몇 %"를 낼 때 쓴다 —
+  // 경로로 걸러진 상태에서 대리 등록 비율을 재면 항상 100%/0%가 되어 지표가 죽는다.
+  const wBase = where.length ? 'where ' + where.join(' and ') : '';
+  const baseParamCount = params.length;
+  if (qs.path === 'direct') where.push('registered_by is null');
+  else if (qs.path === 'proxy') where.push('registered_by is not null');
+  if (qs.agent) { params.push(qs.agent); where.push(`registered_by = $${params.length}`); }
   const w = where.length ? 'where ' + where.join(' and ') : '';
 
   // 미해결 = 완료·취소를 제외한 모든 상태. 적체·미배정 지표가 모두 이 정의를 따른다.
@@ -1043,13 +1052,28 @@ async function statsTickets(event) {
             (extract(epoch from (now() - created_at)) / 86400)::int days
        from tickets ${openWhere} order by created_at asc limit 10`, params);
 
+  // 경로 필터를 뺀 총계 — "전체 대비 N%" 계산용. 필터가 없으면 total과 같으므로 재조회하지 않는다.
+  let pathTotal = sum.total;
+  if (qs.path || qs.agent) {
+    const [pt] = await query(`select count(*)::int n from tickets ${wBase}`, params.slice(0, baseParamCount));
+    pathTotal = pt.n;
+  }
+
+  // 대리 등록자 목록 — 실제로 대신 접수한 적이 있는 사람만. 담당자 필터와 달리 전체 스태프를
+  // 넣지 않는다(대리 등록 이력이 없는 사람은 고를 이유가 없다). 경로 필터는 빼고 집계해야
+  // 대리 등록을 고른 뒤에도 선택지가 그대로 남는다.
+  const agents = await query(
+    `select registered_by id, coalesce(nullif(registered_by_name,''), '(이름 없음)') name, count(*)::int n
+       from tickets ${wBase ? wBase + ' and' : 'where'} registered_by is not null
+      group by 1, 2 order by n desc limit 20`, params.slice(0, baseParamCount));
+
   return json(200, {
     summary: {
       total: sum.total, completed: sum.completed, cancelled: sum.cancelled,
       open: sum.open, aged: sum.aged, unassigned: sum.unassigned,
-      overdue: sum.overdue, proxy: sum.proxy,
+      overdue: sum.overdue, proxy: sum.proxy, pathTotal,
     },
-    prev, trend, byStatus, byCategory, byPriority, byProduct, heatmap, workload,
+    prev, trend, byStatus, byCategory, byPriority, byProduct, heatmap, workload, agents,
     aging: { lt7: age.b0, d7to30: age.b1, gt30: age.b2 },
     oldest,
   });

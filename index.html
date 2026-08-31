@@ -291,6 +291,19 @@ button,input,select,textarea{font-family:inherit;}
 .rq-age-bad{color:var(--red-d);font-weight:700;} .rq-age-warn{color:var(--amber-d);font-weight:600;}
 .rq-unassigned{color:var(--red-d);font-weight:600;}
 .rq-empty{padding:28px;text-align:center;color:var(--faint);font-size:13px;}
+/* 접수 경로 필터가 켜졌을 때 뜨는 컨텍스트 바 — 지표가 부분집합만 보여줄 때
+   그 사실이 화면에서 사라지면 오독으로 이어지므로 숫자 바로 위에 계속 띄운다. */
+.rq-ctx{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;
+  background:var(--amber-l);border:1px solid #FDE68A;border-radius:var(--r-lg);
+  padding:9px 14px;font-size:12.5px;color:var(--amber-d);}
+.rq-ctx[hidden]{display:none;}
+.rq-ctx-tag{background:var(--amber);color:#fff;border-radius:99px;padding:2px 10px;font-size:11px;font-weight:700;white-space:nowrap;}
+.rq-ctx-chips{display:flex;gap:6px 12px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);}
+.rq-ctx-chips b{color:var(--text);font-variant-numeric:tabular-nums;}
+.rq-ctx-clear{margin-left:auto;border:1px solid #FDE68A;background:var(--surface);color:var(--amber-d);
+  border-radius:99px;padding:3px 11px;font-size:11.5px;font-weight:600;cursor:pointer;}
+.rq-ctx-clear:hover{background:var(--amber-l);}
+.rq-filters select:disabled{background:var(--surface2);color:var(--faint);cursor:not-allowed;}
 
 /* ── 사용 통계 > 고객 활용 탭 ─────────────────────────────────
    차트 원시요소(.rq-kpi/.rq-brow 등)는 요청 현황 탭과 공유하고, 여기서는
@@ -2101,6 +2114,22 @@ textarea{resize:vertical;min-height:100px;}
             <select id="rq-assignee" onchange="loadTicketStats()">
               <option value="">전체 담당자</option><option value="none">미배정</option>
             </select>
+            <select id="rq-path" onchange="onRqPathChange()">
+              <option value="">전체 접수 경로</option>
+              <option value="direct">고객 직접</option>
+              <option value="proxy">대리 등록</option>
+            </select>
+            <select id="rq-agent" onchange="loadTicketStats()" disabled
+                    title="접수 경로를 '대리 등록'으로 선택하면 활성화됩니다">
+              <option value="">전체 대리 등록자</option>
+            </select>
+          </div>
+
+          <div class="rq-ctx" id="rq-ctx" hidden>
+            <span class="rq-ctx-tag" id="rq-ctx-tag"></span>
+            <span id="rq-ctx-msg"></span>
+            <span class="rq-ctx-chips" id="rq-ctx-chips"></span>
+            <button class="rq-ctx-clear" type="button" onclick="clearRqPath()">필터 해제 ✕</button>
           </div>
 
           <div class="rq-kpis" id="rq-kpis">
@@ -7736,6 +7765,7 @@ function setRqDays(d, btn) {
   loadTicketStats();
 }
 const _rqEsc = v => escHtml(String(v ?? ''));
+const _rqPathActive = () => !!(document.getElementById('rq-path')?.value);
 const _rqPct = (n, t) => (t ? Math.round((n / t) * 100) : 0);
 
 async function loadTicketStats() {
@@ -7747,10 +7777,14 @@ async function loadTicketStats() {
   const prod = document.getElementById('rq-product')?.value || '';
   const prio = document.getElementById('rq-priority')?.value || '';
   const asg  = document.getElementById('rq-assignee')?.value || '';
+  const path = document.getElementById('rq-path')?.value || '';
+  const agent = document.getElementById('rq-agent')?.value || '';
   if (cat)  params.set('category', cat);
   if (prod) params.set('product', prod);
   if (prio) params.set('priority', prio);
   if (asg)  params.set('assignee', asg);
+  if (path) params.set('path', path);
+  if (agent) params.set('agent', agent);
 
   kpis.innerHTML = '<div class="rq-kpi" style="grid-column:1/-1;"><div class="s" style="margin:0;">불러오는 중...</div></div>';
   let d = null;
@@ -7777,6 +7811,65 @@ async function loadTicketStats() {
   _rqRenderWorkload(d.workload || []);
   _rqRenderAging(d.aging || {}, d.oldest || [], d.summary || {});
   _rqFillProducts(d.byProduct || []);
+  _rqFillAgents(d.agents || []);
+  _rqRenderCtx(d.summary || {}, d.agents || []);
+}
+
+// 접수 경로 전환 — '대리 등록'일 때만 대리 등록자 선택이 의미가 있다. 항상 열어두면
+// '고객 직접 + 특정 등록자' 같은 모순 조합으로 늘 빈 결과가 나온다.
+function onRqPathChange() {
+  const path = document.getElementById('rq-path').value;
+  const agent = document.getElementById('rq-agent');
+  agent.disabled = path !== 'proxy';
+  if (path !== 'proxy') agent.value = '';
+  loadTicketStats();
+}
+function clearRqPath() {
+  document.getElementById('rq-path').value = '';
+  document.getElementById('rq-agent').value = '';
+  document.getElementById('rq-agent').disabled = true;
+  loadTicketStats();
+}
+
+// 대리 등록자 옵션 — 실제로 대신 접수한 적이 있는 사람만 채운다. 담당자 필터와 달리
+// 전체 스태프를 넣지 않는다(대리 등록 이력이 없는 사람은 고를 이유가 없다).
+// 서버가 경로 필터를 빼고 집계해 주므로 대리 등록을 고른 뒤에도 선택지가 유지된다.
+function _rqFillAgents(agents) {
+  const sel = document.getElementById('rq-agent');
+  if (!sel) return;
+  const keep = sel.value;
+  sel.innerHTML = '<option value="">전체 대리 등록자</option>';
+  agents.forEach(a => {
+    const o = document.createElement('option');
+    o.value = a.id; o.textContent = `${a.name} (${a.n}건)`;
+    sel.appendChild(o);
+  });
+  if (keep) sel.value = keep;
+}
+
+// 필터가 걸려 있는 동안 "지금 부분집합을 보고 있다"를 숫자 옆에 계속 띄운다.
+function _rqRenderCtx(summary, agents) {
+  const box = document.getElementById('rq-ctx');
+  if (!box) return;
+  const path = document.getElementById('rq-path')?.value || '';
+  const agentSel = document.getElementById('rq-agent');
+  const agentId = agentSel?.value || '';
+  if (!path) { box.hidden = true; return; }
+  box.hidden = false;
+  const total = summary.total || 0;
+  const all = summary.pathTotal || 0;
+  const pct = all ? Math.round((total / all) * 100) : 0;
+  const who = agentId ? (agents.find(a => a.id === agentId)?.name || '선택한 등록자') : '';
+  document.getElementById('rq-ctx-tag').textContent = path === 'proxy' ? '대리 등록' : '고객 직접';
+  document.getElementById('rq-ctx-msg').textContent = path === 'proxy'
+    ? (who ? `${who} — 이 담당자가 대신 접수한 ${total}건만 보고 있습니다 (전체 ${all}건의 ${pct}%)`
+           : `내부직원이 대신 접수한 ${total}건만 보고 있습니다 (전체 ${all}건의 ${pct}%) · 등록자 ${agents.length}명`)
+    : `고객이 직접 접수한 ${total}건만 보고 있습니다 (전체 ${all}건의 ${pct}%)`;
+  // 등록자별 분해는 대리 등록 전체를 볼 때만 — 한 명을 고른 뒤엔 의미가 없다.
+  document.getElementById('rq-ctx-chips').innerHTML =
+    (path === 'proxy' && !agentId)
+      ? agents.slice(0, 6).map(a => `<span>${escHtml(a.name)} <b>${a.n}</b></span>`).join('')
+      : '';
 }
 
 // 담당자 필터 옵션 — 티켓에 배정될 수 있는 활성 스태프 전원을 채운다(요청 관리 모달의
@@ -7841,7 +7934,11 @@ function _rqRenderKpis(d) {
     `<div class="rq-kpi warn"><div class="k">미해결</div><div class="v">${s.open}</div><div class="s">완료·취소를 제외한 전체</div></div>`,
     `<div class="rq-kpi ${s.aged ? 'bad' : ''}"><div class="k">30일+ 적체</div><div class="v">${s.aged}</div><div class="s">기한 초과 ${s.overdue}건</div></div>`,
     `<div class="rq-kpi ${s.unassigned ? 'bad' : ''}"><div class="k">미배정</div><div class="v">${s.unassigned}</div><div class="s">담당자가 없는 미해결 건</div></div>`,
-    `<div class="rq-kpi"><div class="k">대리 등록</div><div class="v">${proxyPct}%${proxyDelta}</div><div class="s">${s.proxy}건 · 내부직원이 대신 접수</div></div>`,
+    // 경로로 이미 걸러진 상태에서 대리 등록 비율을 보여주면 늘 100%/0%가 되어 의미가 없다.
+    // 그럴 땐 "전체 대비 몇 %를 보고 있는지"로 카드 성격을 바꾼다.
+    _rqPathActive()
+      ? `<div class="rq-kpi warn"><div class="k">전체 대비</div><div class="v">${_rqPct(s.total, s.pathTotal)}%</div><div class="s">전체 ${s.pathTotal || 0}건 중 ${s.total}건을 보는 중</div></div>`
+      : `<div class="rq-kpi"><div class="k">대리 등록</div><div class="v">${proxyPct}%${proxyDelta}</div><div class="s">${s.proxy}건 · 내부직원이 대신 접수</div></div>`,
   ].join('');
 }
 
