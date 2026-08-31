@@ -741,6 +741,114 @@ async function statsActiveUsers(event) {
   });
 }
 
+// ── GET /stats/tickets ──
+// 사용 통계 > 요청 현황 탭. 티켓 집계를 서버(SQL)에서 끝낸다 — data-api의 범용 조회는
+// limit이 1000으로 캡되므로 전건을 프런트로 내려 집계하면 건수가 늘어난 뒤 조용히 틀린 값이 된다.
+// 쿼리스트링: days(기간, 0=전체), category, product, priority, assignee(미배정은 'none').
+// 반환 지표는 tickets 단독 집계라 ticket_history의 상태전이 파싱에 의존하지 않는다.
+async function statsTickets(event) {
+  const authz = getAuthz(event);
+  if (!(await hasPermission(authz.role, 'stats_view'))) return json(403, { error: '권한이 없습니다' });
+
+  const qs = event.queryStringParameters || {};
+  // 기간 필터는 접수(created_at) 기준. 0/미지정이면 전체 기간.
+  const days = Math.min(3650, Math.max(0, parseInt(qs.days, 10) || 0));
+  const where = [], params = [];
+  if (days > 0) where.push(`created_at >= now() - interval '${days} days'`);
+  if (qs.category) { params.push(qs.category); where.push(`category = $${params.length}`); }
+  if (qs.product)  { params.push(qs.product);  where.push(`product = $${params.length}`); }
+  if (qs.priority) { params.push(qs.priority); where.push(`priority = $${params.length}`); }
+  if (qs.assignee === 'none') where.push('assigned_to is null');
+  else if (qs.assignee) { params.push(qs.assignee); where.push(`assigned_to = $${params.length}`); }
+  const w = where.length ? 'where ' + where.join(' and ') : '';
+
+  // 미해결 = 완료·취소를 제외한 모든 상태. 적체·미배정 지표가 모두 이 정의를 따른다.
+  const OPEN = `status not in ('completed','cancelled')`;
+
+  // ── 요약 KPI ──
+  const [sum] = await query(
+    `select count(*)::int total,
+            count(*) filter (where status = 'completed')::int completed,
+            count(*) filter (where status = 'cancelled')::int cancelled,
+            count(*) filter (where ${OPEN})::int "open",
+            count(*) filter (where ${OPEN} and created_at < now() - interval '30 days')::int aged,
+            count(*) filter (where ${OPEN} and assigned_to is null)::int unassigned,
+            count(*) filter (where ${OPEN} and due_date is not null and due_date < current_date)::int overdue,
+            count(*) filter (where registered_by is not null)::int proxy
+       from tickets ${w}`, params);
+
+  // 직전 동일 기간 대비 증감(days=0이면 비교 대상이 없어 null).
+  let prev = null;
+  if (days > 0) {
+    const pWhere = where.map(c => c.startsWith('created_at >=')
+      ? `created_at >= now() - interval '${days * 2} days' and created_at < now() - interval '${days} days'`
+      : c);
+    const [p] = await query(
+      `select count(*)::int total, count(*) filter (where registered_by is not null)::int proxy
+         from tickets where ${pWhere.join(' and ')}`, params);
+    prev = { total: p.total, proxy: p.proxy };
+  }
+
+  // ── 접수 추이 (주 단위 × 카테고리, KST 월요일 시작) ──
+  // 전체 기간이면 최근 12주(84일)만 그린다 — 막대가 무한히 늘어나지 않게.
+  const trend = await query(
+    `select to_char(date_trunc('week', created_at at time zone 'Asia/Seoul'), 'YYYY-MM-DD') wk,
+            category, count(*)::int n
+       from tickets ${w ? w + ' and' : 'where'} created_at >= now() - interval '${days > 0 ? days : 84} days'
+      group by 1, 2 order by 1`, params);
+
+  // ── 분포 ──
+  const byStatus   = await query(`select status, count(*)::int n from tickets ${w} group by 1`, params);
+  const byCategory = await query(`select category, count(*)::int n from tickets ${w} group by 1 order by n desc`, params);
+  const byPriority = await query(`select priority, count(*)::int n from tickets ${w} group by 1`, params);
+  const byProduct  = await query(
+    `select coalesce(nullif(product, ''), '(미지정)') p, count(*)::int n
+       from tickets ${w} group by 1 order by n desc limit 8`, params);
+
+  // ── 접수 시간대 히트맵 (요일 0=일~6=토, 시각 0~23, KST) ──
+  const heatmap = await query(
+    `select extract(dow  from created_at at time zone 'Asia/Seoul')::int d,
+            extract(hour from created_at at time zone 'Asia/Seoul')::int h,
+            count(*)::int n
+       from tickets ${w} group by 1, 2`, params);
+
+  // ── 담당자 부하 ──
+  // 화면의 모든 블록이 같은 범위(= 선택한 기간에 접수된 요청 + 필터)를 쓴다. 여기만 전체 기간을
+  // 보면 KPI의 미배정 수와 이 차트의 미배정 막대가 서로 다른 값이 되어 어느 쪽을 믿을지 알 수 없다.
+  // 이름은 assigned_to_name 스냅샷을 써서 계정이 삭제돼도 이력이 남는다.
+  const workload = await query(
+    `select coalesce(nullif(assigned_to_name, ''), '(미배정)') name,
+            count(*) filter (where ${OPEN})::int "open",
+            count(*) filter (where status = 'completed')::int "done"
+       from tickets ${w} group by 1 order by 2 desc, 3 desc limit 12`, params);
+
+  // ── 적체: 경과일 버킷 + 오래된 순 목록 ──
+  // 버킷 경계(7일·30일)는 접수 시각 기준 경과일이며, 위 KPI의 aged(30일+)와 같은 정의를 쓴다.
+  const openWhere = w ? `${w} and ${OPEN}` : `where ${OPEN}`;
+  const [age] = await query(
+    `select count(*) filter (where created_at >= now() - interval '7 days')::int b0,
+            count(*) filter (where created_at <  now() - interval '7 days'
+                               and created_at >= now() - interval '30 days')::int b1,
+            count(*) filter (where created_at <  now() - interval '30 days')::int b2
+       from tickets ${openWhere}`, params);
+  const oldest = await query(
+    `select ticket_number, title, coalesce(company_name, '') company, category, status,
+            coalesce(nullif(assigned_to_name, ''), '') assignee,
+            (extract(epoch from (now() - created_at)) / 86400)::int days
+       from tickets ${openWhere} order by created_at asc limit 10`, params);
+
+  return json(200, {
+    summary: {
+      total: sum.total, completed: sum.completed, cancelled: sum.cancelled,
+      open: sum.open, aged: sum.aged, unassigned: sum.unassigned,
+      overdue: sum.overdue, proxy: sum.proxy,
+    },
+    prev, trend, byStatus, byCategory, byPriority, byProduct, heatmap, workload,
+    aging: { lt7: age.b0, d7to30: age.b1, gt30: age.b2 },
+    oldest,
+  });
+}
+
 // ── GET /stats/login-history ──
 // 로그인 이벤트 전체 이력(감사로그). 스냅샷(user_name/company_name)만 읽어 무조인. stats_view 강제.
 // 쿼리스트링: q(이름·고객사 검색), role, days(기간), limit, offset.
@@ -1127,6 +1235,9 @@ export const handler = async (event) => {
     }
     if (method === 'GET' && path === '/stats/login-history') {
       return await statsLoginHistory(event);
+    }
+    if (method === 'GET' && path === '/stats/tickets') {
+      return await statsTickets(event);
     }
     if (method === 'POST' && path === '/auth/admin-reset-password') {
       return await adminResetPassword(body, event);
