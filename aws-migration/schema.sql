@@ -502,3 +502,23 @@ create table if not exists public.account_inquiries (
   created_at  timestamptz not null default now()
 );
 create index if not exists idx_account_inquiries_created on public.account_inquiries (created_at desc);
+
+-- ── document_downloads (자료 다운로드 이벤트 로그, 2026-08-31) ──
+-- 자료실 통계의 "누가 받았나"용. content_documents.download_count는 누적 카운터일 뿐이라
+-- 주체·시각이 남지 않아서, 다운로드 시 api-layer(POST /docs/download-event)가 카운터 증가와
+-- 함께 1행을 남긴다. login_events와 같은 스냅샷 패턴 — 사용자·자료가 삭제돼도 이력은 보존.
+-- 기록 시작 이전의 누적 다운로드는 주체를 알 수 없다(소급 불가).
+create table if not exists public.document_downloads (
+  id           uuid primary key default gen_random_uuid(),
+  doc_id       uuid not null,
+  doc_title    text,
+  user_id      uuid,
+  user_name    text,
+  role         text,
+  company_id   uuid,
+  company_name text,
+  created_at   timestamptz not null default now()
+);
+create index if not exists idx_document_downloads_doc     on public.document_downloads (doc_id);
+create index if not exists idx_document_downloads_created on public.document_downloads (created_at desc);
+create index if not exists idx_document_downloads_user    on public.document_downloads (user_id);

@@ -1996,6 +1996,7 @@ textarea{resize:vertical;min-height:100px;}
           <button type="button" data-stab="cust" onclick="switchStatsTab('cust')">🏢 고객 활용</button>
           <button type="button" data-stab="req" onclick="switchStatsTab('req')">📮 요청 현황</button>
           <button type="button" data-stab="lib" onclick="switchStatsTab('lib')">📄 자료실 활용</button>
+          <button type="button" data-stab="sys" onclick="switchStatsTab('sys')">⚙️ 시스템 현황</button>
         </div>
 
         <div class="stab-panel" id="stab-act">
@@ -2218,6 +2219,21 @@ textarea{resize:vertical;min-height:100px;}
               <option value="public">고객 공개</option>
               <option value="private">내부 전용</option>
             </select>
+            <select id="dl-who" onchange="onDlWhoChange()">
+              <option value="">전체</option>
+              <option value="customer">고객 계정</option>
+              <option value="internal">내부 계정</option>
+            </select>
+            <select id="dl-person" onchange="applyDlFilter()" disabled
+                    title="계정 유형을 먼저 선택하면 활성화됩니다">
+              <option value="">전체 사람</option>
+            </select>
+          </div>
+
+          <div class="rq-ctx" id="dl-ctx" hidden>
+            <span class="rq-ctx-tag" id="dl-ctx-tag"></span>
+            <span id="dl-ctx-msg"></span>
+            <button class="rq-ctx-clear" type="button" onclick="clearDlWho()">필터 해제 ✕</button>
           </div>
 
           <div class="rq-kpis" id="dl-kpis">
@@ -2237,7 +2253,7 @@ textarea{resize:vertical;min-height:100px;}
             </div>
           </div>
 
-          <div class="card" style="padding:0;overflow:hidden;">
+          <div class="card" id="dl-zero-card" style="padding:0;overflow:hidden;">
             <div style="padding:16px 18px 12px;">
               <div class="card-title" style="margin-bottom:0;">다운로드 0건 자료
                 <span style="font-size:11px;color:var(--faint);font-weight:400;">정리 또는 노출 위치 재검토 대상</span></div>
@@ -2255,6 +2271,46 @@ textarea{resize:vertical;min-height:100px;}
             </div>
           </div>
         </div><!-- /stab-lib -->
+
+        <div class="stab-panel" id="stab-sys" style="display:none;">
+          <div class="rq-filters">
+            <span class="rq-seg" id="sys-days" role="group" aria-label="기간">
+              <button type="button" onclick="setSysDays(7,this)">7일</button>
+              <button type="button" onclick="setSysDays(30,this)">30일</button>
+              <button type="button" class="on" onclick="setSysDays(0,this)">전체</button>
+            </span>
+          </div>
+
+          <div class="rq-kpis" id="sys-kpis">
+            <div class="rq-kpi" style="grid-column:1/-1;"><div class="s" style="margin:0;">불러오는 중...</div></div>
+          </div>
+
+          <div class="rq-g2" style="margin-bottom:16px;">
+            <div class="card" style="margin-bottom:0;">
+              <div class="card-title">알림 이벤트 유형 <span style="font-size:11px;color:var(--faint);font-weight:400;">발송량 상위</span></div>
+              <div id="sys-byevent"></div>
+              <div class="rq-note" id="sys-byevent-note" style="margin-top:12px;"></div>
+            </div>
+            <div class="card" style="margin-bottom:0;">
+              <div class="card-title">연동 성공률 <span style="font-size:11px;color:var(--faint);font-weight:400;">시스템별</span></div>
+              <div id="sys-integ"></div>
+              <div class="rq-note" id="sys-integ-note" style="margin-top:12px;"></div>
+            </div>
+          </div>
+
+          <div class="card" style="padding:0;overflow:hidden;">
+            <div style="padding:16px 18px 12px;">
+              <div class="card-title" style="margin-bottom:0;">실패 이력 <span id="sys-fail-sub" style="font-size:11px;color:var(--faint);font-weight:400;"></span></div>
+            </div>
+            <div class="tbl-scroll"><table class="tbl tbl-compact" style="min-width:760px;">
+              <thead><tr><th>구분</th><th>시스템</th><th>액션 · 이벤트</th><th>오류</th><th style="text-align:right;">소요</th><th>일시</th></tr></thead>
+              <tbody id="sys-fails"></tbody>
+            </table></div>
+            <div style="padding:11px 18px;border-top:1px solid var(--border);background:var(--surface2);font-size:12px;color:var(--muted);">
+              <span class="rq-note">ⓘ 발송 상태 값은 채널마다 표기가 달라(슬랙 success · 메일 sent) 집계 시 정규화합니다. 성공률 100%가 아닐 때만 이 표에 행이 생깁니다.</span>
+            </div>
+          </div>
+        </div><!-- /stab-sys -->
       </div>
 
       <!-- ══ 연동 관리 ══ -->
@@ -7489,6 +7545,8 @@ function switchStatsTab(tab) {
   if (cust) cust.style.display = tab === 'cust' ? '' : 'none';
   const lib = document.getElementById('stab-lib');
   if (lib) lib.style.display = tab === 'lib' ? '' : 'none';
+  const sys = document.getElementById('stab-sys');
+  if (sys) sys.style.display = tab === 'sys' ? '' : 'none';
   // 계정 탭에서만 페이지를 뷰포트 높이에 고정하고(acct-mode) 목록으로 남는 공간을 채운다.
   // 요청 현황 탭은 블록이 많아 세로로 길므로 기존처럼 스크롤되게 둔다.
   document.getElementById('p-stats')?.classList.toggle('acct-mode', tab === 'acct');
@@ -7496,6 +7554,7 @@ function switchStatsTab(tab) {
   if (tab === 'req' && !_rqLoaded) loadTicketStats();   // 첫 진입에만 자동 조회
   if (tab === 'cust' && !_cuLoaded) loadCompanyStats();
   if (tab === 'lib' && !_dlLoaded) loadDocStats();
+  if (tab === 'sys' && !_sysLoaded) loadSystemStats();
 }
 
 // 창 크기가 바뀌면 표시 행 수를 다시 맞춘다 — 계정 탭이 열려 있을 때만.
@@ -7513,6 +7572,7 @@ async function loadStats() {
   if (_rqLoaded) loadTicketStats();
   if (_cuLoaded) loadCompanyStats();
   if (_dlLoaded) loadDocStats();
+  if (_sysLoaded) loadSystemStats();
   try {
     // 접속 활동(서버 집계)
     let active = { dau: 0, wau: 0, mau: 0, stickiness: 0, series: [] };
@@ -7564,6 +7624,116 @@ async function loadStats() {
   }
 }
 
+// ── 시스템 현황 (GET /stats/system, 서버 집계) ────────────────────
+// 알림(log_notification)·연동(log_integration) 건전성. 발송 상태는 채널마다 표기가 달라
+// (슬랙 success · 메일 sent) 서버 쿼리에서 정규화한다 — 화면은 정규화된 값만 받는다.
+let _sysDays = 0, _sysLoaded = false;
+const SYS_EVENT_KO = { overdue:'완료예정일 초과', password_reset:'비밀번호 재설정', new_ticket:'신규 요청',
+  account_invite:'계정 초대', connection_test:'연동 테스트', status_change:'상태 변경',
+  new_ticket_customer:'신규 요청(고객)', assigned:'담당자 배정', license_expiry:'라이선스 만료',
+  pending_customer:'고객 확인 필요', internal_sales:'내부 영업', completed:'완료',
+  password_admin_reset:'비밀번호 초기화(관리자)', license_renewal:'라이선스 갱신', test:'테스트',
+  '(미지정)':'(미지정)' };
+
+function setSysDays(d, btn) {
+  _sysDays = d;
+  document.querySelectorAll('#sys-days button').forEach(b => b.classList.toggle('on', b === btn));
+  loadSystemStats();
+}
+
+async function loadSystemStats() {
+  const kpis = document.getElementById('sys-kpis');
+  if (!kpis) return;
+  kpis.innerHTML = '<div class="rq-kpi" style="grid-column:1/-1;"><div class="s" style="margin:0;">불러오는 중...</div></div>';
+  let d = null;
+  try {
+    const r = await fetch(`${API_BASE}/stats/system?days=${_sysDays}`, { headers: { ...authHeaders() } });
+    if (r.ok) d = await r.json();
+  } catch (e) { console.error('loadSystemStats 오류', e); }
+  _sysLoaded = true;
+  if (!d) {
+    kpis.innerHTML = '<div class="rq-kpi" style="grid-column:1/-1;"><div class="s" style="margin:0;">시스템 통계를 불러오지 못했습니다.</div></div>';
+    return;
+  }
+  _sysRenderKpis(d.noti || {}, d.bySystem || [], d.duration || {});
+  _sysRenderByEvent(d.byEvent || [], d.noti || {});
+  _sysRenderInteg(d.bySystem || [], d.duration || {});
+  _sysRenderFails(d.notiFails || [], d.integFails || []);
+}
+
+function _sysRenderKpis(n, bySystem, dur) {
+  const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
+  const iTotal = bySystem.reduce((a, r) => a + r.total, 0);
+  const iFail = bySystem.reduce((a, r) => a + r.fail, 0);
+  document.getElementById('sys-kpis').innerHTML = [
+    `<div class="rq-kpi"><div class="k">알림 발송</div><div class="v">${n.total || 0}</div><div class="s">슬랙 ${n.slack || 0} · 메일 ${n.email || 0}</div></div>`,
+    `<div class="rq-kpi ${n.fail ? 'bad' : 'good'}"><div class="k">알림 성공률</div><div class="v">${pct(n.ok, n.total)}%</div><div class="s">실패 ${n.fail || 0}건 · 재시도 ${n.retried || 0}건</div></div>`,
+    `<div class="rq-kpi"><div class="k">연동 호출</div><div class="v">${iTotal}</div><div class="s">${bySystem.map(r => `${escHtml(r.system)} ${r.total}`).join(' · ') || '기록 없음'}</div></div>`,
+    `<div class="rq-kpi ${iFail ? 'bad' : 'good'}"><div class="k">연동 실패</div><div class="v">${iFail}</div><div class="s">${iTotal ? pct(iFail, iTotal) + '%' : '—'} · ${bySystem.filter(r => r.fail).map(r => `${escHtml(r.system)} ${r.fail}`).join(' · ') || '없음'}</div></div>`,
+    `<div class="rq-kpi ${dur.max > 3000 ? 'warn' : ''}"><div class="k">연동 응답</div><div class="v">${dur.median || 0}<span style="font-size:15px;font-weight:600;color:var(--faint);">ms</span></div><div class="s">중앙값 · 평균 ${(dur.avg || 0).toLocaleString()} · 최대 ${(dur.max || 0).toLocaleString()}</div></div>`,
+  ].join('');
+}
+
+function _sysRenderByEvent(rows, n) {
+  const box = document.getElementById('sys-byevent');
+  if (!rows.length) { box.innerHTML = '<div class="rq-empty">발송 기록이 없습니다.</div>'; return; }
+  const max = Math.max(...rows.map(r => r.n), 1);
+  const total = n.total || rows.reduce((a, r) => a + r.n, 0);
+  box.innerHTML = rows.map(r => `<div class="rq-brow">
+    <span class="nm">${escHtml(SYS_EVENT_KO[r.k] || r.k)}</span>
+    <span class="rq-btrack"><span class="rq-bfill" style="width:${(r.n / max) * 100}%;${r.k === 'connection_test' || r.k === 'test' ? 'background:var(--faint);' : ''}"></span></span>
+    <span class="v">${r.n} <em>${Math.round((r.n / total) * 100)}%</em></span></div>`).join('');
+  // 최다 유형이 반복성 알림이면 과알림 가능성을 짚어준다 — 수신자가 알림 전체를 무시하게 되는 패턴.
+  const top = rows[0];
+  document.getElementById('sys-byevent-note').innerHTML = top && top.k === 'overdue'
+    ? `<b style="color:var(--amber-d);font-weight:700;">완료예정일 초과 알림이 ${Math.round((top.n / total) * 100)}%로 최다</b>입니다. 같은 요청에 매일 반복 발송되는 구조인지 확인할 필요가 있습니다 — 과알림은 수신자가 전체를 무시하게 만듭니다.`
+    : '';
+}
+
+function _sysRenderInteg(rows, dur) {
+  const box = document.getElementById('sys-integ');
+  if (!rows.length) { box.innerHTML = '<div class="rq-empty">연동 호출 기록이 없습니다.</div>'; return; }
+  box.innerHTML = rows.map(r => {
+    const okPct = r.total ? (r.ok / r.total) * 100 : 0;
+    const cls = okPct >= 95 ? 'var(--green-d)' : okPct >= 90 ? 'var(--amber-d)' : 'var(--red-d)';
+    return `<div style="margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;">
+        <span style="font-weight:600;">${escHtml(r.system)}</span>
+        <span style="color:var(--muted);font-variant-numeric:tabular-nums;">성공 ${r.ok} / 실패 ${r.fail} · <b style="color:${cls};">${okPct.toFixed(1)}%</b></span></div>
+      <div style="display:flex;height:14px;border-radius:5px;overflow:hidden;background:var(--surface2);">
+        <span style="display:block;height:100%;width:${okPct}%;background:var(--green);"></span>
+        <span style="display:block;height:100%;width:${r.total ? (r.fail / r.total) * 100 : 0}%;background:var(--red);"></span></div></div>`;
+  }).join('');
+  const missing = ['salesforce', 'notion'].filter(k => !rows.some(r => r.system === k));
+  document.getElementById('sys-integ-note').textContent = missing.length
+    ? `${missing.join(' · ')}은 호출 이력이 없습니다 — 연동 관리 화면에 등록돼 있어도 실제로 도는 건 ${rows.map(r => r.system).join('·')}뿐입니다.`
+    : '';
+}
+
+function _sysRenderFails(notiFails, integFails) {
+  const rows = [
+    ...integFails.map(f => `<tr>
+      <td><span class="badge b-red">연동</span></td>
+      <td>${escHtml(f.system)}</td>
+      <td style="font-variant-numeric:tabular-nums;">${escHtml(f.action)} · ${escHtml(f.direction)}</td>
+      <td style="white-space:normal;color:var(--muted);">${escHtml(f.error || '—')}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;">${f.duration_ms.toLocaleString()}ms</td>
+      <td style="font-variant-numeric:tabular-nums;color:var(--muted);">${escHtml(f.at)}</td></tr>`),
+    ...notiFails.map(f => `<tr>
+      <td><span class="badge b-amber">알림</span></td>
+      <td>${escHtml(f.channel)}</td>
+      <td>${escHtml(SYS_EVENT_KO[f.event_type] || f.event_type || '—')}</td>
+      <td style="white-space:normal;color:var(--muted);">${escHtml(f.error || '—')}</td>
+      <td style="text-align:right;color:var(--faint);">—</td>
+      <td style="font-variant-numeric:tabular-nums;color:var(--muted);">${escHtml(f.at)}</td></tr>`),
+  ];
+  document.getElementById('sys-fails').innerHTML = rows.length
+    ? rows.join('')
+    : '<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--faint);">실패 이력이 없습니다.</td></tr>';
+  document.getElementById('sys-fail-sub').textContent =
+    `연동 ${integFails.length}건 · 알림 ${notiFails.length}건 · 최근순`;
+}
+
 // ── 자료실 활용 (GET /stats/documents, 서버 집계) ─────────────────
 // download_count는 누적 카운터이지 이벤트 로그가 아니다 — "언제·누가 받았는지"가 남지
 // 않으므로 이 탭에는 추이 그래프도 사용자별 분해도 없다. 화면 하단에 그 사실을 밝힌다.
@@ -7586,10 +7756,14 @@ async function loadDocStats() {
   const cat = document.getElementById('dl-category')?.value || '';
   const prod = document.getElementById('dl-product')?.value || '';
   const vis = document.getElementById('dl-visibility')?.value || '';
+  const dwho = document.getElementById('dl-who')?.value || '';
+  const dperson = document.getElementById('dl-person')?.value || '';
   const params = new URLSearchParams({ limit: String(DL_PAGE_SIZE), offset: String(_dlOffset) });
   if (cat) params.set('category', cat);
   if (prod) params.set('product', prod);
   if (vis) params.set('visibility', vis);
+  if (dwho) params.set('who', dwho);
+  if (dperson) params.set('person', dperson);
 
   kpis.innerHTML = '<div class="rq-kpi" style="grid-column:1/-1;"><div class="s" style="margin:0;">불러오는 중...</div></div>';
   let d = null;
@@ -7602,6 +7776,9 @@ async function loadDocStats() {
     kpis.innerHTML = '<div class="rq-kpi" style="grid-column:1/-1;"><div class="s" style="margin:0;">자료실 통계를 불러오지 못했습니다.</div></div>';
     return;
   }
+  _dlFillPeople(d.downloaders || []);
+  if (d.eventMode) { _dlRenderEventMode(d); return; }
+  _dlEventUiOff();
   _dlTotal = d.zeroTotal || 0;
   _dlRenderKpis(d.summary || {});
   _dlRenderTop(d.top || []);
@@ -7631,7 +7808,107 @@ function _dlFillOptions(catOptions, productOptions) {
   _dlCatFilled = true;
 }
 
+// ── 다운로드 주체 필터(who/person) ──
+// 이 필터는 document_downloads 이벤트 기준이라 기록 시작 이후만 집계된다. 누적 카운터와
+// 모집단이 달라서, 필터가 걸리면 이벤트 기반 화면으로 갈아타고 그 사실을 컨텍스트 바에 띄운다.
+let _dlPeople = [];
+function _dlFillPeople(downloaders) {
+  _dlPeople = downloaders;
+  _dlSyncPeople();
+}
+// 사람 셀렉트를 현재 유형의 사람으로 다시 채운다. '전체'에서는 모집단이 섞여 의미가 없어
+// 비활성화한다(요청 현황의 대리 등록자 필터와 같은 패턴).
+function _dlSyncPeople() {
+  const who = document.getElementById('dl-who')?.value || '';
+  const sel = document.getElementById('dl-person');
+  if (!sel) return;
+  const keep = sel.value;
+  sel.innerHTML = '<option value="">전체 사람</option>';
+  if (!who) { sel.disabled = true; return; }
+  sel.disabled = false;
+  _dlPeople
+    .filter(x => who === 'customer' ? x.is_customer : !x.is_customer)
+    .forEach(x => {
+      const o = document.createElement('option');
+      o.value = x.id;
+      o.textContent = `${x.name}${x.company ? ' · ' + x.company : ''} (${x.n}회)`;
+      sel.appendChild(o);
+    });
+  if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
+}
+function onDlWhoChange() {
+  const sel = document.getElementById('dl-person');
+  if (sel) sel.value = ''; // 유형이 바뀌면 사람 선택 초기화 — 모순 조합 방지
+  _dlSyncPeople();
+  applyDlFilter();
+}
+function clearDlWho() {
+  document.getElementById('dl-who').value = '';
+  const sel = document.getElementById('dl-person');
+  sel.value = ''; sel.disabled = true;
+  applyDlFilter();
+}
+function _dlEventUiOff() {
+  const ctx = document.getElementById('dl-ctx');
+  if (ctx) ctx.hidden = true;
+  document.getElementById('dl-zero-card')?.style.removeProperty('display');
+  const cats = document.getElementById('dl-cats')?.closest('.card');
+  if (cats) cats.style.removeProperty('display');
+}
+function _dlFmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  const p = new Intl.DateTimeFormat('ko-KR', { timeZone:'Asia/Seoul', year:'numeric', month:'2-digit', day:'2-digit' })
+    .formatToParts(d).reduce((a, x) => (a[x.type] = x.value, a), {});
+  return `${p.year}-${p.month}-${p.day}`;
+}
+function _dlRenderEventMode(d) {
+  const es = d.eventSummary || {};
+  const info = d.eventInfo || {};
+  const who = document.getElementById('dl-who')?.value || '';
+  const personSel = document.getElementById('dl-person');
+  const personName = personSel?.value
+    ? (personSel.options[personSel.selectedIndex]?.textContent || '').replace(/ \(\d+회\)$/, '')
+    : '';
+
+  document.getElementById('dl-kpis').innerHTML = [
+    `<div class="rq-kpi good"><div class="k">다운로드</div><div class="v">${es.n || 0}</div><div class="s">기록 시작 이후 이벤트</div></div>`,
+    `<div class="rq-kpi"><div class="k">받은 자료 수</div><div class="v">${es.docs || 0}</div><div class="s">중복 제외</div></div>`,
+    `<div class="rq-kpi"><div class="k">최근 다운로드</div><div class="v" style="font-size:20px;">${_dlFmtDate(es.last)}</div><div class="s">가장 마지막 기록</div></div>`,
+    `<div class="rq-kpi"><div class="k">기록 이전 누적</div><div class="v">${(_dlLastTotal ?? '—')}</div><div class="s">주체 미상 · 이 화면에서 제외</div></div>`,
+  ].join('');
+
+  const top = d.eventTop || [];
+  const box = document.getElementById('dl-top');
+  if (!top.length) {
+    box.innerHTML = '<div class="rq-empty">이 조건의 다운로드 기록이 없습니다.</div>';
+  } else {
+    const max = Math.max(...top.map(r => r.n), 1);
+    box.innerHTML = top.map(r => `<div class="dl-item">
+      <div class="dl-t" title="${escHtml(r.title)}">${escHtml(r.title)}<span class="dl-cat">${escHtml(_dlCat(r.category))}</span></div>
+      <div class="dl-b"><span class="rq-btrack"><span class="rq-bfill" style="width:${(r.n / max) * 100}%"></span></span>
+        <span class="v">${r.n}회</span></div></div>`).join('');
+  }
+  document.getElementById('dl-top-right').textContent = '기록 시작 이후';
+
+  // 이벤트 모드에서는 누적 기반 블록(카테고리별·0건 목록)을 숨긴다 — 모집단이 달라 나란히 두면 오독된다.
+  const cats = document.getElementById('dl-cats')?.closest('.card');
+  if (cats) cats.style.display = 'none';
+  const zero = document.getElementById('dl-zero-card');
+  if (zero) zero.style.display = 'none';
+
+  const ctx = document.getElementById('dl-ctx');
+  ctx.hidden = false;
+  document.getElementById('dl-ctx-tag').textContent = who === 'customer' ? '고객 계정' : '내부 계정';
+  document.getElementById('dl-ctx-msg').textContent =
+    `${personName ? personName + ' — ' : ''}다운로드 기록(${_dlFmtDate(info.since)}~) 기준 ${es.n || 0}건만 보고 있습니다. 그 이전 누적은 주체를 알 수 없어 제외됩니다.`;
+}
+let _dlLastTotal = null;
+
 function _dlRenderKpis(s) {
+  _dlLastTotal = s.downloads;
+
   const avg = s.docs ? (s.downloads / s.docs).toFixed(1) : '0.0';
   const zeroPct = s.docs ? Math.round((s.zero / s.docs) * 100) : 0;
   document.getElementById('dl-kpis').innerHTML = [
@@ -10804,11 +11081,20 @@ async function deleteDoc(docId, storagePath, title) {
 }
 
 async function bumpDocCount(docId) {
+  // 서버가 이벤트 기록(document_downloads)과 카운터 증가를 한 트랜잭션으로 처리한다.
+  // 예전의 "현재값 읽기 → +1 UPDATE"는 동시 다운로드에서 증가가 유실됐고 주체도 안 남았다.
+  // 기록은 베스트에포트 — 실패해도 다운로드 자체(presigned URL)는 이미 진행된 뒤라 막지 않는다.
+  let next = null;
+  try {
+    const r = await fetch(`${API_BASE}/docs/download-event`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ docId }),
+    });
+    if (r.ok) next = (await r.json()).downloadCount;
+  } catch (e) { console.error('download-event 기록 실패(무시):', e); }
+  if (next == null) return;
   const libDoc = allLibDocs.find(x => x.id === docId);
   const adminDoc = (typeof allDocsAdmin !== 'undefined') ? allDocsAdmin.find(x => x.id === docId) : null;
-  const next = ((libDoc || adminDoc)?.download_count || 0) + 1;
-  const { error } = await sb.from('content_documents').update({ download_count: next }).eq('id', docId);
-  if (error) return;
   if (libDoc) libDoc.download_count = next;
   if (adminDoc) adminDoc.download_count = next;
   ['dl-count-lib-', 'dl-count-docs-', 'vc-count-lib-', 'vc-count-docs-'].forEach(prefix => {

@@ -741,6 +741,38 @@ async function statsActiveUsers(event) {
   });
 }
 
+// ── POST /docs/download-event ──
+// 자료 다운로드 1건을 기록한다: document_downloads에 스냅샷 1행 + download_count 증가를
+// 한 트랜잭션으로. 예전에는 프런트가 "현재값 읽기 → +1 UPDATE"로 카운터만 올렸는데,
+// 동시 다운로드에서 증가가 유실되는 경합이 있었고 주체·시각도 남지 않았다.
+// 권한: 인증된 사용자 전원(자료실을 볼 수 있으면 다운로드도 하므로 별도 권한 없음).
+async function docDownloadEvent(event, body) {
+  const authz = getAuthz(event);
+  if (!authz.userId) return json(401, { error: '인증이 필요합니다' });
+  const docId = body && body.docId;
+  if (!/^[0-9a-fA-F-]{36}$/.test(String(docId || ''))) return json(400, { error: 'docId가 필요합니다' });
+
+  // 이름·회사명 스냅샷 — 계정이 삭제돼도 이력이 남게 이벤트 행에 박아 둔다.
+  const [u] = await query(
+    `select u.name, c.name company_name from users u
+       left join companies c on c.id = u.company_id where u.id = $1`, [authz.userId]);
+
+  const result = await withTransaction(async (q) => {
+    const rows = await q(
+      `update content_documents set download_count = coalesce(download_count, 0) + 1
+        where id = $1 returning title, download_count`, [docId]);
+    if (!rows.length) return null;
+    await q(
+      `insert into document_downloads (doc_id, doc_title, user_id, user_name, role, company_id, company_name)
+       values ($1,$2,$3,$4,$5,$6,$7)`,
+      [docId, rows[0].title, authz.userId, u ? u.name : null, authz.role,
+       authz.companyId || null, u ? u.company_name : null]);
+    return rows[0];
+  });
+  if (!result) return json(404, { error: '자료를 찾을 수 없습니다' });
+  return json(200, { ok: true, downloadCount: result.download_count });
+}
+
 // ── GET /stats/documents ──
 // 사용 통계 > 자료실 활용 탭. content_documents 단독 집계.
 //
@@ -753,6 +785,16 @@ async function statsActiveUsers(event) {
 // ⚠ 고객사별 필터는 없다(만들 수 없다). content_documents에 company_id가 없고 자료실은
 // 전 고객 공용이며, 다운로드도 누적 카운터뿐이라 누가 받았는지 기록이 없다. 고객과 연결할
 // 고리 자체가 없으므로, 고객 관점 필터는 "고객에게 보이는가"(is_public)가 최선이다.
+// 다운로드 이력이 있는 계정 목록(사람 필터 옵션용). 스냅샷 기준이라 계정이 삭제돼도 남는다.
+async function _dlDownloaders() {
+  return query(
+    `select user_id id, coalesce(nullif(user_name,''), '(이름 없음)') name,
+            role, coalesce(nullif(company_name,''), '') company,
+            (role = 'customer') is_customer, count(*)::int n
+       from document_downloads where user_id is not null
+      group by 1, 2, 3, 4, 5 order by n desc limit 50`);
+}
+
 async function statsDocuments(event) {
   const authz = getAuthz(event);
   if (!(await hasPermission(authz.role, 'stats_view'))) return json(403, { error: '권한이 없습니다' });
@@ -765,6 +807,39 @@ async function statsDocuments(event) {
   if (qs.visibility === 'public') where.push('is_public');
   else if (qs.visibility === 'private') where.push('not is_public');
   const w = where.length ? 'where ' + where.join(' and ') : '';
+
+  // ── 다운로드 주체 필터 (who=customer|internal, person=user uuid) ──
+  // 이 필터는 document_downloads 이벤트 기준이라 기록 시작(2026-08-31) 이후만 집계된다.
+  // 누적 카운터(download_count)와 모집단이 달라서, 필터가 걸리면 이벤트 기반 응답으로 갈아탄다.
+  const who = qs.who === 'customer' || qs.who === 'internal' ? qs.who : '';
+  const person = /^[0-9a-fA-F-]{36}$/.test(String(qs.person || '')) ? qs.person : '';
+  if (who || person) {
+    const ep = [], ew = [];
+    // internal = 고객이 아닌 전 역할(internal/admin/tech_support/sales/education) — 화면의 "내부 계정"과 일치.
+    if (who === 'customer') ew.push(`d.role = 'customer'`);
+    else if (who === 'internal') ew.push(`d.role <> 'customer'`);
+    if (person) { ep.push(person); ew.push(`d.user_id = $${ep.length}`); }
+    if (qs.category) { ep.push(qs.category); ew.push(`cd.category = $${ep.length}`); }
+    const eWhere = ew.length ? 'where ' + ew.join(' and ') : '';
+    const joined = `from document_downloads d left join content_documents cd on cd.id = d.doc_id`;
+
+    const [es] = await query(
+      `select count(*)::int n, count(distinct d.doc_id)::int docs,
+              max(d.created_at) last, min(d.created_at) first
+         ${joined} ${eWhere}`, ep);
+    const etop = await query(
+      `select coalesce(cd.title, d.doc_title, '(삭제된 자료)') title,
+              coalesce(cd.category, '') category, count(*)::int n
+         ${joined} ${eWhere} group by 1, 2 order by n desc limit 8`, ep);
+    const downloaders = await _dlDownloaders();
+    const [tot] = await query(`select count(*)::int n, min(created_at) since from document_downloads`);
+    return json(200, {
+      eventMode: true,
+      eventSummary: { n: es.n, docs: es.docs, last: es.last, first: es.first },
+      eventTop: etop, downloaders,
+      eventInfo: { total: tot.n, since: tot.since },
+    });
+  }
 
   const [sum] = await query(
     `select count(*)::int docs,
@@ -820,7 +895,66 @@ async function statsDocuments(event) {
       maxTitle: topDoc ? topDoc.title : '', bytes: Number(sum.bytes),
     },
     top, byCategory, zeroTotal: sum.zero, zeroList, catOptions, productOptions,
+    downloaders: await _dlDownloaders(),
+    eventInfo: await query(`select count(*)::int n, min(created_at) since from document_downloads`).then(r => ({ total: r[0].n, since: r[0].since })),
   });
+}
+
+// ── GET /stats/system ──
+// 사용 통계 > 시스템 현황 탭. 알림(log_notification)·연동(log_integration) 건전성.
+//
+// ⚠ 값 정규화를 쿼리에서 흡수한다 — 발송 상태를 채널마다 다른 단어로 기록해 왔다
+// (슬랙 'success', 메일 'sent'). 채널도 'Slack'/'slack' 대소문자가 섞여 있다. DB 값을
+// 고치는 대신 집계에서 lower() + 성공값 집합으로 정규화한다(기록 코드는 건드리지 않음 —
+// 두 채널이 각자 일관되게 쓰고 있어서 지금 고치면 병렬 세션의 알림 코드와 충돌 위험만 있다).
+async function statsSystem(event) {
+  const authz = getAuthz(event);
+  if (!(await hasPermission(authz.role, 'stats_view'))) return json(403, { error: '권한이 없습니다' });
+
+  const qs = event.queryStringParameters || {};
+  const days = Math.min(3650, Math.max(0, parseInt(qs.days, 10) || 0));
+  const period = days > 0 ? `where created_at >= now() - interval '${days} days'` : '';
+  const OK = `lower(status) in ('success','sent')`;
+
+  // ── 알림 ──
+  const [noti] = await query(
+    `select count(*)::int total,
+            count(*) filter (where ${OK})::int ok,
+            count(*) filter (where not ${OK})::int fail,
+            count(*) filter (where retry_count > 0)::int retried,
+            count(*) filter (where lower(channel) = 'slack')::int slack,
+            count(*) filter (where lower(channel) = 'email')::int email
+       from log_notification ${period}`);
+  const byEvent = await query(
+    `select coalesce(nullif(event_type,''), '(미지정)') k, count(*)::int n
+       from log_notification ${period} group by 1 order by n desc limit 10`);
+  const notiFails = await query(
+    `select lower(channel) channel, coalesce(event_type,'') event_type,
+            coalesce(error_message,'') error, recipient,
+            to_char(created_at at time zone 'Asia/Seoul', 'MM-DD HH24:MI') at
+       from log_notification ${period ? period + ' and' : 'where'} not ${OK}
+      order by created_at desc limit 10`);
+
+  // ── 연동 ──
+  const bySystem = await query(
+    `select system,
+            count(*)::int total,
+            count(*) filter (where status = 'success')::int ok,
+            count(*) filter (where status = 'failed')::int fail
+       from log_integration ${period} group by 1 order by total desc`);
+  const [dur] = await query(
+    `select coalesce(percentile_cont(0.5) within group (order by duration_ms), 0)::int median,
+            coalesce(avg(duration_ms), 0)::int avg,
+            coalesce(max(duration_ms), 0)::int max
+       from log_integration ${period ? period + ' and' : 'where'} duration_ms is not null`);
+  const integFails = await query(
+    `select system, action, direction, coalesce(error_message,'') error,
+            coalesce(duration_ms, 0)::int duration_ms,
+            to_char(created_at at time zone 'Asia/Seoul', 'MM-DD HH24:MI') at
+       from log_integration ${period ? period + ' and' : 'where'} status = 'failed'
+      order by created_at desc limit 10`);
+
+  return json(200, { noti, byEvent, notiFails, bySystem, duration: dur, integFails });
 }
 
 // ── GET /stats/companies ──
@@ -1556,6 +1690,12 @@ export const handler = async (event) => {
     }
     if (method === 'GET' && path === '/stats/documents') {
       return await statsDocuments(event);
+    }
+    if (method === 'GET' && path === '/stats/system') {
+      return await statsSystem(event);
+    }
+    if (method === 'POST' && path === '/docs/download-event') {
+      return await docDownloadEvent(event, body);
     }
     if (method === 'GET' && path === '/stats/company-detail') {
       return await statsCompanyDetail(event);
