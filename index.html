@@ -3825,6 +3825,9 @@ async function enterApp(email, acct, isRestore) {
   // URL ?ticket=TK-xxx 파라미터로 직접 접근 시 해당 티켓 상세 표시 (이메일/Slack 링크용)
   // showDetail()이 역할별로 알아서 분기하므로(관리자 계열=요청 관리, 고객/internal=내 요청) 여기선 역할 구분 없이 호출한다.
   const ticketParam = new URLSearchParams(window.location.search).get('ticket');
+  // 완료 메일의 별점 링크(&rate=1~5)로 들어온 경우 — 상세가 열리면 그 별점을 미리 선택한다
+  const rateParam = parseInt(new URLSearchParams(window.location.search).get('rate'), 10);
+  if (rateParam >= 1 && rateParam <= 5) window._rdPendingRate = rateParam;
   if (ticketParam && sb) {
     sb.from('tickets').select('*').eq('ticket_number', ticketParam).single().then(({ data }) => {
       if (data) showDetail(data);
@@ -10229,6 +10232,10 @@ function renderRdSurvey() {
     `<button class="btn btn-primary btn-sm" id="rd-survey-submit" onclick="submitRdSurvey()" disabled>제출</button></div>` +
     `<div class="sv-skip">평가는 선택 사항입니다 · 제출 후 수정할 수 없습니다</div>`;
   el.style.display = '';
+  // 메일 별점 링크로 진입했으면 그 별점을 미리 선택(1회성)
+  const pre = window._rdPendingRate;
+  window._rdPendingRate = 0;
+  if (pre >= 1 && pre <= 5) rdSurveyPick(pre);
 }
 
 const RD_SURVEY_CAPS = { 1:'매우 불만족', 2:'불만족', 3:'보통', 4:'만족', 5:'매우 만족' };
