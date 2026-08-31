@@ -317,6 +317,7 @@ button,input,select,textarea{font-family:inherit;}
 .rd-hist-sum{display:flex;align-items:baseline;min-width:0;}
 .rd-hist-sum .h-lab{flex:none;font-size:10.5px;font-weight:700;color:var(--accent);background:var(--accent-l);border:1px solid var(--accent-m);border-radius:5px;padding:0 4px;margin-right:4px;line-height:1.5;}
 .rd-hist-sum .h-txt{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);font-weight:700;}
+.rd-hist-sum .h-pre{flex:none;margin-right:4px;}
 .rd-hist-sum .h-tail{flex:none;white-space:nowrap;margin-left:4px;}
 .rd-hist-sum .h-who{color:var(--text);font-weight:700;}
 .cu-preset:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
@@ -9899,6 +9900,7 @@ async function loadRdHistory() {
     const whoHtml = who ? `<span class="h-who">${escHtml(who)}</span> · ` : '';
     const when    = fmtTime(latest.created_at).slice(5);   // 'YYYY-MM-DD HH:MM' → 'MM-DD HH:MM'
     summaryEl.innerHTML =
+      `<span class="h-pre">최근:</span>` +
       `<span class="h-lab">${escHtml(latestLabel)}</span>` +
       `<span class="h-txt">${escHtml(latest.note || '')}</span>` +
       `<span class="h-tail">· ${whoHtml}${when}</span>`;
