@@ -741,6 +741,212 @@ async function statsActiveUsers(event) {
   });
 }
 
+// ── GET /stats/companies ──
+// 사용 통계 > 고객 활용 탭. 고객사별 활용도(접속·계정·요청·계약)를 한 줄씩 집계한다.
+// 397개 고객사를 한 쿼리로 모아 정렬·페이지네이션까지 서버에서 끝낸다.
+//
+// 등급 규칙. 접속·계정 중심이고 요청은 적체로만 보조 반영한다 — 요청 0건을 위험으로
+// 잡으면 티켓이 적은 지금 거의 전부가 빨강이 되어 신호가 죽는다.
+//
+// ⚠ '한 번도 안 들어온 곳'을 위험으로 묶지 않는 이유: 실제로 402개사 중 387개사가 여기
+// 해당해서(2026-08-31 기준) 위험에 넣으면 96%가 빨강이 되어 우선순위를 못 가린다.
+// 성격도 다르다 — 쓰다가 끊긴 곳(이탈)과 아직 시작을 안 한 곳(온보딩)은 대응이 다르므로
+// 'none'으로 따로 뺀다. 그래야 빨강이 "쓰던 고객이 이탈 중"이라는 진짜 신호가 된다.
+//   미접속(none) = 로그인한 적 있는 계정이 하나도 없음(계정 미발급 포함)
+//   위험(bad)   = 접속 이력은 있으나 90일 넘게 무접속
+//   주의(mid)   = 활성화율 30% 미만 / 30~90일 무접속 / 30일+ 적체 보유
+//   양호(ok)    = 나머지
+// 접속 이벤트(login_events)는 기록 시작 이후만 있으므로 무접속 판정은 users.last_login을
+// 쓴다(전체 기간 유효). 기간 내 접속자 수만 login_events에서 센다.
+function _companyGradeSql() {
+  return `case
+    when coalesce(u.activated, 0) = 0 then 'none'
+    when u.last_login < now() - interval '90 days' then 'bad'
+    when (u.total > 0 and coalesce(u.activated, 0)::numeric / u.total < 0.3)
+      or u.last_login < now() - interval '30 days'
+      or coalesce(t.oldest_open_days, 0) >= 30 then 'mid'
+    else 'ok' end`;
+}
+
+async function statsCompanies(event) {
+  const authz = getAuthz(event);
+  if (!(await hasPermission(authz.role, 'stats_view'))) return json(403, { error: '권한이 없습니다' });
+
+  const qs = event.queryStringParameters || {};
+  const days = Math.min(3650, Math.max(0, parseInt(qs.days, 10) || 0));
+  const period = days > 0 ? `and created_at >= now() - interval '${days} days'` : '';
+  const params = [];
+
+  // 고객사 필터(검색·유형·담당영업·상태). 조건은 전부 바깥 래퍼에서 걸므로
+  // CTE 별칭(co./u./t./c.)이 아니라 select 결과 컬럼명을 쓴다.
+  const outer = [];
+  const q = (qs.q || '').trim();
+  if (q) { params.push('%' + q + '%'); outer.push(`name ilike $${params.length}`); }
+  if (qs.type)    { params.push(qs.type);    outer.push(`customer_type = $${params.length}`); }
+  if (qs.manager) { params.push(qs.manager); outer.push(`account_manager = $${params.length}`); }
+  if (qs.status)  { params.push(qs.status);  outer.push(`status = $${params.length}`); }
+
+  const base = `
+    with u as (
+      select company_id,
+             count(*)::int total,
+             count(*) filter (where last_login is not null)::int activated,
+             max(last_login) last_login
+        from users where role = 'customer' and company_id is not null group by 1),
+    t as (
+      select company_id,
+             count(*)::int tickets,
+             count(*) filter (where status not in ('completed','cancelled'))::int open_cnt,
+             count(*) filter (where registered_by is not null)::int proxy,
+             max(case when status not in ('completed','cancelled')
+                      then (extract(epoch from (now() - created_at)) / 86400)::int end) oldest_open_days
+        from tickets where company_id is not null ${period} group by 1),
+    v as (
+      select company_id, count(distinct user_id)::int visitors
+        from login_events where company_id is not null ${period} group by 1),
+    c as (
+      select company_id, min(end_date) next_end
+        from company_contracts where end_date >= current_date group by 1)
+    select co.id, co.name, co.status, co.customer_type, co.account_manager,
+           coalesce(u.total, 0)::int users_total,
+           coalesce(u.activated, 0)::int users_activated,
+           u.last_login,
+           coalesce(v.visitors, 0)::int visitors,
+           coalesce(t.tickets, 0)::int tickets,
+           coalesce(t.open_cnt, 0)::int open_cnt,
+           coalesce(t.proxy, 0)::int proxy,
+           t.oldest_open_days,
+           c.next_end,
+           case when c.next_end is null then null
+                else (c.next_end - current_date)::int end dday,
+           ${_companyGradeSql()} grade
+      from companies co
+      left join u on u.company_id = co.id
+      left join t on t.company_id = co.id
+      left join v on v.company_id = co.id
+      left join c on c.company_id = co.id`;
+
+  // 프리셋 — 표를 실제로 쓰게 만드는 장치. 컬럼명은 위 select의 출력 이름을 쓴다.
+  const preset = qs.preset || '';
+  if (preset === 'risk') {
+    // 이탈 위험: 쓰던 고객이 끊긴 곳(등급 위험) 또는 주의 상태에서 계약 만료가 임박한 곳
+    outer.push(`(grade = 'bad' or (grade = 'mid' and next_end is not null and next_end <= current_date + 90))`);
+  } else if (preset === 'onboard') {
+    // 온보딩 필요: 계정은 발급했는데 아무도 로그인한 적이 없는 곳(계정 미발급은 제외 —
+    // 아직 줄 계정이 없는 것과 주고도 안 쓰는 것은 다른 문제다)
+    outer.push(`grade = 'none' and users_total > 0`);
+  } else if (preset === 'heavy') {
+    outer.push(`tickets > 0`);
+  }
+  const filtered = outer.length ? `select * from (${base}) x where ${outer.join(' and ')}` : base;
+
+  // 정렬 — 기본은 위험도순(위험 → 주의 → 양호, 같은 등급이면 오래 안 들어온 순).
+  const SORTS = {
+    risk:       `case grade when 'bad' then 0 when 'mid' then 1 when 'none' then 2 else 3 end,
+                 last_login asc nulls last, users_total desc`,
+    tickets:    `tickets desc`,
+    open:       `open_cnt desc`,
+    visitors:   `visitors desc`,
+    activation: `case when users_total = 0 then 0 else users_activated::numeric / users_total end asc`,
+    dday:       `dday asc nulls last`,
+    name:       `name asc`,
+  };
+  const order = SORTS[qs.sort] || SORTS.risk;
+  const limit = Math.min(200, Math.max(1, parseInt(qs.limit, 10) || 20));
+  const offset = Math.max(0, parseInt(qs.offset, 10) || 0);
+
+  const [{ n: total }] = await query(`select count(*)::int n from (${filtered}) z`, params);
+  const rows = await query(`select * from (${filtered}) z order by ${order} limit ${limit} offset ${offset}`, params);
+
+  // ── 요약 KPI ── (프리셋·페이지와 무관하게 전체 모집단 기준)
+  const [sum] = await query(`
+    select count(*)::int companies,
+           count(*) filter (where coalesce(v.visitors,0) > 0 or coalesce(t.tickets,0) > 0)::int active,
+           count(*) filter (where coalesce(u.activated,0) = 0 and coalesce(u.total,0) > 0)::int never_in,
+           count(*) filter (where coalesce(t.tickets,0) = 0)::int no_ticket,
+           coalesce(sum(t.open_cnt), 0)::int open_total,
+           count(*) filter (where c.next_end is not null and c.next_end <= current_date + 90)::int expiring
+      from companies co
+      left join (select company_id, count(*)::int total,
+                        count(*) filter (where last_login is not null)::int activated
+                   from users where role='customer' and company_id is not null group by 1) u on u.company_id = co.id
+      left join (select company_id, count(*)::int tickets,
+                        count(*) filter (where status not in ('completed','cancelled'))::int open_cnt
+                   from tickets where company_id is not null ${period} group by 1) t on t.company_id = co.id
+      left join (select company_id, count(distinct user_id)::int visitors
+                   from login_events where company_id is not null ${period} group by 1) v on v.company_id = co.id
+      left join (select company_id, min(end_date) next_end from company_contracts
+                  where end_date >= current_date group by 1) c on c.company_id = co.id`);
+
+  // 등급 분포(도넛) — 표 필터와 무관하게 전체 고객사 기준
+  const grades = await query(`select grade, count(*)::int n from (${base}) g group by 1`, []);
+
+  // 담당영업·고객유형 필터 옵션(화면에서 하드코딩하지 않도록 실제 값을 내려준다)
+  const managers = await query(
+    `select distinct account_manager m from companies
+      where coalesce(account_manager,'') <> '' order by 1`);
+  const types = await query(
+    `select distinct customer_type t from companies
+      where coalesce(customer_type,'') <> '' order by 1`);
+
+  return json(200, {
+    total, rows, summary: sum, grades,
+    managers: managers.map(r => r.m), types: types.map(r => r.t),
+  });
+}
+
+// ── GET /stats/company-detail ──
+// 고객사 한 곳을 펼쳤을 때의 상세. 경로 파라미터 대신 쿼리스트링을 쓴다
+// (API Gateway가 캐치올 없이 경로를 하나씩 등록하는 구조라 라우트를 덜 만든다).
+async function statsCompanyDetail(event) {
+  const authz = getAuthz(event);
+  if (!(await hasPermission(authz.role, 'stats_view'))) return json(403, { error: '권한이 없습니다' });
+  const qs = event.queryStringParameters || {};
+  const id = qs.id || '';
+  if (!/^[0-9a-fA-F-]{36}$/.test(id)) return json(400, { error: 'id가 필요합니다' });
+  const days = Math.min(3650, Math.max(0, parseInt(qs.days, 10) || 0));
+  const period = days > 0 ? `and created_at >= now() - interval '${days} days'` : '';
+
+  // 월별 요청 수 + 접속자 수 (최근 6개월 고정 — 추이는 기간 필터와 무관하게 흐름을 본다)
+  const series = await query(
+    `with m as (select to_char(generate_series(
+                  date_trunc('month', now() at time zone 'Asia/Seoul') - interval '5 months',
+                  date_trunc('month', now() at time zone 'Asia/Seoul'), interval '1 month'), 'YYYY-MM') ym)
+     select m.ym,
+            (select count(*)::int from tickets
+              where company_id = $1
+                and to_char(created_at at time zone 'Asia/Seoul', 'YYYY-MM') = m.ym) tickets,
+            (select count(distinct user_id)::int from login_events
+              where company_id = $1
+                and to_char(created_at at time zone 'Asia/Seoul', 'YYYY-MM') = m.ym) visitors
+       from m order by m.ym`, [id]);
+
+  const byStatus = await query(
+    `select status, count(*)::int n from tickets where company_id = $1 ${period} group by 1`, [id]);
+  const byCategory = await query(
+    `select category, count(*)::int n from tickets where company_id = $1 ${period} group by 1 order by n desc`, [id]);
+  const [intake] = await query(
+    `select count(*) filter (where registered_by is null)::int direct,
+            count(*) filter (where registered_by is not null)::int proxy
+       from tickets where company_id = $1 ${period}`, [id]);
+  const openList = await query(
+    `select ticket_number, title, status, coalesce(nullif(assigned_to_name,''), '') assignee,
+            (extract(epoch from (now() - created_at)) / 86400)::int days
+       from tickets where company_id = $1 and status not in ('completed','cancelled')
+      order by created_at asc limit 10`, [id]);
+  // 계정별 활동 — 고객사 안에서 누가 창구 노릇을 하는지. last_login은 전체 기간 기준이라
+  // 접속 이벤트 기록 시작 이전 접속도 반영된다.
+  const users = await query(
+    `select u.name, u.last_login,
+            (select count(*)::int from tickets where created_by = u.id) tickets
+       from users u where u.company_id = $1 and u.role = 'customer'
+      order by u.last_login desc nulls last, u.name limit 12`, [id]);
+  const [cnt] = await query(
+    `select count(*)::int n from users where company_id = $1 and role = 'customer'`, [id]);
+
+  return json(200, { series, byStatus, byCategory, intake, openList, users, usersTotal: cnt.n });
+}
+
 // ── GET /stats/tickets ──
 // 사용 통계 > 요청 현황 탭. 티켓 집계를 서버(SQL)에서 끝낸다 — data-api의 범용 조회는
 // limit이 1000으로 캡되므로 전건을 프런트로 내려 집계하면 건수가 늘어난 뒤 조용히 틀린 값이 된다.
@@ -1238,6 +1444,12 @@ export const handler = async (event) => {
     }
     if (method === 'GET' && path === '/stats/tickets') {
       return await statsTickets(event);
+    }
+    if (method === 'GET' && path === '/stats/companies') {
+      return await statsCompanies(event);
+    }
+    if (method === 'GET' && path === '/stats/company-detail') {
+      return await statsCompanyDetail(event);
     }
     if (method === 'POST' && path === '/auth/admin-reset-password') {
       return await adminResetPassword(body, event);

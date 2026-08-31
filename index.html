@@ -292,6 +292,49 @@ button,input,select,textarea{font-family:inherit;}
 .rq-unassigned{color:var(--red-d);font-weight:600;}
 .rq-empty{padding:28px;text-align:center;color:var(--faint);font-size:13px;}
 
+/* ── 사용 통계 > 고객 활용 탭 ─────────────────────────────────
+   차트 원시요소(.rq-kpi/.rq-brow 등)는 요청 현황 탭과 공유하고, 여기서는
+   이 탭에만 필요한 것(등급 점·활성화율 미니바·행 확장)만 정의한다. */
+.cu-preset{border:1px solid var(--border-md);background:var(--surface);border-radius:99px;
+  padding:5px 13px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px;transition:.12s;}
+.cu-preset:hover{border-color:var(--accent-m);color:var(--text);}
+.cu-preset:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.cu-preset[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;}
+.cu-preset .dot{width:7px;height:7px;border-radius:50%;flex:none;}
+.cu-preset[aria-pressed="true"] .dot{background:#fff !important;}
+.cu-grade{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;white-space:nowrap;}
+.cu-grade i{width:8px;height:8px;border-radius:50%;display:block;flex:none;}
+.cu-ok i{background:var(--green);} .cu-ok{color:var(--green-d);}
+.cu-mid i{background:var(--amber);} .cu-mid{color:var(--amber-d);}
+.cu-bad i{background:var(--red);} .cu-bad{color:var(--red-d);}
+.cu-none i{background:var(--faint);} .cu-none{color:var(--muted);}
+.cu-mini{display:flex;align-items:center;gap:7px;white-space:nowrap;}
+.cu-track{width:42px;height:5px;border-radius:3px;background:var(--surface2);border:1px solid var(--border);overflow:hidden;flex:none;}
+.cu-fill{height:100%;background:var(--accent);}
+.cu-fill.low{background:var(--amber);} .cu-fill.zero{background:var(--red);}
+.cu-dday{font-weight:600;} .cu-dday.soon{color:var(--red-d);} .cu-dday.mid{color:var(--amber-d);}
+.cu-dash{color:var(--faint);}
+#cu-tbody tr.cu-row{cursor:pointer;}
+#cu-tbody tr.cu-row.open td{background:var(--accent-l);}
+#cu-tbody tr.cu-detail td{padding:0;background:var(--surface2);}
+.cu-wrap{padding:14px 16px 16px;border-left:3px solid var(--accent);}
+.cu-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:12px;}
+@media (max-width:1000px){.cu-grid{grid-template-columns:1fr;}}
+.cu-panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+.cu-panel h4{font-size:12px;font-weight:700;margin-bottom:9px;display:flex;align-items:baseline;gap:7px;}
+.cu-panel h4 em{font-style:normal;font-size:10.5px;color:var(--faint);font-weight:400;}
+.cu-mtbl{width:100%;border-collapse:collapse;}
+.cu-mtbl td{padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;white-space:nowrap;}
+.cu-mtbl tr:last-child td{border-bottom:none;}
+.cu-mtbl .t{white-space:normal;font-weight:500;}
+.cu-stack{display:flex;height:12px;border-radius:4px;overflow:hidden;margin-bottom:8px;}
+.cu-stack div{height:100%;}
+.cu-chips{display:flex;flex-wrap:wrap;gap:5px 12px;font-size:11.5px;color:var(--muted);}
+.cu-chips span{display:inline-flex;align-items:center;gap:5px;}
+.cu-chips i{width:8px;height:8px;border-radius:2px;display:block;}
+.cu-chips b{color:var(--text);font-weight:700;font-variant-numeric:tabular-nums;}
+
 /* ── cards ── */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px 24px;margin-bottom:16px;box-shadow:var(--shadow-sm);}
 /* CSS Grid 자식 요소가 nowrap 텍스트 때문에 트랙을 밀어내지 않도록 방지 */
@@ -1917,6 +1960,7 @@ textarea{resize:vertical;min-height:100px;}
         <div class="stab-bar" id="stats-tabs">
           <button type="button" class="on" data-stab="act" onclick="switchStatsTab('act')">📈 접속 활동</button>
           <button type="button" data-stab="acct" onclick="switchStatsTab('acct')">👥 계정</button>
+          <button type="button" data-stab="cust" onclick="switchStatsTab('cust')">🏢 고객 활용</button>
           <button type="button" data-stab="req" onclick="switchStatsTab('req')">📮 요청 현황</button>
         </div>
 
@@ -1965,6 +2009,75 @@ textarea{resize:vertical;min-height:100px;}
           </div>
         </div>
         </div><!-- /stab-acct -->
+
+        <div class="stab-panel" id="stab-cust" style="display:none;">
+          <div class="rq-filters">
+            <span class="rq-seg" id="cu-days" role="group" aria-label="기간">
+              <button type="button" onclick="setCuDays(30,this)">30일</button>
+              <button type="button" class="on" onclick="setCuDays(90,this)">90일</button>
+              <button type="button" onclick="setCuDays(180,this)">180일</button>
+              <button type="button" onclick="setCuDays(0,this)">전체</button>
+            </span>
+            <select id="cu-type" onchange="applyCuFilter()"><option value="">전체 고객유형</option></select>
+            <select id="cu-manager" onchange="applyCuFilter()"><option value="">전체 담당영업</option></select>
+            <input id="cu-search" class="search-box" style="flex:1;min-width:160px;box-sizing:border-box;"
+                   placeholder="고객사명 검색" onkeydown="if(event.key==='Enter')applyCuFilter()">
+            <span style="font-size:11px;color:var(--faint);font-weight:600;letter-spacing:.04em;">프리셋</span>
+            <button class="cu-preset" type="button" data-p="" aria-pressed="true" onclick="setCuPreset('',this)">전체</button>
+            <button class="cu-preset" type="button" data-p="risk" aria-pressed="false" onclick="setCuPreset('risk',this)"><span class="dot" style="background:var(--red);"></span>이탈 위험</button>
+            <button class="cu-preset" type="button" data-p="onboard" aria-pressed="false" onclick="setCuPreset('onboard',this)"><span class="dot" style="background:var(--faint);"></span>온보딩 필요</button>
+            <button class="cu-preset" type="button" data-p="heavy" aria-pressed="false" onclick="setCuPreset('heavy',this)"><span class="dot" style="background:var(--accent);"></span>부하 집중</button>
+          </div>
+
+          <div class="rq-kpis" id="cu-kpis">
+            <div class="rq-kpi" style="grid-column:1/-1;"><div class="s" style="margin:0;">불러오는 중...</div></div>
+          </div>
+
+          <div class="card" style="margin-bottom:16px;">
+            <div class="card-title">활용 등급 분포 <span style="font-size:11px;color:var(--faint);font-weight:400;">전체 고객사 기준</span></div>
+            <div style="display:flex;align-items:center;gap:22px;flex-wrap:wrap;">
+              <div id="cu-donut"></div>
+              <div class="rq-note" style="flex:1;min-width:240px;line-height:1.8;">
+                <b style="color:var(--red-d);font-weight:700;">위험</b> — 접속 이력은 있으나 90일 넘게 들어오지 않은 고객사 (쓰다가 끊긴 이탈 신호)<br>
+                <b style="color:var(--amber-d);font-weight:700;">주의</b> — 계정 활성화율 30% 미만, 30~90일 무접속, 또는 30일 넘은 적체 보유<br>
+                <b style="color:var(--muted);font-weight:700;">미접속</b> — 로그인한 적 있는 계정이 하나도 없음 (아직 시작 전 — 이탈과는 성격이 다르므로 위험과 분리)<br>
+                <b style="color:var(--green-d);font-weight:700;">양호</b> — 그 외<br>
+                <span style="color:var(--faint);">ⓘ 판정은 계정의 최종 접속(전체 기간 유효)을 기준으로 합니다. 위 기간 필터는 접속자 수·요청 수 집계에만 적용됩니다.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="padding:0;overflow:hidden;">
+            <div style="padding:14px 18px 12px;">
+              <div class="card-title" style="margin-bottom:0;">고객사 활용 현황
+                <span style="font-size:11px;color:var(--faint);font-weight:400;">행을 클릭하면 상세가 열립니다</span>
+                <span style="margin-left:auto;font-size:11px;color:var(--muted);font-weight:400;">정렬
+                  <select id="cu-sort" onchange="applyCuFilter()" style="width:auto;flex:none;margin-left:6px;padding:3px 8px;font-size:11.5px;">
+                    <option value="risk">위험도순</option><option value="activation">활성화율 낮은 순</option>
+                    <option value="dday">계약 만료 임박순</option><option value="tickets">요청 많은 순</option>
+                    <option value="open">미해결 많은 순</option><option value="visitors">접속자 많은 순</option>
+                    <option value="name">고객사명순</option>
+                  </select></span>
+              </div>
+            </div>
+            <div class="tbl-scroll"><table class="tbl tbl-compact" style="min-width:1040px;">
+              <thead><tr>
+                <th>고객사</th><th>등급</th><th>계정 · 활성화율</th><th>최근 접속</th>
+                <th style="text-align:right;">접속자</th><th style="text-align:right;">요청</th>
+                <th style="text-align:right;">미해결</th><th style="text-align:right;">최장 대기</th>
+                <th style="text-align:right;">대리 등록</th><th style="text-align:right;">계약 만료</th><th>담당영업</th>
+              </tr></thead>
+              <tbody id="cu-tbody"><tr><td colspan="11" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr></tbody>
+            </table></div>
+            <div style="padding:11px 18px;border-top:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted);flex-wrap:wrap;">
+              <span id="cu-total"></span>
+              <span class="rq-note" style="margin-right:auto;">ⓘ 접속자 수는 로그인 이벤트 기록 시작 이후만 집계됩니다. 최근 접속·무접속 판정은 전체 기간 기준입니다.</span>
+              <button class="btn btn-outline btn-sm" onclick="changeCuPage(-1)">← 이전</button>
+              <span id="cu-page" style="font-variant-numeric:tabular-nums;">1</span>
+              <button class="btn btn-outline btn-sm" onclick="changeCuPage(1)">다음 →</button>
+            </div>
+          </div>
+        </div><!-- /stab-cust -->
 
         <div class="stab-panel" id="stab-req" style="display:none;">
           <div class="rq-filters">
@@ -7275,11 +7388,14 @@ function switchStatsTab(tab) {
   if (acct) acct.style.display = tab === 'acct' ? '' : 'none';
   const req = document.getElementById('stab-req');
   if (req) req.style.display = tab === 'req' ? '' : 'none';
+  const cust = document.getElementById('stab-cust');
+  if (cust) cust.style.display = tab === 'cust' ? '' : 'none';
   // 계정 탭에서만 페이지를 뷰포트 높이에 고정하고(acct-mode) 목록으로 남는 공간을 채운다.
   // 요청 현황 탭은 블록이 많아 세로로 길므로 기존처럼 스크롤되게 둔다.
   document.getElementById('p-stats')?.classList.toggle('acct-mode', tab === 'acct');
   if (tab === 'acct') requestAnimationFrame(() => fitLhPageSize(true)); // 레이아웃 반영 후 측정
-  if (tab === 'req' && !_rqLoaded) loadTicketStats(); // 첫 진입에만 자동 조회
+  if (tab === 'req' && !_rqLoaded) loadTicketStats();   // 첫 진입에만 자동 조회
+  if (tab === 'cust' && !_cuLoaded) loadCompanyStats();
 }
 
 // 창 크기가 바뀌면 표시 행 수를 다시 맞춘다 — 계정 탭이 열려 있을 때만.
@@ -7292,8 +7408,10 @@ window.addEventListener('resize', () => {
 
 async function loadStats() {
   const ico = document.getElementById('stats-refresh-ico'); if (ico) ico.classList.add('spin');
-  // 요청 현황 탭은 별도 엔드포인트라 새로고침 때 함께 다시 조회한다(한 번이라도 연 적이 있을 때만).
+  // 요청 현황·고객 활용 탭은 별도 엔드포인트라 새로고침 때 함께 다시 조회한다
+  // (한 번이라도 연 적이 있을 때만).
   if (_rqLoaded) loadTicketStats();
+  if (_cuLoaded) loadCompanyStats();
   try {
     // 접속 활동(서버 집계)
     let active = { dau: 0, wau: 0, mau: 0, stickiness: 0, series: [] };
@@ -7343,6 +7461,260 @@ async function loadStats() {
   } finally {
     if (ico) ico.classList.remove('spin');
   }
+}
+
+// ── 고객 활용 (GET /stats/companies, 서버 집계·정렬·페이지네이션) ──────
+// 397개 고객사를 한 쿼리로 집계한다. 등급 판정은 접속·계정 기준이고 요청은 적체로만
+// 보조 반영한다 — 요청 0건을 위험으로 잡으면 티켓이 적은 지금 거의 전부가 빨강이 되어
+// 신호가 죽는다. 판정 규칙은 화면에도 그대로 적어 둔다(왜 빨강인지 답할 수 있어야 쓴다).
+const CU_GRADE = { ok:{ ko:'양호', cls:'cu-ok', color:'var(--green)' },
+                   mid:{ ko:'주의', cls:'cu-mid', color:'var(--amber)' },
+                   bad:{ ko:'위험', cls:'cu-bad', color:'var(--red)' },
+                   none:{ ko:'미접속', cls:'cu-none', color:'#9CA3AF' } };
+// 도넛·범례 순서. 조치가 필요한 순(위험 → 주의 → 미접속 → 양호)으로 둔다.
+const CU_GRADE_ORDER = ['bad', 'mid', 'none', 'ok'];
+const CU_PAGE_SIZE = 20;
+let _cuDays = 90, _cuPreset = '', _cuOffset = 0, _cuTotal = 0, _cuLoaded = false, _cuOptsFilled = false;
+let _cuOpenId = null; // 펼쳐진 고객사 — 다시 조회해도 같은 행이 열려 있게 유지
+
+function setCuDays(d, btn) {
+  _cuDays = d;
+  document.querySelectorAll('#cu-days button').forEach(b => b.classList.toggle('on', b === btn));
+  applyCuFilter();
+}
+function setCuPreset(p, btn) {
+  _cuPreset = p;
+  document.querySelectorAll('.cu-preset').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+  applyCuFilter();
+}
+function applyCuFilter() { _cuOffset = 0; _cuOpenId = null; loadCompanyStats(); }
+function changeCuPage(delta) {
+  const next = _cuOffset + delta * CU_PAGE_SIZE;
+  if (next < 0 || next >= (_cuTotal || 0)) return;
+  _cuOffset = next; _cuOpenId = null; loadCompanyStats();
+}
+
+// 최근 접속은 날짜만 보여준다(시각까지는 이 표에서 의미가 없다). 값이 없으면 "기록 없음" —
+// 빈 칸으로 두면 "0"과 "한 번도 없음"이 구분되지 않는다.
+function _cuDate(iso) {
+  if (!iso) return '<span class="cu-dash">기록 없음</span>';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '<span class="cu-dash">기록 없음</span>';
+  const p = new Intl.DateTimeFormat('ko-KR', { timeZone:'Asia/Seoul', year:'2-digit', month:'2-digit', day:'2-digit' })
+    .formatToParts(d).reduce((a, x) => (a[x.type] = x.value, a), {});
+  return `${p.year}-${p.month}-${p.day}`;
+}
+
+async function loadCompanyStats() {
+  const tbody = document.getElementById('cu-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="11" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>';
+  const params = new URLSearchParams({ days:String(_cuDays), limit:String(CU_PAGE_SIZE), offset:String(_cuOffset) });
+  const q = (document.getElementById('cu-search')?.value || '').trim();
+  const type = document.getElementById('cu-type')?.value || '';
+  const mgr = document.getElementById('cu-manager')?.value || '';
+  const sort = document.getElementById('cu-sort')?.value || 'risk';
+  if (q) params.set('q', q);
+  if (type) params.set('type', type);
+  if (mgr) params.set('manager', mgr);
+  if (_cuPreset) params.set('preset', _cuPreset);
+  params.set('sort', sort);
+
+  let d = null;
+  try {
+    const r = await fetch(`${API_BASE}/stats/companies?${params}`, { headers: { ...authHeaders() } });
+    if (r.ok) d = await r.json();
+  } catch (e) { console.error('loadCompanyStats 오류', e); }
+  _cuLoaded = true;
+  if (!d) {
+    tbody.innerHTML = '<tr><td colspan="11" style="padding:16px;text-align:center;color:var(--faint);">고객사 통계를 불러오지 못했습니다.</td></tr>';
+    return;
+  }
+  _cuTotal = d.total || 0;
+  _cuRenderKpis(d.summary || {});
+  _cuRenderDonut(d.grades || []);
+  _cuRenderRows(d.rows || []);
+  _cuFillOptions(d.types || [], d.managers || []);
+
+  document.getElementById('cu-total').textContent = `총 ${_cuTotal}개 고객사`;
+  document.getElementById('cu-page').textContent =
+    `${Math.floor(_cuOffset / CU_PAGE_SIZE) + 1} / ${Math.max(1, Math.ceil(_cuTotal / CU_PAGE_SIZE))}`;
+}
+
+// 고객유형·담당영업 옵션은 실제 값에서 한 번만 채운다(코드에 박으면 낡는다).
+function _cuFillOptions(types, managers) {
+  if (_cuOptsFilled) return;
+  const add = (sel, arr) => arr.forEach(v => {
+    const o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o);
+  });
+  const t = document.getElementById('cu-type'), m = document.getElementById('cu-manager');
+  if (t && m) { add(t, types); add(m, managers); _cuOptsFilled = true; }
+}
+
+function _cuRenderKpis(s) {
+  const pct = (n, t) => (t ? Math.round((n / t) * 100) : 0);
+  document.getElementById('cu-kpis').innerHTML = [
+    `<div class="rq-kpi good"><div class="k">활용 고객사</div><div class="v">${s.active || 0}<span style="font-size:15px;font-weight:600;color:var(--faint);"> / ${s.companies || 0}</span></div><div class="s">기간 내 접속 또는 요청 있음 · ${pct(s.active, s.companies)}%</div></div>`,
+    `<div class="rq-kpi ${s.never_in ? 'bad' : ''}"><div class="k">미접속 고객사</div><div class="v">${s.never_in || 0}</div><div class="s">계정은 있으나 로그인 이력 없음</div></div>`,
+    `<div class="rq-kpi ${s.no_ticket ? 'warn' : ''}"><div class="k">요청 0건 고객사</div><div class="v">${s.no_ticket || 0}</div><div class="s">기간 내 접수 이력 없음</div></div>`,
+    `<div class="rq-kpi"><div class="k">미해결 요청</div><div class="v">${s.open_total || 0}</div><div class="s">전체 고객사 합계</div></div>`,
+    `<div class="rq-kpi ${s.expiring ? 'warn' : ''}"><div class="k">만료 D-90 계약</div><div class="v">${s.expiring || 0}</div><div class="s">고객사 기준 · 갱신 대상</div></div>`,
+  ].join('');
+}
+
+// 등급 도넛 — stroke-dasharray로 원호를 이어 붙인다(외부 차트 라이브러리는 CSP에 막힘).
+function _cuRenderDonut(grades) {
+  const order = CU_GRADE_ORDER;
+  const map = Object.fromEntries(grades.map(g => [g.grade, g.n]));
+  const total = order.reduce((a, k) => a + (map[k] || 0), 0);
+  const R = 40, C = 2 * Math.PI * R;
+  let acc = 0;
+  const arcs = order.map(k => {
+    const n = map[k] || 0;
+    if (!n || !total) return '';
+    const len = (n / total) * C;
+    const rot = (acc / total) * 360 - 90;
+    acc += n;
+    return `<circle cx="54" cy="54" r="${R}" fill="none" stroke="${CU_GRADE[k].color}" stroke-width="15"
+             stroke-dasharray="${len.toFixed(1)} ${(C - len).toFixed(1)}" transform="rotate(${rot.toFixed(1)} 54 54)"></circle>`;
+  }).join('');
+  const legend = order.map(k => {
+    const n = map[k] || 0;
+    return `<div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+      <span style="width:9px;height:9px;border-radius:3px;background:${CU_GRADE[k].color};flex:none;"></span>
+      <span style="color:var(--muted);">${CU_GRADE[k].ko}</span>
+      <span style="margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums;">${n}</span>
+      <span style="color:var(--faint);font-size:11px;width:36px;text-align:right;">${total ? Math.round((n / total) * 100) : 0}%</span></div>`;
+  }).join('');
+  document.getElementById('cu-donut').innerHTML = `<div style="display:flex;align-items:center;gap:16px;">
+    <svg width="108" height="108" viewBox="0 0 108 108" role="img" aria-label="활용 등급 분포">${arcs}
+      <text x="54" y="51" text-anchor="middle" font-size="19" font-weight="800" fill="var(--text)">${total}</text>
+      <text x="54" y="66" text-anchor="middle" font-size="9" fill="var(--faint)">고객사</text></svg>
+    <div style="display:flex;flex-direction:column;gap:7px;min-width:150px;">${legend}</div></div>`;
+}
+
+function _cuRenderRows(rows) {
+  const tbody = document.getElementById('cu-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="11" style="padding:16px;text-align:center;color:var(--faint);">조건에 맞는 고객사가 없습니다.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => {
+    const g = CU_GRADE[r.grade] || CU_GRADE.ok;
+    const rate = r.users_total ? Math.round((r.users_activated / r.users_total) * 100) : 0;
+    const fillCls = rate === 0 ? 'zero' : rate < 30 ? 'low' : '';
+    const age = r.oldest_open_days;
+    const ageCls = age == null ? '' : age >= 30 ? 'rq-age-bad' : age >= 7 ? 'rq-age-warn' : '';
+    const dd = r.dday;
+    const ddCls = dd == null ? '' : dd <= 30 ? 'soon' : dd <= 90 ? 'mid' : '';
+    const proxy = r.tickets ? Math.round((r.proxy / r.tickets) * 100) + '%' : '<span class="cu-dash">—</span>';
+    return `<tr class="cu-row" data-id="${escHtml(r.id)}" onclick="toggleCuRow(this)">
+      <td style="font-weight:700;">${escHtml(r.name)}<div style="font-size:10.5px;color:var(--faint);font-weight:400;">${escHtml(r.customer_type || '—')}</div></td>
+      <td><span class="cu-grade ${g.cls}"><i></i>${g.ko}</span></td>
+      <td><span class="cu-mini"><span class="cu-track"><span class="cu-fill ${fillCls}" style="width:${Math.max(rate, rate === 0 ? 0 : 3)}%"></span></span>
+          <span style="font-variant-numeric:tabular-nums;">${r.users_activated} / ${r.users_total} · ${rate}%</span></span></td>
+      <td style="font-variant-numeric:tabular-nums;">${_cuDate(r.last_login)}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;">${r.visitors}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;">${r.tickets}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;">${r.open_cnt}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;" class="${ageCls}">${age == null ? '<span class="cu-dash">—</span>' : age + '일'}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;">${proxy}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;" class="cu-dday ${ddCls}">${dd == null ? '<span class="cu-dash">—</span>' : 'D-' + dd}</td>
+      <td style="color:var(--muted);">${escHtml(r.account_manager || '—')}</td></tr>
+    <tr class="cu-detail" hidden><td colspan="11"><div class="cu-wrap" data-detail="${escHtml(r.id)}">불러오는 중...</div></td></tr>`;
+  }).join('');
+}
+
+// 행 클릭 → 상세 토글. 이미 받아온 상세는 다시 조회하지 않는다.
+async function toggleCuRow(tr) {
+  const detail = tr.nextElementSibling;
+  const open = !detail.hidden;
+  // 한 번에 하나만 펼친다 — 표가 길어져 위치를 잃지 않게.
+  document.querySelectorAll('#cu-tbody tr.cu-detail').forEach(d => { d.hidden = true; });
+  document.querySelectorAll('#cu-tbody tr.cu-row').forEach(r => r.classList.remove('open'));
+  if (open) { _cuOpenId = null; return; }
+  detail.hidden = false;
+  tr.classList.add('open');
+  const id = tr.dataset.id;
+  _cuOpenId = id;
+  const box = detail.querySelector('.cu-wrap');
+  if (box.dataset.done === '1') return;
+  let d = null;
+  try {
+    const r = await fetch(`${API_BASE}/stats/company-detail?id=${encodeURIComponent(id)}&days=${_cuDays}`,
+      { headers: { ...authHeaders() } });
+    if (r.ok) d = await r.json();
+  } catch (e) { console.error('company-detail 오류', e); }
+  if (!d) { box.innerHTML = '<div class="rq-empty">상세를 불러오지 못했습니다.</div>'; return; }
+  box.dataset.done = '1';
+  box.innerHTML = _cuDetailHtml(d);
+}
+
+function _cuDetailHtml(d) {
+  const series = d.series || [];
+  const maxT = Math.max(...series.map(s => s.tickets), 1);
+  const maxV = Math.max(...series.map(s => s.visitors), 1);
+  const pts = (key, max) => series.map((s, i) =>
+    `${16 + i * (288 / Math.max(series.length - 1, 1))},${72 - (s[key] / max) * 52}`).join(' ');
+  const spark = series.length ? `
+    <svg viewBox="0 0 320 84" width="100%" height="84" preserveAspectRatio="none" role="img" aria-label="월별 요청·접속자 추이">
+      <line x1="0" y1="72" x2="320" y2="72" stroke="var(--border)"></line>
+      <polyline fill="none" stroke="var(--accent-m)" stroke-width="2" points="${pts('visitors', maxV)}"></polyline>
+      <polyline fill="none" stroke="var(--accent)" stroke-width="2.5" points="${pts('tickets', maxT)}"></polyline>
+    </svg>
+    <div class="cu-chips" style="margin-top:5px;"><span><i style="background:var(--accent);"></i>요청</span>
+      <span><i style="background:var(--accent-m);"></i>접속자</span>
+      <span style="margin-left:auto;color:var(--faint);">${escHtml(series[0].ym)} → ${escHtml(series[series.length - 1].ym)}</span></div>`
+    : '<div class="rq-empty">추이 데이터가 없습니다.</div>';
+
+  const st = d.byStatus || [];
+  const stTotal = st.reduce((a, r) => a + r.n, 0);
+  const stack = stTotal ? RQ_ST_ORDER.map(k => {
+    const hit = st.find(r => r.status === k);
+    return hit ? `<div style="background:${RQ_ST_COLOR[k]};width:${(hit.n / stTotal) * 100}%"></div>` : '';
+  }).join('') : '';
+  const stChips = stTotal ? RQ_ST_ORDER.map(k => {
+    const hit = st.find(r => r.status === k);
+    return hit ? `<span><i style="background:${RQ_ST_COLOR[k]};"></i>${STATUS_LABELS[k] || k} <b>${hit.n}</b></span>` : '';
+  }).join('') : '';
+
+  const intake = d.intake || { direct:0, proxy:0 };
+  const iTot = (intake.direct || 0) + (intake.proxy || 0);
+  const proxyPct = iTot ? Math.round((intake.proxy / iTot) * 100) : 0;
+
+  const openRows = (d.openList || []).length
+    ? (d.openList).map(t => `<tr><td class="t">${escHtml(t.title)}</td>
+        <td style="color:var(--muted);">${STATUS_LABELS[t.status] || escHtml(t.status)}</td>
+        <td style="color:var(--muted);">${t.assignee ? escHtml(t.assignee) : '<span class="rq-unassigned">미배정</span>'}</td>
+        <td style="text-align:right;font-variant-numeric:tabular-nums;" class="${t.days >= 30 ? 'rq-age-bad' : t.days >= 7 ? 'rq-age-warn' : ''}">${t.days}일</td></tr>`).join('')
+    : '<tr><td colspan="4" style="color:var(--faint);padding:8px 0;">미해결 요청이 없습니다.</td></tr>';
+
+  const userRows = (d.users || []).length
+    ? (d.users).map(u => `<tr><td class="t">${escHtml(u.name)}</td>
+        <td style="color:var(--muted);font-variant-numeric:tabular-nums;">${_cuDate(u.last_login)}</td>
+        <td style="text-align:right;font-variant-numeric:tabular-nums;">${u.tickets}건</td></tr>`).join('')
+    : '<tr><td colspan="3" style="color:var(--faint);padding:8px 0;">등록된 고객 계정이 없습니다.</td></tr>';
+  const more = (d.usersTotal || 0) > (d.users || []).length
+    ? `<div class="rq-note" style="margin-top:8px;">전체 ${d.usersTotal}명 중 최근 접속 순 ${(d.users || []).length}명</div>` : '';
+
+  return `<div class="cu-grid">
+    <div class="cu-panel"><h4>요청 · 접속 추이 <em>최근 6개월</em></h4>${spark}</div>
+    <div class="cu-panel"><h4>요청 상태 <em>${stTotal}건</em></h4>
+      ${stTotal ? `<div class="cu-stack">${stack}</div><div class="cu-chips">${stChips}</div>`
+                : '<div class="rq-empty">기간 내 요청이 없습니다.</div>'}</div>
+    <div class="cu-panel"><h4>미해결 요청 <em>경과일 순</em></h4>
+      <table class="cu-mtbl">${openRows}</table></div>
+    <div class="cu-panel"><h4>계정별 활동 <em>누가 창구인지</em></h4>
+      <table class="cu-mtbl">${userRows}</table>${more}</div>
+    <div class="cu-panel" style="grid-column:1/-1;"><h4>접수 경로</h4>
+      ${iTot ? `<div class="cu-stack"><div style="background:var(--amber);width:${proxyPct}%"></div><div style="background:var(--accent-m);width:${100 - proxyPct}%"></div></div>
+        <div class="cu-chips"><span><i style="background:var(--amber);"></i>대리 등록 <b>${intake.proxy}</b></span>
+          <span><i style="background:var(--accent-m);"></i>고객 직접 <b>${intake.direct}</b></span>
+          <span style="margin-left:auto;">${proxyPct >= 50
+            ? '대부분 내부 직원이 대신 접수하고 있습니다 — 포탈 사용 안내가 필요합니다.'
+            : '고객이 직접 접수하는 비중이 더 높습니다.'}</span></div>`
+        : '<div class="rq-empty">기간 내 접수된 요청이 없습니다.</div>'}</div>
+  </div>`;
 }
 
 // ── 요청 현황 (GET /stats/tickets, 서버 집계) ────────────────────
