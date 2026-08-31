@@ -7356,7 +7356,7 @@ const RQ_CAT_COLOR = { tech_support:'#4F46E5', license:'#818CF8', contract:'#A5B
 const RQ_ST_COLOR = { received:'#9CA3AF', classifying:'#A5B4FC', assigned:'#818CF8', in_progress:'#4F46E5',
                       pending_customer:'#D97706', on_hold:'#9CA3AF', completed:'#059669', cancelled:'#D1D5DB' };
 const RQ_ST_ORDER = ['received','classifying','assigned','in_progress','pending_customer','on_hold','completed','cancelled'];
-let _rqDays = 90, _rqLoaded = false, _rqProdFilled = false;
+let _rqDays = 90, _rqLoaded = false, _rqProdFilled = false, _rqAsgFilled = false;
 
 function setRqDays(d, btn) {
   _rqDays = d;
@@ -7369,6 +7369,7 @@ const _rqPct = (n, t) => (t ? Math.round((n / t) * 100) : 0);
 async function loadTicketStats() {
   const kpis = document.getElementById('rq-kpis');
   if (!kpis) return;
+  _rqFillAssignees(); // 담당자 목록은 집계 응답과 무관 — 기다리지 않고 병렬로 채운다
   const params = new URLSearchParams({ days: String(_rqDays) });
   const cat  = document.getElementById('rq-category')?.value || '';
   const prod = document.getElementById('rq-product')?.value || '';
@@ -7404,6 +7405,34 @@ async function loadTicketStats() {
   _rqRenderWorkload(d.workload || []);
   _rqRenderAging(d.aging || {}, d.oldest || [], d.summary || {});
   _rqFillProducts(d.byProduct || []);
+}
+
+// 담당자 필터 옵션 — 티켓에 배정될 수 있는 활성 스태프 전원을 채운다(요청 관리 모달의
+// MG_CAT_ROLES 합집합과 같은 역할 집합이라 두 화면의 담당자 목록이 어긋나지 않는다).
+// 배정 이력이 있는 사람만 추리지 않는 이유: 집계 응답은 assigned_to_name 스냅샷(문자열)만
+// 주고 uuid를 주지 않아서, 이름을 다시 id로 되짚으려면 서버 응답을 바꿔야 한다.
+// 그 대신 요청이 0건인 담당자를 고르면 빈 화면이 나올 수 있다 — 정상 동작이다.
+const RQ_ASSIGNABLE_ROLES = ['admin', 'tech_support', 'sales', 'education'];
+async function _rqFillAssignees() {
+  if (_rqAsgFilled) return;
+  const sel = document.getElementById('rq-assignee');
+  if (!sel || !sb) return;
+  _rqAsgFilled = true; // 조회 실패해도 재시도로 매번 두드리지 않는다(기본 2개 옵션은 그대로 동작)
+  let users = [];
+  try {
+    const { data } = await sb.from('users').select('id, name, role')
+      .in('role', RQ_ASSIGNABLE_ROLES).eq('is_active', true);
+    users = data || [];
+  } catch (e) { console.error('_rqFillAssignees 오류', e); return; }
+  // 역할끼리 묶어 보이도록 역할 우선순위 → 이름 순으로 정렬한다.
+  const order = r => RQ_ASSIGNABLE_ROLES.indexOf(r);
+  users.sort((a, b) => (order(a.role) - order(b.role)) || String(a.name).localeCompare(String(b.name), 'ko'));
+  users.forEach(u => {
+    const o = document.createElement('option');
+    o.value = u.id;
+    o.textContent = `${u.name} (${ROLE_LABELS[u.role] || u.role})`;
+    sel.appendChild(o);
+  });
 }
 
 // 제품 필터 옵션은 실제 데이터에서 한 번만 채운다 — 코드에 목록을 박아두면 제품이 바뀔 때 낡는다.
