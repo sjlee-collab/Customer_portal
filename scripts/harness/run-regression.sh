@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 회귀 테스트 스위트 실행 — L1(권한/격리) + L1(삭제) + L1-C(고객 기능).
+# 회귀 테스트 스위트 실행 — L1(권한/격리) + L1(삭제/상태) + L1-C(고객 기능).
 # 사용: bash scripts/harness/run-regression.sh
 # 전제: AWS_PROFILE=customer_portal (기본), aws.exe, python.
 # L2(프론트)는 로그인 프리뷰에서 tests/smoke_frontend.js를 콘솔에 붙여 별도 확인.
@@ -9,7 +9,7 @@ export PYTHONIOENCODING=utf-8
 HDIR="$(cd "$(dirname "$0")" && pwd)"
 export HARNESS_TMP="$HDIR/lib"
 
-TESTS=(test_permissions.py test_ticket_delete.py test_customer_e2e.py test_stats_view.py test_proxy_register.py test_storage_rules.py test_auth.py)
+TESTS=(test_permissions.py test_ticket_delete.py test_ticket_status.py test_customer_e2e.py test_stats_view.py test_proxy_register.py test_storage_rules.py test_auth.py)
 fail=0
 for tf in "${TESTS[@]}"; do
   echo "────────────────────────────────────────"

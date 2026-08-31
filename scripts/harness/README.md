@@ -36,6 +36,7 @@
 ## 테스트
 - `tests/test_permissions.py` — 역할별 권한/테넌트 격리/직접쓰기 차단/스태프 교차조회
 - `tests/test_ticket_delete.py` — 요청 삭제 권한(ticket_delete) + cascade + 권한관리 동적 토글
+- `tests/test_ticket_status.py` — **요청 상태 변경(접수 제외 6개 상태)**: 두 경로(`/status`·`/manage`) 전이 저장 · 6개 상태 전부 슬랙 발송 + event_type 분포(`completed`/`pending_customer` 고유, 나머지 4개 `status_change`) · 메일도 전 상태 발송(manage는 `send_email` 플래그) · 이력(`status_changed`)은 manage 경로만 기록 · 고객 403 · 동일 상태 재저장 · 잘못된 상태값 거부. 알림은 `log_notification` 행으로 판정(비동기라 최대 30초 대기)
 - `tests/test_customer_e2e.py` — **고객 계정 전 기능 정상성**(등록·목록·상세·수정·답글·첨부·계약/자료 조회·내정보) + 보안 차단
 - `tests/smoke_frontend.js` — 프리뷰 콘솔에 붙여 프론트 핵심 확인(L2)
 - 데이터 원칙: `[테스트]` 라벨 + admin 직접 insert(알림 없음) + 종료 시 정리(+ 잔여물 `sweep`). 개별 실행: `python scripts/harness/tests/test_customer_e2e.py`
