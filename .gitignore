@@ -1,0 +1,11 @@
+# 파이썬 바이트코드 캐시 — 하네스 테스트 실행 시 자동 생성/갱신된다.
+# 커밋해두면 실행할 때마다 워킹트리가 더러워져 guard-commit.sh의 clobber 감지가 무뎌진다.
+__pycache__/
+*.pyc
+
+# Lambda 의존성 — deploy-fn.sh가 `npm install --omit=dev`로 다시 만든다.
+node_modules/
+
+# 하네스 invoke 임시 파일 — itest.py가 lib/에 만들고 지운다(중단 시 잔여물이 남을 수 있음).
+scripts/harness/lib/_payload_*.json
+scripts/harness/lib/_out_*.json
