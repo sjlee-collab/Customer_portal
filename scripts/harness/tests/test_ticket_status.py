@@ -13,6 +13,9 @@
   - 메일도 상태 필터 없이 전 상태에 발송
   - 이력(ticket_history.status_changed)은 manage 경로만 기록한다는 현행 차이를 고정
   - 고객 역할은 전 상태에서 403 차단 / 같은 상태 재저장은 무알림 / 잘못된 상태값 거부
+  - 슬랙 발송 원문이 log_notification.content에 저장되는지
+  - 완료예정일 초과(TICKET_OVERDUE): 기한 지난 티켓의 상태 변경 시 상태 알림과 별개로
+    1건 추가 발송, 마감 당일은 초과 아님(날짜만 비교), completed 전환 시는 미발송
 
 관찰 방법: 알림은 deferNotify(InvocationType='Event') 비동기라 응답으로 확인할 수 없다.
 api-layer notify.mjs가 발송 결과를 log_notification에 남기므로 그 행으로 판정한다
@@ -22,10 +25,10 @@ api-layer notify.mjs가 발송 결과를 log_notification에 남기므로 그 �
 실행당 6통이 sjlee 싱크로 들어온다(manage 경로는 send_email=False로 억제). 슬랙은 '[테스트]'
 라벨 덕에 테스트 채널로만 간다.
 """
-import sys, os, time
+import sys, os
 from collections import Counter
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'lib'))
-from itest import dget, dpost, ddel, api, wipe_ticket, tname, temail, Checker
+from itest import dget, dpost, ddel, api, wipe_ticket, notif_rows, wait_notif, tname, temail, Checker
 
 # 접수(received)를 제외한 전 상태 — schema.sql tickets.status CHECK 기준.
 STATUSES = ['classifying', 'in_progress', 'pending_customer', 'on_hold', 'completed', 'cancelled']
@@ -40,26 +43,6 @@ SLACK_EVENT = {
     'cancelled':        'status_change',
 }
 EXPECT_SLACK = Counter(SLACK_EVENT[s] for s in STATUSES)
-SETTLE_SEC = 30      # 비동기 알림이 log_notification에 반영될 때까지 최대 대기
-GRACE_SEC = 4        # 기대 행이 다 찬 뒤, '더 오면 안 되는' 알림을 잡기 위한 여유
-
-
-def notif_rows(tid, channel=None):
-    rows = dget('log_notification',
-                {'select': 'channel,event_type,recipient,status,error_message',
-                 'ticket_id': 'eq.' + tid, 'limit': '200'}, role='admin').get('body') or []
-    return [r for r in rows if channel is None or r.get('channel') == channel]
-
-
-def wait_notif(tid, channel, expect_n):
-    """expect_n건이 찰 때까지 대기 후, 초과분 감지를 위해 GRACE만큼 더 기다린다."""
-    deadline = time.time() + SETTLE_SEC
-    while time.time() < deadline:
-        if len(notif_rows(tid, channel)) >= expect_n:
-            break
-        time.sleep(2)
-    time.sleep(GRACE_SEC)
-    return notif_rows(tid, channel)
 
 
 def cur_status(tid):
@@ -165,6 +148,49 @@ def run():
         # send_email=False면 메일은 한 통도 나가면 안 된다
         mailB = notif_rows(tB, 'email')
         t.check('[manage] send_email=False 메일 미발송', len(mailB) == 0, '실제=%d건' % len(mailB))
+
+        # content(발송 원문) 저장 — 슬랙 mrkdwn이 log_notification.content에 남는다
+        contents = [r.get('content') or '' for r in slackB]
+        t.check('[manage] 슬랙 content 저장', all(contents) and any('상태 변경' in x for x in contents),
+                '빈 content=%d건' % sum(1 for x in contents if not x))
+
+        # ── C) 완료예정일 초과(TICKET_OVERDUE) — 날짜만 비교(당일은 초과 아님) ──
+        import datetime
+        kst_today = (datetime.datetime.utcnow() + datetime.timedelta(hours=9)).date()
+        yesterday = (kst_today - datetime.timedelta(days=1)).isoformat()
+
+        # 기한이 어제인 티켓: 상태 변경 시 status_change + overdue 2건이 나가야 한다
+        tC = mk('기한초과')
+        api('PATCH', '/tickets/%s/manage' % tC,
+            {'status': 'received', 'due_date': yesterday, 'send_email': False}, role='admin', userId=u)
+        r = api('PATCH', '/tickets/%s/manage' % tC,
+                {'status': 'in_progress', 'due_date': yesterday, 'send_email': False}, role='admin', userId=u)
+        t.check('[overdue] 상태 변경 200', r.get('status') == 200, 'status=%s' % r.get('status'))
+        slackC = wait_notif(tC, 'slack', 2)
+        evC = Counter(x.get('event_type') for x in slackC)
+        t.check('[overdue] 기한 지난 티켓: 상태+초과 2건', evC.get('status_change', 0) == 1 and evC.get('overdue', 0) == 1,
+                '실제=%s' % dict(evC))
+
+        # 기한이 오늘인 티켓: 당일은 초과가 아니므로 상태 변경 1건만
+        tD = mk('기한당일')
+        api('PATCH', '/tickets/%s/manage' % tD,
+            {'status': 'received', 'due_date': kst_today.isoformat(), 'send_email': False}, role='admin', userId=u)
+        r = api('PATCH', '/tickets/%s/manage' % tD,
+                {'status': 'in_progress', 'due_date': kst_today.isoformat(), 'send_email': False},
+                role='admin', userId=u)
+        t.check('[overdue] 당일 상태 변경 200', r.get('status') == 200, 'status=%s' % r.get('status'))
+        slackD = wait_notif(tD, 'slack', 1)
+        evD = Counter(x.get('event_type') for x in slackD)
+        t.check('[overdue] 마감 당일은 초과 아님(1건만)', evD.get('overdue', 0) == 0 and evD.get('status_change', 0) == 1,
+                '실제=%s' % dict(evD))
+
+        # 기한 지난 티켓이라도 completed로 바꾸면 초과 알림은 안 나간다
+        r = api('PATCH', '/tickets/%s/manage' % tC,
+                {'status': 'completed', 'due_date': yesterday, 'send_email': False}, role='admin', userId=u)
+        slackC2 = wait_notif(tC, 'slack', 3)
+        evC2 = Counter(x.get('event_type') for x in slackC2)
+        t.check('[overdue] 완료 전환 시 초과 미발송', evC2.get('overdue', 0) == 1 and evC2.get('completed', 0) == 1,
+                '실제=%s' % dict(evC2))
     finally:
         for tid in created['tickets']:
             if len(dget('tickets', {'select': 'id', 'id': 'eq.' + tid}, role='admin').get('body') or []):

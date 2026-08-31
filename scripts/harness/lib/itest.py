@@ -110,12 +110,37 @@ def ddel(table, _id, role='admin', **c):
     return invoke('data', e)
 
 
-def api(method, path, body=None, role='customer', **c):
+def api(method, path, body=None, role='customer', qs=None, **c):
     e = ctx(role, **c); e['requestContext']['http']['method'] = method
+    # 쿼리스트링은 rawPath에 붙이면 안 된다 — api-layer 라우팅이 path 정확 일치라 404가 난다.
     e['rawPath'] = path
+    if qs: e['queryStringParameters'] = qs
     if body is not None:
         e['body'] = json.dumps(body, ensure_ascii=False)
     return invoke('api', e)
+
+
+def notif_rows(ticket_id, channel=None):
+    """티켓의 알림 발송 로그(log_notification) 조회 — 슬랙/메일 발송 여부 판정용.
+    발송은 deferNotify(비동기 Event invoke)라 응답으로 볼 수 없고 이 로그가 유일한 관찰 지점.
+    웹훅 미설정 환경에서도 status='failure' 행은 남으므로 '라우팅 결정' 자체는 검증된다."""
+    rows = dget('log_notification',
+                {'select': 'channel,event_type,recipient,status,error_message,content',
+                 'ticket_id': 'eq.' + ticket_id, 'limit': '200'}, role='admin').get('body') or []
+    return [r for r in rows if channel is None or r.get('channel') == channel]
+
+
+def wait_notif(ticket_id, channel, expect_n, settle_sec=30, grace_sec=4):
+    """비동기 알림이 expect_n건 로그에 찰 때까지 대기 후, '더 오면 안 되는' 초과 발송을
+    잡기 위해 grace만큼 더 기다렸다가 전체 행을 반환한다."""
+    import time
+    deadline = time.time() + settle_sec
+    while time.time() < deadline:
+        if len(notif_rows(ticket_id, channel)) >= expect_n:
+            break
+        time.sleep(2)
+    time.sleep(grace_sec)
+    return notif_rows(ticket_id, channel)
 
 
 def wipe_ticket(ticket_id):

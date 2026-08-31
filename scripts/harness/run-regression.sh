@@ -9,7 +9,7 @@ export PYTHONIOENCODING=utf-8
 HDIR="$(cd "$(dirname "$0")" && pwd)"
 export HARNESS_TMP="$HDIR/lib"
 
-TESTS=(test_permissions.py test_ticket_delete.py test_ticket_status.py test_customer_e2e.py test_stats_view.py test_proxy_register.py test_storage_rules.py test_auth.py)
+TESTS=(test_permissions.py test_ticket_delete.py test_ticket_status.py test_ticket_assign.py test_notify_routing.py test_customer_e2e.py test_stats_view.py test_proxy_register.py test_storage_rules.py test_auth.py)
 fail=0
 for tf in "${TESTS[@]}"; do
   echo "────────────────────────────────────────"
