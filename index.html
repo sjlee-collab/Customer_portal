@@ -3928,7 +3928,12 @@ async function enterApp(email, acct, isRestore) {
   if (rateParam >= 1 && rateParam <= 5) window._rdPendingRate = rateParam;
   if (ticketParam && sb) {
     sb.from('tickets').select('*').eq('ticket_number', ticketParam).single().then(({ data }) => {
-      if (data) showDetail(data);
+      if (data) {
+        showDetail(data);
+        // 완료 메일의 별점 링크로 들어온 경우: 상세 입력 카드는 없으므로 팝업으로 이어서 평가
+        const pre = window._rdPendingRate; window._rdPendingRate = 0;
+        if (pre >= 1 && pre <= 5) svPopupOpenFor(data, pre);
+      }
       else if (acct.role === 'customer' || acct.role === 'internal') loadTickets();
     });
   } else if (acct.role === 'customer' || acct.role === 'internal') {
@@ -10436,16 +10441,14 @@ async function selectRdTicket(idx, directTicket) {
 // ── 완료 건 만족도 조사 ─────────────────────────────
 // 입력: 완료 상태 + 요청 등록 고객 본인 + 미평가일 때만.
 // 결과: 평가가 제출된 요청이면 역할 무관 읽기 전용으로 표시(스태프 포함).
-let rdSurveyRating = 0;
+const RD_SURVEY_CAPS = { 1:'매우 불만족', 2:'불만족', 3:'보통', 4:'만족', 5:'매우 만족' };
 
 function renderRdSurvey() {
+  // 별점 입력은 홈 팝업·완료 메일 링크로만 받는다(2026-08-31 상세 입력 제거).
+  // 상세에는 제출된 결과만 읽기 전용으로 남긴다 — 스태프·고객 공통.
   const el = document.getElementById('rd-survey');
   if (!el || !rdTicket) return;
-  const rated = rdTicket.satisfaction_rating != null;
-  const isOwner = currentUser && rdTicket.created_by === currentUser.id;
-  const canRate = rdTicket.status === 'completed' && currentUser?.role === 'customer' && isOwner && !rated;
-
-  if (rated) {
+  if (rdTicket.satisfaction_rating != null) {
     const stars = '★★★★★'.slice(0, rdTicket.satisfaction_rating);
     const cmt = rdTicket.satisfaction_comment
       ? `<div class="sv-done-txt">"${escHtml(rdTicket.satisfaction_comment)}"</div>` : '';
@@ -10459,69 +10462,7 @@ function renderRdSurvey() {
     el.style.display = '';
     return;
   }
-  if (!canRate) { el.style.display = 'none'; return; }
-
-  rdSurveyRating = 0;
-  el.className = 'rd-survey';
-  el.innerHTML =
-    `<div><span class="sv-title">이번 지원은 어떠셨나요?</span>` +
-    `<span class="sv-sub">남겨주신 의견은 서비스 개선에 사용됩니다</span></div>` +
-    `<div class="sv-stars">` +
-    [1,2,3,4,5].map(v => `<button type="button" data-v="${v}" onclick="rdSurveyPick(${v})" ` +
-      `onmouseenter="rdSurveyPaint(${v})" onmouseleave="rdSurveyPaint(rdSurveyRating)" aria-label="${v}점">★</button>`).join('') +
-    `</div>` +
-    `<div class="sv-cap" id="rd-survey-cap">별점을 선택해주세요</div>` +
-    `<div class="sv-row">` +
-    `<input type="text" id="rd-survey-text" maxlength="200" placeholder="한줄평을 남겨주세요 (선택, 200자)">` +
-    `<button class="btn btn-primary btn-sm" id="rd-survey-submit" onclick="submitRdSurvey()" disabled>제출</button></div>` +
-    `<div class="sv-skip">평가는 선택 사항입니다 · 제출 후 수정할 수 없습니다</div>`;
-  el.style.display = '';
-  // 메일 별점 링크로 진입했으면 그 별점을 미리 선택(1회성)
-  const pre = window._rdPendingRate;
-  window._rdPendingRate = 0;
-  if (pre >= 1 && pre <= 5) rdSurveyPick(pre);
-}
-
-const RD_SURVEY_CAPS = { 1:'매우 불만족', 2:'불만족', 3:'보통', 4:'만족', 5:'매우 만족' };
-function rdSurveyPaint(n) {
-  document.querySelectorAll('#rd-survey .sv-stars button').forEach(b => b.classList.toggle('on', +b.dataset.v <= n));
-  const cap = document.getElementById('rd-survey-cap');
-  if (cap) cap.textContent = n ? RD_SURVEY_CAPS[n] : '별점을 선택해주세요';
-}
-function rdSurveyPick(n) {
-  rdSurveyRating = n;
-  rdSurveyPaint(n);
-  const btn = document.getElementById('rd-survey-submit');
-  if (btn) btn.disabled = false;
-}
-
-async function submitRdSurvey() {
-  if (!rdTicket || !rdSurveyRating) return;
-  const btn = document.getElementById('rd-survey-submit');
-  if (btn) btn.disabled = true;
-  const comment = (document.getElementById('rd-survey-text')?.value || '').trim();
-  try {
-    const res = await fetch(`${API_BASE}/tickets/${rdTicket.id}/rate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ rating: rdSurveyRating, comment }),
-    });
-    const j = await res.json().catch(() => null);
-    if (!res.ok) {
-      if (isAuthRejection(res.status, j)) { handleAuthExpired(); return; }
-      showToast(j?.error || '평가 제출에 실패했습니다.');
-      if (btn) btn.disabled = false;
-      return;
-    }
-    rdTicket.satisfaction_rating = j.satisfaction_rating;
-    rdTicket.satisfaction_comment = j.satisfaction_comment;
-    rdTicket.rated_at = j.rated_at;
-    renderRdSurvey();
-    showToast('평가해 주셔서 감사합니다.');
-  } catch (e) {
-    showToast('평가 제출에 실패했습니다: ' + e.message);
-    if (btn) btn.disabled = false;
-  }
+  el.style.display = 'none';
 }
 
 // ── 만족도 팝업 (고객 홈) ─────────────────────────────
@@ -10577,7 +10518,7 @@ function renderSvPopup() {
     `</div>` +
     `<div class="sv-cap" id="sv-popup-cap">별점을 선택해주세요</div>` +
     `<div class="sv-crow" id="sv-popup-crow" style="display:none;">` +
-    `<input type="text" id="sv-popup-text" maxlength="200" placeholder="한줄평을 남겨주세요 (선택, 200자)"></div>` +
+    `<input type="text" id="sv-popup-text" maxlength="200" placeholder="한줄평을 남겨주세요 (선택, 200자)" onkeydown="if(event.key==='Enter'&&!event.isComposing)submitSvPopup()"></div>` +
     `<button class="sv-submit" id="sv-popup-submit" onclick="submitSvPopup()" disabled>제출</button></div>` +
     `<div class="sv-ft"><button class="sv-later" onclick="svPopupLater()">나중에 하기</button>` +
     `<span class="sv-step">${svPopupIdx + 1} / ${svPopupQueue.length}</span></div>`;
@@ -10595,6 +10536,18 @@ function svPopupPick(n) {
   if (crow) crow.style.display = 'flex';
   const btn = document.getElementById('sv-popup-submit');
   if (btn) btn.disabled = false;
+}
+
+// 메일 별점 링크 진입용 — 해당 요청 하나만 큐에 담아 팝업을 열고, 누른 별점을 미리 선택한다.
+function svPopupOpenFor(ticket, rate) {
+  if (currentUser?.role !== 'customer') return;
+  if (!ticket || ticket.created_by !== currentUser.id) return;
+  if (ticket.status !== 'completed' || ticket.satisfaction_rating != null) return;
+  svPopupQueue = [ticket];
+  svPopupIdx = 0;
+  document.getElementById('modal-survey').style.display = 'flex';
+  renderSvPopup();
+  if (rate >= 1 && rate <= 5) svPopupPick(rate);
 }
 
 function svPopupLater() {
@@ -10628,6 +10581,13 @@ async function submitSvPopup() {
     t.satisfaction_rating = j.satisfaction_rating;
     t.satisfaction_comment = j.satisfaction_comment;
     t.rated_at = j.rated_at;
+    // 상세 패널이 같은 요청을 보여주고 있으면 읽기 전용 결과 카드를 바로 갱신
+    if (typeof rdTicket === 'object' && rdTicket && rdTicket.id === t.id) {
+      rdTicket.satisfaction_rating = j.satisfaction_rating;
+      rdTicket.satisfaction_comment = j.satisfaction_comment;
+      rdTicket.rated_at = j.rated_at;
+      renderRdSurvey();
+    }
     const hasNext = svPopupIdx < svPopupQueue.length - 1;
     const box = document.getElementById('modal-survey-box');
     box.innerHTML =
