@@ -1326,7 +1326,7 @@ textarea{resize:vertical;min-height:100px;}
               <th>카테고리</th>
               <th>긴급도</th>
               <th>상태</th>
-              <th>고객사</th><th>조직</th><th>요청자</th><th>담당자</th><th>접수일</th><th>업데이트 일자</th>
+              <th>고객사</th><th>조직</th><th>요청자</th><th data-show-roles="internal">대리등록자</th><th>담당자</th><th>접수일</th><th>업데이트 일자</th>
               <th data-show-roles="internal">완료예정일</th>
             </tr></thead>
             <tbody id="ticket-tbody">
@@ -5972,7 +5972,7 @@ function renderTickets(tickets) {
   detachSharedRequestDetail(tbody);
 
   const isCustomerRole = currentUser?.role === 'customer';
-  const colCount = isCustomerRole ? 11 : 12;
+  const colCount = isCustomerRole ? 11 : 13; // 내부일반: 대리등록자·완료예정일 컬럼 추가
 
   if (!tickets.length) {
     tbody.innerHTML = `<tr><td colspan="${colCount}" style="padding:40px;text-align:center;color:var(--faint);">등록된 요청이 없습니다.</td></tr>`;
@@ -5990,9 +5990,15 @@ function renderTickets(tickets) {
     const dueDateCell = isCustomerRole ? '' : `<td style="font-size:12px;${isDelayed ? 'color:var(--red);font-weight:600;' : 'color:var(--faint);'}">${dueDateStr ? dueDateStr + (isDelayed ? ` <span style="font-size:10px;background:#fee2e2;color:#b91c1c;padding:1px 5px;border-radius:3px;">+${overdueDays}일</span>` : '') : '—'}</td>`;
     const idx = allTickets.indexOf(t);
     // 셀 순서: 번호·제목·카테고리·긴급도·상태·고객사·조직·요청자·담당자·접수일·(완료예정일). colspan은 셀 수에서 자동.
+    // 내부일반: 대리등록자를 별도 컬럼으로 보여주므로 요청자 셀엔 [대리] 배지 없이 이름만.
+    // 고객: 컬럼이 없으니 기존 배지 방식(TICKET_CELL.requester) 유지.
+    const requesterCell = isCustomerRole ? TICKET_CELL.requester(t)
+      : `<td style="font-size:12px;">${t.requester?.name?escHtml(t.requester.name):(t.created_by_name?escHtml(t.created_by_name):'<span style="color:var(--faint);">—</span>')}</td>`;
+    const registrarCell = isCustomerRole ? ''
+      : `<td style="font-size:12px;">${t.registered_by_name?escHtml(t.registered_by_name):'<span style="color:var(--faint);">—</span>'}</td>`;
     const cells = [
       numCell, TICKET_CELL.title(t), TICKET_CELL.category(t), TICKET_CELL.priority(t), TICKET_CELL.status(t),
-      TICKET_CELL.company(t), TICKET_CELL.org(t), TICKET_CELL.requester(t), TICKET_CELL.assignee(t),
+      TICKET_CELL.company(t), TICKET_CELL.org(t), requesterCell, registrarCell, TICKET_CELL.assignee(t),
       TICKET_CELL.created(t), TICKET_CELL.updated(t), dueDateCell,
     ].filter(Boolean);
     const span = cells.length;
