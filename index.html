@@ -345,22 +345,6 @@ button,input,select,textarea{font-family:inherit;}
 .rd-hist-sum .h-pre{flex:none;margin-right:4px;}
 .rd-hist-sum .h-tail{flex:none;white-space:nowrap;margin-left:4px;}
 .rd-hist-sum .h-who{color:var(--text);font-weight:700;}
-/* 완료 건 만족도 조사 — 요청 등록 고객이 완료 후 1회 제출. 제출 전엔 인디고 톤, 제출 후엔 그린 톤. */
-.rd-survey{margin-top:13px;border:1px solid var(--accent-m);background:var(--accent-l);border-radius:var(--r-md);padding:13px 15px;}
-.rd-survey.done{border-color:#A7F3D0;background:var(--green-l);}
-.rd-survey .sv-title{font-size:13px;font-weight:700;color:var(--text);}
-.rd-survey .sv-sub{font-size:11.5px;color:var(--muted);margin-left:7px;}
-.rd-survey .sv-stars{display:flex;gap:4px;margin:9px 0 3px;}
-.rd-survey .sv-stars button{all:unset;cursor:pointer;font-size:25px;line-height:1;color:#D1D5DB;transition:transform .08s;}
-.rd-survey .sv-stars button.on{color:#F59E0B;}
-.rd-survey .sv-stars button:hover{transform:scale(1.15);}
-.rd-survey .sv-cap{font-size:11.5px;color:var(--muted);min-height:17px;}
-.rd-survey .sv-row{display:flex;gap:8px;margin-top:8px;}
-.rd-survey .sv-row input{flex:1;min-width:0;}
-.rd-survey .sv-skip{font-size:11px;color:var(--faint);margin-top:6px;}
-.rd-survey .sv-done-stars{font-size:15px;color:#F59E0B;letter-spacing:2px;}
-.rd-survey .sv-done-txt{font-size:12.5px;color:var(--text);margin-top:3px;}
-.rd-survey .sv-done-meta{font-size:11px;color:var(--muted);margin-top:2px;}
 /* 만족도 팝업 (고객 홈) — 상세의 평가 카드와 같은 별점 UI를 모달로 */
 #modal-survey-box .sv-hd{padding:18px 22px 0;text-align:center;}
 #modal-survey-box .sv-done-badge{display:inline-block;font-size:10.5px;font-weight:700;color:var(--green);background:var(--green-l);border:1px solid #A7F3D0;border-radius:999px;padding:2px 10px;}
@@ -1649,8 +1633,6 @@ textarea{resize:vertical;min-height:100px;}
                     </div>
                     <!-- 고객 문의 내용 -->
                     <div style="background:var(--surface2);border-radius:var(--r-md);padding:10px 12px;font-size:13px;line-height:1.7;word-break:break-all;overflow-wrap:break-word;white-space:pre-wrap;" id="rd-description">—</div>
-                    <!-- 완료 건 만족도 조사 (요청 등록 고객 전용 입력 / 그 외에는 제출된 결과만) -->
-                    <div id="rd-survey" style="display:none;"></div>
                     <!-- 첨부 파일 -->
                     <div id="rd-attachments-card" style="display:none;margin-top:13px;">
                       <div onclick="toggleRdAttachments()" style="cursor:pointer;font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
@@ -10454,10 +10436,6 @@ async function selectRdTicket(idx, directTicket) {
   const replyInput = document.getElementById('rd-customer-reply');
   if (replyInput) replyInput.value = '';
 
-  // 만족도 카드는 created_by·평가값이 필요한 전체 재조회 후에만 그린다
-  const surveyEl = document.getElementById('rd-survey');
-  if (surveyEl) surveyEl.style.display = 'none';
-
   const historyBox = document.getElementById('rd-history');
   if (historyBox) historyBox.style.display = 'none';
   const memoBody = document.getElementById('rd-memo-body');
@@ -10484,7 +10462,6 @@ async function selectRdTicket(idx, directTicket) {
       if (dueDateValue) dueDateValue.textContent = rdTicket.due_date ? rdTicket.due_date.slice(0, 10) : '—';
       const isOwner = currentUser && rdTicket.created_by === currentUser.id;
       if (ownerEditBtn) ownerEditBtn.style.display = isOwner ? '' : 'none';
-      renderRdSurvey();
       await renderRdContract(rdTicket, contractValueEl);
     }
   }
@@ -10495,27 +10472,7 @@ async function selectRdTicket(idx, directTicket) {
 // 결과: 평가가 제출된 요청이면 역할 무관 읽기 전용으로 표시(스태프 포함).
 const RD_SURVEY_CAPS = { 1:'매우 불만족', 2:'불만족', 3:'보통', 4:'만족', 5:'매우 만족' };
 
-function renderRdSurvey() {
-  // 별점 입력은 홈 팝업·완료 메일 링크로만 받는다(2026-08-31 상세 입력 제거).
-  // 상세에는 제출된 결과만 읽기 전용으로 남긴다 — 스태프·고객 공통.
-  const el = document.getElementById('rd-survey');
-  if (!el || !rdTicket) return;
-  if (rdTicket.satisfaction_rating != null) {
-    const stars = '★★★★★'.slice(0, rdTicket.satisfaction_rating);
-    const cmt = rdTicket.satisfaction_comment
-      ? `<div class="sv-done-txt">"${escHtml(rdTicket.satisfaction_comment)}"</div>` : '';
-    el.className = 'rd-survey done';
-    el.innerHTML =
-      `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">` +
-      `<span class="sv-title">고객 만족도</span><span class="sv-done-stars">${stars}</span>` +
-      `<span style="font-size:11.5px;color:var(--muted);">${rdTicket.satisfaction_rating}점</span></div>` +
-      cmt +
-      `<div class="sv-done-meta">${fmtTime(rdTicket.rated_at)} 제출</div>`;
-    el.style.display = '';
-    return;
-  }
-  el.style.display = 'none';
-}
+
 
 // ── 만족도 팝업 (고객 홈) ─────────────────────────────
 // 홈 진입 시 '완료 + 미평가 + 본인 등록 + 완료 후 14일 이내' 요청을 최근 순으로
@@ -10633,13 +10590,6 @@ async function submitSvPopup() {
     t.satisfaction_rating = j.satisfaction_rating;
     t.satisfaction_comment = j.satisfaction_comment;
     t.rated_at = j.rated_at;
-    // 상세 패널이 같은 요청을 보여주고 있으면 읽기 전용 결과 카드를 바로 갱신
-    if (typeof rdTicket === 'object' && rdTicket && rdTicket.id === t.id) {
-      rdTicket.satisfaction_rating = j.satisfaction_rating;
-      rdTicket.satisfaction_comment = j.satisfaction_comment;
-      rdTicket.rated_at = j.rated_at;
-      renderRdSurvey();
-    }
     const hasNext = svPopupIdx < svPopupQueue.length - 1;
     const box = document.getElementById('modal-survey-box');
     box.innerHTML =
