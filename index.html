@@ -361,6 +361,26 @@ button,input,select,textarea{font-family:inherit;}
 .rd-survey .sv-done-stars{font-size:15px;color:#F59E0B;letter-spacing:2px;}
 .rd-survey .sv-done-txt{font-size:12.5px;color:var(--text);margin-top:3px;}
 .rd-survey .sv-done-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+/* 만족도 팝업 (고객 홈) — 상세의 평가 카드와 같은 별점 UI를 모달로 */
+#modal-survey-box .sv-hd{padding:18px 22px 0;text-align:center;}
+#modal-survey-box .sv-done-badge{display:inline-block;font-size:10.5px;font-weight:700;color:var(--green);background:var(--green-l);border:1px solid #A7F3D0;border-radius:999px;padding:2px 10px;}
+#modal-survey-box .sv-h{font-size:15.5px;font-weight:800;margin-top:9px;}
+#modal-survey-box .sv-tk{font-size:11.5px;color:var(--muted);margin-top:3px;}
+#modal-survey-box .sv-tk b{color:var(--text);}
+#modal-survey-box .sv-bd{padding:8px 22px 20px;text-align:center;}
+#modal-survey-box .sv-stars{display:flex;justify-content:center;gap:6px;margin:13px 0 4px;}
+#modal-survey-box .sv-stars button{all:unset;cursor:pointer;font-size:31px;line-height:1;color:#D1D5DB;transition:transform .08s;}
+#modal-survey-box .sv-stars button.on{color:#F59E0B;}
+#modal-survey-box .sv-stars button:hover{transform:scale(1.15);}
+#modal-survey-box .sv-cap{font-size:11.5px;color:var(--muted);min-height:18px;}
+#modal-survey-box .sv-crow{display:flex;gap:8px;margin-top:11px;}
+#modal-survey-box .sv-crow input{flex:1;min-width:0;padding:8px 12px;border:1px solid var(--border-md);border-radius:8px;font-size:12.5px;font-family:inherit;background:var(--surface2);color:var(--text);outline:none;}
+#modal-survey-box .sv-submit{margin-top:12px;width:100%;padding:10px 0;border:none;border-radius:9px;background:var(--accent);color:#fff;font-size:13px;font-weight:750;font-family:inherit;cursor:pointer;}
+#modal-survey-box .sv-submit:disabled{opacity:.4;cursor:default;}
+#modal-survey-box .sv-ft{display:flex;align-items:center;justify-content:center;gap:14px;padding:0 22px 16px;}
+#modal-survey-box .sv-later{all:unset;cursor:pointer;font-size:11.5px;color:var(--faint);text-decoration:underline;}
+#modal-survey-box .sv-step{font-size:10.5px;color:var(--faint);}
+#modal-survey-box .sv-done-stars{color:#F59E0B;font-size:19px;letter-spacing:3px;margin-top:6px;}
 .cu-preset:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 .cu-preset[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;}
 .cu-preset .dot{width:7px;height:7px;border-radius:50%;flex:none;}
@@ -3222,6 +3242,10 @@ textarea{resize:vertical;min-height:100px;}
 </div>
 
 <!-- 접수 완료 toast -->
+<!-- 완료 건 만족도 팝업 — 고객 홈 진입 시 미평가 완료 건이 있으면 1회 노출 -->
+<div id="modal-survey" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.35);align-items:center;justify-content:center;" onclick="if(event.target===this)svPopupLater()">
+  <div id="modal-survey-box" style="background:var(--surface);border-radius:14px;width:360px;max-width:calc(100vw - 40px);box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden;"></div>
+</div>
 <div id="toast" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:12px 20px;border-radius:var(--r-md);font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.25);">
   ✅ SR-2024-0045 접수 완료 — 확인 메일이 발송되었습니다.
 </div>
@@ -5563,12 +5587,13 @@ async function loadDashboard() {
 
     // 최근 요청 테이블
     const { data: recent } = await applyFilter(sb.from('tickets')
-      .select('id, ticket_number, title, category, unit_name, status, created_at, updated_at'))
+      .select('id, ticket_number, title, category, unit_name, status, created_at, updated_at, created_by, satisfaction_rating'))
       .order('created_at', { ascending: false }).limit(200);
     dashRecentTickets = recent || [];
     window._dashRecentFilter = window._dashRecentFilter || 'all';
     updateDashRecentCardStyles();
     renderDashRecentTable(window._dashRecentFilter);
+    maybeShowSurveyPopup();
 
   } else if (ADMIN_ROLES.has(role)) {
     const todayStart = new Date(); todayStart.setHours(0,0,0,0);
@@ -10498,6 +10523,132 @@ async function submitRdSurvey() {
     if (btn) btn.disabled = false;
   }
 }
+
+// ── 만족도 팝업 (고객 홈) ─────────────────────────────
+// 홈 진입 시 '완료 + 미평가 + 본인 등록 + 완료 후 14일 이내' 요청을 최근 순으로
+// 한 건씩 묻는다. 재노출은 요청당 3회까지(localStorage), '나중에'는 이번
+// 로그인(sessionStorage) 동안 숨김. 제출은 상세의 평가 카드와 같은 API를 쓴다.
+const SV_POPUP_MAX_PROMPTS = 3;      // 요청당 재노출 상한
+const SV_POPUP_WINDOW_DAYS = 14;     // 완료 후 이 기간이 지나면 묻지 않음
+let svPopupQueue = [];
+let svPopupIdx = 0;
+let svPopupRating = 0;
+
+function _svPromptCount(id) {
+  try { return parseInt(localStorage.getItem('svPromptCount:' + id), 10) || 0; } catch (_) { return 0; }
+}
+function _svBumpPrompt(id) {
+  try { localStorage.setItem('svPromptCount:' + id, String(_svPromptCount(id) + 1)); } catch (_) {}
+}
+
+function maybeShowSurveyPopup() {
+  if (currentUser?.role !== 'customer') return;
+  // 메일 별점 링크(?ticket=)로 들어온 경우엔 상세가 바로 열리므로 팝업을 겹치지 않는다
+  if (new URLSearchParams(window.location.search).get('ticket')) return;
+  try { if (sessionStorage.getItem('svPopupDismissed') === '1') return; } catch (_) {}
+  const cutoff = Date.now() - SV_POPUP_WINDOW_DAYS * 86400000;
+  svPopupQueue = (dashRecentTickets || []).filter(t =>
+    t.status === 'completed' &&
+    t.satisfaction_rating == null &&
+    t.created_by === currentUser.id &&
+    t.updated_at && new Date(t.updated_at).getTime() >= cutoff &&
+    _svPromptCount(t.id) < SV_POPUP_MAX_PROMPTS
+  ).sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+  if (!svPopupQueue.length) return;
+  svPopupIdx = 0;
+  document.getElementById('modal-survey').style.display = 'flex';
+  renderSvPopup();
+}
+
+function renderSvPopup() {
+  const t = svPopupQueue[svPopupIdx];
+  if (!t) { svPopupClose(); return; }
+  _svBumpPrompt(t.id);
+  svPopupRating = 0;
+  const box = document.getElementById('modal-survey-box');
+  box.innerHTML =
+    `<div class="sv-hd"><span class="sv-done-badge">완료</span>` +
+    `<div class="sv-h">완료된 요청은 어떠셨나요?</div>` +
+    `<div class="sv-tk"><b>${escHtml(t.ticket_number || '')}</b> · ${escHtml(t.title || '')}</div></div>` +
+    `<div class="sv-bd">` +
+    `<div class="sv-stars">` +
+    [1,2,3,4,5].map(v => `<button type="button" data-v="${v}" onclick="svPopupPick(${v})" ` +
+      `onmouseenter="svPopupPaint(${v})" onmouseleave="svPopupPaint(svPopupRating)" aria-label="${v}점">★</button>`).join('') +
+    `</div>` +
+    `<div class="sv-cap" id="sv-popup-cap">별점을 선택해주세요</div>` +
+    `<div class="sv-crow" id="sv-popup-crow" style="display:none;">` +
+    `<input type="text" id="sv-popup-text" maxlength="200" placeholder="한줄평을 남겨주세요 (선택, 200자)"></div>` +
+    `<button class="sv-submit" id="sv-popup-submit" onclick="submitSvPopup()" disabled>제출</button></div>` +
+    `<div class="sv-ft"><button class="sv-later" onclick="svPopupLater()">나중에 하기</button>` +
+    `<span class="sv-step">${svPopupIdx + 1} / ${svPopupQueue.length}</span></div>`;
+}
+
+function svPopupPaint(n) {
+  document.querySelectorAll('#modal-survey-box .sv-stars button').forEach(b => b.classList.toggle('on', +b.dataset.v <= n));
+  const cap = document.getElementById('sv-popup-cap');
+  if (cap) cap.textContent = n ? RD_SURVEY_CAPS[n] : '별점을 선택해주세요';
+}
+function svPopupPick(n) {
+  svPopupRating = n;
+  svPopupPaint(n);
+  const crow = document.getElementById('sv-popup-crow');
+  if (crow) crow.style.display = 'flex';
+  const btn = document.getElementById('sv-popup-submit');
+  if (btn) btn.disabled = false;
+}
+
+function svPopupLater() {
+  try { sessionStorage.setItem('svPopupDismissed', '1'); } catch (_) {}
+  svPopupClose();
+}
+function svPopupClose() {
+  document.getElementById('modal-survey').style.display = 'none';
+}
+
+async function submitSvPopup() {
+  const t = svPopupQueue[svPopupIdx];
+  if (!t || !svPopupRating) return;
+  const btn = document.getElementById('sv-popup-submit');
+  if (btn) btn.disabled = true;
+  const comment = (document.getElementById('sv-popup-text')?.value || '').trim();
+  try {
+    const res = await fetch(`${API_BASE}/tickets/${t.id}/rate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ rating: svPopupRating, comment }),
+    });
+    const j = await res.json().catch(() => null);
+    if (!res.ok) {
+      if (isAuthRejection(res.status, j)) { handleAuthExpired(); return; }
+      showToast(j?.error || '평가 제출에 실패했습니다.');
+      if (btn) btn.disabled = false;
+      return;
+    }
+    // 홈 목록·상세가 같은 객체를 쓰므로 즉시 반영
+    t.satisfaction_rating = j.satisfaction_rating;
+    t.satisfaction_comment = j.satisfaction_comment;
+    t.rated_at = j.rated_at;
+    const hasNext = svPopupIdx < svPopupQueue.length - 1;
+    const box = document.getElementById('modal-survey-box');
+    box.innerHTML =
+      `<div class="sv-hd"><div style="font-size:34px;margin-top:6px;">🙏</div>` +
+      `<div class="sv-h">평가해 주셔서 감사합니다</div>` +
+      `<div class="sv-done-stars">${'★★★★★'.slice(0, svPopupRating)}</div></div>` +
+      `<div class="sv-bd">` +
+      (comment ? `<div class="sv-cap">"${escHtml(comment)}"</div>` : '') +
+      (hasNext ? `<button class="sv-submit" onclick="svPopupIdx++;renderSvPopup()">다음 요청 평가하기 (${svPopupIdx + 2}/${svPopupQueue.length})</button>` : '') +
+      `</div>` +
+      `<div class="sv-ft"><button class="sv-later" onclick="svPopupClose()">닫기</button></div>`;
+  } catch (e) {
+    showToast('평가 제출에 실패했습니다: ' + e.message);
+    if (btn) btn.disabled = false;
+  }
+}
+
+// ESC로 닫기 — '나중에'와 동일 처리
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.getElementById('modal-survey')?.style.display === 'flex') svPopupLater();
+});
 
 // 사이드바 "연동 계약" — 조직명 대신 실제 계약건을 표시한다.
 // 만료(status='만료') 계약은 제외하고 현재 유효한 계약만 보여준다.
