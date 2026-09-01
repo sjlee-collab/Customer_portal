@@ -135,13 +135,14 @@ function surveyBlockHtml(ticketNumber) {
   if (!PORTAL_URL) return '';
   const star = (n) =>
     `<a href="${PORTAL_URL}?ticket=${ticketNumber}&rate=${n}" style="display:inline-block;font-size:30px;line-height:1;color:#F59E0B;text-decoration:none;padding:0 3px;">&#9733;</a>`;
-  const url = `${PORTAL_URL}?ticket=${ticketNumber}`;
+  // survey=1: 프론트가 상세 대신 홈에서 평가 팝업(별점 미선택)을 연다
+  const url = `${PORTAL_URL}?ticket=${ticketNumber}&survey=1`;
   return `<div style="margin-top:22px;border-top:1px solid #E5E7EB;padding-top:18px;text-align:center;">
     <div style="font-size:14px;font-weight:700;color:#111827;">이번 지원은 어떠셨나요?</div>
     <div style="font-size:12px;color:#6B7280;margin-top:3px;">별점을 누르면 포탈에서 평가가 이어집니다</div>
     <div style="margin:12px 0 4px;">${[1,2,3,4,5].map(star).join('')}</div>
     <div style="font-size:11px;color:#9CA3AF;">매우 불만족 &#8592; &#8594; 매우 만족</div>
-    <a class="btn" href="${url}" style="display:inline-block;margin-top:16px;padding:11px 24px;background:#534AB7;color:#fff;border-radius:6px;text-decoration:none;font-size:13px;font-weight:700;">요청 확인하고 평가하기</a>
+    <a class="btn" href="${url}" style="display:inline-block;margin-top:16px;padding:11px 24px;background:#534AB7;color:#fff;border-radius:6px;text-decoration:none;font-size:13px;font-weight:700;">별점 남기기</a>
   </div>`;
 }
 
