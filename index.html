@@ -1594,6 +1594,7 @@ textarea{resize:vertical;min-height:100px;}
                 <button class="th-filter-btn" onclick="toggleArFilterPop(this,'requester')">요청자 <span class="th-filter-caret">▾</span></button>
                 <div class="th-filter-pop" id="ar-pop-requester"><div class="th-filter-empty">불러오는 중...</div></div>
               </th>
+              <th style="padding:8px 12px;">대리등록자</th>
               <th>
                 <button class="th-filter-btn" onclick="toggleArFilterPop(this,'assignee')">담당자 <span class="th-filter-caret">▾</span></button>
                 <div class="th-filter-pop" id="ar-pop-assignee"><div class="th-filter-empty">불러오는 중...</div></div>
@@ -1604,7 +1605,7 @@ textarea{resize:vertical;min-height:100px;}
               <th style="padding:8px 12px;width:80px;">액션</th>
             </tr></thead>
             <tbody id="ar-tbody">
-              <tr><td colspan="13" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
+              <tr><td colspan="14" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
             </tbody>
           </table></div>
           <div style="padding:12px 18px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:flex-end;gap:10px;background:var(--surface2);flex-shrink:0;">
@@ -10343,10 +10344,10 @@ async function loadAllTickets(silent = false) {
   const tbody = document.getElementById('ar-tbody');
   if (!tbody) return;
   detachSharedRequestDetail(tbody);
-  if (!silent) tbody.innerHTML = '<tr><td colspan="13" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>';
+  if (!silent) tbody.innerHTML = '<tr><td colspan="14" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>';
 
   if (!sb) {
-    if (!silent) tbody.innerHTML = '<tr><td colspan="13" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">DB 연결 없음</td></tr>';
+    if (!silent) tbody.innerHTML = '<tr><td colspan="14" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">DB 연결 없음</td></tr>';
     return;
   }
 
@@ -10454,7 +10455,7 @@ function renderAllTickets() {
   if (pageCount) pageCount.textContent = totalPages;
 
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="13" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">조건에 맞는 요청이 없습니다.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="14" style="padding:24px;text-align:center;color:var(--faint);font-size:13px;">조건에 맞는 요청이 없습니다.</td></tr>';
     return;
   }
   tbody.innerHTML = pageList.map((t) => {
@@ -10466,9 +10467,13 @@ function renderAllTickets() {
     const canDelete = !!permState[currentUser?.role]?.ticket_delete;
     const delBtn = canDelete ? `<button class="btn btn-sm" style="font-size:11px;margin-left:4px;border:1px solid #f0a9a9;color:#dc2626;background:transparent;" onclick="event.stopPropagation();deleteTicketFlow('${t.id}','${escHtml(t.ticket_number||'')}','manage')">삭제</button>` : '';
     const actionCell = `<td style="white-space:nowrap;"><button class="btn btn-primary btn-sm" style="font-size:11px;" onclick="event.stopPropagation();openManage(${idx})">처리</button>${delBtn}</td>`;
+    // 요청 관리 전용: 대리등록자를 별도 컬럼으로 보여주므로 요청자 셀엔 [대리] 배지를 붙이지 않는다
+    // (요청 탭은 이 컬럼이 없어 기존 배지 유지 — TICKET_CELL.requester 그대로 사용).
+    const requesterCell = `<td style="font-size:12px;">${t.requester?.name?escHtml(t.requester.name):(t.created_by_name?escHtml(t.created_by_name):'<span style="color:var(--faint);">—</span>')}</td>`;
+    const registrarCell = `<td style="font-size:12px;">${t.registered_by_name?escHtml(t.registered_by_name):'<span style="color:var(--faint);">—</span>'}</td>`;
     const cells = [
       numCell, TICKET_CELL.title(t), TICKET_CELL.category(t), TICKET_CELL.priority(t), TICKET_CELL.status(t),
-      TICKET_CELL.company(t), TICKET_CELL.org(t), TICKET_CELL.requester(t), TICKET_CELL.assignee(t),
+      TICKET_CELL.company(t), TICKET_CELL.org(t), requesterCell, registrarCell, TICKET_CELL.assignee(t),
       TICKET_CELL.created(t), TICKET_CELL.updated(t), dueCell, actionCell,
     ];
     const span = cells.length;
