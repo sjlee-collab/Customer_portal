@@ -3577,7 +3577,7 @@ async function deleteTicketFlow(ticketId, ticketNumber, ctx) {
   } catch (_) { /* S3 제거 실패해도 DB 삭제는 진행(고아 객체는 수동 정리) */ }
   // 2) DB 삭제(트랜잭션)
   const { error } = await apiDeleteTicket(ticketId);
-  if (error) { showToast('삭제 실패: ' + error.message, true); return; }
+  if (error) { showToast('삭제 실패: ' + koDbError(error.message), true); return; }
   showToast('✅ 요청이 삭제됐습니다.');
   // 3) 화면 갱신
   if (ctx === 'detail') {
@@ -4838,7 +4838,7 @@ async function deleteDocument(id, title) {
     await sb.storage.from('documents').remove([doc.storage_path]);
   }
   const { error } = await sb.from('content_documents').delete().eq('id', id);
-  if (error) { showToast('삭제 실패: ' + error.message, true); return; }
+  if (error) { showToast('삭제 실패: ' + koDbError(error.message), true); return; }
   showToast('✅ 삭제됐습니다.');
   loadDocuments();
 }
@@ -5300,7 +5300,7 @@ async function submitNotice() {
 
 async function deleteNotice(id, title) {
   const { error } = await sb.from('content_notices').delete().eq('id', id);
-  if (error) { showToast('삭제 실패: ' + error.message, true); return; }
+  if (error) { showToast('삭제 실패: ' + koDbError(error.message), true); return; }
   showToast('삭제됐습니다.');
   loadNotices();
   const noticeModal = document.getElementById('modal-notices');
@@ -6372,6 +6372,25 @@ function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+// DB 오류(영문)를 사용자용 한글 안내로 변환 — 삭제 차단(FK 참조) 오류가 대부분이다.
+// 예: update or delete on table "company_contracts" violates foreign key constraint
+//     "users_contract_id_fkey" on table "users"  →  "연결된 사용자 데이터가 있어 삭제할 수 없습니다..."
+// 매칭 안 되는 오류는 원문을 그대로 보여준다(디버깅 정보 보존).
+const FK_TABLE_KO = {
+  company_licenses: '라이선스', users: '사용자', tickets: '요청', company_contracts: '계약',
+  ticket_replies: '답글', ticket_history: '처리 이력', ticket_attachments: '첨부파일', ticket_memos: '메모',
+  role_permissions: '권한 설정', log_notification: '알림 로그',
+  user_org_units: '조직 배정', org_units: '조직', content_documents: '자료',
+};
+function koDbError(msg) {
+  const m = /violates foreign key constraint "[^"]*" on table "([^"]+)"/.exec(msg || '');
+  if (m) {
+    const ko = FK_TABLE_KO[m[1]] || m[1];
+    return `연결된 ${ko} 데이터가 있어 삭제할 수 없습니다. 해당 ${ko}의 연결을 먼저 정리(해제·이동·삭제)한 뒤 다시 시도하세요.`;
+  }
+  return msg;
+}
+
 // ══════════════════════════════════════════
 //  고객사 관리
 // ══════════════════════════════════════════
@@ -7363,7 +7382,7 @@ async function deleteContract(id, filePath) {
   if (!confirm('계약 정보를 삭제하시겠습니까?')) return;
   if (filePath) await sb.storage.from('contract-attachments').remove([filePath]);
   const { error } = await sb.from('company_contracts').delete().eq('id', id);
-  if (error) { showToast('삭제 실패: ' + error.message, true); return; }
+  if (error) { showToast('삭제 실패: ' + koDbError(error.message), true); return; }
   showToast('삭제되었습니다.');
   loadCompanyContracts();
 }
@@ -7496,7 +7515,7 @@ async function deleteLicenseGroup(ids, filePaths) {
   if (filePaths.length) await sb.storage.from('contract-attachments').remove(filePaths);
   const results = await Promise.all(ids.map(id => sb.from('company_licenses').delete().eq('id', id)));
   const error = results.find(r => r.error)?.error;
-  if (error) { showToast('삭제 실패: ' + error.message, true); return; }
+  if (error) { showToast('삭제 실패: ' + koDbError(error.message), true); return; }
   showToast('삭제되었습니다.');
   loadCompanyLicenses();
 }
@@ -9242,7 +9261,7 @@ async function retryNotify(id) {
 async function deleteCompany(id, name) {
   if (!confirm(name + ' 고객사를 삭제하시겠습니까?')) return;
   const { error } = await sb.from('companies').delete().eq('id', id);
-  if (error) { showToast('삭제 실패: ' + error.message, true); return; }
+  if (error) { showToast('삭제 실패: ' + koDbError(error.message), true); return; }
   showToast('✅ ' + name + ' 삭제 완료');
   await loadCompanies();
 }
@@ -9665,7 +9684,7 @@ async function resetUserPassword(id, name) {
 async function deleteUser(id, name) {
   if (!confirm(name + ' 사용자를 삭제하시겠습니까?')) return;
   const { error } = await sb.from('users').delete().eq('id', id);
-  if (error) { showToast('삭제 실패: ' + error.message, true); return; }
+  if (error) { showToast('삭제 실패: ' + koDbError(error.message), true); return; }
   showToast('✅ ' + name + ' 삭제 완료');
   await loadUsers();
 }
@@ -10750,7 +10769,7 @@ async function loadRdAttachments() {
 async function rdDeleteAttachment(attId, storagePath) {
   if (!confirm('첨부파일을 삭제하시겠습니까?')) return;
   const { error } = await sb.from('ticket_attachments').delete().eq('id', attId);
-  if (error) { showToast('삭제 실패: ' + error.message, true); return; }
+  if (error) { showToast('삭제 실패: ' + koDbError(error.message), true); return; }
   await sb.storage.from('ticket-attachments').remove([storagePath]);
   showToast('삭제되었습니다.');
   loadRdAttachments();
@@ -10987,7 +11006,7 @@ async function deleteMessage(historyId) {
   if (!sb) return;
   if (!confirm('이 답글을 삭제하시겠습니까?')) return;
   const { error } = await sb.from('ticket_replies').delete().eq('id', historyId);
-  if (error) { showToast('삭제 실패: ' + error.message, true); return; }
+  if (error) { showToast('삭제 실패: ' + koDbError(error.message), true); return; }
   await Promise.all([loadRdMessages(), loadRdHistory()]);
   showToast('✅ 삭제됐습니다.');
 }
@@ -11086,7 +11105,7 @@ async function deleteMemo(memoId) {
   if (!sb) return;
   if (!confirm('이 메모를 삭제하시겠습니까?')) return;
   const { error } = await sb.from('ticket_memos').delete().eq('id', memoId);
-  if (error) { showToast('삭제 실패: ' + error.message, true); return; }
+  if (error) { showToast('삭제 실패: ' + koDbError(error.message), true); return; }
   await loadRdMemos();
   showToast('✅ 메모가 삭제됐습니다.');
 }
