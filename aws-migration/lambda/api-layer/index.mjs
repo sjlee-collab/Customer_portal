@@ -267,7 +267,10 @@ async function createTicket(body, event) {
 
   // 내부 검토(is_internal) — 대리 등록 경로에서만 허용. 고객 화면(목록/상세/자식행)에서
   // 완전 은닉되고(data-api 필터), 고객 메일도 발송하지 않는다(notifyForCreate/Status).
-  const isInternal = isProxy && body.internal_review === true;
+  // ⚠️ 반드시 boolean으로 강제 — isProxy는 `X && body.on_behalf_of && ...` 형태라 스태프의
+  // 일반 요청(on_behalf_of 없음)에서 undefined가 되고, 그대로 insert에 넣으면 NULL이 되어
+  // not-null 제약 위반으로 등록 전체가 실패한다(2026-08-28 실제 발생).
+  const isInternal = !!(isProxy && body.internal_review === true);
 
   const inserted = await query(
     `insert into tickets (title, category, description, status, priority, product, created_by, created_by_name, company_id, company_name, contract_id, unit_id, unit_name, assigned_to, assigned_to_name, registered_by, registered_by_name, is_internal)
