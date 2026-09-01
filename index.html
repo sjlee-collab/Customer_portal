@@ -368,6 +368,24 @@ button,input,select,textarea{font-family:inherit;}
 /* 답글 입력창 크기조절 그립 — 브라우저 기본 손잡이(8px 회색 삼각형)가 눈에 안 띄어
    포탈 색 대각선 그립으로 교체한다. 기본 손잡이 숨김은 크롬·엣지에서만 적용되고
    다른 브라우저는 기본 모양 위에 그립이 겹쳐 보인다(동작은 동일). */
+.co-tabs{display:flex;gap:2px;border-bottom:1px solid var(--border-md);margin:2px 0 14px;}
+.co-tab{all:unset;cursor:pointer;padding:7px 15px 8px;font-size:12.5px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .12s;}
+.co-tab:hover{color:var(--text);}
+.co-tab.on{color:var(--accent);font-weight:700;border-bottom-color:var(--accent);}
+.co-tab .cnt{font-size:11px;color:var(--faint);margin-left:3px;}
+.co-tab.on .cnt{color:var(--accent-m);}
+table.co-org{width:100%;border-collapse:collapse;font-size:12px;}
+table.co-org th{text-align:left;font-size:10.5px;color:var(--muted);font-weight:600;padding:8px 10px;background:var(--surface2);border-bottom:1px solid var(--border);white-space:nowrap;}
+table.co-org td{padding:9px 10px;border-bottom:1px solid var(--border);}
+table.co-org tr:last-child td{border-bottom:0;}
+.co-org-toggle{all:unset;cursor:pointer;color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;}
+.co-org-toggle:hover{text-decoration:underline;}
+tr.co-org-sub>td{background:var(--surface2);padding:0 10px;}
+.co-org-uitem{display:flex;align-items:center;gap:10px;padding:7px 8px 7px 24px;font-size:11.5px;border-top:1px dashed var(--border-md);}
+.co-org-uitem:first-child{border-top:0;}
+.co-org-uitem .nm{font-weight:700;min-width:60px;}
+.co-org-uitem .em{color:var(--muted);}
+.co-org-uitem .lg{margin-left:auto;color:var(--faint);font-size:10.5px;font-variant-numeric:tabular-nums;white-space:nowrap;}
 .gripwrap{position:relative;}
 .gripwrap textarea::-webkit-resizer{display:none;}
 .gripwrap .grip-ico{position:absolute;right:3px;bottom:5px;width:16px;height:16px;pointer-events:none;
@@ -1778,17 +1796,43 @@ textarea{resize:vertical;min-height:100px;}
               <span class="badge b-accent" id="company-detail-status"></span>
             </div>
 
-            <!-- 계약 및 라이선스 (계약별로 매핑된 라이선스를 함께 표시) -->
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-              <div>
-                <div style="font-size:13px;font-weight:700;">계약 및 라이선스</div>
-                <div style="font-size:11px;color:var(--faint);margin-top:2px;">계약(사업부)별로 매핑된 라이선스를 함께 확인합니다</div>
-              </div>
-              <div style="display:flex;gap:8px;">
-                <button class="btn btn-outline btn-sm" onclick="openContractModal()">+ 계약정보 입력</button>
-              </div>
+            <!-- 상세 탭: 계약 및 라이선스 / 조직 -->
+            <div class="co-tabs">
+              <button class="co-tab on" id="co-tab-ct" onclick="switchCompanyTab('ct')">계약 및 라이선스</button>
+              <button class="co-tab" id="co-tab-org" onclick="switchCompanyTab('org')">조직 <span class="cnt" id="co-tab-org-cnt"></span></button>
             </div>
-            <div id="contract-license-groups" style="margin-top:14px;">불러오는 중...</div>
+
+            <!-- 탭 1: 계약 및 라이선스 (기존 그대로) -->
+            <div id="co-pane-ct">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                <div>
+                  <div style="font-size:13px;font-weight:700;">계약 및 라이선스</div>
+                  <div style="font-size:11px;color:var(--faint);margin-top:2px;">계약(사업부)별로 매핑된 라이선스를 함께 확인합니다</div>
+                </div>
+                <div style="display:flex;gap:8px;">
+                  <button class="btn btn-outline btn-sm" onclick="openContractModal()">+ 계약정보 입력</button>
+                </div>
+              </div>
+              <div id="contract-license-groups" style="margin-top:14px;">불러오는 중...</div>
+            </div>
+
+            <!-- 탭 2: 조직 — 생성·이름 변경·삭제는 여기서만 (계약 모달은 선택 전용) -->
+            <div id="co-pane-org" style="display:none;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                <div>
+                  <div style="font-size:13px;font-weight:700;">조직 <span style="font-weight:400;color:var(--faint);font-size:11px;">(사업부/부서/팀)</span></div>
+                  <div style="font-size:11px;color:var(--faint);margin-top:2px;">계약·사용자·요청이 걸린 조직은 삭제할 수 없습니다</div>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="toggleOrgAddRow()">＋ 조직 추가</button>
+              </div>
+              <div id="co-org-add" style="display:none;margin:10px 0 4px;padding:10px 12px;border:1px solid var(--accent-m);background:var(--accent-l);border-radius:var(--r-md);">
+                <div style="display:flex;gap:8px;">
+                  <input type="text" id="co-org-add-name" placeholder="조직명 (예: 경영지원본부 재무팀)" style="flex:1;min-width:0;" onkeydown="if(event.key==='Enter'&&!event.isComposing)addCompanyOrg()">
+                  <button class="btn btn-primary btn-sm" onclick="addCompanyOrg()">추가</button>
+                </div>
+              </div>
+              <div id="co-org-list" style="margin-top:12px;">불러오는 중...</div>
+            </div>
           </div>
         </div>
       </div>
@@ -2928,8 +2972,14 @@ textarea{resize:vertical;min-height:100px;}
         </div>
         <div class="form-group span2">
           <label>조직 <span class="req">*</span> <span style="font-size:11px;color:var(--faint);">(사업부/부서/팀) — 이 계약이 속한 조직</span></label>
-          <select id="ct-unit" onchange="onCtUnitChange()"></select>
-          <input type="text" id="ct-unit-new" placeholder="새 조직명 입력 (예: 현대모비스(인도))" style="display:none;margin-top:8px;">
+          <select id="ct-unit"></select>
+          <div id="ct-unit-empty" style="display:none;margin-top:8px;padding:10px 13px;border:1px solid var(--amber-b,#FDE68A);background:#FFFBEB;border-radius:var(--r-md);color:#B45309;font-size:12px;">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <span style="font-weight:600;">이 고객사에 등록된 조직이 없습니다.</span>
+              <button type="button" class="btn btn-primary btn-sm" style="margin-left:auto;font-size:11px;" onclick="gotoOrgTabFromContract()">조직 탭 열기</button>
+            </div>
+          </div>
+          <div class="form-hint">목록에 없는 조직은 <b>조직 탭에서 먼저 추가</b>한 뒤 선택하세요 — 이름 변경·삭제도 조직 탭에서</div>
         </div>
         <div class="form-group">
           <label>Salesforce ID</label>
@@ -6774,7 +6824,182 @@ function selectCompany(rowEl, id, name, statusLabel) {
   rowEl.classList.add('open');
   const groupsEl = document.getElementById('contract-license-groups');
   if (groupsEl) groupsEl.innerHTML = '불러오는 중...';
+  switchCompanyTab('ct');   // 상세를 열면 항상 계약 탭부터 (조직 탭은 클릭 시 로드)
+  const orgCnt = document.getElementById('co-tab-org-cnt');
+  if (orgCnt) { orgCnt.textContent = ''; sb.from('org_units').select('id', { count: 'exact', head: true }).eq('company_id', id).then(r => { if (selectedCompanyId === id) orgCnt.textContent = r.count ?? ''; }); }
   loadCompanyContractsAndLicenses();
+}
+
+// ── 고객사 상세 탭 (계약 및 라이선스 / 조직) ─────────────────
+// 조직의 생성·이름 변경·삭제는 조직 탭에서만 한다. 계약 모달은 선택 전용.
+let companyDetailTab = 'ct';
+let _coOrgRows = [];   // 조직 탭 렌더 데이터 캐시 (펼침 토글용)
+
+function switchCompanyTab(tab) {
+  companyDetailTab = tab;
+  document.getElementById('co-tab-ct')?.classList.toggle('on', tab === 'ct');
+  document.getElementById('co-tab-org')?.classList.toggle('on', tab === 'org');
+  const ct = document.getElementById('co-pane-ct');
+  const org = document.getElementById('co-pane-org');
+  if (ct) ct.style.display = tab === 'ct' ? '' : 'none';
+  if (org) org.style.display = tab === 'org' ? '' : 'none';
+  if (tab === 'org') loadCompanyOrgTab();
+}
+
+function toggleOrgAddRow() {
+  const box = document.getElementById('co-org-add');
+  if (!box) return;
+  const show = box.style.display === 'none';
+  box.style.display = show ? '' : 'none';
+  if (show) document.getElementById('co-org-add-name')?.focus();
+}
+
+async function loadCompanyOrgTab() {
+  const list = document.getElementById('co-org-list');
+  if (!list || !sb || !selectedCompanyId) return;
+  const companyId = selectedCompanyId;
+  list.innerHTML = '<div style="padding:14px 4px;color:var(--faint);font-size:12px;">불러오는 중...</div>';
+
+  const { data: units, error } = await sb.from('org_units')
+    .select('id, unit_no, unit_name').eq('company_id', companyId).order('unit_no');
+  if (error) { list.innerHTML = `<div style="color:var(--red);font-size:12px;">조회 실패: ${escHtml(error.message)}</div>`; return; }
+  if (companyId !== selectedCompanyId) return;   // 로드 중 다른 고객사로 전환
+
+  const cntEl = document.getElementById('co-tab-org-cnt');
+  if (cntEl) cntEl.textContent = units?.length || '0';
+  if (!units || !units.length) {
+    _coOrgRows = [];
+    list.innerHTML = '<div style="padding:14px 4px;color:var(--faint);font-size:12px;">등록된 조직이 없습니다. 위 "＋ 조직 추가"로 만들 수 있습니다.</div>';
+    return;
+  }
+  const unitIds = units.map(u => u.id);
+
+  // 건수·소속 사용자 — 계약/배정은 일괄 2회, 요청 수는 조직별 count(회사당 조직 1~3개 수준)
+  const [{ data: cts }, { data: assigns }] = await Promise.all([
+    sb.from('company_contracts').select('id, unit_id').eq('company_id', companyId),
+    sb.from('user_org_units').select('unit_id, user_id, is_primary').in('unit_id', unitIds),
+  ]);
+  const userIds = [...new Set((assigns || []).map(a => a.user_id))];
+  const { data: userRows } = userIds.length
+    ? await sb.from('users').select('id, name, email, last_login').in('id', userIds)
+    : { data: [] };
+  const userById = new Map((userRows || []).map(u => [u.id, u]));
+  const ticketCounts = await Promise.all(unitIds.map(uid =>
+    sb.from('tickets').select('id', { count: 'exact', head: true }).eq('unit_id', uid).then(r => r.count ?? 0)));
+  if (companyId !== selectedCompanyId) return;
+
+  _coOrgRows = units.map((u, i) => {
+    const members = (assigns || []).filter(a => a.unit_id === u.id).map(a => {
+      const usr = userById.get(a.user_id) || {};
+      const others = (assigns || []).filter(x => x.user_id === a.user_id && x.unit_id !== u.id)
+        .map(x => units.find(un => un.id === x.unit_id)?.unit_name).filter(Boolean);
+      return { name: usr.name || '(알 수 없음)', email: usr.email || '', last_login: usr.last_login,
+               isPrimary: !!a.is_primary, others };
+    });
+    return { ...u,
+      ctCount: (cts || []).filter(c => c.unit_id === u.id).length,
+      tkCount: ticketCounts[i] || 0, members };
+  });
+  renderCompanyOrgTab();
+}
+
+function renderCompanyOrgTab() {
+  const list = document.getElementById('co-org-list');
+  if (!list) return;
+  list.innerHTML = `<table class="co-org">
+    <thead><tr><th>번호</th><th>조직명</th><th>계약</th><th>사용자</th><th>요청</th><th style="width:150px;">관리</th></tr></thead>
+    <tbody>` + _coOrgRows.map((u, i) => {
+      const refs = u.ctCount + u.members.length + u.tkCount;
+      const empty = refs === 0;
+      const reasons = [u.ctCount && '계약', u.members.length && '사용자', u.tkCount && '요청'].filter(Boolean).join('·');
+      const delBtn = empty
+        ? `<button class="btn btn-outline btn-sm" style="font-size:11px;border-color:#f0a9a9;color:#dc2626;" onclick="deleteCompanyOrg('${u.id}', ${JSON.stringify(u.unit_name).replace(/"/g, '&quot;')})">삭제</button>`
+        : `<button class="btn btn-outline btn-sm" style="font-size:11px;opacity:.4;cursor:not-allowed;" title="${reasons}이(가) 있어 삭제할 수 없습니다">삭제</button>`;
+      const userCell = u.members.length
+        ? `<button class="co-org-toggle" onclick="toggleOrgUsers(${i})">${u.members.length}명 <span style="font-size:10px;color:var(--faint);" id="co-org-cv-${i}">▾</span></button>`
+        : '<span style="color:var(--faint);">0명</span>';
+      const membersHtml = u.members.length
+        ? u.members.map(m => {
+            const badges = (m.isPrimary ? '<span class="badge b-accent" style="font-size:10px;">대표 조직</span>' : '')
+              + m.others.map(o => `<span class="badge" style="font-size:10px;">${escHtml(o)} 겸임</span>`).join('');
+            const lg = m.last_login ? '최근 로그인 ' + fmtTime(m.last_login).slice(5) : '로그인 이력 없음';
+            return `<div class="co-org-uitem"><span class="nm">${escHtml(m.name)}</span><span class="em">${escHtml(m.email)}</span>${badges}<span class="lg">${lg}</span></div>`;
+          }).join('')
+        : '';
+      return `<tr>
+        <td><span class="og-no">${escHtml(u.unit_no || '—')}</span></td>
+        <td id="co-org-name-${i}">${escHtml(u.unit_name)}${empty ? ' <span class="badge" style="font-size:10px;margin-left:4px;">비어 있음</span>' : ''}</td>
+        <td style="font-variant-numeric:tabular-nums;${u.ctCount ? '' : 'color:var(--faint);'}">${u.ctCount}건</td>
+        <td>${userCell}</td>
+        <td style="font-variant-numeric:tabular-nums;${u.tkCount ? '' : 'color:var(--faint);'}">${u.tkCount}건</td>
+        <td><div style="display:flex;gap:5px;">
+          <button class="btn btn-outline btn-sm" style="font-size:11px;" onclick="renameCompanyOrg(${i})">이름 변경</button>
+          ${delBtn}
+        </div></td>
+      </tr>
+      <tr class="co-org-sub" id="co-org-sub-${i}" style="display:none;"><td colspan="6">
+        <div style="padding:4px 0 10px;">${membersHtml}</div>
+      </td></tr>`;
+    }).join('') + `</tbody></table>
+    <div style="font-size:11px;color:var(--faint);margin-top:9px;">사용자 수를 누르면 소속 사용자가 펼쳐집니다 · 배정 변경은 사용자 관리에서 · 이름을 바꿔도 과거 요청의 조직명 스냅샷은 당시 이름 그대로 보존됩니다</div>`;
+}
+
+function toggleOrgUsers(i) {
+  const row = document.getElementById('co-org-sub-' + i);
+  const cv = document.getElementById('co-org-cv-' + i);
+  if (!row) return;
+  const open = row.style.display !== 'none';
+  row.style.display = open ? 'none' : '';
+  if (cv) cv.textContent = open ? '▾' : '▴';
+}
+
+async function addCompanyOrg() {
+  const input = document.getElementById('co-org-add-name');
+  const name = (input?.value || '').trim();
+  if (!name) { showToast('조직명을 입력해주세요.', true); input?.focus(); return; }
+  // 같은 회사에 동일 이름이 있으면 재사용하지 않고 막는다 — 중복 조직 방지
+  const { data: exist } = await sb.from('org_units').select('id').eq('company_id', selectedCompanyId).eq('unit_name', name).limit(1);
+  if (exist && exist[0]) { showToast('같은 이름의 조직이 이미 있습니다.', true); return; }
+  const { error } = await sb.from('org_units').insert({ company_id: selectedCompanyId, unit_name: name });
+  if (error) { showToast('조직 추가 실패: ' + koDbError(error.message), true); return; }
+  input.value = '';
+  document.getElementById('co-org-add').style.display = 'none';
+  showToast(`조직 '${name}'을(를) 추가했습니다.`);
+  loadCompanyOrgTab();
+}
+
+function renameCompanyOrg(i) {
+  const u = _coOrgRows[i];
+  const cell = document.getElementById('co-org-name-' + i);
+  if (!u || !cell) return;
+  cell.innerHTML = `<div style="display:flex;gap:6px;">
+    <input type="text" id="co-org-rename-${i}" value="${escHtml(u.unit_name)}" style="flex:1;min-width:0;padding:5px 9px;font-size:12px;"
+      onkeydown="if(event.key==='Enter'&&!event.isComposing)saveOrgRename(${i});if(event.key==='Escape')renderCompanyOrgTab()">
+    <button class="btn btn-primary btn-sm" style="font-size:11px;" onclick="saveOrgRename(${i})">저장</button>
+    <button class="btn btn-outline btn-sm" style="font-size:11px;" onclick="renderCompanyOrgTab()">취소</button>
+  </div>`;
+  document.getElementById('co-org-rename-' + i)?.focus();
+}
+
+async function saveOrgRename(i) {
+  const u = _coOrgRows[i];
+  const name = (document.getElementById('co-org-rename-' + i)?.value || '').trim();
+  if (!u || !name) { showToast('조직명을 입력해주세요.', true); return; }
+  if (name === u.unit_name) { renderCompanyOrgTab(); return; }
+  const { data: exist } = await sb.from('org_units').select('id').eq('company_id', selectedCompanyId).eq('unit_name', name).limit(1);
+  if (exist && exist[0]) { showToast('같은 이름의 조직이 이미 있습니다.', true); return; }
+  const { error } = await sb.from('org_units').update({ unit_name: name }).eq('id', u.id);
+  if (error) { showToast('이름 변경 실패: ' + koDbError(error.message), true); return; }
+  showToast('조직 이름을 변경했습니다.');
+  loadCompanyOrgTab();
+}
+
+async function deleteCompanyOrg(id, name) {
+  if (!confirm(`조직 '${name}'을(를) 삭제하시겠습니까?`)) return;
+  const { error } = await sb.from('org_units').delete().eq('id', id);
+  if (error) { showToast('삭제 실패: ' + koDbError(error.message), true); return; }
+  showToast('삭제되었습니다.');
+  loadCompanyOrgTab();
 }
 
 async function downloadPrivateFile(bucket, path, filename, docId) {
@@ -7183,30 +7408,43 @@ function resetContractDropzone() {
   _contractFile = null;
 }
 
-// 계약 모달의 조직 select 채우기 — 선택된 고객사의 org_units + "새 조직 추가" 옵션.
-// 조직이 1개뿐이면 그 조직을 기본 선택.
+// 계약 모달의 조직 select 채우기 — 선택 전용. 조직의 생성·이름 변경·삭제는
+// 고객사 상세의 조직 탭에서만 한다(창구 일원화, 2026-09-01).
+// 어느 조직이 활성인지 보고 고를 수 있게 계약·사용자 건수를 라벨에 붙인다.
 async function populateCtUnitSelect(companyId, selectedUnitId) {
   const sel = document.getElementById('ct-unit');
-  const newInput = document.getElementById('ct-unit-new');
+  const emptyBox = document.getElementById('ct-unit-empty');
   if (!sel) return;
-  if (newInput) { newInput.style.display = 'none'; newInput.value = ''; }
   sel.innerHTML = '<option value="">불러오는 중...</option>';
+  if (emptyBox) emptyBox.style.display = 'none';
   const { data } = await sb.from('org_units').select('id, unit_no, unit_name').eq('company_id', companyId).order('unit_no');
   const units = data || [];
-  const opts = units.map(u => `<option value="${u.id}">${escHtml(u.unit_no)} · ${escHtml(u.unit_name)}</option>`).join('');
-  sel.innerHTML = (units.length ? '' : '<option value="">(등록된 조직 없음)</option>') + opts + '<option value="__new__">＋ 새 조직 추가…</option>';
+  if (!units.length) {
+    sel.innerHTML = '<option value="">(등록된 조직 없음)</option>';
+    if (emptyBox) emptyBox.style.display = '';
+    return;
+  }
+  const unitIds = units.map(u => u.id);
+  const [{ data: cts }, { data: assigns }] = await Promise.all([
+    sb.from('company_contracts').select('id, unit_id').eq('company_id', companyId),
+    sb.from('user_org_units').select('unit_id').in('unit_id', unitIds),
+  ]);
+  const opts = units.map(u => {
+    const c = (cts || []).filter(x => x.unit_id === u.id).length;
+    const m = (assigns || []).filter(x => x.unit_id === u.id).length;
+    const meta = (c || m) ? ` — 계약 ${c} · 사용자 ${m}` : ' — 비어 있음';
+    return `<option value="${u.id}">${escHtml(u.unit_no)} · ${escHtml(u.unit_name)}${meta}</option>`;
+  }).join('');
+  sel.innerHTML = opts;
   // 지정된 조직 / 조직 1개면 자동 선택 / 그 외 첫 조직
-  sel.value = selectedUnitId || (units.length === 1 ? units[0].id : (units[0]?.id || '__new__'));
-  onCtUnitChange();
+  sel.value = selectedUnitId || (units.length === 1 ? units[0].id : units[0].id);
 }
 
-function onCtUnitChange() {
-  const sel = document.getElementById('ct-unit');
-  const newInput = document.getElementById('ct-unit-new');
-  if (!sel || !newInput) return;
-  const isNew = sel.value === '__new__';
-  newInput.style.display = isNew ? '' : 'none';
-  if (isNew) newInput.focus();
+// 계약 모달의 "조직 탭 열기" — 모달을 닫고 열려 있는 고객사 상세의 조직 탭으로 이동
+function gotoOrgTabFromContract() {
+  closeModal('modal-contract');
+  switchCompanyTab('org');
+  document.getElementById('co-pane-org')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function openContractModal() {
@@ -7331,24 +7569,10 @@ async function submitContract() {
     return;
   }
 
-  // 조직 확정 — 기존 조직 선택 또는 새 조직 즉석 생성
+  // 조직 확정 — 선택 전용. 새 조직이 필요하면 고객사 상세의 조직 탭에서 먼저 추가한다.
   const unitSel = document.getElementById('ct-unit');
-  let unitId = unitSel ? unitSel.value : '';
-  if (unitId === '__new__') {
-    const newName = document.getElementById('ct-unit-new').value.trim();
-    if (!newName) { showToast('새 조직명을 입력하거나 기존 조직을 선택해주세요.', true); document.getElementById('ct-unit-new').focus(); return; }
-    // 같은 회사에 동일 이름 조직이 이미 있으면 그걸 재사용, 없으면 생성
-    const { data: exist } = await sb.from('org_units').select('id').eq('company_id', companyId).eq('unit_name', newName).limit(1);
-    if (exist && exist[0]) {
-      unitId = exist[0].id;
-    } else {
-      const { error: insErr } = await sb.from('org_units').insert({ company_id: companyId, unit_name: newName });
-      if (insErr) { showToast('조직 생성 실패: ' + insErr.message, true); return; }
-      const { data: made } = await sb.from('org_units').select('id').eq('company_id', companyId).eq('unit_name', newName).limit(1);
-      unitId = made?.[0]?.id;
-    }
-  }
-  if (!unitId) { showToast('조직을 선택해주세요.', true); return; }
+  const unitId = unitSel ? unitSel.value : '';
+  if (!unitId) { showToast('조직을 선택해주세요. 등록된 조직이 없으면 조직 탭에서 먼저 추가하세요.', true); return; }
 
   const btn = document.getElementById('btn-submit-contract');
   if (btn) { btn.disabled = true; btn.textContent = '처리 중...'; }
@@ -7402,28 +7626,13 @@ async function submitContract() {
 
 async function deleteContract(id, filePath) {
   if (!confirm('계약 정보를 삭제하시겠습니까?')) return;
-  // 조직 자동 정리를 위해 삭제 전에 이 계약이 속한 조직(unit_id)을 기억해 둔다.
-  const { data: ctRow } = await sb.from('company_contracts').select('unit_id').eq('id', id).limit(1);
-  const unitId = ctRow?.[0]?.unit_id || null;
   if (filePath) await sb.storage.from('contract-attachments').remove([filePath]);
   const { error } = await sb.from('company_contracts').delete().eq('id', id);
   if (error) { showToast('삭제 실패: ' + koDbError(error.message), true); return; }
-  // 이 조직의 마지막 계약이었으면 빈 조직도 함께 삭제한다.
-  // 단, 대표 조직으로 쓰는 사용자(users.unit_id)나 과거 요청(tickets.unit_id)이 참조 중이면
-  // DB FK가 삭제를 막으므로 조직은 유지하고 안내만 한다(배정 user_org_units는 CASCADE로 함께 정리됨).
-  let orgNote = '';
-  if (unitId) {
-    const { data: remain } = await sb.from('company_contracts').select('id').eq('unit_id', unitId).limit(1);
-    if (!remain || !remain.length) {
-      const { data: orgRow } = await sb.from('org_units').select('unit_name').eq('id', unitId).limit(1);
-      const orgName = orgRow?.[0]?.unit_name || '';
-      const { error: orgErr } = await sb.from('org_units').delete().eq('id', unitId);
-      orgNote = orgErr
-        ? ` (빈 조직 '${orgName}'은 사용자·과거 요청이 참조하고 있어 유지했습니다)`
-        : ` — 계약이 없는 조직 '${orgName}'도 함께 삭제했습니다.`;
-    }
-  }
-  showToast('삭제되었습니다.' + orgNote);
+  // 조직은 지우지 않는다 — 예전엔 마지막 계약을 지우면 빈 조직을 자동 삭제했는데,
+  // 이때 사용자 배정(user_org_units)이 CASCADE로 함께 사라져 계약 갱신 중 배정을
+  // 잃는 사고 경로가 있었다. 빈 조직 정리는 고객사 상세의 조직 탭에서 사람이 한다.
+  showToast('삭제되었습니다.');
   loadCompanyContracts();
 }
 
