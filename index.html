@@ -3138,7 +3138,7 @@ textarea{resize:vertical;min-height:100px;}
         </div>
         <div class="form-group">
           <label>사용자 유형 <span class="req">*</span></label>
-          <select id="u-role" onchange="loadOrgChecklist(document.getElementById('u-company').value)">
+          <select id="u-role" onchange="onUserRoleChange()">
             <option value="customer">고객 (customer)</option>
             <option value="internal">내부 일반 (internal)</option>
             <option value="tech_support">기술지원 (tech_support)</option>
@@ -9506,7 +9506,9 @@ function renderUsers(users, tbodyId) {
   tbody.innerHTML = users.map(u => {
     const roleLabel = ROLE_LABELS[u.role] || u.role;
     const roleBadge = ROLE_BADGE[u.role]  || 'b-gray';
-    const companyName = u.company?.name || '빅스데이터';
+    // 회사 미배정(NULL)은 역할로 구분해 표시 — 고객이면 '미지정'(아직 배정 전 상태), 스태프면 '빅스데이터'(내부 소속).
+    const noCompany = !u.company?.name;
+    const companyName = u.company?.name || (u.role === 'customer' ? '미지정' : '빅스데이터');
     const lastLogin = u.last_login ? new Date(u.last_login).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—';
     const activeHtml = u.is_active
       ? '<span class="badge b-green">활성</span>'
@@ -9518,7 +9520,7 @@ function renderUsers(users, tbodyId) {
       <tr>
         <td style="font-weight:600;">${escHtml(u.name)}</td>
         <td style="font-size:12px;color:var(--muted);">${escHtml(u.email)}</td>
-        <td style="font-size:12px;">${escHtml(companyName)}</td>
+        <td style="font-size:12px;${noCompany && u.role === 'customer' ? 'color:var(--faint);' : ''}">${escHtml(companyName)}</td>
         ${isCustomerTable ? `<td style="font-size:12px;">${orgHtml}</td>` : ''}
         <td><span class="badge ${roleBadge}">${roleLabel}</span></td>
         <td style="font-size:12px;color:var(--faint);">${lastLogin}</td>
@@ -9698,11 +9700,30 @@ let _orgAssigned = new Set();
 let _orgPrimary = null;
 let _orgExpanded = new Set();
 
+// 회사 미배정(id='')의 표시 라벨은 역할에 따라 다르다 — 고객이면 '미지정'(배정 전), 스태프면 '빅스데이터'(내부 소속).
+// DB에선 둘 다 company_id NULL 한 상태라, 구분은 역할로만 한다.
+function userEmptyCompanyLabel() {
+  return document.getElementById('u-role')?.value === 'customer' ? '미지정' : '빅스데이터';
+}
+
+// 역할이 바뀌면 빈 옵션 라벨(미지정↔빅스데이터)도 같이 갱신한 뒤 조직 체크리스트를 다시 그린다.
+function onUserRoleChange() {
+  const hidden = document.getElementById('u-company');
+  if (_userCompanyOptions.length && _userCompanyOptions[0].id === '') {
+    _userCompanyOptions[0].name = userEmptyCompanyLabel();
+    if (hidden && hidden.value === '') {
+      const searchEl = document.getElementById('u-company-search');
+      if (searchEl) searchEl.value = _userCompanyOptions[0].name;
+    }
+  }
+  loadOrgChecklist(hidden?.value);
+}
+
 async function populateCompanySelect(selectedId) {
   const hidden = document.getElementById('u-company');
   if (!hidden || !sb) return;
   const { data } = await sb.from('companies').select('id, name').order('name').limit(1000);
-  _userCompanyOptions = [{ id: '', name: '빅스데이터' }, ...(data || [])];
+  _userCompanyOptions = [{ id: '', name: userEmptyCompanyLabel() }, ...(data || [])];
   const selected = _userCompanyOptions.find(c => c.id === (selectedId || '')) || _userCompanyOptions[0];
   hidden.value = selected.id;
   const searchEl = document.getElementById('u-company-search');
@@ -9716,7 +9737,13 @@ function renderCompanyCombo(query) {
   const q = (query || '').trim().toLowerCase();
   const list = q ? _userCompanyOptions.filter(c => c.name.toLowerCase().includes(q)) : _userCompanyOptions;
   panel.innerHTML = list.length
-    ? list.map(c => `<div class="combo-item" onmousedown="selectUserCompany('${c.id}')">${escHtml(c.name)}</div>`).join('')
+    ? list.map(c => {
+        // 빈 옵션(회사 해제)은 항상 목록 맨 위에 있고, 고객 역할일 땐 '✕ 미지정'으로 명시해 해제 항목임을 드러낸다.
+        const isClear = c.id === '';
+        const label = isClear && c.name === '미지정' ? '✕ 미지정 (고객사 해제)' : c.name;
+        const style = isClear && c.name === '미지정' ? ' style="color:var(--faint);"' : '';
+        return `<div class="combo-item"${style} onmousedown="selectUserCompany('${c.id}')">${escHtml(label)}</div>`;
+      }).join('')
     : '<div class="combo-empty">일치하는 고객사가 없습니다.</div>';
   panel.classList.add('open');
 }
