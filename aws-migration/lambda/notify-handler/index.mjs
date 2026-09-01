@@ -235,7 +235,7 @@ async function handleTicketInsert(payload, results) {
 
 async function handleTicketAssigned(payload, results) {
   const { ticket, prevAssigneeName } = payload;
-  const header = `👤 *담당자 배정* (${prevAssigneeName ?? '미배정'} → ${payload.assigneeName ?? '미배정'})`;
+  const header = `👤 *담당자 배정* (${prevAssigneeName ?? '미배정'} → ${payload.assigneeName ?? '미배정'})${ticket.is_internal ? ' · 🔒 *내부 검토*' : ''}`;
   const body = buildBaseMessage(ticket, payload) + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`;
   const isTest = isTestTicket(ticket);
   await sendSlack(SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, 'assigned', header, body, results, isTest);

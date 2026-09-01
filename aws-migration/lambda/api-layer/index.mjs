@@ -542,7 +542,7 @@ async function editTicket(ticketId, body, event) {
   const authz = getAuthz(event);
   if (!authz.userId) return json(401, { error: '인증이 필요합니다' });
 
-  const before = await query('select created_by, is_internal from tickets where id=$1', [ticketId]);
+  const before = await query('select created_by, is_internal, assigned_to, assigned_to_name from tickets where id=$1', [ticketId]);
   if (!before[0]) return json(404, { error: '요청을 찾을 수 없습니다' });
 
   const isOwner = before[0].created_by === authz.userId;
@@ -571,12 +571,66 @@ async function editTicket(ticketId, body, event) {
   if (!VALID_CATEGORIES.has(category)) return json(400, { error: '허용되지 않은 카테고리입니다' });
   if (!VALID_PRIORITIES.has(priority)) return json(400, { error: '허용되지 않은 긴급도입니다' });
 
-  const updated = await query(
-    `update tickets set title=$1, category=$2, product=$3, priority=$4, description=$5, updated_at=now()
-     where id=$6 returning *`,
-    [title, category, product, priority, description, ticketId]
-  );
-  return json(200, { ticket: updated[0] });
+  // ── admin 전용 확장 필드: 요청 유형(visibility)·담당자(assigned_to) ──
+  // 관리자 수정 모달(등록 화면과 동일 구성)에서만 보낸다. 명의(고객사/고객)는 변경 미지원.
+  const isAdmin = authz.role === 'admin';
+  const wantsVisibility = body.visibility !== undefined;
+  const wantsAssignee = Object.prototype.hasOwnProperty.call(body, 'assigned_to');
+  if ((wantsVisibility || wantsAssignee) && !isAdmin) {
+    return json(403, { error: '요청 유형·담당자 변경은 관리자만 할 수 있습니다' });
+  }
+
+  let setInternal; // undefined = 미변경
+  if (wantsVisibility) {
+    if (!['internal', 'public'].includes(body.visibility)) return json(400, { error: '허용되지 않은 요청 유형입니다' });
+    const wantInternal = body.visibility === 'internal';
+    if (wantInternal !== !!before[0].is_internal) setInternal = wantInternal;
+  }
+
+  let setAssignee; // undefined = 미변경, {id:null}=미배정
+  if (wantsAssignee) {
+    const newId = body.assigned_to || null;
+    if (newId !== (before[0].assigned_to ?? null)) {
+      if (newId) {
+        const staff = await getUser(newId);
+        if (!staff || !STAFF_ROLES.has(staff.role)) return json(400, { error: '담당자는 빅스데이터 스태프여야 합니다' });
+        setAssignee = { id: staff.id, name: staff.name };
+      } else {
+        setAssignee = { id: null, name: null };
+      }
+    }
+  }
+
+  const sets = ['title=$1', 'category=$2', 'product=$3', 'priority=$4', 'description=$5', 'updated_at=now()'];
+  const params = [title, category, product, priority, description];
+  if (setInternal !== undefined) { params.push(setInternal); sets.push(`is_internal=$${params.length}`); }
+  if (setAssignee !== undefined) {
+    params.push(setAssignee.id); sets.push(`assigned_to=$${params.length}`);
+    params.push(setAssignee.name); sets.push(`assigned_to_name=$${params.length}`);
+  }
+  params.push(ticketId);
+  const updated = await query(`update tickets set ${sets.join(', ')} where id=$${params.length} returning *`, params);
+  const ticket = updated[0];
+
+  // 이력·알림 — 담당자는 기존 manage/assign 경로와 동일한 기록·배정 슬랙을 태워 경로 간 어긋남 방지.
+  if (setInternal !== undefined || setAssignee !== undefined) {
+    const actor = await getUser(authz.userId);
+    if (setInternal !== undefined) {
+      await query(
+        `insert into ticket_history (ticket_id, action, note, changed_by, changed_by_name) values ($1,'visibility_changed',$2,$3,$4)`,
+        [ticketId, setInternal ? '일반 → 내부 검토' : '내부 검토 → 일반', authz.userId, actor?.name ?? null]
+      );
+    }
+    if (setAssignee !== undefined) {
+      const prevName = before[0].assigned_to_name ?? '미배정';
+      await query(
+        `insert into ticket_history (ticket_id, action, note, changed_by, changed_by_name) values ($1,$2,$3,$4,$5)`,
+        [ticketId, before[0].assigned_to ? 'reassigned' : 'assigned', `${prevName} → ${setAssignee.name ?? '미배정'}`, authz.userId, actor?.name ?? null]
+      );
+      await deferNotify('assign', { ticketId, prevAssigneeId: before[0].assigned_to ?? null });
+    }
+  }
+  return json(200, { ticket });
 }
 
 // ── DELETE /tickets/{id} — 요청 삭제 (자식행 포함, 트랜잭션). 권한: ticket_delete ──
