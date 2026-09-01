@@ -291,6 +291,19 @@ button,input,select,textarea{font-family:inherit;}
 .rq-age-bad{color:var(--red-d);font-weight:700;} .rq-age-warn{color:var(--amber-d);font-weight:600;}
 .rq-unassigned{color:var(--red-d);font-weight:600;}
 .rq-empty{padding:28px;text-align:center;color:var(--faint);font-size:13px;}
+/* ── 사용 통계 > 응답 현황 탭 ── */
+.sat-stars{color:#F59E0B;letter-spacing:1px;font-size:13px;white-space:nowrap;}
+.sat-stars .off{color:var(--border-md);}
+.sat-kw{display:inline-flex;align-items:center;gap:5px;border-radius:99px;font-weight:600;border:1px solid transparent;white-space:nowrap;}
+.sat-kw i{font-style:normal;font-weight:400;opacity:.65;font-size:.82em;}
+.sat-kw.pos{background:var(--green-l);color:var(--green-d);border-color:#A7F3D0;}
+.sat-kw.neg{background:var(--red-l);color:var(--red-d);border-color:#FECACA;}
+.sat-kw.s1{font-size:11.5px;padding:3px 10px;} .sat-kw.s2{font-size:13px;padding:4px 12px;} .sat-kw.s3{font-size:15px;padding:5px 14px;}
+.sat-quote{border-left:3px solid var(--border-md);padding:6px 12px;margin-bottom:10px;font-size:12.5px;color:var(--muted);line-height:1.6;}
+.sat-quote:last-child{margin-bottom:0;}
+.sat-quote b{color:var(--text);font-weight:600;}
+.sat-quote .m{font-size:10.5px;color:var(--faint);margin-top:2px;}
+.sat-trend-up{color:var(--green-d);font-weight:700;} .sat-trend-dn{color:var(--red-d);font-weight:700;}
 /* 다운로드 상위 자료 — 제목이 FAQ 한 문장이라 한 줄 그리드로는 대부분 잘린다.
    제목을 위에 두 줄까지 펼치고 막대·횟수를 아래 줄에 둔다. */
 .dl-item{padding:9px 0;border-bottom:1px solid var(--border);}
@@ -332,6 +345,26 @@ button,input,select,textarea{font-family:inherit;}
 .rd-hist-sum .h-pre{flex:none;margin-right:4px;}
 .rd-hist-sum .h-tail{flex:none;white-space:nowrap;margin-left:4px;}
 .rd-hist-sum .h-who{color:var(--text);font-weight:700;}
+/* 만족도 팝업 (고객 홈) — 상세의 평가 카드와 같은 별점 UI를 모달로 */
+#modal-survey-box .sv-hd{padding:18px 22px 0;text-align:center;}
+#modal-survey-box .sv-done-badge{display:inline-block;font-size:10.5px;font-weight:700;color:var(--green);background:var(--green-l);border:1px solid #A7F3D0;border-radius:999px;padding:2px 10px;}
+#modal-survey-box .sv-h{font-size:15.5px;font-weight:800;margin-top:9px;}
+#modal-survey-box .sv-tk{font-size:11.5px;color:var(--muted);margin-top:3px;}
+#modal-survey-box .sv-tk b{color:var(--text);}
+#modal-survey-box .sv-bd{padding:8px 22px 20px;text-align:center;}
+#modal-survey-box .sv-stars{display:flex;justify-content:center;gap:6px;margin:13px 0 4px;}
+#modal-survey-box .sv-stars button{all:unset;cursor:pointer;font-size:31px;line-height:1;color:#D1D5DB;transition:transform .08s;}
+#modal-survey-box .sv-stars button.on{color:#F59E0B;}
+#modal-survey-box .sv-stars button:hover{transform:scale(1.15);}
+#modal-survey-box .sv-cap{font-size:11.5px;color:var(--muted);min-height:18px;}
+#modal-survey-box .sv-crow{display:flex;gap:8px;margin-top:11px;}
+#modal-survey-box .sv-crow input{flex:1;min-width:0;padding:8px 12px;border:1px solid var(--border-md);border-radius:8px;font-size:12.5px;font-family:inherit;background:var(--surface2);color:var(--text);outline:none;}
+#modal-survey-box .sv-submit{margin-top:12px;width:100%;padding:10px 0;border:none;border-radius:9px;background:var(--accent);color:#fff;font-size:13px;font-weight:750;font-family:inherit;cursor:pointer;}
+#modal-survey-box .sv-submit:disabled{opacity:.4;cursor:default;}
+#modal-survey-box .sv-ft{display:flex;align-items:center;justify-content:center;gap:14px;padding:0 22px 16px;}
+#modal-survey-box .sv-later{all:unset;cursor:pointer;font-size:11.5px;color:var(--faint);text-decoration:underline;}
+#modal-survey-box .sv-step{font-size:10.5px;color:var(--faint);}
+#modal-survey-box .sv-done-stars{color:#F59E0B;font-size:19px;letter-spacing:3px;margin-top:6px;}
 .cu-preset:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 .cu-preset[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;}
 .cu-preset .dot{width:7px;height:7px;border-radius:50%;flex:none;}
@@ -1593,7 +1626,9 @@ textarea{resize:vertical;min-height:100px;}
                     <!-- 제목 + 수정 (같은 줄) -->
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;">
                       <div style="font-size:17px;font-weight:800;word-break:break-word;overflow-wrap:break-word;" id="rd-title">—</div>
-                      <span style="display:flex;gap:6px;flex-shrink:0;">
+                      <span style="display:flex;gap:6px;flex-shrink:0;align-items:center;">
+                        <span id="rd-internal-badge" style="display:none;font-size:11px;font-weight:700;background:#fef3c7;color:#92400e;padding:2px 9px;border-radius:20px;white-space:nowrap;" title="내부 검토 — 고객에게 보이지 않는 요청">🔒 내부 검토</span>
+                        <button id="rd-make-public-btn" class="btn btn-outline btn-sm" style="display:none;white-space:nowrap;" onclick="makeTicketPublic()">일반으로 전환</button>
                         <button id="rd-owner-edit-btn" class="btn btn-outline btn-sm" style="display:none;white-space:nowrap;" onclick="openEditRequestModal()">수정</button>
                         <button id="rd-delete-btn" class="btn btn-sm" style="display:none;white-space:nowrap;border:1px solid #f0a9a9;color:#dc2626;background:transparent;" onclick="deleteTicketFlow(rdTicket&&rdTicket.id, rdTicket&&rdTicket.ticket_number, 'detail')">삭제</button>
                       </span>
@@ -1997,21 +2032,35 @@ textarea{resize:vertical;min-height:100px;}
           <button type="button" data-stab="req" onclick="switchStatsTab('req')">📮 요청 현황</button>
           <button type="button" data-stab="lib" onclick="switchStatsTab('lib')">📄 자료실 활용</button>
           <button type="button" data-stab="sys" onclick="switchStatsTab('sys')">⚙️ 시스템 현황</button>
+          <button type="button" data-stab="sat" onclick="switchStatsTab('sat')">⭐ 응답 현황</button>
         </div>
 
         <div class="stab-panel" id="stab-act">
         <div class="card">
-          <div class="card-title">접속 활동 <span style="font-size:11px;color:var(--faint);font-weight:400;">고객 계정 기준 · 고유 로그인 사용자</span></div>
+          <div class="card-title">접속 활동 <span style="font-size:11px;color:var(--faint);font-weight:400;">고객 계정 기준 · 고유 로그인 사용자 · 테스트 계정 제외</span>
+            <span class="rq-seg" id="act-days" role="group" aria-label="기간" style="margin-left:auto;">
+              <button type="button" onclick="setActDays(7,this)">7일</button>
+              <button type="button" class="on" onclick="setActDays(30,this)">30일</button>
+              <button type="button" onclick="setActDays(90,this)">90일</button>
+            </span></div>
           <div id="stats-active" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:14px;">
             <div style="padding:16px;text-align:center;color:var(--faint);grid-column:1/-1;">불러오는 중...</div>
           </div>
-          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;"><span style="display:inline-block;width:14px;height:2px;background:var(--accent);vertical-align:middle;"></span> 일별 DAU (최근 30일)</div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;"><span style="display:inline-block;width:14px;height:2px;background:var(--accent);vertical-align:middle;"></span> 일별 DAU <span id="act-days-label">(최근 30일)</span></div>
           <div id="stats-dau" style="min-height:176px;"></div>
-          <div style="font-size:11px;color:var(--faint);margin-top:10px;">ⓘ 위 지표(DAU·WAU·MAU·고착도·총 로그인·평균)는 <b style="font-weight:700;">고객 계정만</b> 집계합니다. 로그인 이벤트 기록 시작 이후부터 누적(소급 집계 없음).</div>
+          <div style="font-size:11px;color:var(--faint);margin-top:10px;">ⓘ 위 지표(DAU·WAU·MAU·고착도·총 로그인·평균)는 <b style="font-weight:700;">고객 계정만</b> 집계하며, 상설 테스트 계정과 [테스트] 라벨 계정의 로그인은 제외합니다. 로그인 이벤트 기록 시작 이후부터 누적(소급 집계 없음).</div>
         </div>
-        <div class="card">
-          <div class="card-title">역할별 접속 비중 <span style="font-size:11px;color:var(--faint);font-weight:400;">최근 30일 · 전체 역할</span></div>
-          <div id="stats-byrole"></div>
+        <div class="rq-gh">
+          <div class="card" style="margin-bottom:0;">
+            <div class="card-title">접속 시간대 <span style="font-size:11px;color:var(--faint);font-weight:400;">요일 × 시각 (KST) · 전체 역할 · 테스트 제외</span>
+              <span style="margin-left:auto;font-size:11px;color:var(--muted);font-weight:400;">점검·배포 창 근거</span></div>
+            <div class="rq-hm" id="act-heatmap"></div>
+            <div class="rq-hmscale" id="act-hmscale"></div>
+          </div>
+          <div class="card" style="margin-bottom:0;">
+            <div class="card-title">역할별 접속 비중 <span id="act-byrole-label" style="font-size:11px;color:var(--faint);font-weight:400;">최근 30일 · 전체 역할 · 테스트 제외</span></div>
+            <div id="stats-byrole"></div>
+          </div>
         </div>
         </div><!-- /stab-act -->
 
@@ -2311,6 +2360,66 @@ textarea{resize:vertical;min-height:100px;}
             </div>
           </div>
         </div><!-- /stab-sys -->
+
+        <div class="stab-panel" id="stab-sat" style="display:none;">
+          <div class="rq-filters">
+            <span class="rq-seg" id="sat-days" role="group" aria-label="기간">
+              <button type="button" onclick="setSatDays(30,this)">30일</button>
+              <button type="button" class="on" onclick="setSatDays(90,this)">90일</button>
+              <button type="button" onclick="setSatDays(180,this)">180일</button>
+              <button type="button" onclick="setSatDays(0,this)">전체</button>
+            </span>
+            <select id="sat-category" onchange="loadSatStats()">
+              <option value="">전체 카테고리</option>
+              <option value="tech_support">기술지원</option><option value="license">라이선스</option>
+              <option value="contract">계약</option><option value="education">교육</option>
+              <option value="customer">고객문의</option><option value="other">기타</option>
+            </select>
+            <input id="sat-q" class="search-box" style="flex:1;min-width:160px;box-sizing:border-box;"
+                   placeholder="고객사명 검색" onkeydown="if(event.key==='Enter')loadSatStats()">
+          </div>
+
+          <div class="rq-kpis" id="sat-kpis">
+            <div class="rq-kpi" style="grid-column:1/-1;"><div class="s" style="margin:0;">불러오는 중...</div></div>
+          </div>
+
+          <div class="rq-g2" style="margin-bottom:16px;">
+            <div class="card" style="margin-bottom:0;">
+              <div class="card-title">만족도 추이 <span style="font-size:11px;color:var(--faint);font-weight:400;">월 평균 · 최근 6개월</span>
+                <span id="sat-trend-right" style="margin-left:auto;font-size:11px;color:var(--muted);font-weight:400;"></span></div>
+              <div id="sat-trend" style="min-height:150px;"></div>
+            </div>
+            <div class="card" style="margin-bottom:0;">
+              <div class="card-title">별점 분포 <span id="sat-dist-sub" style="font-size:11px;color:var(--faint);font-weight:400;"></span></div>
+              <div id="sat-dist"></div>
+              <div class="rq-note" id="sat-dist-note" style="margin-top:12px;"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">고객사별 만족도 <span style="font-size:11px;color:var(--faint);font-weight:400;">응답 2건 이상 · 평균 낮은 순</span></div>
+            <div class="tbl-scroll"><table class="tbl tbl-compact" style="min-width:820px;">
+              <thead><tr><th>고객사</th><th>평균</th><th>별점</th><th style="text-align:right;">응답</th><th>최근 응답</th><th>최근 한줄평</th></tr></thead>
+              <tbody id="sat-company"></tbody>
+            </table></div>
+            <div class="rq-note" id="sat-company-note" style="margin-top:10px;"></div>
+          </div>
+
+          <div class="rq-g2" style="margin-bottom:0;">
+            <div class="card" style="margin-bottom:0;">
+              <div class="card-title">한줄평 키워드 <span style="font-size:11px;color:var(--faint);font-weight:400;">단어 빈도 · 크기 = 언급 수</span></div>
+              <div style="font-size:11px;font-weight:700;color:var(--green-d);margin-bottom:8px;" id="sat-kw-pos-label">긍정 (4~5점)</div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;" id="sat-kw-pos"></div>
+              <div style="font-size:11px;font-weight:700;color:var(--red-d);margin-bottom:8px;" id="sat-kw-neg-label">개선 요청 (1~3점)</div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;" id="sat-kw-neg"></div>
+              <div class="rq-note" style="margin-top:14px;">ⓘ 형태소 분석 없이 단순 빈도로 추출합니다(2회 이상 언급된 단어만). 표본이 적을수록 거칠어지며, 원문 확인이 항상 우선입니다.</div>
+            </div>
+            <div class="card" style="margin-bottom:0;">
+              <div class="card-title">최근 한줄평 <span style="font-size:11px;color:var(--faint);font-weight:400;">낮은 별점 우선 · 최신순</span></div>
+              <div id="sat-recent"></div>
+            </div>
+          </div>
+        </div><!-- /stab-sat -->
       </div>
 
       <!-- ══ 연동 관리 ══ -->
@@ -2591,6 +2700,16 @@ textarea{resize:vertical;min-height:100px;}
               </div>
             </div>
             <div id="pxy-note" style="font-size:11px;color:var(--muted);margin-top:9px;display:none;"></div>
+            <div style="margin-top:12px;">
+              <label style="display:block;font-size:12px;font-weight:600;margin-bottom:5px;">요청 유형 <span class="req">*</span></label>
+              <div id="pxy-type-seg" style="display:flex;border:1px solid var(--border-md);border-radius:8px;overflow:hidden;background:var(--surface);">
+                <button type="button" id="pxy-type-int" onclick="setPxyType('internal')" style="flex:1;padding:9px 8px;font:inherit;font-size:12.5px;border:none;border-right:1px solid var(--border-md);cursor:pointer;background:var(--accent);color:#fff;font-weight:700;">🔒 내부 검토</button>
+                <button type="button" id="pxy-type-nor" onclick="setPxyType('normal')" style="flex:1;padding:9px 8px;font:inherit;font-size:12.5px;border:none;cursor:pointer;background:transparent;color:var(--muted);">일반 (고객에게 표시)</button>
+              </div>
+              <div id="pxy-type-note" style="margin-top:7px;border-radius:7px;padding:8px 11px;font-size:11.5px;line-height:1.6;background:#fffbeb;border:1px solid #fde68a;color:#92400e;">
+                🔒 <b>내부 검토</b> — 이 요청은 빅스데이터 직원에게만 보입니다. 고객 화면(요청 목록·상세)에 표시되지 않고, 고객에게 접수확인·상태변경 메일도 발송되지 않습니다.
+              </div>
+            </div>
           </div>
         </div>
         <div class="form-group span2">
@@ -3013,7 +3132,7 @@ textarea{resize:vertical;min-height:100px;}
         </div>
         <div class="form-group">
           <label>사용자 유형 <span class="req">*</span></label>
-          <select id="u-role" onchange="loadOrgChecklist(document.getElementById('u-company').value)">
+          <select id="u-role" onchange="onUserRoleChange()">
             <option value="customer">고객 (customer)</option>
             <option value="internal">내부 일반 (internal)</option>
             <option value="tech_support">기술지원 (tech_support)</option>
@@ -3117,6 +3236,10 @@ textarea{resize:vertical;min-height:100px;}
 </div>
 
 <!-- 접수 완료 toast -->
+<!-- 완료 건 만족도 팝업 — 고객 홈 진입 시 미평가 완료 건이 있으면 1회 노출 -->
+<div id="modal-survey" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.35);align-items:center;justify-content:center;" onclick="if(event.target===this)svPopupLater()">
+  <div id="modal-survey-box" style="background:var(--surface);border-radius:14px;width:360px;max-width:calc(100vw - 40px);box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden;"></div>
+</div>
 <div id="toast" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:12px 20px;border-radius:var(--r-md);font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.25);">
   ✅ SR-2024-0045 접수 완료 — 확인 메일이 발송되었습니다.
 </div>
@@ -3448,7 +3571,7 @@ async function deleteTicketFlow(ticketId, ticketNumber, ctx) {
   } catch (_) { /* S3 제거 실패해도 DB 삭제는 진행(고아 객체는 수동 정리) */ }
   // 2) DB 삭제(트랜잭션)
   const { error } = await apiDeleteTicket(ticketId);
-  if (error) { showToast('삭제 실패: ' + error.message, true); return; }
+  if (error) { showToast('삭제 실패: ' + koDbError(error.message), true); return; }
   showToast('✅ 요청이 삭제됐습니다.');
   // 3) 화면 갱신
   if (ctx === 'detail') {
@@ -3794,9 +3917,27 @@ async function enterApp(email, acct, isRestore) {
   // URL ?ticket=TK-xxx 파라미터로 직접 접근 시 해당 티켓 상세 표시 (이메일/Slack 링크용)
   // showDetail()이 역할별로 알아서 분기하므로(관리자 계열=요청 관리, 고객/internal=내 요청) 여기선 역할 구분 없이 호출한다.
   const ticketParam = new URLSearchParams(window.location.search).get('ticket');
+  // 완료 메일의 별점 링크(&rate=1~5)로 들어온 경우 — 상세가 열리면 그 별점을 미리 선택한다
+  const rateParam = parseInt(new URLSearchParams(window.location.search).get('rate'), 10);
+  if (rateParam >= 1 && rateParam <= 5) window._rdPendingRate = rateParam;
+  // survey=1: 완료 메일의 '별점 남기기' 버튼 — 별점 미선택 상태로 홈 팝업을 연다
+  window._rdSurveyEntry = new URLSearchParams(window.location.search).get('survey') === '1';
   if (ticketParam && sb) {
     sb.from('tickets').select('*').eq('ticket_number', ticketParam).single().then(({ data }) => {
-      if (data) showDetail(data);
+      const pre = window._rdPendingRate; window._rdPendingRate = 0;
+      const surveyEntry = window._rdSurveyEntry; window._rdSurveyEntry = false;
+      // 완료 메일의 별점 링크(&rate=N)와 '별점 남기기' 버튼(&survey=1): 상세로
+      // 이동하지 않고 홈에 머문 채 평가 팝업만 띄운다(별 링크는 누른 별점 미리 선택,
+      // 버튼은 미선택). 평가할 수 없는 상태(이미 평가됨, 완료 아님, 본인 요청 아님)면
+      // 기존처럼 상세를 연다.
+      const canPopup = data && ((pre >= 1 && pre <= 5) || surveyEntry) && currentUser?.role === 'customer'
+        && data.created_by === currentUser.id && data.status === 'completed'
+        && data.satisfaction_rating == null;
+      if (canPopup) {
+        svPopupOpenFor(data, pre);
+        if (acct.role === 'customer' || acct.role === 'internal') loadTickets();
+      }
+      else if (data) showDetail(data);
       else if (acct.role === 'customer' || acct.role === 'internal') loadTickets();
     });
   } else if (acct.role === 'customer' || acct.role === 'internal') {
@@ -4695,7 +4836,7 @@ async function deleteDocument(id, title) {
     await sb.storage.from('documents').remove([doc.storage_path]);
   }
   const { error } = await sb.from('content_documents').delete().eq('id', id);
-  if (error) { showToast('삭제 실패: ' + error.message, true); return; }
+  if (error) { showToast('삭제 실패: ' + koDbError(error.message), true); return; }
   showToast('✅ 삭제됐습니다.');
   loadDocuments();
 }
@@ -5157,7 +5298,7 @@ async function submitNotice() {
 
 async function deleteNotice(id, title) {
   const { error } = await sb.from('content_notices').delete().eq('id', id);
-  if (error) { showToast('삭제 실패: ' + error.message, true); return; }
+  if (error) { showToast('삭제 실패: ' + koDbError(error.message), true); return; }
   showToast('삭제됐습니다.');
   loadNotices();
   const noticeModal = document.getElementById('modal-notices');
@@ -5455,12 +5596,13 @@ async function loadDashboard() {
 
     // 최근 요청 테이블
     const { data: recent } = await applyFilter(sb.from('tickets')
-      .select('id, ticket_number, title, category, unit_name, status, created_at, updated_at'))
+      .select('id, ticket_number, title, category, unit_name, status, created_at, updated_at, created_by, satisfaction_rating'))
       .order('created_at', { ascending: false }).limit(200);
     dashRecentTickets = recent || [];
     window._dashRecentFilter = window._dashRecentFilter || 'all';
     updateDashRecentCardStyles();
     renderDashRecentTable(window._dashRecentFilter);
+    maybeShowSurveyPopup();
 
   } else if (ADMIN_ROLES.has(role)) {
     const todayStart = new Date(); todayStart.setHours(0,0,0,0);
@@ -5515,7 +5657,7 @@ async function loadDashboard() {
     // 최근 요청 테이블 — 카드와 같은 범위(statCats)를 쓴다
     const dashAllowedCats = statCats;
     let recentQ = sb.from('tickets')
-      .select('id, ticket_number, title, category, status, priority, created_at, updated_at, due_date, company_name, company:company_id(name)')
+      .select('id, ticket_number, title, category, status, priority, created_at, updated_at, due_date, company_name, is_internal, company:company_id(name)')
       .order('created_at', { ascending: false }).limit(200);
     if (dashAllowedCats) recentQ = recentQ.in('category', dashAllowedCats);
     const { data: recentTickets } = await recentQ;
@@ -5672,7 +5814,7 @@ async function loadTickets() {
 
   let query = sb
     .from('tickets')
-    .select('id, ticket_number, title, description, category, product, priority, status, created_at, updated_at, due_date, unit_name, assigned_to_name, company_name, created_by_name, registered_by, registered_by_name, assignee:assigned_to(name), company:company_id(name), requester:created_by(name)')
+    .select('id, ticket_number, title, description, category, product, priority, status, created_at, updated_at, due_date, unit_name, assigned_to_name, company_name, created_by_name, registered_by, registered_by_name, is_internal, assignee:assigned_to(name), company:company_id(name), requester:created_by(name)')
     .order('created_at', { ascending: false });
 
   if (DEMO_COMPANY_ID) query = query.eq('company_id', DEMO_COMPANY_ID);
@@ -5759,7 +5901,7 @@ function detachSharedRequestDetail(tbody) {
 // 요청 탭·요청 관리 두 아코디언 테이블이 똑같이 쓰는 9개 셀을 한 곳에 정의(중복 제거).
 // 화면별로 다른 셀은 각 렌더러에 그대로 둔다: num(폴백 차이)·due(지연뱃지 유무)·action(요청관리 전용).
 const TICKET_CELL = {
-  title:     t => `<td style="font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(t.title||'')}<span class="row-arrow">▾</span></td>`,
+  title:     t => `<td style="font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.is_internal?'<span title="내부 검토 — 고객에게 보이지 않는 요청" style="margin-right:4px;">🔒</span>':''}${escHtml(t.title||'')}<span class="row-arrow">▾</span></td>`,
   category:  t => `<td><span class="badge ${CATEGORY_BADGE[t.category]||'b-gray'}">${CATEGORY_LABELS[t.category]||t.category||'—'}</span></td>`,
   priority:  t => `<td><span class="badge ${PRIORITY_BADGE[t.priority]||'b-gray'}">${PRIORITY_LABELS[t.priority]||'일반'}</span></td>`,
   status:    t => `<td><span class="badge ${STATUS_BADGE[t.status]||'b-gray'}">${STATUS_LABELS[t.status]||t.status||'—'}</span></td>`,
@@ -5925,7 +6067,29 @@ function setReqType(mode) {
   if (proxyPanel) proxyPanel.style.display = isProxy ? '' : 'none';
   if (selfNote) selfNote.style.display = isProxy ? 'none' : '';
   document.querySelectorAll('#nw-type-seg button').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
-  if (isProxy) { pxyResetSelection(); pxyBootstrap(); }
+  if (isProxy) { pxyResetSelection(); pxyBootstrap(); setPxyType('internal'); } // 대리 요청 기본값 = 내부 검토(실수해도 고객에게 안 보이는 쪽)
+}
+
+// ── 대리 요청 유형 (내부 검토 / 일반) ──
+// 내부 검토(is_internal): 고객 화면에서 완전 은닉 + 고객 메일 미발송. 대리 요청 탭의 기본값.
+window._pxyType = 'internal';
+function setPxyType(t) {
+  window._pxyType = t;
+  const isInt = t === 'internal';
+  const bInt = document.getElementById('pxy-type-int');
+  const bNor = document.getElementById('pxy-type-nor');
+  if (bInt) { bInt.style.background = isInt ? 'var(--accent)' : 'transparent'; bInt.style.color = isInt ? '#fff' : 'var(--muted)'; bInt.style.fontWeight = isInt ? '700' : '400'; }
+  if (bNor) { bNor.style.background = isInt ? 'transparent' : 'var(--accent)'; bNor.style.color = isInt ? 'var(--muted)' : '#fff'; bNor.style.fontWeight = isInt ? '400' : '700'; }
+  const note = document.getElementById('pxy-type-note');
+  if (note) {
+    if (isInt) {
+      note.style.cssText = 'margin-top:7px;border-radius:7px;padding:8px 11px;font-size:11.5px;line-height:1.6;background:#fffbeb;border:1px solid #fde68a;color:#92400e;';
+      note.innerHTML = '🔒 <b>내부 검토</b> — 이 요청은 빅스데이터 직원에게만 보입니다. 고객 화면(요청 목록·상세)에 표시되지 않고, 고객에게 접수확인·상태변경 메일도 발송되지 않습니다.';
+    } else {
+      note.style.cssText = 'margin-top:7px;border-radius:7px;padding:8px 11px;font-size:11.5px;line-height:1.6;background:var(--accent-l);border:1px solid #C7D2FE;color:var(--text);';
+      note.innerHTML = '일반 대리 요청 — 고객 명의로 접수되어 고객 화면에도 표시되고, 접수확인 메일이 고객에게 발송됩니다(대리 등록 안내 포함).';
+    }
+  }
 }
 
 // ── 대리 등록(내부 계정) — 고객사/고객/조직/담당자 로드 + 콤보박스 ──
@@ -6093,6 +6257,8 @@ async function submitRequest() {
     if (staffId) payload.assigned_to = staffId;
     const orgVal = document.getElementById('pxy-org')?.value;
     if (orgVal) payload.unit_id = orgVal; else delete payload.unit_id;
+    // 요청 유형 — 내부 검토면 고객 화면 은닉 + 고객 메일 미발송(서버에서 대리 등록일 때만 인정).
+    if (window._pxyType === 'internal') payload.internal_review = true;
   }
 
   const { data, error } = await apiCreateTicket(payload);
@@ -6226,6 +6392,25 @@ function fmtTimeSec(iso) {
 function escHtml(s) {
   if (!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// DB 오류(영문)를 사용자용 한글 안내로 변환 — 삭제 차단(FK 참조) 오류가 대부분이다.
+// 예: update or delete on table "company_contracts" violates foreign key constraint
+//     "users_contract_id_fkey" on table "users"  →  "연결된 사용자 데이터가 있어 삭제할 수 없습니다..."
+// 매칭 안 되는 오류는 원문을 그대로 보여준다(디버깅 정보 보존).
+const FK_TABLE_KO = {
+  company_licenses: '라이선스', users: '사용자', tickets: '요청', company_contracts: '계약',
+  ticket_replies: '답글', ticket_history: '처리 이력', ticket_attachments: '첨부파일', ticket_memos: '메모',
+  role_permissions: '권한 설정', log_notification: '알림 로그',
+  user_org_units: '조직 배정', org_units: '조직', content_documents: '자료',
+};
+function koDbError(msg) {
+  const m = /violates foreign key constraint "[^"]*" on table "([^"]+)"/.exec(msg || '');
+  if (m) {
+    const ko = FK_TABLE_KO[m[1]] || m[1];
+    return `연결된 ${ko} 데이터가 있어 삭제할 수 없습니다. 해당 ${ko}의 연결을 먼저 정리(해제·이동·삭제)한 뒤 다시 시도하세요.`;
+  }
+  return msg;
 }
 
 // ══════════════════════════════════════════
@@ -7217,10 +7402,28 @@ async function submitContract() {
 
 async function deleteContract(id, filePath) {
   if (!confirm('계약 정보를 삭제하시겠습니까?')) return;
+  // 조직 자동 정리를 위해 삭제 전에 이 계약이 속한 조직(unit_id)을 기억해 둔다.
+  const { data: ctRow } = await sb.from('company_contracts').select('unit_id').eq('id', id).limit(1);
+  const unitId = ctRow?.[0]?.unit_id || null;
   if (filePath) await sb.storage.from('contract-attachments').remove([filePath]);
   const { error } = await sb.from('company_contracts').delete().eq('id', id);
-  if (error) { showToast('삭제 실패: ' + error.message, true); return; }
-  showToast('삭제되었습니다.');
+  if (error) { showToast('삭제 실패: ' + koDbError(error.message), true); return; }
+  // 이 조직의 마지막 계약이었으면 빈 조직도 함께 삭제한다.
+  // 단, 대표 조직으로 쓰는 사용자(users.unit_id)나 과거 요청(tickets.unit_id)이 참조 중이면
+  // DB FK가 삭제를 막으므로 조직은 유지하고 안내만 한다(배정 user_org_units는 CASCADE로 함께 정리됨).
+  let orgNote = '';
+  if (unitId) {
+    const { data: remain } = await sb.from('company_contracts').select('id').eq('unit_id', unitId).limit(1);
+    if (!remain || !remain.length) {
+      const { data: orgRow } = await sb.from('org_units').select('unit_name').eq('id', unitId).limit(1);
+      const orgName = orgRow?.[0]?.unit_name || '';
+      const { error: orgErr } = await sb.from('org_units').delete().eq('id', unitId);
+      orgNote = orgErr
+        ? ` (빈 조직 '${orgName}'은 사용자·과거 요청이 참조하고 있어 유지했습니다)`
+        : ` — 계약이 없는 조직 '${orgName}'도 함께 삭제했습니다.`;
+    }
+  }
+  showToast('삭제되었습니다.' + orgNote);
   loadCompanyContracts();
 }
 
@@ -7352,7 +7555,7 @@ async function deleteLicenseGroup(ids, filePaths) {
   if (filePaths.length) await sb.storage.from('contract-attachments').remove(filePaths);
   const results = await Promise.all(ids.map(id => sb.from('company_licenses').delete().eq('id', id)));
   const error = results.find(r => r.error)?.error;
-  if (error) { showToast('삭제 실패: ' + error.message, true); return; }
+  if (error) { showToast('삭제 실패: ' + koDbError(error.message), true); return; }
   showToast('삭제되었습니다.');
   loadCompanyLicenses();
 }
@@ -7547,6 +7750,8 @@ function switchStatsTab(tab) {
   if (lib) lib.style.display = tab === 'lib' ? '' : 'none';
   const sys = document.getElementById('stab-sys');
   if (sys) sys.style.display = tab === 'sys' ? '' : 'none';
+  const sat = document.getElementById('stab-sat');
+  if (sat) sat.style.display = tab === 'sat' ? '' : 'none';
   // 계정 탭에서만 페이지를 뷰포트 높이에 고정하고(acct-mode) 목록으로 남는 공간을 채운다.
   // 요청 현황 탭은 블록이 많아 세로로 길므로 기존처럼 스크롤되게 둔다.
   document.getElementById('p-stats')?.classList.toggle('acct-mode', tab === 'acct');
@@ -7555,6 +7760,7 @@ function switchStatsTab(tab) {
   if (tab === 'cust' && !_cuLoaded) loadCompanyStats();
   if (tab === 'lib' && !_dlLoaded) loadDocStats();
   if (tab === 'sys' && !_sysLoaded) loadSystemStats();
+  if (tab === 'sat' && !_satLoaded) loadSatStats();
 }
 
 // 창 크기가 바뀌면 표시 행 수를 다시 맞춘다 — 계정 탭이 열려 있을 때만.
@@ -7565,6 +7771,39 @@ window.addEventListener('resize', () => {
   _lhResizeT = setTimeout(() => fitLhPageSize(true), 180);
 });
 
+// 접속 활동 기간(추이·총로그인·비중·히트맵 창). DAU/WAU/MAU는 정의상 창이 고정이라 영향 없음.
+let _actDays = 30;
+function setActDays(d, btn) {
+  _actDays = d;
+  document.querySelectorAll('#act-days button').forEach(b => b.classList.toggle('on', b === btn));
+  loadStats();
+}
+// 접속 시간대 히트맵 — 요청 현황 탭과 같은 시각 문법(.rq-hm). 서버는 dow 0=일요일로 주므로
+// 월요일 시작으로 재배열하고, 가장 붐비는 칸은 문장으로도 뽑아준다(색 농도만으로 읽게 하지 않는다).
+function _actRenderHeatmap(rows) {
+  const box = document.getElementById('act-heatmap');
+  if (!box) return;
+  const DAYS = ['월','화','수','목','금','토','일'], DOW = [1,2,3,4,5,6,0];
+  const SCALE = ['#F3F4F6','#EEF2FF','#C7D2FE','#A5B4FC','#818CF8','#4F46E5'];
+  const max = Math.max(...rows.map(r => r.n), 1);
+  const at = (d, h) => (rows.find(r => r.d === d && r.h === h) || {}).n || 0;
+  let html = '<div></div>' + Array.from({ length: 24 }, (_, h) => `<div class="h">${h % 3 === 0 ? h : ''}</div>`).join('');
+  DAYS.forEach((label, i) => {
+    html += `<div class="d">${label}</div>`;
+    for (let h = 0; h < 24; h++) {
+      const n = at(DOW[i], h);
+      const idx = n === 0 ? 0 : Math.max(1, Math.ceil((n / max) * 5));
+      html += `<div class="c" style="background:${SCALE[idx]};" title="${label} ${h}시 · ${n}건"></div>`;
+    }
+  });
+  box.innerHTML = html;
+  const top = rows.slice().sort((a, b) => b.n - a.n)[0];
+  const total = rows.reduce((a, r) => a + r.n, 0);
+  const topKo = top ? `${['일','월','화','수','목','금','토'][top.d]}요일 ${top.h}시가 최다 (${top.n}건 · ${total ? Math.round((top.n / total) * 100) : 0}%)` : '기록 없음';
+  document.getElementById('act-hmscale').innerHTML =
+    `적음 ${SCALE.slice(1).map(c => `<i style="background:${c};"></i>`).join('')} 많음<span style="margin-left:auto;">${escHtml(topKo)}</span>`;
+}
+
 async function loadStats() {
   const ico = document.getElementById('stats-refresh-ico'); if (ico) ico.classList.add('spin');
   // 요청 현황·고객 활용 탭은 별도 엔드포인트라 새로고침 때 함께 다시 조회한다
@@ -7573,10 +7812,14 @@ async function loadStats() {
   if (_cuLoaded) loadCompanyStats();
   if (_dlLoaded) loadDocStats();
   if (_sysLoaded) loadSystemStats();
+  if (_satLoaded) loadSatStats();
   try {
     // 접속 활동(서버 집계)
     let active = { dau: 0, wau: 0, mau: 0, stickiness: 0, series: [] };
-    try { const r = await fetch(`${API_BASE}/stats/active-users`, { headers: { ...authHeaders() } }); if (r.ok) active = await r.json(); } catch (e) {}
+    try { const r = await fetch(`${API_BASE}/stats/active-users?days=${_actDays}`, { headers: { ...authHeaders() } }); if (r.ok) active = await r.json(); } catch (e) {}
+    _actRenderHeatmap(active.heatmap || []);
+    const dl = document.getElementById('act-days-label'); if (dl) dl.textContent = `(최근 ${_actDays}일)`;
+    const rl = document.getElementById('act-byrole-label'); if (rl) rl.textContent = `최근 ${_actDays}일 · 전체 역할 · 테스트 제외`;
     // 계정 현황용 조회
     const us = await sb.from('users').select('id,role,is_active,last_login').limit(10000);
     const users = us.data || [];
@@ -7622,6 +7865,147 @@ async function loadStats() {
   } finally {
     if (ico) ico.classList.remove('spin');
   }
+}
+
+// ── 응답 현황 (GET /stats/satisfaction, 서버 집계) ─────────────────
+// 완료 건 만족도 조사(별점 1~5 + 한줄평) 집계. 전부 tickets 컬럼에서 나온다.
+// 응답률 분모는 "완료된 직접 등록 건" — 대리 등록 건은 평가할 고객이 없어 분모에서 뺀다.
+let _satDays = 90, _satLoaded = false;
+
+function setSatDays(d, btn) {
+  _satDays = d;
+  document.querySelectorAll('#sat-days button').forEach(b => b.classList.toggle('on', b === btn));
+  loadSatStats();
+}
+function _satStars(r) {
+  const full = Math.round(r || 0);
+  return `<span class="sat-stars">${'★'.repeat(full)}<span class="off">${'★'.repeat(5 - full)}</span></span>`;
+}
+
+async function loadSatStats() {
+  const kpis = document.getElementById('sat-kpis');
+  if (!kpis) return;
+  const params = new URLSearchParams({ days: String(_satDays) });
+  const cat = document.getElementById('sat-category')?.value || '';
+  const q = (document.getElementById('sat-q')?.value || '').trim();
+  if (cat) params.set('category', cat);
+  if (q) params.set('q', q);
+
+  kpis.innerHTML = '<div class="rq-kpi" style="grid-column:1/-1;"><div class="s" style="margin:0;">불러오는 중...</div></div>';
+  let d = null;
+  try {
+    const r = await fetch(`${API_BASE}/stats/satisfaction?${params}`, { headers: { ...authHeaders() } });
+    if (r.ok) d = await r.json();
+  } catch (e) { console.error('loadSatStats 오류', e); }
+  _satLoaded = true;
+  if (!d) {
+    kpis.innerHTML = '<div class="rq-kpi" style="grid-column:1/-1;"><div class="s" style="margin:0;">응답 통계를 불러오지 못했습니다.</div></div>';
+    return;
+  }
+  _satRenderKpis(d.summary || {});
+  _satRenderTrend(d.trend || []);
+  _satRenderDist(d.byRating || [], d.summary || {});
+  _satRenderCompany(d.byCompany || []);
+  _satRenderKeywords(d.kwPos || [], d.kwNeg || [], d.posCount || 0, d.negCount || 0);
+  _satRenderRecent(d.recent || []);
+}
+
+function _satRenderKpis(s) {
+  // 표본 30건 미만이면 해석 주의를 부제에 박는다 — 평균 한 건이 수치를 크게 흔드는 구간.
+  const small = s.responses > 0 && s.responses < 30 ? ' · 표본이 적어 해석에 주의' : '';
+  const delta = (s.prevAvg != null && s.avg && s.prevAvg !== s.avg)
+    ? `<span style="font-size:12px;font-weight:700;margin-left:6px;color:${s.avg > s.prevAvg ? 'var(--green-d)' : 'var(--red-d)'};">${s.avg > s.prevAvg ? '▲' : '▼'} ${Math.abs(s.avg - s.prevAvg).toFixed(1)}</span>` : '';
+  document.getElementById('sat-kpis').innerHTML = [
+    `<div class="rq-kpi"><div class="k">평균 만족도</div><div class="v" style="color:#F59E0B;">${s.responses ? s.avg : '—'}<span style="font-size:14px;color:var(--faint);"> / 5</span>${delta}</div><div class="s">${s.responses ? _satStars(s.avg) + ` 응답 ${s.responses}건 기준${small}` : '아직 응답이 없습니다'}</div></div>`,
+    `<div class="rq-kpi good"><div class="k">응답률</div><div class="v">${s.eligible ? s.rate + '%' : '—'}</div><div class="s">완료된 직접 등록 ${s.eligible || 0}건 중 ${s.responses || 0}건 응답</div></div>`,
+    `<div class="rq-kpi"><div class="k">한줄평 작성</div><div class="v">${s.comments || 0}</div><div class="s">${s.responses ? Math.round((s.comments / s.responses) * 100) + '% · 선택 항목' : '선택 항목'}</div></div>`,
+    `<div class="rq-kpi ${s.low ? 'bad' : ''}"><div class="k">불만 응답 (1~2점)</div><div class="v">${s.low || 0}</div><div class="s">${s.responses ? Math.round((s.low / s.responses) * 100) + '% · 후속 확인 대상' : '후속 확인 대상'}</div></div>`,
+  ].join('');
+}
+
+function _satRenderTrend(rows) {
+  const box = document.getElementById('sat-trend');
+  const right = document.getElementById('sat-trend-right');
+  if (!rows.length) {
+    box.innerHTML = '<div class="rq-empty">응답이 쌓이면 월별 평균 추이가 표시됩니다.</div>';
+    right.textContent = '';
+    return;
+  }
+  const W = 640, H = 150, L = 36;
+  const x = i => L + (i * (W - L - 20)) / Math.max(rows.length - 1, 1);
+  const y = v => 14 + ((5 - v) / 3) * (H - 40); // 2.0~5.0 구간을 세로에 매핑
+  const pts = rows.map((r, i) => `${x(i).toFixed(1)},${y(Math.max(r.avg, 2)).toFixed(1)}`).join(' ');
+  const grid = [5, 4, 3].map(v => `<line x1="${L}" y1="${y(v)}" x2="${W}" y2="${y(v)}" stroke="var(--border)"></line>
+    <text x="${L - 6}" y="${y(v) + 3}" text-anchor="end" font-size="10" fill="var(--faint)">${v}.0</text>`).join('');
+  const labels = rows.map((r, i) => `<text x="${x(i).toFixed(1)}" y="${H - 4}" text-anchor="middle" font-size="9.5" fill="var(--faint)">${escHtml(r.ym.slice(5))}월</text>`).join('');
+  const dots = rows.map((r, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(Math.max(r.avg, 2)).toFixed(1)}" r="3"
+      fill="var(--accent)"><title>${escHtml(r.ym)} · 평균 ${r.avg} (${r.n}건)</title></circle>`).join('');
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="none" role="img" aria-label="월별 평균 만족도 추이">
+    ${grid}${rows.length > 1 ? `<polyline fill="none" stroke="var(--accent)" stroke-width="2.5" points="${pts}"></polyline>` : ''}${dots}${labels}</svg>`;
+  const total = rows.reduce((a, r) => a + r.n, 0);
+  right.textContent = `${rows.length}개월 · 응답 ${total}건`;
+}
+
+function _satRenderDist(rows, summary) {
+  const box = document.getElementById('sat-dist');
+  document.getElementById('sat-dist-sub').textContent = summary.responses ? `응답 ${summary.responses}건` : '';
+  if (!rows.length) { box.innerHTML = '<div class="rq-empty">아직 응답이 없습니다.</div>';
+    document.getElementById('sat-dist-note').textContent = ''; return; }
+  const COLOR = { 5:'var(--green)', 4:'#6EE7B7', 3:'var(--amber)', 2:'#F87171', 1:'var(--red)' };
+  const total = rows.reduce((a, r) => a + r.n, 0);
+  const max = Math.max(...rows.map(r => r.n), 1);
+  box.innerHTML = [5, 4, 3, 2, 1].map(k => {
+    const hit = rows.find(r => r.r === k);
+    const n = hit ? hit.n : 0;
+    return `<div class="rq-brow" style="grid-template-columns:76px 1fr 62px;">
+      ${_satStars(k)}
+      <span class="rq-btrack"><span class="rq-bfill" style="width:${(n / max) * 100}%;background:${COLOR[k]};"></span></span>
+      <span class="v">${n} <em>${total ? Math.round((n / total) * 100) : 0}%</em></span></div>`;
+  }).join('');
+  const good = rows.filter(r => r.r >= 4).reduce((a, r) => a + r.n, 0);
+  document.getElementById('sat-dist-note').innerHTML = summary.low
+    ? `4점 이상이 ${Math.round((good / total) * 100)}%입니다. <b style="color:var(--red-d);font-weight:700;">1~2점 ${summary.low}건</b>은 아래 한줄평·고객사 표에서 원인을 확인할 수 있습니다.`
+    : `4점 이상이 ${Math.round((good / total) * 100)}%입니다.`;
+}
+
+function _satRenderCompany(rows) {
+  const tbody = document.getElementById('sat-company');
+  tbody.innerHTML = rows.length
+    ? rows.map(r => {
+        const cls = r.avg <= 2.5 ? 'color:var(--red-d);' : r.avg <= 3.5 ? 'color:var(--amber-d);' : '';
+        return `<tr>
+          <td style="font-weight:700;">${escHtml(r.company)}</td>
+          <td style="text-align:right;font-weight:800;font-variant-numeric:tabular-nums;${cls}">${r.avg}</td>
+          <td>${_satStars(r.avg)}</td>
+          <td style="text-align:right;font-variant-numeric:tabular-nums;">${r.n}</td>
+          <td style="color:var(--muted);font-variant-numeric:tabular-nums;">${escHtml(String(r.last_rated || '').slice(0, 10))}</td>
+          <td style="white-space:normal;color:var(--muted);">${r.last_comment ? '"' + escHtml(r.last_comment) + '"' : '<span style="color:var(--faint);">—</span>'}</td></tr>`;
+      }).join('')
+    : '<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--faint);">응답 2건 이상인 고객사가 아직 없습니다.</td></tr>';
+  document.getElementById('sat-company-note').textContent = rows.length
+    ? '응답 1건뿐인 고객사는 표본이 적어 표에서 제외됩니다(고객사 검색으로 개별 확인 가능).' : '';
+}
+
+function _satRenderKeywords(pos, neg, posCount, negCount) {
+  const size = (n, max) => n >= max * 0.7 ? 's3' : n >= max * 0.4 ? 's2' : 's1';
+  const render = (rows, cls) => {
+    if (!rows.length) return '<span class="rq-note">2회 이상 언급된 단어가 아직 없습니다.</span>';
+    const max = Math.max(...rows.map(r => r.n));
+    return rows.map(r => `<span class="sat-kw ${cls} ${size(r.n, max)}">${escHtml(r.k)} <i>${r.n}</i></span>`).join('');
+  };
+  document.getElementById('sat-kw-pos-label').textContent = `긍정 (4~5점 한줄평 ${posCount}건)`;
+  document.getElementById('sat-kw-neg-label').textContent = `개선 요청 (1~3점 한줄평 ${negCount}건)`;
+  document.getElementById('sat-kw-pos').innerHTML = render(pos, 'pos');
+  document.getElementById('sat-kw-neg').innerHTML = render(neg, 'neg');
+}
+
+function _satRenderRecent(rows) {
+  const CAT = typeof RQ_CAT_KO !== 'undefined' ? RQ_CAT_KO : {};
+  document.getElementById('sat-recent').innerHTML = rows.length
+    ? rows.map(r => `<div class="sat-quote" style="border-left-color:${r.r <= 2 ? 'var(--red)' : r.r >= 4 ? '#A7F3D0' : 'var(--border-md)'};">
+        ${_satStars(r.r)} <b>${escHtml(r.company || '—')}</b> · ${CAT[r.category] || escHtml(r.category)}<br>
+        ${escHtml(r.comment)}<div class="m">${escHtml(r.ticket_number)} · ${escHtml(r.at)}</div></div>`).join('')
+    : '<div class="rq-empty">한줄평이 아직 없습니다. 완료 요청의 고객이 평가를 남기면 여기에 표시됩니다.</div>';
 }
 
 // ── 시스템 현황 (GET /stats/system, 서버 집계) ────────────────────
@@ -8917,7 +9301,7 @@ async function retryNotify(id) {
 async function deleteCompany(id, name) {
   if (!confirm(name + ' 고객사를 삭제하시겠습니까?')) return;
   const { error } = await sb.from('companies').delete().eq('id', id);
-  if (error) { showToast('삭제 실패: ' + error.message, true); return; }
+  if (error) { showToast('삭제 실패: ' + koDbError(error.message), true); return; }
   showToast('✅ ' + name + ' 삭제 완료');
   await loadCompanies();
 }
@@ -9162,7 +9546,9 @@ function renderUsers(users, tbodyId) {
   tbody.innerHTML = users.map(u => {
     const roleLabel = ROLE_LABELS[u.role] || u.role;
     const roleBadge = ROLE_BADGE[u.role]  || 'b-gray';
-    const companyName = u.company?.name || '빅스데이터';
+    // 회사 미배정(NULL)은 역할로 구분해 표시 — 고객이면 '미지정'(아직 배정 전 상태), 스태프면 '빅스데이터'(내부 소속).
+    const noCompany = !u.company?.name;
+    const companyName = u.company?.name || (u.role === 'customer' ? '미지정' : '빅스데이터');
     const lastLogin = u.last_login ? new Date(u.last_login).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—';
     const activeHtml = u.is_active
       ? '<span class="badge b-green">활성</span>'
@@ -9174,7 +9560,7 @@ function renderUsers(users, tbodyId) {
       <tr>
         <td style="font-weight:600;">${escHtml(u.name)}</td>
         <td style="font-size:12px;color:var(--muted);">${escHtml(u.email)}</td>
-        <td style="font-size:12px;">${escHtml(companyName)}</td>
+        <td style="font-size:12px;${noCompany && u.role === 'customer' ? 'color:var(--faint);' : ''}">${escHtml(companyName)}</td>
         ${isCustomerTable ? `<td style="font-size:12px;">${orgHtml}</td>` : ''}
         <td><span class="badge ${roleBadge}">${roleLabel}</span></td>
         <td style="font-size:12px;color:var(--faint);">${lastLogin}</td>
@@ -9340,7 +9726,7 @@ async function resetUserPassword(id, name) {
 async function deleteUser(id, name) {
   if (!confirm(name + ' 사용자를 삭제하시겠습니까?')) return;
   const { error } = await sb.from('users').delete().eq('id', id);
-  if (error) { showToast('삭제 실패: ' + error.message, true); return; }
+  if (error) { showToast('삭제 실패: ' + koDbError(error.message), true); return; }
   showToast('✅ ' + name + ' 삭제 완료');
   await loadUsers();
 }
@@ -9354,11 +9740,30 @@ let _orgAssigned = new Set();
 let _orgPrimary = null;
 let _orgExpanded = new Set();
 
+// 회사 미배정(id='')의 표시 라벨은 역할에 따라 다르다 — 고객이면 '미지정'(배정 전), 스태프면 '빅스데이터'(내부 소속).
+// DB에선 둘 다 company_id NULL 한 상태라, 구분은 역할로만 한다.
+function userEmptyCompanyLabel() {
+  return document.getElementById('u-role')?.value === 'customer' ? '미지정' : '빅스데이터';
+}
+
+// 역할이 바뀌면 빈 옵션 라벨(미지정↔빅스데이터)도 같이 갱신한 뒤 조직 체크리스트를 다시 그린다.
+function onUserRoleChange() {
+  const hidden = document.getElementById('u-company');
+  if (_userCompanyOptions.length && _userCompanyOptions[0].id === '') {
+    _userCompanyOptions[0].name = userEmptyCompanyLabel();
+    if (hidden && hidden.value === '') {
+      const searchEl = document.getElementById('u-company-search');
+      if (searchEl) searchEl.value = _userCompanyOptions[0].name;
+    }
+  }
+  loadOrgChecklist(hidden?.value);
+}
+
 async function populateCompanySelect(selectedId) {
   const hidden = document.getElementById('u-company');
   if (!hidden || !sb) return;
   const { data } = await sb.from('companies').select('id, name').order('name').limit(1000);
-  _userCompanyOptions = [{ id: '', name: '빅스데이터' }, ...(data || [])];
+  _userCompanyOptions = [{ id: '', name: userEmptyCompanyLabel() }, ...(data || [])];
   const selected = _userCompanyOptions.find(c => c.id === (selectedId || '')) || _userCompanyOptions[0];
   hidden.value = selected.id;
   const searchEl = document.getElementById('u-company-search');
@@ -9372,7 +9777,13 @@ function renderCompanyCombo(query) {
   const q = (query || '').trim().toLowerCase();
   const list = q ? _userCompanyOptions.filter(c => c.name.toLowerCase().includes(q)) : _userCompanyOptions;
   panel.innerHTML = list.length
-    ? list.map(c => `<div class="combo-item" onmousedown="selectUserCompany('${c.id}')">${escHtml(c.name)}</div>`).join('')
+    ? list.map(c => {
+        // 빈 옵션(회사 해제)은 항상 목록 맨 위에 있고, 고객 역할일 땐 '✕ 미지정'으로 명시해 해제 항목임을 드러낸다.
+        const isClear = c.id === '';
+        const label = isClear && c.name === '미지정' ? '✕ 미지정 (고객사 해제)' : c.name;
+        const style = isClear && c.name === '미지정' ? ' style="color:var(--faint);"' : '';
+        return `<div class="combo-item"${style} onmousedown="selectUserCompany('${c.id}')">${escHtml(label)}</div>`;
+      }).join('')
     : '<div class="combo-empty">일치하는 고객사가 없습니다.</div>';
   panel.classList.add('open');
 }
@@ -9687,7 +10098,7 @@ function clearTkFilter(key) { filterPopClear('tk', key); }
 function updateTkFilterButtonStates() { filterUpdateButtons('tk'); }
 
 // 요청 관리 티켓 조회 — 전체 로드와 델타 폴링이 같은 select·역할필터를 쓰도록 공용화.
-const AR_TICKET_SELECT = 'id, ticket_number, title, category, priority, status, created_at, updated_at, due_date, cc_emails, unit_name, assigned_to_name, company_name, created_by_name, registered_by, registered_by_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name,email)';
+const AR_TICKET_SELECT = 'id, ticket_number, title, category, priority, status, created_at, updated_at, due_date, cc_emails, unit_name, assigned_to_name, company_name, created_by_name, registered_by, registered_by_name, is_internal, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name,email)';
 const AR_ROLE_ALLOWED_CATS = {}; // 스태프(영업/기술/교육/관리자) 전 카테고리 조회 — 카테고리 제한 없음
 function _arBaseQuery() {
   const allowedCats = AR_ROLE_ALLOWED_CATS[currentUser?.role] || null;
@@ -10065,6 +10476,8 @@ async function selectRdTicket(idx, directTicket) {
   const rdDelBtn = document.getElementById('rd-delete-btn');
   if (rdDelBtn) rdDelBtn.style.display = permState[currentUser?.role]?.ticket_delete ? '' : 'none';
 
+  updateRdInternalUI();
+
   const isCustomerRole = currentUser?.role === 'customer';
   const isAdminUser = currentUser && ADMIN_ROLES.has(currentUser.role);
   const contractValueEl = document.getElementById('rd-contract-value');
@@ -10101,7 +10514,7 @@ async function selectRdTicket(idx, directTicket) {
   // ── 백그라운드: description·created_by 등 전체 필드 재조회 ──
   if (sb) {
     const { data } = await sb.from('tickets')
-      .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, created_by, company_id, contract_id, unit_id, unit_name, assigned_to, assigned_to_name, company_name, created_by_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
+      .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, created_by, company_id, contract_id, unit_id, unit_name, assigned_to, assigned_to_name, company_name, created_by_name, satisfaction_rating, satisfaction_comment, rated_at, is_internal, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
       .eq('id', selectedId).single();
     if (data && rdTicket.id === selectedId) {
       rdTicket = data;
@@ -10109,10 +10522,184 @@ async function selectRdTicket(idx, directTicket) {
       if (dueDateValue) dueDateValue.textContent = rdTicket.due_date ? rdTicket.due_date.slice(0, 10) : '—';
       const isOwner = currentUser && rdTicket.created_by === currentUser.id;
       if (ownerEditBtn) ownerEditBtn.style.display = isOwner ? '' : 'none';
+      updateRdInternalUI();
       await renderRdContract(rdTicket, contractValueEl);
     }
   }
 }
+
+// ── 내부 검토 표시/전환 ─────────────────────────────
+// 내부 검토(is_internal) 요청은 상세 제목 옆에 🔒 배지를 띄우고, 스태프에겐 "일반으로 전환"
+// 버튼을 노출한다. 전환은 api-layer PATCH /tickets/{id} 의 make_public 단독 액션(역방향 없음).
+function updateRdInternalUI() {
+  const badge = document.getElementById('rd-internal-badge');
+  const btn = document.getElementById('rd-make-public-btn');
+  const isInt = !!rdTicket?.is_internal;
+  const isStaffUser = currentUser && ADMIN_ROLES.has(currentUser.role);
+  if (badge) badge.style.display = isInt ? '' : 'none';
+  if (btn) btn.style.display = (isInt && isStaffUser) ? '' : 'none';
+}
+
+async function makeTicketPublic() {
+  if (!rdTicket?.id) return;
+  if (!confirm('이 요청을 일반으로 전환할까요?\n전환하면 고객 화면(목록·상세)에 표시되기 시작합니다.')) return;
+  const res = await fetch(`${API_BASE}/tickets/${rdTicket.id}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ make_public: true }),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) { showToast('전환 실패: ' + (data?.error || res.status), true); return; }
+  rdTicket.is_internal = false;
+  const cached = allMgTickets.find(t => t.id === rdTicket.id); if (cached) cached.is_internal = false;
+  updateRdInternalUI();
+  renderRdList();
+  showToast('✅ 일반 요청으로 전환했습니다 — 이제 고객에게 표시됩니다.');
+}
+
+// ── 완료 건 만족도 조사 ─────────────────────────────
+// 입력: 완료 상태 + 요청 등록 고객 본인 + 미평가일 때만.
+// 결과: 평가가 제출된 요청이면 역할 무관 읽기 전용으로 표시(스태프 포함).
+const RD_SURVEY_CAPS = { 1:'매우 불만족', 2:'불만족', 3:'보통', 4:'만족', 5:'매우 만족' };
+
+
+
+// ── 만족도 팝업 (고객 홈) ─────────────────────────────
+// 홈 진입 시 '완료 + 미평가 + 본인 등록 + 완료 후 14일 이내' 요청을 최근 순으로
+// 한 건씩 묻는다. 재노출은 요청당 3회까지(localStorage), '나중에'는 이번
+// 로그인(sessionStorage) 동안 숨김. 제출은 상세의 평가 카드와 같은 API를 쓴다.
+const SV_POPUP_MAX_PROMPTS = 3;      // 요청당 재노출 상한
+const SV_POPUP_WINDOW_DAYS = 14;     // 완료 후 이 기간이 지나면 묻지 않음
+let svPopupQueue = [];
+let svPopupIdx = 0;
+let svPopupRating = 0;
+
+function _svPromptCount(id) {
+  try { return parseInt(localStorage.getItem('svPromptCount:' + id), 10) || 0; } catch (_) { return 0; }
+}
+function _svBumpPrompt(id) {
+  try { localStorage.setItem('svPromptCount:' + id, String(_svPromptCount(id) + 1)); } catch (_) {}
+}
+
+function maybeShowSurveyPopup() {
+  if (currentUser?.role !== 'customer') return;
+  // 메일 별점 링크(?ticket=)로 들어온 경우엔 상세가 바로 열리므로 팝업을 겹치지 않는다
+  if (new URLSearchParams(window.location.search).get('ticket')) return;
+  try { if (sessionStorage.getItem('svPopupDismissed') === '1') return; } catch (_) {}
+  const cutoff = Date.now() - SV_POPUP_WINDOW_DAYS * 86400000;
+  svPopupQueue = (dashRecentTickets || []).filter(t =>
+    t.status === 'completed' &&
+    t.satisfaction_rating == null &&
+    t.created_by === currentUser.id &&
+    t.updated_at && new Date(t.updated_at).getTime() >= cutoff &&
+    _svPromptCount(t.id) < SV_POPUP_MAX_PROMPTS
+  ).sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+  if (!svPopupQueue.length) return;
+  svPopupIdx = 0;
+  document.getElementById('modal-survey').style.display = 'flex';
+  renderSvPopup();
+}
+
+function renderSvPopup() {
+  const t = svPopupQueue[svPopupIdx];
+  if (!t) { svPopupClose(); return; }
+  _svBumpPrompt(t.id);
+  svPopupRating = 0;
+  const box = document.getElementById('modal-survey-box');
+  box.innerHTML =
+    `<div class="sv-hd"><span class="sv-done-badge">완료</span>` +
+    `<div class="sv-h">완료된 요청은 어떠셨나요?</div>` +
+    `<div class="sv-tk"><b>${escHtml(t.ticket_number || '')}</b> · ${escHtml(t.title || '')}</div></div>` +
+    `<div class="sv-bd">` +
+    `<div class="sv-stars">` +
+    [1,2,3,4,5].map(v => `<button type="button" data-v="${v}" onclick="svPopupPick(${v})" ` +
+      `onmouseenter="svPopupPaint(${v})" onmouseleave="svPopupPaint(svPopupRating)" aria-label="${v}점">★</button>`).join('') +
+    `</div>` +
+    `<div class="sv-cap" id="sv-popup-cap">별점을 선택해주세요</div>` +
+    `<div class="sv-crow" id="sv-popup-crow" style="display:none;">` +
+    `<input type="text" id="sv-popup-text" maxlength="200" placeholder="한줄평을 남겨주세요 (선택, 200자)" onkeydown="if(event.key==='Enter'&&!event.isComposing)submitSvPopup()"></div>` +
+    `<button class="sv-submit" id="sv-popup-submit" onclick="submitSvPopup()" disabled>제출</button></div>` +
+    `<div class="sv-ft"><button class="sv-later" onclick="svPopupLater()">나중에 하기</button>` +
+    `<span class="sv-step">${svPopupIdx + 1} / ${svPopupQueue.length}</span></div>`;
+}
+
+function svPopupPaint(n) {
+  document.querySelectorAll('#modal-survey-box .sv-stars button').forEach(b => b.classList.toggle('on', +b.dataset.v <= n));
+  const cap = document.getElementById('sv-popup-cap');
+  if (cap) cap.textContent = n ? RD_SURVEY_CAPS[n] : '별점을 선택해주세요';
+}
+function svPopupPick(n) {
+  svPopupRating = n;
+  svPopupPaint(n);
+  const crow = document.getElementById('sv-popup-crow');
+  if (crow) crow.style.display = 'flex';
+  const btn = document.getElementById('sv-popup-submit');
+  if (btn) btn.disabled = false;
+}
+
+// 메일 별점 링크 진입용 — 해당 요청 하나만 큐에 담아 팝업을 열고, 누른 별점을 미리 선택한다.
+function svPopupOpenFor(ticket, rate) {
+  if (currentUser?.role !== 'customer') return;
+  if (!ticket || ticket.created_by !== currentUser.id) return;
+  if (ticket.status !== 'completed' || ticket.satisfaction_rating != null) return;
+  svPopupQueue = [ticket];
+  svPopupIdx = 0;
+  document.getElementById('modal-survey').style.display = 'flex';
+  renderSvPopup();
+  if (rate >= 1 && rate <= 5) svPopupPick(rate);
+}
+
+function svPopupLater() {
+  try { sessionStorage.setItem('svPopupDismissed', '1'); } catch (_) {}
+  svPopupClose();
+}
+function svPopupClose() {
+  document.getElementById('modal-survey').style.display = 'none';
+}
+
+async function submitSvPopup() {
+  const t = svPopupQueue[svPopupIdx];
+  if (!t || !svPopupRating) return;
+  const btn = document.getElementById('sv-popup-submit');
+  if (btn) btn.disabled = true;
+  const comment = (document.getElementById('sv-popup-text')?.value || '').trim();
+  try {
+    const res = await fetch(`${API_BASE}/tickets/${t.id}/rate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ rating: svPopupRating, comment }),
+    });
+    const j = await res.json().catch(() => null);
+    if (!res.ok) {
+      if (isAuthRejection(res.status, j)) { handleAuthExpired(); return; }
+      showToast(j?.error || '평가 제출에 실패했습니다.');
+      if (btn) btn.disabled = false;
+      return;
+    }
+    // 홈 목록·상세가 같은 객체를 쓰므로 즉시 반영
+    t.satisfaction_rating = j.satisfaction_rating;
+    t.satisfaction_comment = j.satisfaction_comment;
+    t.rated_at = j.rated_at;
+    const hasNext = svPopupIdx < svPopupQueue.length - 1;
+    const box = document.getElementById('modal-survey-box');
+    box.innerHTML =
+      `<div class="sv-hd"><div style="font-size:34px;margin-top:6px;">🙏</div>` +
+      `<div class="sv-h">평가해 주셔서 감사합니다</div>` +
+      `<div class="sv-done-stars">${'★★★★★'.slice(0, svPopupRating)}</div></div>` +
+      `<div class="sv-bd">` +
+      (comment ? `<div class="sv-cap">"${escHtml(comment)}"</div>` : '') +
+      (hasNext ? `<button class="sv-submit" onclick="svPopupIdx++;renderSvPopup()">다음 요청 평가하기 (${svPopupIdx + 2}/${svPopupQueue.length})</button>` : '') +
+      `</div>` +
+      `<div class="sv-ft"><button class="sv-later" onclick="svPopupClose()">닫기</button></div>`;
+  } catch (e) {
+    showToast('평가 제출에 실패했습니다: ' + e.message);
+    if (btn) btn.disabled = false;
+  }
+}
+
+// ESC로 닫기 — '나중에'와 동일 처리
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.getElementById('modal-survey')?.style.display === 'flex') svPopupLater();
+});
 
 // 사이드바 "연동 계약" — 조직명 대신 실제 계약건을 표시한다.
 // 만료(status='만료') 계약은 제외하고 현재 유효한 계약만 보여준다.
@@ -10248,7 +10835,7 @@ async function loadRdAttachments() {
 async function rdDeleteAttachment(attId, storagePath) {
   if (!confirm('첨부파일을 삭제하시겠습니까?')) return;
   const { error } = await sb.from('ticket_attachments').delete().eq('id', attId);
-  if (error) { showToast('삭제 실패: ' + error.message, true); return; }
+  if (error) { showToast('삭제 실패: ' + koDbError(error.message), true); return; }
   await sb.storage.from('ticket-attachments').remove([storagePath]);
   showToast('삭제되었습니다.');
   loadRdAttachments();
@@ -10485,7 +11072,7 @@ async function deleteMessage(historyId) {
   if (!sb) return;
   if (!confirm('이 답글을 삭제하시겠습니까?')) return;
   const { error } = await sb.from('ticket_replies').delete().eq('id', historyId);
-  if (error) { showToast('삭제 실패: ' + error.message, true); return; }
+  if (error) { showToast('삭제 실패: ' + koDbError(error.message), true); return; }
   await Promise.all([loadRdMessages(), loadRdHistory()]);
   showToast('✅ 삭제됐습니다.');
 }
@@ -10584,7 +11171,7 @@ async function deleteMemo(memoId) {
   if (!sb) return;
   if (!confirm('이 메모를 삭제하시겠습니까?')) return;
   const { error } = await sb.from('ticket_memos').delete().eq('id', memoId);
-  if (error) { showToast('삭제 실패: ' + error.message, true); return; }
+  if (error) { showToast('삭제 실패: ' + koDbError(error.message), true); return; }
   await loadRdMemos();
   showToast('✅ 메모가 삭제됐습니다.');
 }

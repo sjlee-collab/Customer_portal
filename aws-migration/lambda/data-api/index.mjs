@@ -186,20 +186,23 @@ async function tenantRowFilterSql(table, authz, paramOffset, qs) {
   }
   if (table === 'tickets') {
     if (role === 'internal') return null; // 내부직원: 전체 티켓 열람 허용
+    // 내부 검토 티켓(is_internal)은 고객에게 완전 은닉 — 본인 명의(created_by)로 대리 등록된
+    // 것이어도 어떤 스코프 경로로도 보이지 않아야 한다. 모든 고객 분기에 AND로 건다.
+    const hideInternal = `coalesce("is_internal", false) = false`;
     // 조직 기반 격리 (신토큰): 배정된 조직들의 티켓 + 본인이 만든 티켓.
     // created_by를 OR로 함께 열어두는 이유 — 조직 배정 전에 만들어진 자기 티켓(unit_id null)이
     // 목록에서 사라지지 않게 하기 위함.
     if (unitIds.length) {
       return userId
-        ? { sql: `("unit_id" = any($${paramOffset}::uuid[]) or "created_by" = $${paramOffset + 1})`, params: [unitIds, userId] }
-        : { sql: `"unit_id" = any($${paramOffset}::uuid[])`, params: [unitIds] };
+        ? { sql: `("unit_id" = any($${paramOffset}::uuid[]) or "created_by" = $${paramOffset + 1}) and ${hideInternal}`, params: [unitIds, userId] }
+        : { sql: `"unit_id" = any($${paramOffset}::uuid[]) and ${hideInternal}`, params: [unitIds] };
     }
-    if (contractId) return { sql: `"contract_id" = $${paramOffset}`, params: [contractId] };
-    if (companyId) return { sql: `"company_id" = $${paramOffset}`, params: [companyId] };
+    if (contractId) return { sql: `"contract_id" = $${paramOffset} and ${hideInternal}`, params: [contractId] };
+    if (companyId) return { sql: `"company_id" = $${paramOffset} and ${hideInternal}`, params: [companyId] };
     // 회사·계약이 둘 다 없는 고객(예: 소속 미지정 계정)은 예전엔 1=0으로 자기 티켓조차 못 봤다
     // (요청을 등록해도 대시보드/목록에 안 나옴). 최소한 본인이 만든 티켓은 보이게 created_by로 폴백한다.
     // 클라이언트도 이 경우 created_by로 필터하도록 돼 있어 동작이 일치한다.
-    return userId ? { sql: `"created_by" = $${paramOffset}`, params: [userId] } : { sql: '1=0', params: [] };
+    return userId ? { sql: `"created_by" = $${paramOffset} and ${hideInternal}`, params: [userId] } : { sql: '1=0', params: [] };
   }
   // log_notification(알림 발송 로그)이 이 필터에서 빠져있어서, customer/internal이
   // /data/log_notification을 직접 호출하면 전체 고객사의 알림 이력(수신자 이메일 주소
@@ -214,16 +217,18 @@ async function tenantRowFilterSql(table, authz, paramOffset, qs) {
         ? { sql: `"ticket_id" in (select id from tickets where created_by = $${paramOffset})`, params: [userId] }
         : { sql: '1=0', params: [] };
     }
+    // 고객: 내부 검토 티켓의 자식행(답글/첨부/이력/알림로그)도 함께 은닉한다.
+    const notInternal = `coalesce(is_internal, false) = false`;
     if (unitIds.length) {
       return userId
-        ? { sql: `"ticket_id" in (select id from tickets where unit_id = any($${paramOffset}::uuid[]) or created_by = $${paramOffset + 1})`, params: [unitIds, userId] }
-        : { sql: `"ticket_id" in (select id from tickets where unit_id = any($${paramOffset}::uuid[]))`, params: [unitIds] };
+        ? { sql: `"ticket_id" in (select id from tickets where (unit_id = any($${paramOffset}::uuid[]) or created_by = $${paramOffset + 1}) and ${notInternal})`, params: [unitIds, userId] }
+        : { sql: `"ticket_id" in (select id from tickets where unit_id = any($${paramOffset}::uuid[]) and ${notInternal})`, params: [unitIds] };
     }
-    if (contractId) return { sql: `"ticket_id" in (select id from tickets where contract_id = $${paramOffset})`, params: [contractId] };
-    if (companyId) return { sql: `"ticket_id" in (select id from tickets where company_id = $${paramOffset})`, params: [companyId] };
+    if (contractId) return { sql: `"ticket_id" in (select id from tickets where contract_id = $${paramOffset} and ${notInternal})`, params: [contractId] };
+    if (companyId) return { sql: `"ticket_id" in (select id from tickets where company_id = $${paramOffset} and ${notInternal})`, params: [companyId] };
     // 회사·계약 미지정 고객: 본인이 만든 티켓에 달린 답글/첨부/이력/알림로그만 보이게 폴백(위 tickets와 동일 기준)
     return userId
-      ? { sql: `"ticket_id" in (select id from tickets where created_by = $${paramOffset})`, params: [userId] }
+      ? { sql: `"ticket_id" in (select id from tickets where created_by = $${paramOffset} and ${notInternal})`, params: [userId] }
       : { sql: '1=0', params: [] };
   }
   return null;
@@ -252,10 +257,11 @@ async function ticketBelongsToRequester(ticketId, authz) {
   if (!ticketId) return false;
   const { role, userId, companyId, contractId, unitIds } = authz;
   if (role === 'internal') return true; // 내부직원: 전체 티켓에 답글/첨부 쓰기 허용
+  // 고객: 내부 검토 티켓은 조회와 마찬가지로 쓰기(답글/첨부)도 차단.
   let sql, params;
-  if (unitIds?.length) { sql = 'select 1 from tickets where id=$1 and (unit_id = any($2::uuid[]) or created_by=$3)'; params = [ticketId, unitIds, userId]; }
-  else if (contractId)     { sql = 'select 1 from tickets where id=$1 and contract_id=$2'; params = [ticketId, contractId]; }
-  else if (companyId)      { sql = 'select 1 from tickets where id=$1 and company_id=$2'; params = [ticketId, companyId]; }
+  if (unitIds?.length) { sql = 'select 1 from tickets where id=$1 and (unit_id = any($2::uuid[]) or created_by=$3) and coalesce(is_internal,false)=false'; params = [ticketId, unitIds, userId]; }
+  else if (contractId)     { sql = 'select 1 from tickets where id=$1 and contract_id=$2 and coalesce(is_internal,false)=false'; params = [ticketId, contractId]; }
+  else if (companyId)      { sql = 'select 1 from tickets where id=$1 and company_id=$2 and coalesce(is_internal,false)=false'; params = [ticketId, companyId]; }
   else return false;
   const rows = await query(sql, params);
   return rows.length > 0;

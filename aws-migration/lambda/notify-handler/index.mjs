@@ -202,8 +202,10 @@ async function handleTicketInsert(payload, results) {
   const isProxy = !!ticket.registered_by;
   const proxyTag = isProxy ? ' · 👤 *대리 등록*' : '';
   const proxyLine = isProxy ? `\n• *대리 등록:* 빅스데이터 ${ticket.registered_by_name ?? '-'}가 대신 접수` : '';
+  // 내부 검토 — 고객에게 은닉되는 요청임을 채널에서 바로 알 수 있게 헤더에 표기.
+  const internalTag = ticket.is_internal ? ' · 🔒 *내부 검토*' : '';
 
-  const msgHeader = `${emoji} *${urgentPrefix}${categoryLabel} 등록*${proxyTag}`;
+  const msgHeader = `${emoji} *${urgentPrefix}${categoryLabel} 등록*${proxyTag}${internalTag}`;
   const msgBody = buildBaseMessage(ticket, payload) + proxyLine + attLine + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`;
   const evtType = isUrgent ? 'urgent' : 'new_ticket';
   const isTest = isTestTicket(ticket);
@@ -241,7 +243,7 @@ async function handleTicketStatus(payload, results) {
   const evtType = ticket.status === 'completed' ? 'completed'
                 : ticket.status === 'pending_customer' ? 'pending_customer'
                 : 'status_change';
-  const header = `${emoji} *상태 변경* (${from} → ${to})`;
+  const header = `${emoji} *상태 변경* (${from} → ${to})${ticket.is_internal ? ' · 🔒 *내부 검토*' : ''}`;
   const body = buildBaseMessage(ticket, payload) + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`;
   const isTest = isTestTicket(ticket);
   await sendSlack(SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, evtType, header, body, results, isTest);

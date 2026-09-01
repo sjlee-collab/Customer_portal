@@ -129,6 +129,23 @@ function portalLinkBtn(ticketNumber, label) {
   return `<a class="btn" href="${url}">${label}</a><div style="font-size:11px;color:#9ca3af;margin-top:8px;">${display}</div>`;
 }
 
+// 완료 안내 메일 하단의 만족도 별점 블록. 메일 클라이언트는 폼 제출을 막으므로
+// 별 5개는 각각 포탈로 이동하는 링크이고, 누른 별점(&rate=N)이 미리 선택된 채 열린다.
+function surveyBlockHtml(ticketNumber) {
+  if (!PORTAL_URL) return '';
+  const star = (n) =>
+    `<a href="${PORTAL_URL}?ticket=${ticketNumber}&rate=${n}" style="display:inline-block;font-size:30px;line-height:1;color:#F59E0B;text-decoration:none;padding:0 3px;">&#9733;</a>`;
+  // survey=1: 프론트가 상세 대신 홈에서 평가 팝업(별점 미선택)을 연다
+  const url = `${PORTAL_URL}?ticket=${ticketNumber}&survey=1`;
+  return `<div style="margin-top:22px;border-top:1px solid #E5E7EB;padding-top:18px;text-align:center;">
+    <div style="font-size:14px;font-weight:700;color:#111827;">이번 지원은 어떠셨나요?</div>
+    <div style="font-size:12px;color:#6B7280;margin-top:3px;">별점을 누르면 포탈에서 평가가 이어집니다</div>
+    <div style="margin:12px 0 4px;">${[1,2,3,4,5].map(star).join('')}</div>
+    <div style="font-size:11px;color:#9CA3AF;">매우 불만족 &#8592; &#8594; 매우 만족</div>
+    <a class="btn" href="${url}" style="display:inline-block;margin-top:16px;padding:11px 24px;background:#534AB7;color:#fff;border-radius:6px;text-decoration:none;font-size:13px;font-weight:700;">별점 남기기</a>
+  </div>`;
+}
+
 function customerStatusChangeHtml(ticket, companyName, requesterName, prevStatus) {
   const btn = portalLinkBtn(ticket.ticket_number, '요청 상세 보기');
   const prevKo = STATUS_KO[prevStatus] ?? prevStatus ?? '—';
@@ -141,7 +158,7 @@ function customerStatusChangeHtml(ticket, companyName, requesterName, prevStatus
     ? `<div class="alert-box alert-green">요청이 완료 처리되었습니다.</div>`
     : isPending ? `<div class="alert-box alert-amber">담당자가 추가 확인을 요청했습니다.</div>` : '';
   const subtitle = isCompleted ? '처리 완료 안내' : isPending ? '고객 확인 요청' : '처리 상태 변경 알림';
-  return layout(subtitle, `${alertHtml}<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">안녕하세요, <strong>${requesterName}</strong>님.<br>요청 처리 상태가 변경되었습니다.</p><div class="lbl">변경 정보</div><table class="info"><tr><td>요청번호</td><td><strong>${ticket.ticket_number ?? '—'}</strong></td></tr><tr><td>제목</td><td>${ticket.title ?? '—'}</td></tr><tr><td>고객사</td><td>${companyName}</td></tr><tr><td>이전 상태</td><td>${prevKo}</td></tr><tr><td>변경 상태</td><td><span class="badge ${badgeCls}">${newKo}</span></td></tr><tr><td>변경 일시</td><td>${dateStr}</td></tr></table>${btn}`);
+  return layout(subtitle, `${alertHtml}<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">안녕하세요, <strong>${requesterName}</strong>님.<br>요청 처리 상태가 변경되었습니다.</p><div class="lbl">변경 정보</div><table class="info"><tr><td>요청번호</td><td><strong>${ticket.ticket_number ?? '—'}</strong></td></tr><tr><td>제목</td><td>${ticket.title ?? '—'}</td></tr><tr><td>고객사</td><td>${companyName}</td></tr><tr><td>이전 상태</td><td>${prevKo}</td></tr><tr><td>변경 상태</td><td><span class="badge ${badgeCls}">${newKo}</span></td></tr><tr><td>변경 일시</td><td>${dateStr}</td></tr></table>${isCompleted ? surveyBlockHtml(ticket.ticket_number) : btn}`);
 }
 
 function customerNewTicketHtml(ticket, companyName, requesterName, registeredByName) {

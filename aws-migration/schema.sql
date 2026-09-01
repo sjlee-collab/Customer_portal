@@ -102,13 +102,21 @@ create table public.tickets (
   unit_id             uuid,
   unit_name           text,
   cc_emails           text[],
+  satisfaction_rating smallint constraint tickets_satisfaction_rating_check check (satisfaction_rating is null or satisfaction_rating between 1 and 5),
+  satisfaction_comment text,
+  rated_at            timestamptz,
   registered_by       uuid references public.users(id) on delete set null,
-  registered_by_name  text
+  registered_by_name  text,
+  is_internal         boolean not null default false
 );
 comment on table public.tickets is '고객 기술지원 요청 티켓';
+comment on column public.tickets.is_internal is '내부 검토 요청(대리 등록 전용). true면 고객 화면(목록·상세·자식행)에서 완전 은닉되고 고객 메일도 발송하지 않는다. 스태프가 일반으로 전환 가능(역방향 불가).';
 comment on column public.tickets.registered_by is '대리 등록한 내부직원 계정 id. 값이 있으면 대리 등록(내부직원이 고객 대신 접수), null이면 고객이 직접 등록. 계정 삭제 시 SET NULL.';
 comment on column public.tickets.registered_by_name is '대리 등록자 이름 스냅샷 — registered_by 계정이 삭제돼도 "대리" 배지/이력 표시를 위해 보존.';
 comment on column public.tickets.cc_emails is '상태변경 메일의 추가 수신자(참조) 주소. 요청 관리 모달에서 마지막으로 입력한 값을 티켓별로 기억한다.';
+comment on column public.tickets.satisfaction_rating is '완료 건 만족도 별점(1~5). 요청 등록 고객이 완료 후 1회 제출.';
+comment on column public.tickets.satisfaction_comment is '만족도 한줄평(선택, 최대 200자).';
+comment on column public.tickets.rated_at is '만족도 제출 시각. 제출 후 수정 불가, 재오픈돼도 보존.';
 comment on column public.tickets.assigned_to_name is '담당자 이름 스냅샷 — assigned_to 계정이 삭제(FK SET NULL)되어도 이력 표시를 위해 보존';
 comment on column public.tickets.contract_id is '요청 등록자의 contract_id 스냅샷 — 계약 단위로 요청 목록을 스코프하기 위함. 조직(unit_id) 도입 후에는 폴백 경로.';
 comment on column public.tickets.unit_id is '요청을 등록한 조직(org_units). 요청 목록 격리의 기준 — 계약이 갱신돼도 이 값은 바뀌지 않는다.';
@@ -426,7 +434,22 @@ $function$;
 
 create trigger trg_companies_updated_at  before update on public.companies         for each row execute function public.update_updated_at();
 create trigger trg_users_updated_at      before update on public.users             for each row execute function public.update_updated_at();
-create trigger trg_tickets_updated_at    before update on public.tickets           for each row execute function public.update_updated_at();
+-- tickets는 전용 함수를 쓴다: 만족도 컬럼만 바뀐 갱신(평가 제출)은 updated_at을 올리지 않는다.
+create or replace function public.tickets_bump_updated_at()
+ returns trigger
+ language plpgsql
+as $fn$
+BEGIN
+  IF (to_jsonb(NEW) - 'satisfaction_rating' - 'satisfaction_comment' - 'rated_at' - 'updated_at')
+     IS NOT DISTINCT FROM
+     (to_jsonb(OLD) - 'satisfaction_rating' - 'satisfaction_comment' - 'rated_at' - 'updated_at') THEN
+    RETURN NEW;
+  END IF;
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$fn$;
+create trigger trg_tickets_updated_at    before update on public.tickets           for each row execute function public.tickets_bump_updated_at();
 create trigger trg_documents_updated_at  before update on public.content_documents for each row execute function public.update_updated_at();
 create trigger contracts_updated_at      before update on public.company_contracts for each row execute function public.update_updated_at_column();
 create trigger licenses_updated_at       before update on public.company_licenses   for each row execute function public.update_updated_at_column();

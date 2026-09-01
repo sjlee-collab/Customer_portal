@@ -265,11 +265,15 @@ async function createTicket(body, event) {
 
   const companyName = await getCompanyName(company_id);
 
+  // 내부 검토(is_internal) — 대리 등록 경로에서만 허용. 고객 화면(목록/상세/자식행)에서
+  // 완전 은닉되고(data-api 필터), 고객 메일도 발송하지 않는다(notifyForCreate/Status).
+  const isInternal = isProxy && body.internal_review === true;
+
   const inserted = await query(
-    `insert into tickets (title, category, description, status, priority, product, created_by, created_by_name, company_id, company_name, contract_id, unit_id, unit_name, assigned_to, assigned_to_name, registered_by, registered_by_name)
-     values ($1,$2,$3,'received',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+    `insert into tickets (title, category, description, status, priority, product, created_by, created_by_name, company_id, company_name, contract_id, unit_id, unit_name, assigned_to, assigned_to_name, registered_by, registered_by_name, is_internal)
+     values ($1,$2,$3,'received',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
      returning *`,
-    [title, category, description ?? null, priority, product ?? null, created_by, requester.name, company_id ?? null, companyName, contract_id ?? null, unit_id, unit_name, assignedTo, assignedToName, registeredBy, registeredByName]
+    [title, category, description ?? null, priority, product ?? null, created_by, requester.name, company_id ?? null, companyName, contract_id ?? null, unit_id, unit_name, assignedTo, assignedToName, registeredBy, registeredByName, isInternal]
   );
   const ticket = inserted[0];
 
@@ -325,6 +329,10 @@ async function notifyForCreate(ticketId) {
   const notifyPayload = { companyName: ticket.company_name, requesterName: ticket.created_by_name, assigneeName: ticket.assigned_to_name };
 
   await notifySlack({ type: 'TICKET_INSERT', ticket, ...notifyPayload, attachmentFileNames: [] });
+
+  // 내부 검토 티켓 — 고객에게 존재 자체를 숨기므로 메일(접수확인 포함)은 일절 보내지 않는다.
+  // 스태프 인지는 슬랙(🔒 내부 표기)으로 충분.
+  if (ticket.is_internal) return;
 
   if (!requester?.email) return;
 
@@ -391,7 +399,7 @@ async function notifyForStatus(ticketId, prevStatus) {
     await notifySlack({ type: 'TICKET_STATUS', ticket, ...notifyBase, prevStatus });
   }
 
-  if (isNotifiableRequester(requester, ticket)) {
+  if (!ticket.is_internal && isNotifiableRequester(requester, ticket)) {
     await notifyEmail({ type: 'STATUS_CHANGE', ticket, companyName, requesterEmail: requester.email, requesterName: requester.name, prevStatus });
   }
 
@@ -439,6 +447,37 @@ async function notifyForAssign(ticketId, prevAssigneeId) {
     requesterName: requester?.name, assigneeName: ticket.assigned_to_name,
     prevAssigneeName: prevAssignee?.name ?? '미배정',
   });
+}
+
+// ── POST /tickets/{id}/rate — 완료 건 만족도 제출 ──
+// 요청을 등록한 고객 본인만, 완료 상태에서, 요청당 1회. 제출 후 수정 불가.
+// 별점은 1~5 필수, 한줄평은 선택(200자). 알림은 보내지 않는다.
+async function rateTicket(ticketId, body, event) {
+  const authz = getAuthz(event);
+  if (!authz.userId) return json(401, { error: '인증이 필요합니다' });
+  const rating = Number(body?.rating);
+  const comment = (body?.comment ?? '').toString().trim();
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+    return json(400, { error: '별점은 1~5 사이의 정수여야 합니다' });
+  }
+  if (comment.length > 200) return json(400, { error: '한줄평은 200자 이내여야 합니다' });
+
+  const rows = await query('select id, status, created_by, satisfaction_rating from tickets where id=$1', [ticketId]);
+  const t = rows[0];
+  if (!t) return json(404, { error: '요청을 찾을 수 없습니다' });
+  if (t.created_by !== authz.userId) return json(403, { error: '요청을 등록한 고객만 평가할 수 있습니다' });
+  if (t.status !== 'completed') return json(409, { error: '완료된 요청만 평가할 수 있습니다' });
+  if (t.satisfaction_rating != null) return json(409, { error: '이미 평가가 제출된 요청입니다' });
+
+  // 동시 제출 방지: 아직 미평가일 때만 갱신되는 조건부 UPDATE
+  const updated = await query(
+    `update tickets set satisfaction_rating=$1, satisfaction_comment=$2, rated_at=now()
+      where id=$3 and satisfaction_rating is null
+      returning satisfaction_rating, satisfaction_comment, rated_at`,
+    [rating, comment || null, ticketId]
+  );
+  if (!updated.length) return json(409, { error: '이미 평가가 제출된 요청입니다' });
+  return json(200, { ok: true, ...updated[0] });
 }
 
 // ── POST /tickets/{id}/reply ──
@@ -500,6 +539,14 @@ async function editTicket(ticketId, body, event) {
   const isOwner = before[0].created_by === authz.userId;
   const isStaff = await hasPermission(authz.role, 'ticket_manage');
   if (!isOwner && !isStaff) return json(403, { error: '본인이 등록한 요청만 수정할 수 있습니다' });
+
+  // 내부 검토 → 일반 전환 (스태프 전용 단독 액션). 전환한 시점부터 고객 화면에 보인다.
+  // 역방향(일반 → 내부)은 이미 고객이 본 요청을 숨기는 셈이라 지원하지 않는다.
+  if (body.make_public === true) {
+    if (!isStaff) return json(403, { error: '내부 검토 전환은 스태프만 할 수 있습니다' });
+    const rows = await query(`update tickets set is_internal=false, updated_at=now() where id=$1 returning *`, [ticketId]);
+    return json(200, { ticket: rows[0] });
+  }
 
   const VALID_CATEGORIES = new Set(['tech_support', 'contract', 'license', 'education', 'customer', 'other']);
   const VALID_PRIORITIES = new Set(['normal', 'high', 'critical']);
@@ -640,7 +687,8 @@ async function notifyForManage(job) {
   if (statusChanged && !['completed', 'cancelled'].includes(ticket.status) && isOverdue(ticket.due_date)) {
     await notifySlack({ type: 'TICKET_OVERDUE', ticket, ...notifyBase });
   }
-  if (statusChanged && sendEmail && isNotifiableRequester(requester, ticket)) {
+  // 내부 검토 티켓은 담당자가 메일 발송을 체크했어도 고객 메일을 보내지 않는다(은닉 유지).
+  if (statusChanged && sendEmail && !ticket.is_internal && isNotifiableRequester(requester, ticket)) {
     await notifyEmail({
       type: 'STATUS_CHANGE', ticket, companyName,
       requesterEmail: requester.email, requesterName: requester.name,
@@ -709,35 +757,54 @@ async function login(body) {
 // ── GET /stats/active-users ──
 // 사용 통계 화면의 접속 활동(DAU/WAU/MAU + 일별 DAU 추이). login_events를 서버에서 distinct 집계한다.
 // login_events는 전 사용자 접속시각이라 민감 → stats_view 권한(또는 admin)만 조회 가능.
+// 테스트 트래픽 제외 조건 — 접속 지표 공용.
+// 상설 테스트 계정(test.*@bigxdata.io) 5개의 로그인이 전체 이벤트의 43%를 차지해(2026-08-31
+// 실측 55/127건) 모든 접속 지표가 부풀려져 있었다. 하네스가 만드는 '[테스트]' 라벨 계정의
+// 로그인(test_auth.py 등)도 함께 거른다 — 그 계정들은 정리 시 삭제되어 user_id가 NULL로
+// 남으므로 이름 스냅샷으로 잡는다. 이벤트 행 자체는 지우지 않는다(감사로그 보존, 회귀 무영향).
+const LE_REAL = `(user_name is null or user_name not like '[테스트]%')
+  and (user_id is null or user_id not in (select id from users where email like 'test.%@bigxdata.io'))`;
+
 async function statsActiveUsers(event) {
   const authz = getAuthz(event);
   if (!(await hasPermission(authz.role, 'stats_view'))) return json(403, { error: '권한이 없습니다' });
   // DAU/WAU/MAU·고착도·총로그인·평균(series)은 모두 "고객 계정 기준"(role='customer')으로 집계한다.
-  // 역할별 접속 비중(byRole)만 전체 역할을 대상으로 한다(그 카드의 취지가 역할 분포이므로).
+  // 역할별 접속 비중(byRole)과 시간대 히트맵만 전체 역할 대상(그 카드들의 취지가 분포이므로).
   // 오늘(KST) 자정 이후 = DAU. KST 자정을 timestamptz로 만들어 created_at(timestamptz)과 비교.
+  // days(7|30|90)는 추이·총로그인·비중·히트맵 창에만 적용 — DAU/WAU/MAU는 정의상 창이 고정이다.
+  const qs = event.queryStringParameters || {};
+  const days = [7, 30, 90].includes(parseInt(qs.days, 10)) ? parseInt(qs.days, 10) : 30;
+  const CUST = `role = 'customer' and ${LE_REAL}`;
   const [d] = await query(
     `select count(distinct user_id)::int n from login_events
-      where role = 'customer' and created_at >= (date_trunc('day', now() at time zone 'Asia/Seoul') at time zone 'Asia/Seoul')`);
+      where ${CUST} and created_at >= (date_trunc('day', now() at time zone 'Asia/Seoul') at time zone 'Asia/Seoul')`);
   const [w] = await query(
-    `select count(distinct user_id)::int n from login_events where role = 'customer' and created_at >= now() - interval '7 days'`);
+    `select count(distinct user_id)::int n from login_events where ${CUST} and created_at >= now() - interval '7 days'`);
   const [m] = await query(
-    `select count(distinct user_id)::int n from login_events where role = 'customer' and created_at >= now() - interval '30 days'`);
+    `select count(distinct user_id)::int n from login_events where ${CUST} and created_at >= now() - interval '30 days'`);
   const series = await query(
     `select to_char((created_at at time zone 'Asia/Seoul')::date, 'YYYY-MM-DD') d, count(distinct user_id)::int n
-       from login_events where role = 'customer' and created_at >= now() - interval '30 days' group by 1 order by 1`);
-  // 총 로그인 횟수(중복 포함, 30일, 고객 기준) — DAU/WAU/MAU(고유)와 달리 재접속 빈도를 본다.
+       from login_events where ${CUST} and created_at >= now() - interval '${days} days' group by 1 order by 1`);
+  // 총 로그인 횟수(중복 포함, 선택 기간, 고객 기준) — DAU/WAU/MAU(고유)와 달리 재접속 빈도를 본다.
   const [tot] = await query(
-    `select count(*)::int n from login_events where role = 'customer' and created_at >= now() - interval '30 days'`);
-  // 역할별 고유 접속자(30일) — 접속 비중 도넛용. 전체 역할. login_events.role(로그인 시점 스냅샷) 기준.
+    `select count(*)::int n from login_events where ${CUST} and created_at >= now() - interval '${days} days'`);
+  // 역할별 고유 접속자 — 접속 비중 도넛용. 전체 역할. login_events.role(로그인 시점 스냅샷) 기준.
   const byRole = await query(
     `select role, count(distinct user_id)::int n from login_events
-       where created_at >= now() - interval '30 days' group by role order by n desc`);
+      where ${LE_REAL} and created_at >= now() - interval '${days} days' group by role order by n desc`);
+  // 접속 시간대 히트맵(요일 0=일~6=토 × 시각 0~23, KST) — 점검·배포 창을 정하는 근거.
+  const heatmap = await query(
+    `select extract(dow  from created_at at time zone 'Asia/Seoul')::int d,
+            extract(hour from created_at at time zone 'Asia/Seoul')::int h, count(*)::int n
+       from login_events where ${LE_REAL} and created_at >= now() - interval '${days} days' group by 1, 2`);
   return json(200, {
     dau: d.n, wau: w.n, mau: m.n,
     stickiness: m.n ? Math.round((d.n / m.n) * 100) : 0,
     totalLogins: tot.n,
     byRole,
     series,
+    heatmap,
+    days,
   });
 }
 
@@ -957,6 +1024,115 @@ async function statsSystem(event) {
   return json(200, { noti, byEvent, notiFails, bySystem, duration: dur, integFails });
 }
 
+// ── GET /stats/satisfaction ──
+// 사용 통계 > 응답 현황 탭. 완료 건 만족도 조사(tickets.satisfaction_rating 1~5 +
+// satisfaction_comment)를 집계한다. 새 테이블 없음 — 전부 tickets 컬럼에서 나온다.
+// 쿼리스트링: days(rated_at 기준, 0=전체), category, q(고객사명 검색).
+//
+// 응답률 분모는 "완료된 직접 등록 건"이다 — 대리 등록 건(registered_by not null)은
+// 평가할 등록 고객이 없어 응답 자체가 불가능하므로, 분모에 넣으면 응답률이 영구히
+// 왜곡된다(현재 대리 등록이 다수라 특히 그렇다). 완료 시각은 이력에 구조화돼 있지
+// 않아 분모의 기간은 접수(created_at) 기준 근사치다.
+async function statsSatisfaction(event) {
+  const authz = getAuthz(event);
+  if (!(await hasPermission(authz.role, 'stats_view'))) return json(403, { error: '권한이 없습니다' });
+
+  const qs = event.queryStringParameters || {};
+  const days = Math.min(3650, Math.max(0, parseInt(qs.days, 10) || 0));
+  const params = [], extra = [];
+  if (qs.category) { params.push(qs.category); extra.push(`category = $${params.length}`); }
+  const q = (qs.q || '').trim();
+  if (q) { params.push('%' + q + '%'); extra.push(`company_name ilike $${params.length}`); }
+  const extraSql = extra.length ? ' and ' + extra.join(' and ') : '';
+  const ratedPeriod = days > 0 ? ` and rated_at >= now() - interval '${days} days'` : '';
+  const RATED = `satisfaction_rating is not null${ratedPeriod}${extraSql}`;
+
+  // ── 요약 ──
+  const [sum] = await query(
+    `select count(*) filter (where ${RATED})::int responses,
+            coalesce(round(avg(satisfaction_rating) filter (where ${RATED}), 1), 0)::float avg,
+            count(*) filter (where ${RATED} and coalesce(satisfaction_comment,'') <> '')::int comments,
+            count(*) filter (where ${RATED} and satisfaction_rating <= 2)::int low,
+            count(*) filter (where status = 'completed' and registered_by is null
+                             ${days > 0 ? `and created_at >= now() - interval '${days} days'` : ''}${extraSql})::int eligible
+       from tickets`, params);
+
+  // 직전 동일 기간 평균(추이 화살표용). days=0이면 비교 대상 없음.
+  let prevAvg = null;
+  if (days > 0) {
+    const [pv] = await query(
+      `select round(avg(satisfaction_rating), 1)::float a from tickets
+        where satisfaction_rating is not null
+          and rated_at >= now() - interval '${days * 2} days'
+          and rated_at <  now() - interval '${days} days'${extraSql}`, params);
+    prevAvg = pv.a;
+  }
+
+  // ── 월별 평균 추이(최근 6개월, KST) ──
+  const trend = await query(
+    `select to_char(rated_at at time zone 'Asia/Seoul', 'YYYY-MM') ym,
+            round(avg(satisfaction_rating), 2)::float avg, count(*)::int n
+       from tickets where satisfaction_rating is not null${extraSql}
+        and rated_at >= date_trunc('month', now() at time zone 'Asia/Seoul') - interval '5 months'
+      group by 1 order by 1`, params);
+
+  // ── 별점 분포 ──
+  const byRating = await query(
+    `select satisfaction_rating r, count(*)::int n
+       from tickets where ${RATED} group by 1 order by 1 desc`, params);
+
+  // ── 고객사별(응답 2건 이상 · 평균 낮은 순 — 이 표의 목적은 문제 고객사 발견) ──
+  const byCompany = await query(
+    `select coalesce(nullif(company_name,''), '(미지정)') company,
+            round(avg(satisfaction_rating), 1)::float avg, count(*)::int n,
+            max(rated_at) last_rated,
+            (array_agg(satisfaction_comment order by rated_at desc)
+              filter (where coalesce(satisfaction_comment,'') <> ''))[1] last_comment
+       from tickets where ${RATED}
+      group by 1 having count(*) >= 2 order by 2 asc, 3 desc limit 20`, params);
+  // ── 최근 한줄평(낮은 별점 우선 → 최신순) ──
+  const recent = await query(
+    `select ticket_number, coalesce(nullif(company_name,''), '') company, category,
+            satisfaction_rating r, satisfaction_comment comment,
+            to_char(rated_at at time zone 'Asia/Seoul', 'YYYY-MM-DD') at
+       from tickets where ${RATED} and coalesce(satisfaction_comment,'') <> ''
+      order by (satisfaction_rating <= 2) desc, rated_at desc limit 10`, params);
+
+  // ── 키워드(단순 빈도 — 형태소 분석 없음, 한계는 화면에 명시) ──
+  // 한줄평을 공백·구두점으로 잘라 2자 이상 토큰을 세고, 흔한 조사·어미가 붙은 형태는
+  // 대충 걷어낸다. 긍정(4~5점)과 개선(1~3점)을 분리해 각 상위 8개.
+  const allComments = await query(
+    `select satisfaction_rating r, satisfaction_comment c
+       from tickets where ${RATED} and coalesce(satisfaction_comment,'') <> '' limit 500`, params);
+  const STOP = new Set(['합니다','했습니다','있습니다','됩니다','입니다','좋겠어요','좋겠습니다',
+    '너무','정말','아주','조금','그리고','하지만','해서','해요','있어요','같아요','주셔서','감사합니다','감사']);
+  function keywords(rows) {
+    const cnt = new Map();
+    rows.forEach(({ c }) => {
+      String(c).split(/[\s.,!?~()"']+/).forEach(t => {
+        t = t.replace(/(했어요|합니다|해요|이에요|예요|네요|어요|에서|에게|으로|하고|했다|이다|은|는|이|가|을|를|에|도|와|과|요)$/, '');
+        if (t.length >= 2 && !STOP.has(t)) cnt.set(t, (cnt.get(t) || 0) + 1);
+      });
+    });
+    return [...cnt.entries()].filter(([, n]) => n >= 2)
+      .sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, n]) => ({ k, n }));
+  }
+  const kwPos = keywords(allComments.filter(r => r.r >= 4));
+  const kwNeg = keywords(allComments.filter(r => r.r <= 3));
+
+  return json(200, {
+    summary: {
+      responses: sum.responses, avg: sum.avg, comments: sum.comments,
+      low: sum.low, eligible: sum.eligible,
+      rate: sum.eligible ? Math.round((sum.responses / sum.eligible) * 100) : 0,
+      prevAvg,
+    },
+    trend, byRating, byCompany, recent, kwPos, kwNeg,
+    posCount: allComments.filter(r => r.r >= 4).length,
+    negCount: allComments.filter(r => r.r <= 3).length,
+  });
+}
+
 // ── GET /stats/companies ──
 // 사용 통계 > 고객 활용 탭. 고객사별 활용도(접속·계정·요청·계약)를 한 줄씩 집계한다.
 // 397개 고객사를 한 쿼리로 모아 정렬·페이지네이션까지 서버에서 끝낸다.
@@ -1008,7 +1184,8 @@ async function statsCompanies(event) {
              count(*)::int total,
              count(*) filter (where last_login is not null)::int activated,
              max(last_login) last_login
-        from users where role = 'customer' and company_id is not null group by 1),
+        from users where role = 'customer' and company_id is not null
+          and email not like 'test.%@bigxdata.io' and name not like '[테스트]%' group by 1),
     t as (
       select company_id,
              count(*)::int tickets,
@@ -1019,7 +1196,7 @@ async function statsCompanies(event) {
         from tickets where company_id is not null ${period} group by 1),
     v as (
       select company_id, count(distinct user_id)::int visitors
-        from login_events where company_id is not null ${period} group by 1),
+        from login_events where company_id is not null and ${LE_REAL} ${period} group by 1),
     c as (
       select company_id, min(end_date) next_end
         from company_contracts where end_date >= current_date group by 1)
@@ -1085,12 +1262,13 @@ async function statsCompanies(event) {
       from companies co
       left join (select company_id, count(*)::int total,
                         count(*) filter (where last_login is not null)::int activated
-                   from users where role='customer' and company_id is not null group by 1) u on u.company_id = co.id
+                   from users where role='customer' and company_id is not null
+                     and email not like 'test.%@bigxdata.io' and name not like '[테스트]%' group by 1) u on u.company_id = co.id
       left join (select company_id, count(*)::int tickets,
                         count(*) filter (where status not in ('completed','cancelled'))::int open_cnt
                    from tickets where company_id is not null ${period} group by 1) t on t.company_id = co.id
       left join (select company_id, count(distinct user_id)::int visitors
-                   from login_events where company_id is not null ${period} group by 1) v on v.company_id = co.id
+                   from login_events where company_id is not null and ${LE_REAL} ${period} group by 1) v on v.company_id = co.id
       left join (select company_id, min(end_date) next_end from company_contracts
                   where end_date >= current_date group by 1) c on c.company_id = co.id`);
 
@@ -1694,6 +1872,9 @@ export const handler = async (event) => {
     if (method === 'GET' && path === '/stats/system') {
       return await statsSystem(event);
     }
+    if (method === 'GET' && path === '/stats/satisfaction') {
+      return await statsSatisfaction(event);
+    }
     if (method === 'POST' && path === '/docs/download-event') {
       return await docDownloadEvent(event, body);
     }
@@ -1723,6 +1904,10 @@ export const handler = async (event) => {
     const manageMatch = path.match(/^\/tickets\/([^/]+)\/manage$/);
     if (method === 'PATCH' && manageMatch) {
       return await manageTicket(manageMatch[1], body, event);
+    }
+    const rateMatch = path.match(/^\/tickets\/([^/]+)\/rate$/);
+    if (method === 'POST' && rateMatch) {
+      return await rateTicket(rateMatch[1], JSON.parse(event.body ?? '{}'), event);
     }
     const replyMatch = path.match(/^\/tickets\/([^/]+)\/reply$/);
     if (method === 'POST' && replyMatch) {
