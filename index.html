@@ -7362,10 +7362,28 @@ async function submitContract() {
 
 async function deleteContract(id, filePath) {
   if (!confirm('계약 정보를 삭제하시겠습니까?')) return;
+  // 조직 자동 정리를 위해 삭제 전에 이 계약이 속한 조직(unit_id)을 기억해 둔다.
+  const { data: ctRow } = await sb.from('company_contracts').select('unit_id').eq('id', id).limit(1);
+  const unitId = ctRow?.[0]?.unit_id || null;
   if (filePath) await sb.storage.from('contract-attachments').remove([filePath]);
   const { error } = await sb.from('company_contracts').delete().eq('id', id);
   if (error) { showToast('삭제 실패: ' + koDbError(error.message), true); return; }
-  showToast('삭제되었습니다.');
+  // 이 조직의 마지막 계약이었으면 빈 조직도 함께 삭제한다.
+  // 단, 대표 조직으로 쓰는 사용자(users.unit_id)나 과거 요청(tickets.unit_id)이 참조 중이면
+  // DB FK가 삭제를 막으므로 조직은 유지하고 안내만 한다(배정 user_org_units는 CASCADE로 함께 정리됨).
+  let orgNote = '';
+  if (unitId) {
+    const { data: remain } = await sb.from('company_contracts').select('id').eq('unit_id', unitId).limit(1);
+    if (!remain || !remain.length) {
+      const { data: orgRow } = await sb.from('org_units').select('unit_name').eq('id', unitId).limit(1);
+      const orgName = orgRow?.[0]?.unit_name || '';
+      const { error: orgErr } = await sb.from('org_units').delete().eq('id', unitId);
+      orgNote = orgErr
+        ? ` (빈 조직 '${orgName}'은 사용자·과거 요청이 참조하고 있어 유지했습니다)`
+        : ` — 계약이 없는 조직 '${orgName}'도 함께 삭제했습니다.`;
+    }
+  }
+  showToast('삭제되었습니다.' + orgNote);
   loadCompanyContracts();
 }
 
