@@ -2669,17 +2669,19 @@ textarea{resize:vertical;min-height:100px;}
     </div>
     <div style="padding:18px 22px;">
       <div class="form-grid" style="gap:11px 16px;">
-        <!-- 요청 유형 토글 — 내부+전 스태프에게만 노출. 고객은 숨김(일반 요청만). -->
-        <div class="form-group span2" id="nw-type-seg" style="display:none;">
-          <div class="nw-seg">
-            <button type="button" class="on" data-mode="self" onclick="setReqType('self')">📝 일반 요청</button>
-            <button type="button" data-mode="proxy" onclick="setReqType('proxy')">👤 대리 요청</button>
-          </div>
-        </div>
-        <!-- 대리 등록 대상 — 대리 요청 토글 선택 시에만 노출. 고객 명의로 요청을 접수한다. -->
+        <!-- 대리 등록 폼 — 스태프의 요청 모달은 탭 없이 항상 이 폼(고객 명의 접수). 고객 계정은 숨김. -->
         <div class="form-group span2" id="nw-proxy" style="display:none;">
+          <div style="margin-bottom:12px;">
+            <label style="display:block;font-size:12px;font-weight:600;margin-bottom:5px;">요청 유형 <span class="req">*</span></label>
+            <div id="pxy-type-seg" style="display:flex;border:1px solid var(--border-md);border-radius:8px;overflow:hidden;background:var(--surface);">
+              <button type="button" id="pxy-type-int" onclick="setPxyType('internal')" style="flex:1;padding:9px 8px;font:inherit;font-size:12.5px;border:none;border-right:1px solid var(--border-md);cursor:pointer;background:var(--accent);color:#fff;font-weight:700;">🔒 내부 검토</button>
+              <button type="button" id="pxy-type-nor" onclick="setPxyType('normal')" style="flex:1;padding:9px 8px;font:inherit;font-size:12.5px;border:none;cursor:pointer;background:transparent;color:var(--muted);">일반 (고객에게 표시)</button>
+            </div>
+            <div id="pxy-type-note" style="margin-top:7px;border-radius:7px;padding:8px 11px;font-size:11.5px;line-height:1.6;background:#fffbeb;border:1px solid #fde68a;color:#92400e;">
+              🔒 <b>내부 검토</b> — 이 요청은 빅스데이터 직원에게만 보입니다. 고객 화면(요청 목록·상세)에 표시되지 않고, 고객에게 접수확인·상태변경 메일도 발송되지 않습니다.
+            </div>
+          </div>
           <div style="background:var(--accent-l);border:1px solid #C7D2FE;border-radius:var(--r-md);padding:12px 14px;">
-            <div style="font-size:11.5px;font-weight:800;color:var(--accent);margin-bottom:10px;">👤 대리 등록 대상 <span style="font-weight:500;color:var(--muted);">· 고객 명의로 접수됩니다</span></div>
             <div style="display:flex;gap:12px;margin-bottom:10px;">
               <div class="pxy-fld" style="flex:1;">
                 <label>고객사 <span class="req">*</span></label>
@@ -2711,16 +2713,6 @@ textarea{resize:vertical;min-height:100px;}
               </div>
             </div>
             <div id="pxy-note" style="font-size:11px;color:var(--muted);margin-top:9px;display:none;"></div>
-            <div style="margin-top:12px;">
-              <label style="display:block;font-size:12px;font-weight:600;margin-bottom:5px;">요청 유형 <span class="req">*</span></label>
-              <div id="pxy-type-seg" style="display:flex;border:1px solid var(--border-md);border-radius:8px;overflow:hidden;background:var(--surface);">
-                <button type="button" id="pxy-type-int" onclick="setPxyType('internal')" style="flex:1;padding:9px 8px;font:inherit;font-size:12.5px;border:none;border-right:1px solid var(--border-md);cursor:pointer;background:var(--accent);color:#fff;font-weight:700;">🔒 내부 검토</button>
-                <button type="button" id="pxy-type-nor" onclick="setPxyType('normal')" style="flex:1;padding:9px 8px;font:inherit;font-size:12.5px;border:none;cursor:pointer;background:transparent;color:var(--muted);">일반 (고객에게 표시)</button>
-              </div>
-              <div id="pxy-type-note" style="margin-top:7px;border-radius:7px;padding:8px 11px;font-size:11.5px;line-height:1.6;background:#fffbeb;border:1px solid #fde68a;color:#92400e;">
-                🔒 <b>내부 검토</b> — 이 요청은 빅스데이터 직원에게만 보입니다. 고객 화면(요청 목록·상세)에 표시되지 않고, 고객에게 접수확인·상태변경 메일도 발송되지 않습니다.
-              </div>
-            </div>
           </div>
         </div>
         <div class="form-group span2">
@@ -5087,13 +5079,11 @@ function openModal(id) {
     if (companyEl) companyEl.value = _co;
     if (companyTxt) companyTxt.textContent = _co || '—';
     // 요청 유형 토글 — 내부+전 스태프에게만 노출(고객 제외). 기본은 '일반 요청'(본인 명의).
-    // 대리 패널은 토글에서 '대리 요청'을 골랐을 때만 setReqType가 펼친다.
-    const typeSeg = document.getElementById('nw-type-seg');
+    // 스태프는 일반/대리 탭 없이 항상 대리 등록 폼으로 연다(본인 명의 등록 경로 제거).
+    // 고객은 기존 그대로 본인 명의 등록.
     if (currentUser && currentUser.role !== 'customer') {
-      if (typeSeg) typeSeg.style.display = '';
-      setReqType('self'); // 기본 일반
+      setReqType('proxy');
     } else {
-      if (typeSeg) typeSeg.style.display = 'none';
       const proxyPanel = document.getElementById('nw-proxy');
       const selfNote = document.getElementById('nw-self-note');
       if (proxyPanel) proxyPanel.style.display = 'none';
@@ -6077,7 +6067,6 @@ function setReqType(mode) {
   const selfNote = document.getElementById('nw-self-note');
   if (proxyPanel) proxyPanel.style.display = isProxy ? '' : 'none';
   if (selfNote) selfNote.style.display = isProxy ? 'none' : '';
-  document.querySelectorAll('#nw-type-seg button').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
   if (isProxy) { pxyResetSelection(); pxyBootstrap(); setPxyType('internal'); } // 대리 요청 기본값 = 내부 검토(실수해도 고객에게 안 보이는 쪽)
 }
 
