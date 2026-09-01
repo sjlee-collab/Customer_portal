@@ -3928,12 +3928,18 @@ async function enterApp(email, acct, isRestore) {
   if (rateParam >= 1 && rateParam <= 5) window._rdPendingRate = rateParam;
   if (ticketParam && sb) {
     sb.from('tickets').select('*').eq('ticket_number', ticketParam).single().then(({ data }) => {
-      if (data) {
-        showDetail(data);
-        // 완료 메일의 별점 링크로 들어온 경우: 상세 입력 카드는 없으므로 팝업으로 이어서 평가
-        const pre = window._rdPendingRate; window._rdPendingRate = 0;
-        if (pre >= 1 && pre <= 5) svPopupOpenFor(data, pre);
+      const pre = window._rdPendingRate; window._rdPendingRate = 0;
+      // 완료 메일의 별점 링크(&rate=N): 상세로 이동하지 않고 홈에 머문 채
+      // 평가 팝업만 띄운다(누른 별점 미리 선택). 평가할 수 없는 상태(이미 평가됨,
+      // 완료 아님, 본인 요청 아님)면 기존처럼 상세를 연다.
+      const canPopup = data && pre >= 1 && pre <= 5 && currentUser?.role === 'customer'
+        && data.created_by === currentUser.id && data.status === 'completed'
+        && data.satisfaction_rating == null;
+      if (canPopup) {
+        svPopupOpenFor(data, pre);
+        if (acct.role === 'customer' || acct.role === 'internal') loadTickets();
       }
+      else if (data) showDetail(data);
       else if (acct.role === 'customer' || acct.role === 'internal') loadTickets();
     });
   } else if (acct.role === 'customer' || acct.role === 'internal') {
