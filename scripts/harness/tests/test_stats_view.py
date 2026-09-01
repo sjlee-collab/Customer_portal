@@ -6,6 +6,7 @@
   - /stats/tickets: admin 200(KPI 구조) + 필터 파라미터 + 테스트 티켓이 집계에 반영 / 고객 403
   - /stats/companies, /stats/documents, /stats/company-detail: admin 200(구조) / 고객 403,
     company-detail은 id 누락 400
+  - /stats/system, /stats/satisfaction (2026-09-01 추가 탭): admin 200(구조) / 고객 403
   - 권한관리 동적 토글(영업 OFF→403, ON→200)
 role_permissions.stats_view(sales)를 잠시 토글하지만 종료 시 기본값(sales=false)으로 원복.
 집계 반영 검증용 [테스트] 티켓 1개 생성 후 삭제(admin 직접 insert — 알림 없음).
@@ -95,6 +96,21 @@ def run():
         t.check('고객상세 고객 403',
                 api('GET', '/stats/company-detail', None, qs={'id': co},
                     role='customer', userId='zz-c', companyId='zz').get('status') == 403)
+
+        # ── 시스템 현황(/stats/system) · 응답 현황(/stats/satisfaction) — 2026-09-01 추가 탭 ──
+        rsy = api('GET', '/stats/system', None, role='admin', userId='zz-admin')
+        sb_ = rsy.get('body') or {}
+        t.check('시스템현황 admin 200 + 구조(noti/byEvent)', rsy.get('status') == 200
+                and 'noti' in sb_ and 'byEvent' in sb_, 'keys=%s' % sorted(sb_)[:6])
+        t.check('시스템현황 고객 403',
+                api('GET', '/stats/system', None, role='customer', userId='zz-c', companyId='zz').get('status') == 403)
+
+        rsa = api('GET', '/stats/satisfaction', None, role='admin', userId='zz-admin')
+        sat = rsa.get('body') or {}
+        t.check('응답현황 admin 200 + 구조(summary/byRating)', rsa.get('status') == 200
+                and isinstance(sat.get('summary'), dict) and 'byRating' in sat, 'keys=%s' % sorted(sat)[:6])
+        t.check('응답현황 고객 403',
+                api('GET', '/stats/satisfaction', None, role='customer', userId='zz-c', companyId='zz').get('status') == 403)
 
         # 권한 동적 토글: 영업 stats_view OFF→403, ON→200
         rows = dget('role_permissions', {'select': 'id,enabled', 'role': 'eq.sales', 'feature_key': 'eq.stats_view'}, role='admin').get('body') or []

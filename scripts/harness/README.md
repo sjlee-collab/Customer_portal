@@ -41,6 +41,8 @@
 - `tests/test_ticket_status.py` — **요청 상태 변경(접수 제외 6개 상태)**: 두 경로(`/status`·`/manage`) 전이 저장 · 6개 상태 전부 슬랙 발송 + event_type 분포(`completed`/`pending_customer` 고유, 나머지 4개 `status_change`) · 메일도 전 상태 발송(manage는 `send_email` 플래그) · 이력(`status_changed`)은 manage 경로만 기록 · 완료예정일 초과(기한 지남=추가 1건·당일=미발송·완료 전환=미발송) · content 원문 저장 · 고객 403 · 동일 상태 재저장 · 잘못된 상태값 거부. 알림은 `log_notification` 행으로 판정(비동기라 최대 30초 대기)
 - `tests/test_ticket_assign.py` — **담당자 배정(`/assign`)**: 배정/재배정 저장·이름 스냅샷 · `assigned` 슬랙 + content의 (이전→새 담당) 표기 · 동일 담당자 무알림 · assign 경로 이력 미기록(현행) · 400/404/403
 - `tests/test_notify_routing.py` — **슬랙 카테고리 팬아웃**: 등록·답글이 공통+카테고리 채널(영업/기술/교육)로 가는지 `recipient`로 판정 · 답글 알림은 고객 작성만(스태프 무알림) · 등록 접수 메일 1통
+- `tests/test_internal_review.py` — **내부 검토(is_internal) 은닉 보안 경계**: 고객은 본인 명의여도 목록·직접조회·자식행·답글쓰기 전부 차단 · 스태프는 열람 · 메일 억제(슬랙만) · make_public 단방향 전환(스태프만)
+- `tests/test_ticket_rate.py` — **만족도 평가(`/rate`)**: 본인·완료 건만, 1~5 정수·200자 제한, 재제출 409, updated_at 미변경(현행 트리거)
 - `tests/test_stats_view.py` — 사용 통계 6개 엔드포인트(`active-users`/`login-history`/`tickets`/`companies`/`documents`/`company-detail`): 구조·고객 403·필터·집계 반영 + `stats_view` 동적 토글
 - `tests/test_auth.py` — 인증: 로그인 분기(404/401) · 비밀번호 변경/확인 · 재설정(무효 토큰·요청(request-reset)·관리자 재설정·권한상승 차단) · 초대 · 담당영업 조회
 - `tests/test_customer_e2e.py` — **고객 계정 전 기능 정상성**(등록·목록·상세·수정·답글·첨부·계약/자료 조회·내정보) + 보안 차단

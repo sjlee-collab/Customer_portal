@@ -130,10 +130,14 @@ async function ticketBelongsToRequester(ticketId, authz) {
   if (!ticketId) return false;
   const { role, userId, companyId, contractId, unitIds } = authz;
   if (role === 'internal') return true; // 내부직원: 전체 티켓 답글 허용
+  // 내부 검토(is_internal) 티켓은 고객에게 존재 자체가 은닉이므로 쓰기(답글)도 차단한다.
+  // data-api의 writable 검사에는 이 조건이 있는데 여기(api-layer 사본)에는 빠져 있어서,
+  // 고객이 id만 알면 내부 검토 티켓에 답글을 달 수 있었다(2026-09-01 하네스로 발견).
+  const notInternal = `and coalesce(is_internal, false) = false`;
   let sql, params;
-  if (unitIds?.length) { sql = 'select 1 from tickets where id=$1 and (unit_id = any($2::uuid[]) or created_by=$3)'; params = [ticketId, unitIds, userId]; }
-  else if (contractId)     { sql = 'select 1 from tickets where id=$1 and contract_id=$2'; params = [ticketId, contractId]; }
-  else if (companyId)      { sql = 'select 1 from tickets where id=$1 and company_id=$2'; params = [ticketId, companyId]; }
+  if (unitIds?.length) { sql = `select 1 from tickets where id=$1 and (unit_id = any($2::uuid[]) or created_by=$3) ${notInternal}`; params = [ticketId, unitIds, userId]; }
+  else if (contractId)     { sql = `select 1 from tickets where id=$1 and contract_id=$2 ${notInternal}`; params = [ticketId, contractId]; }
+  else if (companyId)      { sql = `select 1 from tickets where id=$1 and company_id=$2 ${notInternal}`; params = [ticketId, companyId]; }
   else return false;
   const rows = await query(sql, params);
   return rows.length > 0;
@@ -465,9 +469,11 @@ async function rateTicket(ticketId, body, event) {
   }
   if (comment.length > 200) return json(400, { error: '한줄평은 200자 이내여야 합니다' });
 
-  const rows = await query('select id, status, created_by, satisfaction_rating from tickets where id=$1', [ticketId]);
+  const rows = await query('select id, status, created_by, satisfaction_rating, is_internal from tickets where id=$1', [ticketId]);
   const t = rows[0];
   if (!t) return json(404, { error: '요청을 찾을 수 없습니다' });
+  // 내부 검토 티켓은 고객에게 은닉이므로 평가 경로에서도 존재를 숨긴다(404).
+  if (t.is_internal) return json(404, { error: '요청을 찾을 수 없습니다' });
   if (t.created_by !== authz.userId) return json(403, { error: '요청을 등록한 고객만 평가할 수 있습니다' });
   if (t.status !== 'completed') return json(409, { error: '완료된 요청만 평가할 수 있습니다' });
   if (t.satisfaction_rating != null) return json(409, { error: '이미 평가가 제출된 요청입니다' });
@@ -536,12 +542,15 @@ async function editTicket(ticketId, body, event) {
   const authz = getAuthz(event);
   if (!authz.userId) return json(401, { error: '인증이 필요합니다' });
 
-  const before = await query('select created_by from tickets where id=$1', [ticketId]);
+  const before = await query('select created_by, is_internal from tickets where id=$1', [ticketId]);
   if (!before[0]) return json(404, { error: '요청을 찾을 수 없습니다' });
 
   const isOwner = before[0].created_by === authz.userId;
   const isStaff = await hasPermission(authz.role, 'ticket_manage');
   if (!isOwner && !isStaff) return json(403, { error: '본인이 등록한 요청만 수정할 수 있습니다' });
+  // 내부 검토 티켓은 고객 명의(created_by)로 등록되므로 isOwner만으로는 못 거른다 —
+  // 스태프가 아니면 존재 자체를 숨긴다(404). 403이면 "있긴 있다"가 새어 나간다.
+  if (before[0].is_internal && !isStaff) return json(404, { error: '요청을 찾을 수 없습니다' });
 
   // 내부 검토 → 일반 전환 (스태프 전용 단독 액션). 전환한 시점부터 고객 화면에 보인다.
   // 역방향(일반 → 내부)은 이미 고객이 본 요청을 숨기는 셈이라 지원하지 않는다.

@@ -133,14 +133,16 @@
 | POST /auth/invite | test_auth | 404/403 포함 |
 | POST /auth/admin-reset-password | test_auth | 권한상승 차단(비관리자→내부직원 403) |
 | GET /my/account-manager | test_auth | |
-| GET /stats/* (6개) | test_stats_view | 구조·403·필터·집계 정합 |
+| GET /stats/* (8개) | test_stats_view | 구조·403·필터·집계 정합 |
 | GET /proxy/bootstrap·customers | test_proxy_register | |
 | POST /tickets | test_customer_e2e·notify_routing | 사칭 방지 + 카테고리 팬아웃 |
 | PATCH /tickets/{id}/status | test_ticket_status | 접수 제외 6개 상태 × 알림 |
 | PATCH /tickets/{id}/assign | test_ticket_assign | |
 | PATCH /tickets/{id}/manage | test_ticket_status | 이력·overdue·send_email |
 | POST /tickets/{id}/reply | test_customer_e2e·notify_routing | 고객만 알림 |
-| PATCH·DELETE /tickets/{id} | test_customer_e2e·ticket_delete | cascade 포함 |
+| PATCH·DELETE /tickets/{id} | test_customer_e2e·ticket_delete | cascade 포함 · make_public은 test_internal_review |
+| POST /tickets/{id}/rate | test_ticket_rate | 본인·완료·중복방지·범위 |
+| (횡단) is_internal 은닉 | test_internal_review | **보안 경계** — 고객 완전 은닉 + 메일 억제 |
 | **배치 3종(overdue_batch·license_expiry_notice·expire_contracts)** | **❌ 설계상 invoke 금지** | §6.2 |
 
 ### 기타 Lambda
