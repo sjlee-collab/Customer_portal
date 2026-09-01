@@ -265,11 +265,15 @@ async function createTicket(body, event) {
 
   const companyName = await getCompanyName(company_id);
 
+  // 내부 검토(is_internal) — 대리 등록 경로에서만 허용. 고객 화면(목록/상세/자식행)에서
+  // 완전 은닉되고(data-api 필터), 고객 메일도 발송하지 않는다(notifyForCreate/Status).
+  const isInternal = isProxy && body.internal_review === true;
+
   const inserted = await query(
-    `insert into tickets (title, category, description, status, priority, product, created_by, created_by_name, company_id, company_name, contract_id, unit_id, unit_name, assigned_to, assigned_to_name, registered_by, registered_by_name)
-     values ($1,$2,$3,'received',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+    `insert into tickets (title, category, description, status, priority, product, created_by, created_by_name, company_id, company_name, contract_id, unit_id, unit_name, assigned_to, assigned_to_name, registered_by, registered_by_name, is_internal)
+     values ($1,$2,$3,'received',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
      returning *`,
-    [title, category, description ?? null, priority, product ?? null, created_by, requester.name, company_id ?? null, companyName, contract_id ?? null, unit_id, unit_name, assignedTo, assignedToName, registeredBy, registeredByName]
+    [title, category, description ?? null, priority, product ?? null, created_by, requester.name, company_id ?? null, companyName, contract_id ?? null, unit_id, unit_name, assignedTo, assignedToName, registeredBy, registeredByName, isInternal]
   );
   const ticket = inserted[0];
 
@@ -325,6 +329,10 @@ async function notifyForCreate(ticketId) {
   const notifyPayload = { companyName: ticket.company_name, requesterName: ticket.created_by_name, assigneeName: ticket.assigned_to_name };
 
   await notifySlack({ type: 'TICKET_INSERT', ticket, ...notifyPayload, attachmentFileNames: [] });
+
+  // 내부 검토 티켓 — 고객에게 존재 자체를 숨기므로 메일(접수확인 포함)은 일절 보내지 않는다.
+  // 스태프 인지는 슬랙(🔒 내부 표기)으로 충분.
+  if (ticket.is_internal) return;
 
   if (!requester?.email) return;
 
@@ -391,7 +399,7 @@ async function notifyForStatus(ticketId, prevStatus) {
     await notifySlack({ type: 'TICKET_STATUS', ticket, ...notifyBase, prevStatus });
   }
 
-  if (isNotifiableRequester(requester, ticket)) {
+  if (!ticket.is_internal && isNotifiableRequester(requester, ticket)) {
     await notifyEmail({ type: 'STATUS_CHANGE', ticket, companyName, requesterEmail: requester.email, requesterName: requester.name, prevStatus });
   }
 
@@ -532,6 +540,14 @@ async function editTicket(ticketId, body, event) {
   const isStaff = await hasPermission(authz.role, 'ticket_manage');
   if (!isOwner && !isStaff) return json(403, { error: '본인이 등록한 요청만 수정할 수 있습니다' });
 
+  // 내부 검토 → 일반 전환 (스태프 전용 단독 액션). 전환한 시점부터 고객 화면에 보인다.
+  // 역방향(일반 → 내부)은 이미 고객이 본 요청을 숨기는 셈이라 지원하지 않는다.
+  if (body.make_public === true) {
+    if (!isStaff) return json(403, { error: '내부 검토 전환은 스태프만 할 수 있습니다' });
+    const rows = await query(`update tickets set is_internal=false, updated_at=now() where id=$1 returning *`, [ticketId]);
+    return json(200, { ticket: rows[0] });
+  }
+
   const VALID_CATEGORIES = new Set(['tech_support', 'contract', 'license', 'education', 'customer', 'other']);
   const VALID_PRIORITIES = new Set(['normal', 'high', 'critical']);
   const title = (body.title ?? '').trim();
@@ -671,7 +687,8 @@ async function notifyForManage(job) {
   if (statusChanged && !['completed', 'cancelled'].includes(ticket.status) && isOverdue(ticket.due_date)) {
     await notifySlack({ type: 'TICKET_OVERDUE', ticket, ...notifyBase });
   }
-  if (statusChanged && sendEmail && isNotifiableRequester(requester, ticket)) {
+  // 내부 검토 티켓은 담당자가 메일 발송을 체크했어도 고객 메일을 보내지 않는다(은닉 유지).
+  if (statusChanged && sendEmail && !ticket.is_internal && isNotifiableRequester(requester, ticket)) {
     await notifyEmail({
       type: 'STATUS_CHANGE', ticket, companyName,
       requesterEmail: requester.email, requesterName: requester.name,

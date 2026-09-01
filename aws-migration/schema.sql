@@ -106,9 +106,11 @@ create table public.tickets (
   satisfaction_comment text,
   rated_at            timestamptz,
   registered_by       uuid references public.users(id) on delete set null,
-  registered_by_name  text
+  registered_by_name  text,
+  is_internal         boolean not null default false
 );
 comment on table public.tickets is '고객 기술지원 요청 티켓';
+comment on column public.tickets.is_internal is '내부 검토 요청(대리 등록 전용). true면 고객 화면(목록·상세·자식행)에서 완전 은닉되고 고객 메일도 발송하지 않는다. 스태프가 일반으로 전환 가능(역방향 불가).';
 comment on column public.tickets.registered_by is '대리 등록한 내부직원 계정 id. 값이 있으면 대리 등록(내부직원이 고객 대신 접수), null이면 고객이 직접 등록. 계정 삭제 시 SET NULL.';
 comment on column public.tickets.registered_by_name is '대리 등록자 이름 스냅샷 — registered_by 계정이 삭제돼도 "대리" 배지/이력 표시를 위해 보존.';
 comment on column public.tickets.cc_emails is '상태변경 메일의 추가 수신자(참조) 주소. 요청 관리 모달에서 마지막으로 입력한 값을 티켓별로 기억한다.';

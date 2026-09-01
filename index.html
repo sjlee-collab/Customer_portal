@@ -1626,7 +1626,9 @@ textarea{resize:vertical;min-height:100px;}
                     <!-- 제목 + 수정 (같은 줄) -->
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;">
                       <div style="font-size:17px;font-weight:800;word-break:break-word;overflow-wrap:break-word;" id="rd-title">—</div>
-                      <span style="display:flex;gap:6px;flex-shrink:0;">
+                      <span style="display:flex;gap:6px;flex-shrink:0;align-items:center;">
+                        <span id="rd-internal-badge" style="display:none;font-size:11px;font-weight:700;background:#fef3c7;color:#92400e;padding:2px 9px;border-radius:20px;white-space:nowrap;" title="내부 검토 — 고객에게 보이지 않는 요청">🔒 내부 검토</span>
+                        <button id="rd-make-public-btn" class="btn btn-outline btn-sm" style="display:none;white-space:nowrap;" onclick="makeTicketPublic()">일반으로 전환</button>
                         <button id="rd-owner-edit-btn" class="btn btn-outline btn-sm" style="display:none;white-space:nowrap;" onclick="openEditRequestModal()">수정</button>
                         <button id="rd-delete-btn" class="btn btn-sm" style="display:none;white-space:nowrap;border:1px solid #f0a9a9;color:#dc2626;background:transparent;" onclick="deleteTicketFlow(rdTicket&&rdTicket.id, rdTicket&&rdTicket.ticket_number, 'detail')">삭제</button>
                       </span>
@@ -2698,6 +2700,16 @@ textarea{resize:vertical;min-height:100px;}
               </div>
             </div>
             <div id="pxy-note" style="font-size:11px;color:var(--muted);margin-top:9px;display:none;"></div>
+            <div style="margin-top:12px;">
+              <label style="display:block;font-size:12px;font-weight:600;margin-bottom:5px;">요청 유형 <span class="req">*</span></label>
+              <div id="pxy-type-seg" style="display:flex;border:1px solid var(--border-md);border-radius:8px;overflow:hidden;background:var(--surface);">
+                <button type="button" id="pxy-type-int" onclick="setPxyType('internal')" style="flex:1;padding:9px 8px;font:inherit;font-size:12.5px;border:none;border-right:1px solid var(--border-md);cursor:pointer;background:var(--accent);color:#fff;font-weight:700;">🔒 내부 검토</button>
+                <button type="button" id="pxy-type-nor" onclick="setPxyType('normal')" style="flex:1;padding:9px 8px;font:inherit;font-size:12.5px;border:none;cursor:pointer;background:transparent;color:var(--muted);">일반 (고객에게 표시)</button>
+              </div>
+              <div id="pxy-type-note" style="margin-top:7px;border-radius:7px;padding:8px 11px;font-size:11.5px;line-height:1.6;background:#fffbeb;border:1px solid #fde68a;color:#92400e;">
+                🔒 <b>내부 검토</b> — 이 요청은 빅스데이터 직원에게만 보입니다. 고객 화면(요청 목록·상세)에 표시되지 않고, 고객에게 접수확인·상태변경 메일도 발송되지 않습니다.
+              </div>
+            </div>
           </div>
         </div>
         <div class="form-group span2">
@@ -5645,7 +5657,7 @@ async function loadDashboard() {
     // 최근 요청 테이블 — 카드와 같은 범위(statCats)를 쓴다
     const dashAllowedCats = statCats;
     let recentQ = sb.from('tickets')
-      .select('id, ticket_number, title, category, status, priority, created_at, updated_at, due_date, company_name, company:company_id(name)')
+      .select('id, ticket_number, title, category, status, priority, created_at, updated_at, due_date, company_name, is_internal, company:company_id(name)')
       .order('created_at', { ascending: false }).limit(200);
     if (dashAllowedCats) recentQ = recentQ.in('category', dashAllowedCats);
     const { data: recentTickets } = await recentQ;
@@ -5802,7 +5814,7 @@ async function loadTickets() {
 
   let query = sb
     .from('tickets')
-    .select('id, ticket_number, title, description, category, product, priority, status, created_at, updated_at, due_date, unit_name, assigned_to_name, company_name, created_by_name, registered_by, registered_by_name, assignee:assigned_to(name), company:company_id(name), requester:created_by(name)')
+    .select('id, ticket_number, title, description, category, product, priority, status, created_at, updated_at, due_date, unit_name, assigned_to_name, company_name, created_by_name, registered_by, registered_by_name, is_internal, assignee:assigned_to(name), company:company_id(name), requester:created_by(name)')
     .order('created_at', { ascending: false });
 
   if (DEMO_COMPANY_ID) query = query.eq('company_id', DEMO_COMPANY_ID);
@@ -5889,7 +5901,7 @@ function detachSharedRequestDetail(tbody) {
 // 요청 탭·요청 관리 두 아코디언 테이블이 똑같이 쓰는 9개 셀을 한 곳에 정의(중복 제거).
 // 화면별로 다른 셀은 각 렌더러에 그대로 둔다: num(폴백 차이)·due(지연뱃지 유무)·action(요청관리 전용).
 const TICKET_CELL = {
-  title:     t => `<td style="font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(t.title||'')}<span class="row-arrow">▾</span></td>`,
+  title:     t => `<td style="font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.is_internal?'<span title="내부 검토 — 고객에게 보이지 않는 요청" style="margin-right:4px;">🔒</span>':''}${escHtml(t.title||'')}<span class="row-arrow">▾</span></td>`,
   category:  t => `<td><span class="badge ${CATEGORY_BADGE[t.category]||'b-gray'}">${CATEGORY_LABELS[t.category]||t.category||'—'}</span></td>`,
   priority:  t => `<td><span class="badge ${PRIORITY_BADGE[t.priority]||'b-gray'}">${PRIORITY_LABELS[t.priority]||'일반'}</span></td>`,
   status:    t => `<td><span class="badge ${STATUS_BADGE[t.status]||'b-gray'}">${STATUS_LABELS[t.status]||t.status||'—'}</span></td>`,
@@ -6055,7 +6067,29 @@ function setReqType(mode) {
   if (proxyPanel) proxyPanel.style.display = isProxy ? '' : 'none';
   if (selfNote) selfNote.style.display = isProxy ? 'none' : '';
   document.querySelectorAll('#nw-type-seg button').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
-  if (isProxy) { pxyResetSelection(); pxyBootstrap(); }
+  if (isProxy) { pxyResetSelection(); pxyBootstrap(); setPxyType('internal'); } // 대리 요청 기본값 = 내부 검토(실수해도 고객에게 안 보이는 쪽)
+}
+
+// ── 대리 요청 유형 (내부 검토 / 일반) ──
+// 내부 검토(is_internal): 고객 화면에서 완전 은닉 + 고객 메일 미발송. 대리 요청 탭의 기본값.
+window._pxyType = 'internal';
+function setPxyType(t) {
+  window._pxyType = t;
+  const isInt = t === 'internal';
+  const bInt = document.getElementById('pxy-type-int');
+  const bNor = document.getElementById('pxy-type-nor');
+  if (bInt) { bInt.style.background = isInt ? 'var(--accent)' : 'transparent'; bInt.style.color = isInt ? '#fff' : 'var(--muted)'; bInt.style.fontWeight = isInt ? '700' : '400'; }
+  if (bNor) { bNor.style.background = isInt ? 'transparent' : 'var(--accent)'; bNor.style.color = isInt ? 'var(--muted)' : '#fff'; bNor.style.fontWeight = isInt ? '400' : '700'; }
+  const note = document.getElementById('pxy-type-note');
+  if (note) {
+    if (isInt) {
+      note.style.cssText = 'margin-top:7px;border-radius:7px;padding:8px 11px;font-size:11.5px;line-height:1.6;background:#fffbeb;border:1px solid #fde68a;color:#92400e;';
+      note.innerHTML = '🔒 <b>내부 검토</b> — 이 요청은 빅스데이터 직원에게만 보입니다. 고객 화면(요청 목록·상세)에 표시되지 않고, 고객에게 접수확인·상태변경 메일도 발송되지 않습니다.';
+    } else {
+      note.style.cssText = 'margin-top:7px;border-radius:7px;padding:8px 11px;font-size:11.5px;line-height:1.6;background:var(--accent-l);border:1px solid #C7D2FE;color:var(--text);';
+      note.innerHTML = '일반 대리 요청 — 고객 명의로 접수되어 고객 화면에도 표시되고, 접수확인 메일이 고객에게 발송됩니다(대리 등록 안내 포함).';
+    }
+  }
 }
 
 // ── 대리 등록(내부 계정) — 고객사/고객/조직/담당자 로드 + 콤보박스 ──
@@ -6223,6 +6257,8 @@ async function submitRequest() {
     if (staffId) payload.assigned_to = staffId;
     const orgVal = document.getElementById('pxy-org')?.value;
     if (orgVal) payload.unit_id = orgVal; else delete payload.unit_id;
+    // 요청 유형 — 내부 검토면 고객 화면 은닉 + 고객 메일 미발송(서버에서 대리 등록일 때만 인정).
+    if (window._pxyType === 'internal') payload.internal_review = true;
   }
 
   const { data, error } = await apiCreateTicket(payload);
@@ -10062,7 +10098,7 @@ function clearTkFilter(key) { filterPopClear('tk', key); }
 function updateTkFilterButtonStates() { filterUpdateButtons('tk'); }
 
 // 요청 관리 티켓 조회 — 전체 로드와 델타 폴링이 같은 select·역할필터를 쓰도록 공용화.
-const AR_TICKET_SELECT = 'id, ticket_number, title, category, priority, status, created_at, updated_at, due_date, cc_emails, unit_name, assigned_to_name, company_name, created_by_name, registered_by, registered_by_name, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name,email)';
+const AR_TICKET_SELECT = 'id, ticket_number, title, category, priority, status, created_at, updated_at, due_date, cc_emails, unit_name, assigned_to_name, company_name, created_by_name, registered_by, registered_by_name, is_internal, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name,email)';
 const AR_ROLE_ALLOWED_CATS = {}; // 스태프(영업/기술/교육/관리자) 전 카테고리 조회 — 카테고리 제한 없음
 function _arBaseQuery() {
   const allowedCats = AR_ROLE_ALLOWED_CATS[currentUser?.role] || null;
@@ -10440,6 +10476,8 @@ async function selectRdTicket(idx, directTicket) {
   const rdDelBtn = document.getElementById('rd-delete-btn');
   if (rdDelBtn) rdDelBtn.style.display = permState[currentUser?.role]?.ticket_delete ? '' : 'none';
 
+  updateRdInternalUI();
+
   const isCustomerRole = currentUser?.role === 'customer';
   const isAdminUser = currentUser && ADMIN_ROLES.has(currentUser.role);
   const contractValueEl = document.getElementById('rd-contract-value');
@@ -10476,7 +10514,7 @@ async function selectRdTicket(idx, directTicket) {
   // ── 백그라운드: description·created_by 등 전체 필드 재조회 ──
   if (sb) {
     const { data } = await sb.from('tickets')
-      .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, created_by, company_id, contract_id, unit_id, unit_name, assigned_to, assigned_to_name, company_name, created_by_name, satisfaction_rating, satisfaction_comment, rated_at, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
+      .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, created_by, company_id, contract_id, unit_id, unit_name, assigned_to, assigned_to_name, company_name, created_by_name, satisfaction_rating, satisfaction_comment, rated_at, is_internal, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
       .eq('id', selectedId).single();
     if (data && rdTicket.id === selectedId) {
       rdTicket = data;
@@ -10484,9 +10522,38 @@ async function selectRdTicket(idx, directTicket) {
       if (dueDateValue) dueDateValue.textContent = rdTicket.due_date ? rdTicket.due_date.slice(0, 10) : '—';
       const isOwner = currentUser && rdTicket.created_by === currentUser.id;
       if (ownerEditBtn) ownerEditBtn.style.display = isOwner ? '' : 'none';
+      updateRdInternalUI();
       await renderRdContract(rdTicket, contractValueEl);
     }
   }
+}
+
+// ── 내부 검토 표시/전환 ─────────────────────────────
+// 내부 검토(is_internal) 요청은 상세 제목 옆에 🔒 배지를 띄우고, 스태프에겐 "일반으로 전환"
+// 버튼을 노출한다. 전환은 api-layer PATCH /tickets/{id} 의 make_public 단독 액션(역방향 없음).
+function updateRdInternalUI() {
+  const badge = document.getElementById('rd-internal-badge');
+  const btn = document.getElementById('rd-make-public-btn');
+  const isInt = !!rdTicket?.is_internal;
+  const isStaffUser = currentUser && ADMIN_ROLES.has(currentUser.role);
+  if (badge) badge.style.display = isInt ? '' : 'none';
+  if (btn) btn.style.display = (isInt && isStaffUser) ? '' : 'none';
+}
+
+async function makeTicketPublic() {
+  if (!rdTicket?.id) return;
+  if (!confirm('이 요청을 일반으로 전환할까요?\n전환하면 고객 화면(목록·상세)에 표시되기 시작합니다.')) return;
+  const res = await fetch(`${API_BASE}/tickets/${rdTicket.id}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ make_public: true }),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) { showToast('전환 실패: ' + (data?.error || res.status), true); return; }
+  rdTicket.is_internal = false;
+  const cached = allMgTickets.find(t => t.id === rdTicket.id); if (cached) cached.is_internal = false;
+  updateRdInternalUI();
+  renderRdList();
+  showToast('✅ 일반 요청으로 전환했습니다 — 이제 고객에게 표시됩니다.');
 }
 
 // ── 완료 건 만족도 조사 ─────────────────────────────
