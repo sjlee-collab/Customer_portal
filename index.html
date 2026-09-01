@@ -10700,7 +10700,8 @@ async function selectRdTicket(idx, directTicket) {
   if (memoCard) memoCard.style.display = isAdminUser ? '' : 'none';
 
   const ownerEditBtn = document.getElementById('rd-owner-edit-btn');
-  if (ownerEditBtn) ownerEditBtn.style.display = 'none'; // DB 확인 후 갱신
+  // 관리자(admin)는 모든 요청을 수정할 수 있어 즉시 노출. 그 외는 소유자 여부를 DB 확인 후 갱신.
+  if (ownerEditBtn) ownerEditBtn.style.display = currentUser?.role === 'admin' ? '' : 'none';
 
   const replyInput = document.getElementById('rd-customer-reply');
   if (replyInput) replyInput.value = '';
@@ -10729,8 +10730,10 @@ async function selectRdTicket(idx, directTicket) {
       rdTicket = data;
       if (descEl) descEl.textContent = rdTicket.description || '(내용 없음)';
       if (dueDateValue) dueDateValue.textContent = rdTicket.due_date ? rdTicket.due_date.slice(0, 10) : '—';
+      // 수정 버튼: 소유자 본인 또는 관리자(admin — 모든 요청 수정 가능). 서버(PATCH /tickets/{id})는
+      // ticket_manage 권한을 허용하지만 UI 노출은 정책상 admin까지만.
       const isOwner = currentUser && rdTicket.created_by === currentUser.id;
-      if (ownerEditBtn) ownerEditBtn.style.display = isOwner ? '' : 'none';
+      if (ownerEditBtn) ownerEditBtn.style.display = (isOwner || currentUser?.role === 'admin') ? '' : 'none';
       updateRdInternalUI();
       await renderRdContract(rdTicket, contractValueEl);
     }
