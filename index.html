@@ -2629,7 +2629,8 @@ textarea{resize:vertical;min-height:100px;}
       </div>
       <div style="display:flex;align-items:center;gap:8px;padding:10px 0 2px;">
         <input type="checkbox" id="mg-send-email" checked style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent);" onchange="updateMgRecipientPreview()">
-        <label for="mg-send-email" style="font-size:13px;color:var(--fg);cursor:pointer;margin:0;font-weight:500;">고객에게 상태 변경 메일 발송</label>
+        <label for="mg-send-email" id="mg-send-email-label" style="font-size:13px;color:var(--fg);cursor:pointer;margin:0;font-weight:500;">고객에게 상태 변경 메일 발송</label>
+        <span id="mg-send-email-note" style="display:none;font-size:10.5px;color:var(--faint);">— 내부 검토 요청은 기본 발송 안 함</span>
       </div>
     </div>
     <div style="padding:14px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;">
@@ -11470,7 +11471,17 @@ async function openManage(idx) {
   mgTicket = allMgTickets[idx];
   if (!mgTicket) return;
   document.getElementById('mg-ticket-num').textContent   = mgTicket.ticket_number || '';
-  document.getElementById('mg-ticket-title').textContent = mgTicket.title || '';
+  // 내부 검토(is_internal) 요청: 수신자가 고객이 아니라 요청을 올린 직원이므로
+  // 메일 발송을 기본 해제하고 문구도 '고객에게'를 뺀다. 필요하면 켜서 발송.
+  const mgIsInternal = !!mgTicket.is_internal;
+  document.getElementById('mg-ticket-title').innerHTML = escHtml(mgTicket.title || '')
+    + (mgIsInternal ? ' <span style="font-size:11px;font-weight:700;background:#fef3c7;color:#92400e;padding:2px 9px;border-radius:20px;white-space:nowrap;">🔒 내부 검토</span>' : '');
+  const mgSendCk = document.getElementById('mg-send-email');
+  if (mgSendCk) mgSendCk.checked = !mgIsInternal;
+  const mgSendLb = document.getElementById('mg-send-email-label');
+  if (mgSendLb) mgSendLb.textContent = mgIsInternal ? '상태 변경 메일 발송' : '고객에게 상태 변경 메일 발송';
+  const mgSendNote = document.getElementById('mg-send-email-note');
+  if (mgSendNote) mgSendNote.style.display = mgIsInternal ? '' : 'none';
   document.getElementById('mg-category').value = mgTicket.category || 'other';
   document.getElementById('mg-status').value = mgTicket.status || 'received';
   document.getElementById('mg-due-date').value = mgTicket.due_date ? mgTicket.due_date.slice(0, 10) : '';
