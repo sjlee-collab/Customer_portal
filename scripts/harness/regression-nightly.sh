@@ -71,9 +71,11 @@ fi
 # ── 3) 회귀 실행 ──
 log "회귀 실행…"
 bash "$HDIR/run-regression.sh" >>"$LOG" 2>&1; RC=$?
-SUMMARY="$(grep -E '회귀 전체 PASS|실패한 테스트' "$LOG" | tail -1)"
-FAILS="$(grep -c 'FAIL ' "$LOG" 2>/dev/null || echo 0)"
-log "회귀 종료 rc=$RC / $SUMMARY"
+SUMMARY="$(grep -E '✅ 회귀 전체 PASS|⚠ 회귀 통과\(불안정|❌ 회귀 실패' "$LOG" | tail -1)"
+FAILS="$(grep -c '^FAIL ' "$LOG" 2>/dev/null || echo 0)"
+# flaky = 재시도에서 통과한 불안정 스위트 수(치명 아님). 실행 전체가 PASS여도 있을 수 있다.
+FLAKYN="$(grep -c '^⚠ FLAKY:' "$LOG" 2>/dev/null || echo 0)"
+log "회귀 종료 rc=$RC / flaky=$FLAKYN / $SUMMARY"
 
 SHA="$(git rev-parse --short HEAD)"
 
@@ -86,13 +88,21 @@ SHA="$(git rev-parse --short HEAD)"
   RESULT_LINES="$(grep -E '^▶ |^[0-9]+/[0-9]+ (PASS|FAIL)|✅ 회귀 전체 PASS|❌ 실패한 테스트|FAIL ' "$LOG" | tail -60)"
   PASSED="$( { grep -oE '[0-9]+/[0-9]+ PASS' "$LOG" | awk -F/ '{s+=$1} END{print s+0}'; } 2>/dev/null )"
   TOTAL="$(  { grep -oE '[0-9]+/[0-9]+ (PASS|FAIL)' "$LOG" | sed -E 's#[0-9]+/([0-9]+).*#\1#' | awk '{s+=$1} END{print s+0}'; } 2>/dev/null )"
-  if [ "$RC" -eq 0 ]; then EVT=nightly_pass; STC=success; RECIP="$SHA · ${TOTAL}건"; ERRMSG='';
-  else EVT=nightly_fail; STC=failed; RECIP="$SHA · ${PASSED}/${TOTAL}"
-       # 실패한 체크 설명(FAIL 라인)만 추린다 — 전체 테스트명이 아니라 실제로 깨진 것.
-       ERRMSG="$(grep -E '^FAIL ' "$LOG" | sed -E 's/^FAIL /✖ /' | head -3 | paste -sd '; ' -)"
-       [ -z "$ERRMSG" ] && ERRMSG="실패 ${FAILS}건(로그 참고)";
+  FLAKY_LIST="$(grep -E '^⚠ FLAKY:' "$LOG" | sed -E 's/^⚠ FLAKY: ([^ ]+).*/\1/' | paste -sd ', ' -)"
+  if [ "$RC" -ne 0 ]; then
+    # 진짜 실패 — 재시도도 깨진 스위트가 있다.
+    EVT=nightly_fail; STC=failed; RECIP="$SHA · ${PASSED}/${TOTAL}"
+    ERRMSG="$(grep -E '^FAIL ' "$LOG" | sed -E 's/^FAIL /✖ /' | head -3 | paste -sd '; ' -)"
+    [ -z "$ERRMSG" ] && ERRMSG="실패 ${FAILS}건(로그 참고)";
+  elif [ "${FLAKYN:-0}" -gt 0 ]; then
+    # 불안정 — 1차 실패했으나 재시도에서 통과(경합 의심). 치명은 아니지만 표시한다.
+    EVT=nightly_flaky; STC=success; RECIP="$SHA · ${TOTAL}건 · 불안정 ${FLAKYN}종"
+    ERRMSG="⚠ 재시도 통과(경합 의심): ${FLAKY_LIST}";
+  else
+    EVT=nightly_pass; STC=success; RECIP="$SHA · ${TOTAL}건"; ERRMSG='';
   fi
-  CONTENT="🌙 새벽 회귀 $([ "$RC" = 0 ] && echo '✅ PASS' || echo "❌ FAIL(${FAILS}건)") — $SHA${DRIFT}
+  HEAD="$([ "$RC" -ne 0 ] && echo "❌ FAIL(${FAILS}건)" || { [ "${FLAKYN:-0}" -gt 0 ] && echo "⚠ PASS(불안정 ${FLAKYN}종)" || echo '✅ PASS'; })"
+  CONTENT="🌙 새벽 회귀 ${HEAD} — $SHA${DRIFT}
 
 ${RESULT_LINES}
 
@@ -110,11 +120,13 @@ print('[회귀 알람 기록] status=%s' % r.get('status'))
 PY
 } || true
 
-# ── 5) 결과 통지 ──
-if [ "$RC" -eq 0 ]; then
-  notify_slack "🌙 새벽 회귀 ✅ PASS — ${SHA}${DRIFT} · $SUMMARY"
-else
+# ── 5) 결과 통지 ── 실패 / 불안정 / 통과 3분기
+if [ "$RC" -ne 0 ]; then
   notify_slack "🌙 새벽 회귀 ❌ FAIL($FAILS건) — ${SHA}${DRIFT} · 로그: ${LOG//\\//}"
+elif [ "${FLAKYN:-0}" -gt 0 ]; then
+  notify_slack "🌙 새벽 회귀 ⚠ PASS(불안정 ${FLAKYN}종: ${FLAKY_LIST}) — ${SHA}${DRIFT} · 재시도 통과, 경합 의심"
+else
+  notify_slack "🌙 새벽 회귀 ✅ PASS — ${SHA}${DRIFT} · $SUMMARY"
 fi
 
 # 오래된 로그 정리(30일 초과)
