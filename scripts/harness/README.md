@@ -42,7 +42,7 @@
 - **Windows 작업 스케줄러 등록** (직접 실행 — 시스템 설정 변경):
   ```
   schtasks /create /tn "portal-nightly-regression" /sc daily /st 04:00 ^
-    /tr "\"C:\Program Files\Git\bin\bash.exe\" -lc /c/Installed_program/고객포탈/Customer_portal-hades/scripts/harness/regression-nightly.sh"
+    /tr "\"C:\Program Files\Git\bin\bash.exe\" -lc /c/Installed_program/고객포탈/Customer_portal-Harness/scripts/harness/regression-nightly.sh"
   ```
   등록 후 노트북 절전·배터리 대응(PowerShell, 안 하면 절전 중 안 돎):
   ```powershell

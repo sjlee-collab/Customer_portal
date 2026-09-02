@@ -10,7 +10,7 @@
 #   항상 clean → ff가 매번 성공하고 "정확히 origin/main의 이 커밋"을 검증한다.
 #   등록: 작업 스케줄러가
 #     "C:\Program Files\Git\bin\bash.exe" -lc \
-#       /c/Installed_program/고객포탈/Customer_portal-hades/scripts/harness/regression-nightly.sh
+#       /c/Installed_program/고객포탈/Customer_portal-Harness/scripts/harness/regression-nightly.sh
 #   를 매일 새벽(예: 04:00, 운영 09:00 배치와 안 겹침) 실행하도록 한다.
 #   절전 대응: 작업의 WakeToRun=true, DisallowStartIfOnBatteries=false 설정(README 참고).
 #
