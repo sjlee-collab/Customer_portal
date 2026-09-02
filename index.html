@@ -232,6 +232,9 @@ button,input,select,textarea{font-family:inherit;}
 #p-stats.acct-mode>#stab-acct{flex:1;display:flex;flex-direction:column;min-height:0;overflow-y:auto;}
 #p-stats.acct-mode>#stab-acct>.card{flex:1;display:flex;flex-direction:column;min-height:0;margin-bottom:0;}
 #p-stats.acct-mode>#stab-acct>#acct-never{flex:none;display:block;margin-bottom:16px;}
+/* hidden 속성은 UA 스타일(display:none)이라 위의 display 지정에 진다 — 명시적으로 되살린다.
+   이게 없으면 계정 탭에서 패널이 hidden인데도 항상 보인다(실제 발생). */
+#acct-never[hidden]{display:none !important;}
 /* min-height: 창이 아주 낮을 때 표 영역이 0으로 찌그러지지 않게 하한을 둔다(이땐 패널이 대신 스크롤). */
 #p-stats.acct-mode #lh-scroll{flex:1;min-height:132px;overflow-y:auto;}
 
@@ -8060,7 +8063,8 @@ async function toggleNeverPanel(cardEl) {
       : '<tr><td colspan="4" style="padding:14px;text-align:center;color:var(--faint);">미접속 고객 계정이 없습니다.</td></tr>';
   } catch (e) {
     console.error('toggleNeverPanel 오류', e);
-    tbody.innerHTML = '<tr><td colspan="4" style="padding:14px;text-align:center;color:var(--faint);">목록을 불러오지 못했습니다.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" style="padding:14px;text-align:center;color:var(--faint);">목록을 불러오지 못했습니다. 패널을 닫았다 다시 열면 재시도합니다.</td></tr>';
+    _neverLoaded = false; // 실패를 래치하지 않는다 — 다음에 열 때 다시 조회
   }
   panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
