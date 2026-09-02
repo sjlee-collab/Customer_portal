@@ -183,6 +183,13 @@ def api(method, path, body=None, role='customer', qs=None, **c):
     return invoke('api', e)
 
 
+def batch(task, **extra):
+    """EventBridge 배치를 직접 invoke 한다 — {task, ...}. api-layer는 event.task로 분기하며
+    HTTP(requestContext) 없이 이 경로에 든다. ⚠️ 반드시 only_test=True를 줘서 '[테스트]' 라벨
+    행만 스캔하게 한다(안 주면 운영 전체를 스캔·발송·변경한다)."""
+    return invoke('api', dict(task=task, **extra))
+
+
 def notif_rows(ticket_id, channel=None):
     """티켓의 알림 발송 로그(log_notification) 조회 — 슬랙/메일 발송 여부 판정용.
     발송은 deferNotify(비동기 Event invoke)라 응답으로 볼 수 없고 이 로그가 유일한 관찰 지점.

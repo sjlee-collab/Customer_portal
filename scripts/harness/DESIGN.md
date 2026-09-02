@@ -159,7 +159,7 @@
 | POST /tickets/{id}/rate | test_ticket_rate | 본인·완료·중복방지·범위 |
 | (횡단) is_internal 은닉 | test_internal_review | **보안 경계** — 고객 완전 은닉 + 메일 억제 |
 | (횡단) enum CHECK 계약 | test_schema_contract | schema.sql 허용값 ↔ 라이브 DB ↔ 테스트 커버리지 (드리프트 감지) |
-| **배치 3종(overdue_batch·license_expiry_notice·expire_contracts)** | **❌ 설계상 invoke 금지** | §6.2 |
+| 배치 3종(overdue_batch·license_expiry_notice·expire_contracts) | test_batch | only_test 모드로 [테스트] 라벨만 스캔 — 안전 검증 |
 
 ### 기타 Lambda
 

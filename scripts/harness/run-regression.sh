@@ -16,7 +16,7 @@ export PYTHONIOENCODING=utf-8
 HDIR="$(cd "$(dirname "$0")" && pwd)"
 export HARNESS_TMP="$HDIR/lib"
 
-ALL=(test_permissions.py test_ticket_delete.py test_ticket_status.py test_ticket_assign.py test_notify_routing.py test_internal_review.py test_ticket_rate.py test_customer_e2e.py test_stats_view.py test_proxy_register.py test_storage_rules.py test_auth.py test_schema_contract.py)
+ALL=(test_permissions.py test_ticket_delete.py test_ticket_status.py test_ticket_assign.py test_notify_routing.py test_internal_review.py test_ticket_rate.py test_customer_e2e.py test_stats_view.py test_proxy_register.py test_storage_rules.py test_auth.py test_schema_contract.py test_batch.py)
 # 병렬 안전 = 알림 발송 건수/타입을 단언하지 않는 스위트(응답 코드·권한·구조만 검사).
 # 나머지(알림 타이밍 민감 + 전역 집계)는 직렬. 지정 실행 시엔 이 분류를 그대로 따른다.
 PAR_SAFE=(test_permissions.py test_ticket_delete.py test_storage_rules.py test_ticket_rate.py test_proxy_register.py test_auth.py test_schema_contract.py)

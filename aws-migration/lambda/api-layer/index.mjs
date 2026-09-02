@@ -1874,10 +1874,13 @@ function isOverdue(dueDate) {
 }
 
 // ── EventBridge Scheduler가 매일 09:00 KST에 {"task":"overdue_batch"} 페이로드로 직접 호출 ──
-async function runOverdueBatch() {
+async function runOverdueBatch(event) {
   const today = kstToday();
+  // only_test: 하네스가 안전하게 검증할 수 있도록 '[테스트]' 라벨 티켓만 스캔한다(직접 invoke
+  // 전용 — HTTP로는 event.task 자체가 안 와서 이 경로에 닿지 않는다). 운영 배치는 전체 스캔.
+  const onlyTest = event?.only_test === true;
   const overdueTickets = await query(
-    `select * from tickets where due_date < $1 and status not in ('completed','cancelled') and due_date is not null`,
+    `select * from tickets where due_date < $1 and status not in ('completed','cancelled') and due_date is not null${onlyTest ? " and title like '[테스트]%'" : ''}`,
     [today]
   );
 
@@ -1901,11 +1904,14 @@ async function runOverdueBatch() {
 // 기준일은 반드시 KST로 계산한다 — 예전엔 new Date().toISOString()(UTC)로 오늘을 구했는데,
 // 이 배치는 00:01 KST(=전날 15:01 UTC)에 돌기 때문에 "오늘"이 하루 전 날짜로 잡혀서
 // 종료일 당일 계약이 하루 늦게 만료 처리됐다. UTC에 9시간을 더해 KST 달력 날짜를 구한다.
-async function runContractExpiryBatch() {
+async function runContractExpiryBatch(event) {
   const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  // only_test: '[테스트]' 계약만 만료 처리(직접 invoke 전용). 운영 배치는 전체.
+  // ⚠ UPDATE라 특히 중요 — 라벨 없는 운영 계약을 절대 건드리면 안 된다.
+  const onlyTest = event?.only_test === true;
   const updated = await query(
     `update company_contracts set status='만료', updated_at=now()
-     where status='진행중' and end_date < $1
+     where status='진행중' and end_date < $1${onlyTest ? " and contract_name like '[테스트]%'" : ''}
      returning id, contract_name`,
     [today]
   );
@@ -1924,6 +1930,7 @@ async function runContractExpiryBatch() {
 async function runLicenseExpiryNotice(event) {
   const targetDate = event?.date
     || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const onlyTest = event?.only_test === true;   // '[테스트]' 고객사 라이선스만 스캔(직접 invoke 전용)
 
   // 날짜는 to_char로 문자열로 받는다 — date 컬럼을 그대로 두면 JS Date로 올라와
   // 문자열 비교가 깨지고, 직렬화 과정의 타임존에 따라 하루 밀릴 수 있다.
@@ -1944,7 +1951,7 @@ async function runLicenseExpiryNotice(event) {
        left join company_contracts ct on ct.id = l.contract_id
       where l.status = '활성'
         and l.quantity is not null and l.quantity > 0
-        and (l.end_date = $1 or l.renewal_date = $1)
+        and (l.end_date = $1 or l.renewal_date = $1)${onlyTest ? " and c.name like '[테스트]%'" : ''}
       group by c.name, ct.contract_name, ct.bixs_contact, ct.status,
                ct.start_date, ct.end_date,
                l.product_info, l.end_date, l.renewal_date
@@ -1986,7 +1993,7 @@ export const handler = async (event) => {
 
   if (event.task === 'overdue_batch') {
     try {
-      return await runOverdueBatch();
+      return await runOverdueBatch(event);
     } catch (err) {
       console.error('[overdue_batch 오류]', err);
       return json(500, { error: String(err) });
@@ -2004,7 +2011,7 @@ export const handler = async (event) => {
 
   if (event.task === 'expire_contracts') {
     try {
-      return await runContractExpiryBatch();
+      return await runContractExpiryBatch(event);
     } catch (err) {
       console.error('[expire_contracts 오류]', err);
       return json(500, { error: String(err) });
