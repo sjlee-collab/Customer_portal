@@ -1655,7 +1655,6 @@ textarea{resize:vertical;min-height:100px;}
                       <div style="font-size:17px;font-weight:800;word-break:break-word;overflow-wrap:break-word;" id="rd-title">—</div>
                       <span style="display:flex;gap:6px;flex-shrink:0;align-items:center;">
                         <span id="rd-internal-badge" style="display:none;font-size:11px;font-weight:700;background:#fef3c7;color:#92400e;padding:2px 9px;border-radius:20px;white-space:nowrap;" title="내부 검토 — 고객에게 보이지 않는 요청">🔒 내부 검토</span>
-                        <button id="rd-make-public-btn" class="btn btn-outline btn-sm" style="display:none;white-space:nowrap;" onclick="makeTicketPublic()">일반으로 전환</button>
                         <button id="rd-owner-edit-btn" class="btn btn-outline btn-sm" style="display:none;white-space:nowrap;" onclick="openEditRequestModal()">수정</button>
                         <button id="rd-delete-btn" class="btn btn-sm" style="display:none;white-space:nowrap;border:1px solid #f0a9a9;color:#dc2626;background:transparent;" onclick="deleteTicketFlow(rdTicket&&rdTicket.id, rdTicket&&rdTicket.ticket_number, 'detail')">삭제</button>
                       </span>
@@ -10757,32 +10756,12 @@ async function selectRdTicket(idx, directTicket) {
   }
 }
 
-// ── 내부 검토 표시/전환 ─────────────────────────────
-// 내부 검토(is_internal) 요청은 상세 제목 옆에 🔒 배지를 띄우고, 스태프에겐 "일반으로 전환"
-// 버튼을 노출한다. 전환은 api-layer PATCH /tickets/{id} 의 make_public 단독 액션(역방향 없음).
+// ── 내부 검토 표시 ─────────────────────────────
+// 내부 검토(is_internal) 요청은 상세 제목 옆에 🔒 배지로만 표시한다.
+// (전환 버튼은 없음 — 서버의 make_public 단독 액션은 하위호환으로 유지)
 function updateRdInternalUI() {
   const badge = document.getElementById('rd-internal-badge');
-  const btn = document.getElementById('rd-make-public-btn');
-  const isInt = !!rdTicket?.is_internal;
-  const isStaffUser = currentUser && ADMIN_ROLES.has(currentUser.role);
-  if (badge) badge.style.display = isInt ? '' : 'none';
-  if (btn) btn.style.display = (isInt && isStaffUser) ? '' : 'none';
-}
-
-async function makeTicketPublic() {
-  if (!rdTicket?.id) return;
-  if (!confirm('이 요청을 일반으로 전환할까요?\n전환하면 고객 화면(목록·상세)에 표시되기 시작합니다.')) return;
-  const res = await fetch(`${API_BASE}/tickets/${rdTicket.id}`, {
-    method: 'PATCH', headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify({ make_public: true }),
-  });
-  const data = await res.json().catch(() => null);
-  if (!res.ok) { showToast('전환 실패: ' + (data?.error || res.status), true); return; }
-  rdTicket.is_internal = false;
-  const cached = allMgTickets.find(t => t.id === rdTicket.id); if (cached) cached.is_internal = false;
-  updateRdInternalUI();
-  renderRdList();
-  showToast('✅ 일반 요청으로 전환했습니다 — 이제 고객에게 표시됩니다.');
+  if (badge) badge.style.display = rdTicket?.is_internal ? '' : 'none';
 }
 
 // ── 완료 건 만족도 조사 ─────────────────────────────
