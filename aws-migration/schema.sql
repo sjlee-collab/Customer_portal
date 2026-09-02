@@ -134,10 +134,12 @@ create table public.log_notification (
   sent_at           timestamptz default now(),
   created_at        timestamptz not null default now(),
   event_type        text,
-  retry_count       integer not null default 0
+  retry_count       integer not null default 0,
+  is_test           boolean not null default false
 );
 comment on table public.log_notification is 'Slack / Outlook 알림 발송 이력';
 comment on column public.log_notification.content is '발송한 메일 본문 HTML(이메일 알림 전용, 알림 로그 상세 미리보기용). 슬랙은 NULL';
+comment on column public.log_notification.is_test is '테스트 알림 여부 — 하네스/QA가 만든 알림([테스트] 라벨·테스트 슬랙 채널·테스트 메일 sink)이면 true. 알림 로그 화면의 운영/테스트 탭 분리 기준.';
 
 -- ── 6. content_documents ──
 create table public.content_documents (
@@ -498,6 +500,7 @@ create index if not exists idx_ticket_memos_ticket_id on public.ticket_memos (ti
 create index if not exists idx_ticket_attachments_ticket_id on public.ticket_attachments (ticket_id);
 create index if not exists idx_ticket_history_ticket_id on public.ticket_history (ticket_id);
 create index if not exists idx_log_notification_ticket_id on public.log_notification (ticket_id);
+create index if not exists idx_log_notification_is_test on public.log_notification (is_test);
 create index if not exists idx_user_org_units_user_id on public.user_org_units (user_id);
 create index if not exists idx_user_org_units_unit_id on public.user_org_units (unit_id);
 create index if not exists idx_users_company_id on public.users (company_id);

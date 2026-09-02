@@ -47,6 +47,10 @@ def run():
         t.check('assigned_to 반영', c.get('assigned_to') == s1, 'db=%s' % c.get('assigned_to'))
         t.check('assigned_to_name 스냅샷', c.get('assigned_to_name') == tname('배정직원1'),
                 'db=%s' % c.get('assigned_to_name'))
+        # 첫 배정 알림이 정착한 뒤 재배정한다. notifyForAssign은 메시지의 "새 담당자"를 발송
+        # 시점의 라이브 티켓에서 읽으므로, 기다리지 않고 재배정하면 첫 알림이 이미 직원2로 바뀐
+        # 상태를 읽어 "미배정→직원2"로 기록된다(비동기 경합 — 2026-09-02 새벽 회귀로 발견).
+        wait_notif(tid, 'slack', 1, grace_sec=0)
 
         # ── 재배정 (직원1 → 직원2) ──
         r = api('PATCH', '/tickets/%s/assign' % tid, {'assigned_to': s2}, role='admin', userId=cu)

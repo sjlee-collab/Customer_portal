@@ -25,9 +25,9 @@ async function writeLogs(results) {
   for (const r of results || []) {
     try {
       await query(
-        `insert into log_notification (ticket_id, channel, event_type, recipient, status, error_message, content)
-         values ($1,$2,$3,$4,$5,$6,$7)`,
-        [r.ticketId ?? null, r.channel, r.eventType, r.recipient, r.status, r.errorMessage ?? null, r.content ?? null]
+        `insert into log_notification (ticket_id, channel, event_type, recipient, status, error_message, content, is_test)
+         values ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [r.ticketId ?? null, r.channel, r.eventType, r.recipient, r.status, r.errorMessage ?? null, r.content ?? null, r.isTest === true]
       );
     } catch (e) {
       console.error('[log_notification 기록 실패]', e);

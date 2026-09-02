@@ -28,6 +28,8 @@ const PORTAL_URL       = process.env.PORTAL_URL || '';
 const TEST_EMAIL_OVERRIDE = process.env.TEST_EMAIL_OVERRIDE || '';
 // 테스트 모드 표기 — 하네스 email-safe.sh on 이면 '[테스트]'가 설정되어 제목에 접두된다(없으면 기존 [TEST]).
 const TEST_TAG = process.env.TEST_TAG || '';
+// 테스트 모드(email-safe on)면 이 실행의 모든 메일 로그를 테스트로 표시한다.
+const EMAIL_IS_TEST = !!(TEST_EMAIL_OVERRIDE || TEST_TAG);
 
 const CATEGORY_KO = {
   tech_support: '기술지원', contract: '계약 문의', license: '라이선스 문의',
@@ -90,9 +92,9 @@ async function sendAndLog(to, subject, html, ticketId, eventType, results) {
     // 알림 로그 상세에서 "실제 보낸 메일"을 그대로 보여주기 위해 생성한 본문 HTML을 함께 반환한다.
     // (log_notification.content 컬럼에 저장 — 기존 미사용 컬럼 재사용) 테스트 배너는 운영에선 없고
     // 있어도 저장 불필요하므로 순수 html을 넘긴다.
-    results.push({ channel: 'email', eventType, recipient: to, subject, ticketId, status: 'sent', content: html });
+    results.push({ channel: 'email', eventType, recipient: to, subject, ticketId, status: 'sent', isTest: EMAIL_IS_TEST, content: html });
   } catch (err) {
-    results.push({ channel: 'email', eventType, recipient: to, subject, ticketId, status: 'failed', errorMessage: String(err), content: html });
+    results.push({ channel: 'email', eventType, recipient: to, subject, ticketId, status: 'failed', isTest: EMAIL_IS_TEST, errorMessage: String(err), content: html });
   }
 }
 

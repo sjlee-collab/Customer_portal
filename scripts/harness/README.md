@@ -26,6 +26,35 @@
 | `bash scripts/harness/sweep.sh [--delete]` | `[테스트]` 라벨 잔여 데이터 미리보기/삭제(중단 뒷정리) |
 | `node scripts/harness/l2-smoke.mjs [html]` | **index.html 정적 검사(1초)** — `<script>` 문법 컴파일 · 인라인 핸들러 함수 존재 · JS가 참조하는 DOM id 존재 · 수동 스모크 체크리스트 대조. run-regression이 첫 단계로 자동 실행 |
 | `bash scripts/harness/drift-check.sh [fn]` | 레포↔배포본 대조(읽기 전용). 재배포·리뷰 전에 drift 확인 — 배포본이 앞서 있으면 역동기화 먼저 |
+| `bash scripts/harness/regression-nightly.sh` | 새벽 자동 회귀(작업 스케줄러용). ff→drift-check→회귀→슬랙 통지. **hades 워크트리 전용** |
+
+## 새벽 자동 회귀 (regression-nightly.sh)
+매일 새벽 회귀를 자동으로 돌려 야간/주말 사이 들어온 변경의 회귀를 아침에 확인한다.
+클로드 세션과 무관한 **순수 배치**다 — 스케줄러가 스크립트를 실행할 뿐, AI가 개입하지 않는다.
+
+- **반드시 hades 워크트리 전용.** 스크립트가 자기 위치에서 `git merge --ff-only origin/main`을
+  하는데, 사람이 작업하는 main 워크트리는 형제 세션의 미커밋 변경으로 ff가 자주 막힌다.
+  hades는 이 배치 외엔 아무도 안 건드려 항상 clean → 매번 "정확히 origin/main"을 검증한다.
+  hades에서 ff가 막히면 스크립트는 중단하고 "⚠️ 확인 필요"를 슬랙으로 알린다(낡은 코드로
+  조용히 검증하지 않도록).
+- **결과 통지**: `SLACK_WEBHOOK_TEST`(테스트 채널)로 PASS/FAIL 요약 + 검증한 커밋 SHA + drift 여부.
+  웹훅은 레포에 없고 Lambda env에서 런타임 조회한다. 로그는 `~/portal-nightly/날짜.log`(30일 보관).
+- **Windows 작업 스케줄러 등록** (직접 실행 — 시스템 설정 변경):
+  ```
+  schtasks /create /tn "portal-nightly-regression" /sc daily /st 04:00 ^
+    /tr "\"C:\Program Files\Git\bin\bash.exe\" -lc /c/Installed_program/고객포탈/Customer_portal-Harness/scripts/harness/regression-nightly.sh"
+  ```
+  등록 후 노트북 절전·배터리 대응(PowerShell, 안 하면 절전 중 안 돎):
+  ```powershell
+  $t=Get-ScheduledTask -TaskName "portal-nightly-regression"; $s=$t.Settings
+  $s.WakeToRun=$true; $s.DisallowStartIfOnBatteries=$false; $s.StopIfGoingOnBatteries=$false; $s.StartWhenAvailable=$true
+  Set-ScheduledTask -TaskName "portal-nightly-regression" -Settings $s
+  ```
+  ⚠️ 완전 종료·뚜껑 닫힘·일부 최신(S0) 기종은 깨우기가 안 될 수 있다 — 확실한 무인 실행이
+  필요하면 AWS(EventBridge+CodeBuild)나 GitHub Actions가 노트북 상태와 무관하다.
+- 검증: 등록 후 `schtasks /run /tn "portal-nightly-regression"`으로 즉시 1회 실행 → 슬랙 확인.
+- 04:00은 운영 배치(09:00·00:01 KST)와 겹치지 않게 고른 값. 회귀 1회 ≈ 2분 20초, 슬랙 ~25~30건이
+  테스트 채널로·메일 ~10~12통이 sjlee 싱크로(운영 무영향).
 
 ## 테스트 데이터 규칙 (중요)
 하네스가 만드는 **모든** 데이터는 이름/제목 필드에 반드시 `[테스트]` 라벨을 붙인다 —
