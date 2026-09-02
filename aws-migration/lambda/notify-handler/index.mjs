@@ -257,6 +257,13 @@ async function handleTicketStatus(payload, results) {
   const body = buildBaseMessage(ticket, payload) + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`;
   const isTest = isTestTicket(ticket);
   await sendSlack(SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, evtType, header, body, results, isTest);
+  // 카테고리 채널 추가 발송 — 신규 등록과 동일한 팬아웃(기술지원→기술, 계약/라이선스→영업, 교육→교육).
+  if (['contract', 'license'].includes(ticket.category) && SLACK_WEBHOOK_SALES) {
+    await sendSlack(SLACK_WEBHOOK_SALES, '#영업-슬랙채널', ticket.id, evtType, header, body, results, isTest);
+  }
+  if (ticket.category === 'tech_support' && SLACK_WEBHOOK_TECH) {
+    await sendSlack(SLACK_WEBHOOK_TECH, '#기술지원-슬랙채널', ticket.id, evtType, header, body, results, isTest);
+  }
   if (ticket.category === 'education' && SLACK_WEBHOOK_EDU) {
     await sendSlack(SLACK_WEBHOOK_EDU, '#교육-슬랙채널', ticket.id, evtType, header, body, results, isTest);
   }

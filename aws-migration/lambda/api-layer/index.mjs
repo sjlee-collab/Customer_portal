@@ -306,7 +306,8 @@ async function proxyBootstrap(event) {
   if (!(await hasPermission(authz.role, 'ticket_create'))) return json(403, { error: '요청을 등록할 권한이 없습니다' });
   const [companies, staff] = await Promise.all([
     query('select id, name from companies order by name'),
-    query('select id, name, role from users where role = any($1) and coalesce(is_active,true)=true order by name', [[...STAFF_ROLES]]),
+    // staff = 대리등록자 후보(internal 포함). 담당자 콤보는 프론트에서 internal 제외해 사용.
+    query('select id, name, role from users where role = any($1) and coalesce(is_active,true)=true order by name', [[...PROXY_ROLES]]),
   ]);
   return json(200, { companies, staff });
 }
@@ -576,11 +577,10 @@ async function editTicket(ticketId, body, event) {
 
   // ── admin 전용 확장 필드: 요청 유형(visibility)·담당자(assigned_to) ──
   // 관리자 수정 모달(등록 화면과 동일 구성)에서만 보낸다. 명의(고객사/고객)는 변경 미지원.
-  const isAdmin = authz.role === 'admin';
   const wantsVisibility = body.visibility !== undefined;
   const wantsAssignee = Object.prototype.hasOwnProperty.call(body, 'assigned_to');
-  if ((wantsVisibility || wantsAssignee) && !isAdmin) {
-    return json(403, { error: '요청 유형·담당자 변경은 관리자만 할 수 있습니다' });
+  if ((wantsVisibility || wantsAssignee) && !(await hasPermission(authz.role, 'ticket_correct'))) {
+    return json(403, { error: '요청 교정(유형·담당자) 권한이 없습니다' });
   }
 
   let setInternal; // undefined = 미변경
@@ -695,6 +695,81 @@ async function manageTicket(ticketId, body, event) {
   // 이전 담당자 이름은 트랜잭션 밖에서 미리 조회한다(트랜잭션 client와 섞지 않기 위해).
   const prevAssigneeName = assigneeChanged && prevAssigneeId ? (await getUser(prevAssigneeId))?.name ?? '미배정' : '미배정';
 
+  // ── admin 전용 확장: 요청 유형(visibility)·명의(on_behalf_of/unit_id)·대리등록자(registered_by) ──
+  // 직원이 고객사 지정 없이/내부검토로 잘못 등록한 요청을 처리 모달에서 바로 교정하기 위한 것.
+  // 명의·유형 변경 자체로는 메일·슬랙을 일절 발송하지 않는다(변경 이후 알림부터 새 명의 기준).
+  const wantsVisibility = body.visibility !== undefined;
+  const wantsRequester = Object.prototype.hasOwnProperty.call(body, 'on_behalf_of');
+  const wantsUnit = body.unit_id !== undefined;
+  const wantsRegistrar = Object.prototype.hasOwnProperty.call(body, 'registered_by');
+  // 권한 관리 화면의 ticket_correct와 연동 — admin은 hasPermission이 항상 통과, 다른 역할은 토글로 부여 가능.
+  if ((wantsVisibility || wantsRequester || wantsUnit || wantsRegistrar)
+      && !(await hasPermission(authz.role, 'ticket_correct'))) {
+    return json(403, { error: '요청 교정(유형·명의·대리등록자) 권한이 없습니다' });
+  }
+
+  let setInternal; // undefined = 미변경
+  if (wantsVisibility) {
+    if (!['internal', 'public'].includes(body.visibility)) return json(400, { error: '허용되지 않은 요청 유형입니다' });
+    const wantInternal = body.visibility === 'internal';
+    if (wantInternal !== !!prev.is_internal) setInternal = wantInternal;
+  }
+
+  // 명의 변경 — 새 요청자(customer) 기준으로 회사/계약/조직 스냅샷 재계산.
+  let requesterSet; // 갱신할 컬럼 모음(키=컬럼명). note는 이력용.
+  const requesterChanged = wantsRequester && (body.on_behalf_of || null) !== (prev.created_by ?? null);
+  if (requesterChanged) {
+    if (!body.on_behalf_of) return json(400, { error: '요청자(고객)를 지정해야 합니다' });
+    const target = await getUser(body.on_behalf_of);
+    if (!target || target.role !== 'customer') return json(400, { error: '요청자는 고객 계정이어야 합니다' });
+    const tUnits = Array.isArray(target.unit_ids) ? target.unit_ids : [];
+    let newUnitId = target.unit_id ?? null;
+    if (wantsUnit && body.unit_id) {
+      if (!tUnits.includes(body.unit_id)) return json(403, { error: '해당 고객에게 배정되지 않은 조직입니다' });
+      newUnitId = body.unit_id;
+    }
+    let newUnitName = null;
+    if (newUnitId) {
+      const u = await query('select unit_name from org_units where id=$1', [newUnitId]);
+      newUnitName = u[0]?.unit_name ?? null;
+      if (!newUnitName) newUnitId = null;
+    }
+    const newCompanyName = await getCompanyName(target.company_id ?? null);
+    requesterSet = {
+      created_by: target.id, created_by_name: target.name,
+      company_id: target.company_id ?? null, company_name: newCompanyName,
+      contract_id: target.contract_id ?? null, unit_id: newUnitId, unit_name: newUnitName,
+    };
+    const prevLabel = prev.created_by_name
+      ? `${prev.created_by_name}${prev.company_name && prev.company_name !== '-' ? `(${prev.company_name})` : ''}`
+      : '미지정';
+    requesterSet._note = `${prevLabel} → ${target.name}(${newCompanyName})`;
+  } else if (wantsUnit && body.unit_id && body.unit_id !== (prev.unit_id ?? null)) {
+    // 명의는 그대로, 조직만 변경 — 현 요청자의 배정 조직만 허용
+    const requester = await getUser(prev.created_by);
+    const rUnits = Array.isArray(requester?.unit_ids) ? requester.unit_ids : [];
+    if (!rUnits.includes(body.unit_id)) return json(403, { error: '해당 고객에게 배정되지 않은 조직입니다' });
+    const u = await query('select unit_name from org_units where id=$1', [body.unit_id]);
+    if (u[0]?.unit_name) requesterSet = { unit_id: body.unit_id, unit_name: u[0].unit_name };
+  }
+
+  // 대리등록자 — 표기 스냅샷(registered_by) 변경. 스태프 본인 명의로 잘못 등록된 건을
+  // 고객 명의로 바꾸면 원 등록 스태프를 대리등록자로 자동 정규화(명시 입력이 있으면 그 값 우선).
+  let registrarSet; // undefined = 미변경, {id:null}=고객 직접
+  if (wantsRegistrar) {
+    const rid = body.registered_by || null;
+    if (rid) {
+      const reg = await getUser(rid);
+      if (!reg || !PROXY_ROLES.has(reg.role)) return json(400, { error: '대리등록자는 빅스데이터 직원이어야 합니다' });
+      registrarSet = { id: reg.id, name: reg.name };
+    } else {
+      registrarSet = { id: null, name: null };
+    }
+  } else if (requesterChanged && !prev.registered_by) {
+    const orig = prev.created_by ? await getUser(prev.created_by) : null;
+    if (orig && PROXY_ROLES.has(orig.role)) registrarSet = { id: orig.id, name: orig.name };
+  }
+
   // 티켓 수정과 이력·메모 기록을 한 트랜잭션으로 묶는다 — 예전에는 tickets UPDATE가 먼저
   // 커밋된 뒤 ticket_history/memo INSERT가 따로 실행돼, 뒤 단계가 실패하면 상태만 바뀌고
   // 이력은 안 남는 부분 반영이 생겼다(감사추적 누락). 이제 하나라도 실패하면 전부 롤백된다.
@@ -725,7 +800,41 @@ async function manageTicket(ticketId, body, event) {
     if (memo) {
       await q(`insert into ticket_memos (ticket_id, note, changed_by) values ($1,$2,$3)`, [ticketId, memo, changed_by ?? null]);
     }
-    return updated[0];
+
+    // ── admin 확장분(유형·명의·대리등록자) — 같은 트랜잭션에서 처리해 원자성 유지 ──
+    const extraSets = []; const extraParams = [];
+    if (setInternal !== undefined) { extraParams.push(setInternal); extraSets.push(`is_internal=$${extraParams.length}`); }
+    if (requesterSet) {
+      for (const [col, val] of Object.entries(requesterSet)) {
+        if (col === '_note') continue; // 이력용 메타 — 컬럼 아님
+        extraParams.push(val); extraSets.push(`${col}=$${extraParams.length}`);
+      }
+      // 명의가 실제로 바뀌면 옛 참조 수신자(cc)로 메일이 새지 않도록 강제 초기화(모달 입력값도 무시)
+      if (requesterChanged) extraSets.push('cc_emails=null');
+    }
+    if (registrarSet !== undefined) {
+      extraParams.push(registrarSet.id); extraSets.push(`registered_by=$${extraParams.length}`);
+      extraParams.push(registrarSet.name); extraSets.push(`registered_by_name=$${extraParams.length}`);
+    }
+    let finalRow = updated[0];
+    if (extraSets.length) {
+      extraParams.push(ticketId);
+      const r2 = await q(`update tickets set ${extraSets.join(', ')}, updated_at=now() where id=$${extraParams.length} returning *`, extraParams);
+      finalRow = r2[0];
+    }
+    if (setInternal !== undefined) {
+      await q(
+        `insert into ticket_history (ticket_id, action, note, changed_by, changed_by_name) values ($1,'visibility_changed',$2,$3,$4)`,
+        [ticketId, setInternal ? '일반 → 내부 검토' : '내부 검토 → 일반', changed_by ?? null, changed_by_name ?? null]
+      );
+    }
+    if (requesterChanged) {
+      await q(
+        `insert into ticket_history (ticket_id, action, note, changed_by, changed_by_name) values ($1,'requester_changed',$2,$3,$4)`,
+        [ticketId, requesterSet._note, changed_by ?? null, changed_by_name ?? null]
+      );
+    }
+    return finalRow;
   });
 
   if (statusChanged || assigneeChanged) {

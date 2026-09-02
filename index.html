@@ -2039,11 +2039,11 @@ textarea{resize:vertical;min-height:100px;}
         </div>
         <div class="card" style="padding:0;overflow:hidden;">
           <div style="overflow-x:auto;">
-            <table class="tbl" style="table-layout:fixed;min-width:780px;">
+            <table class="tbl" style="table-layout:fixed;min-width:820px;">
               <thead>
                 <tr>
                   <th rowspan="2" style="width:110px;border-right:1.5px solid var(--border-strong);text-align:left;padding-left:14px;">역할</th>
-                  <th colspan="4" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">요청</th>
+                  <th colspan="5" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">요청</th>
                   <th colspan="2" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">자료실</th>
                   <th colspan="1" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">고객사</th>
                   <th colspan="1" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">사용자</th>
@@ -2053,7 +2053,8 @@ textarea{resize:vertical;min-height:100px;}
                   <th style="border-left:1.5px solid var(--border-strong);border-right:1px solid var(--border);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">조회</th>
                   <th style="border-right:1px solid var(--border);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">생성</th>
                   <th style="border-right:1px solid var(--border);text-align:center;font-size:10px;font-weight:400;color:var(--accent);">삭제</th>
-                  <th style="border-right:1.5px solid var(--border-strong);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">관리</th>
+                  <th style="border-right:1px solid var(--border);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">처리</th>
+                  <th title="요청 유형(내부/일반)·등록 대상(고객사/요청자/대리등록자) 변경" style="border-right:1.5px solid var(--border-strong);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">유형</th>
                   <th style="border-right:1px solid var(--border);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">조회</th>
                   <th style="border-right:1.5px solid var(--border-strong);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">관리</th>
                   <th style="border-right:1.5px solid var(--border-strong);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">관리</th>
@@ -2658,6 +2659,50 @@ textarea{resize:vertical;min-height:100px;}
     <div style="padding:14px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;">
       <button class="btn btn-ghost" onclick="closeModal('modal-manage')">취소</button>
       <button class="btn btn-primary" onclick="saveManage()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ 요청 교정 미니 모달 (유형·등록 대상) — 관리자 전용 ════ -->
+<div id="modal-correct" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.35);align-items:center;justify-content:center;">
+  <div class="modal-box" style="background:var(--surface);border-radius:var(--r-lg);width:480px;max-width:calc(100vw - 32px);box-shadow:0 20px 60px rgba(0,0,0,.2);">
+    <div style="padding:16px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+      <div><div style="font-size:14px;font-weight:800;">요청 유형·등록 대상</div><div style="font-size:11px;color:var(--faint);margin-top:2px;" id="ct-num"></div></div>
+      <button onclick="closeModal('modal-correct')" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--faint);">✕</button>
+    </div>
+    <div style="padding:16px 22px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
+        <label style="margin:0;font-size:11.5px;font-weight:600;">요청 유형</label>
+        <div style="display:flex;border:1px solid var(--border-md);border-radius:8px;overflow:hidden;background:var(--surface);width:250px;">
+          <button type="button" id="ct-type-int" onclick="setCtType('internal')" style="flex:1;padding:6px;font:inherit;font-size:11.5px;border:none;border-right:1px solid var(--border-md);cursor:pointer;background:transparent;color:var(--muted);">🔒 내부 검토</button>
+          <button type="button" id="ct-type-pub" onclick="setCtType('public')" style="flex:1;padding:6px;font:inherit;font-size:11.5px;border:none;cursor:pointer;background:transparent;color:var(--muted);">일반 (고객 표시)</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;">
+        <div><label style="font-size:11.5px;">고객사</label>
+          <div class="pxy-inp" id="ct-company-wrap">
+            <input type="text" id="ct-company-search" autocomplete="off" placeholder="검색 또는 ▾ 선택" oninput="ctCoFilter()" onfocus="ctCoFilter()">
+            <span class="pxy-caret" onclick="ctCoToggle()">▾</span>
+            <input type="hidden" id="ct-company">
+            <div id="ct-company-list" class="pxy-list" style="display:none;"></div>
+          </div>
+        </div>
+        <div><label style="font-size:11.5px;">조직</label><select id="ct-org"></select></div>
+        <div><label style="font-size:11.5px;">고객(요청자)</label><select id="ct-cust" onchange="ctChgNote()"></select></div>
+        <div><label style="font-size:11.5px;">대리등록자</label>
+          <div class="pxy-inp" id="ct-rg-wrap">
+            <input type="text" id="ct-rg-search" autocomplete="off" placeholder="검색 또는 ▾ 선택" oninput="ctRgFilter()" onfocus="ctRgFilter()">
+            <span class="pxy-caret" onclick="ctRgToggle()">▾</span>
+            <input type="hidden" id="ct-registrar">
+            <div id="ct-rg-list" class="pxy-list" style="display:none;"></div>
+          </div>
+        </div>
+      </div>
+      <div id="ct-chg-note" style="display:none;"></div>
+    </div>
+    <div style="padding:12px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;">
+      <button class="btn btn-ghost" onclick="closeModal('modal-correct')">취소</button>
+      <button class="btn btn-primary" id="ct-save" onclick="saveCorrect()">저장</button>
     </div>
   </div>
 </div>
@@ -4364,6 +4409,7 @@ const TICKET_ACTION_LABELS = {
   created:          { label: '요청 접수',     color: 'var(--faint)' },
   status_changed:   { label: '상태 변경',     color: 'var(--accent)' },
   visibility_changed:{ label: '공개 범위 변경', color: 'var(--amber)' },
+  requester_changed:{ label: '명의 변경',     color: 'var(--amber)' },
   assigned:         { label: '담당자 배정',   color: 'var(--accent)' },
   reassigned:       { label: '담당자 변경',   color: 'var(--amber)' },
   message_added:    { label: '답변 등록',     color: 'var(--green)' },
@@ -5066,6 +5112,7 @@ async function loadCustomerTimeline(ticketId) {
     created:        { label: '요청 접수',   color: 'var(--faint)' },
     status_changed: { label: '상태 변경',   color: 'var(--accent)' },
     visibility_changed: { label: '공개 범위 변경', color: 'var(--amber)' },
+    requester_changed: { label: '명의 변경', color: 'var(--amber)' },
     assigned:       { label: '담당자 배정', color: 'var(--accent)' },
     reassigned:     { label: '담당자 변경', color: 'var(--amber)' },
     completed:      { label: '처리 완료',   color: 'var(--green)' },
@@ -6182,7 +6229,7 @@ function setPxyType(t) {
 // 내부(internal)는 data-api로 회사/사용자/조직 목록을 못 읽으므로 api-layer 전용 엔드포인트
 // (/proxy/bootstrap, /proxy/customers)로 최소 정보만 받아 드롭다운을 채운다.
 let _pxyCompanies = [], _pxyStaff = [], _pxyCustomers = [], _pxyUnits = [], _pxyBootstrapped = false;
-const ROLE_KO_SHORT = { admin: '관리자', sales: '영업', tech_support: '기술지원', education: '교육' };
+const ROLE_KO_SHORT = { admin: '관리자', internal: '내부', sales: '영업', tech_support: '기술지원', education: '교육' };
 
 async function pxyBootstrap() {
   if (_pxyBootstrapped) return;
@@ -6252,7 +6299,8 @@ async function pxyPickCompany(c) {
 
 function pxyFilterStaff(showAll) {
   const q = (document.getElementById('pxy-staff-search')?.value || '').trim().toLowerCase();
-  const items = _pxyStaff.filter(s => showAll || !q || (s.name || '').toLowerCase().includes(q)).slice(0, 50)
+  // 담당자는 서버 검증상 스태프만 가능 — internal은 대리등록자 콤보에서만 노출
+  const items = _pxyStaff.filter(s => s.role !== 'internal').filter(s => showAll || !q || (s.name || '').toLowerCase().includes(q)).slice(0, 50)
     .map(s => ({ id: s.id, label: `${s.name} (${ROLE_KO_SHORT[s.role] || s.role})` }));
   _pxyRenderList('pxy-staff-list', items, pxyPickStaff, _pxyBootstrapped ? '검색 결과 없음' : '불러오는 중…');
 }
@@ -7815,7 +7863,7 @@ const PERM_ROLES = [
   { key:'customer',     label:'고객',     color:'#6B7280', locked:false },
 ];
 const PERM_COLS = [
-  'ticket_view','ticket_create','ticket_delete','ticket_manage',
+  'ticket_view','ticket_create','ticket_delete','ticket_manage','ticket_correct',
   'library_view','library_manage',
   'company_manage',
   'user_manage',
@@ -7824,12 +7872,12 @@ const PERM_COLS = [
 // "기본권한" 버튼이 되돌리는 기준값이자 DB 조회 실패 시 폴백.
 // 2026-08-20 운영 role_permissions 테이블의 실제 저장값에 맞췄다.
 const PERM_DEFAULT = {
-  admin:        { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:1,library_view:1,library_manage:1,company_manage:1,user_manage:1,integration:1,notify_log:1,stats_view:1,permission:1 },
-  internal:     { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:0,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0 },
-  sales:        { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:1,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0 },
-  tech_support: { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:1,library_view:1,library_manage:1,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0 },
-  education:    { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:0,library_view:1,library_manage:1,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0 },
-  customer:     { ticket_view:1,ticket_create:1,ticket_delete:0,ticket_manage:0,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0 },
+  admin:        { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:1,ticket_correct:1,library_view:1,library_manage:1,company_manage:1,user_manage:1,integration:1,notify_log:1,stats_view:1,permission:1 },
+  internal:     { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:0,ticket_correct:0,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0 },
+  sales:        { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:1,ticket_correct:0,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0 },
+  tech_support: { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:1,ticket_correct:0,library_view:1,library_manage:1,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0 },
+  education:    { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:0,ticket_correct:0,library_view:1,library_manage:1,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0 },
+  customer:     { ticket_view:1,ticket_create:1,ticket_delete:0,ticket_manage:0,ticket_correct:0,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0 },
 };
 let permState = JSON.parse(JSON.stringify(PERM_DEFAULT));
 
@@ -7856,7 +7904,7 @@ function resetPermissionsToDefault() {
 function renderPermissions() {
   const tbody = document.getElementById('perm-tbody');
   if (!tbody) return;
-  const sepCols = [3,5,6,7]; // border-right after these indices (0-based) — ticket_delete 추가로 시프트
+  const sepCols = [4,6,7,8]; // border-right after these indices (0-based) — ticket_correct(유형) 추가로 시프트
   tbody.innerHTML = PERM_ROLES.map(role => {
     const cells = PERM_COLS.map((col, i) => {
       const on = permState[role.key][col];
@@ -10385,7 +10433,7 @@ function clearTkFilter(key) { filterPopClear('tk', key); }
 function updateTkFilterButtonStates() { filterUpdateButtons('tk'); }
 
 // 요청 관리 티켓 조회 — 전체 로드와 델타 폴링이 같은 select·역할필터를 쓰도록 공용화.
-const AR_TICKET_SELECT = 'id, ticket_number, title, category, priority, status, created_at, updated_at, due_date, cc_emails, unit_name, assigned_to_name, company_name, created_by_name, registered_by, registered_by_name, is_internal, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name,email)';
+const AR_TICKET_SELECT = 'id, ticket_number, title, category, priority, status, created_at, updated_at, due_date, cc_emails, unit_name, assigned_to_name, company_name, created_by_name, registered_by, registered_by_name, is_internal, company_id, created_by, unit_id, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name,email)';
 const AR_ROLE_ALLOWED_CATS = {}; // 스태프(영업/기술/교육/관리자) 전 카테고리 조회 — 카테고리 제한 없음
 function _arBaseQuery() {
   const allowedCats = AR_ROLE_ALLOWED_CATS[currentUser?.role] || null;
@@ -10543,7 +10591,10 @@ function renderAllTickets() {
     const dueCell    = `<td style="font-size:12px;font-variant-numeric:tabular-nums;">${dueDate}</td>`;
     const canDelete = !!permState[currentUser?.role]?.ticket_delete;
     const delBtn = canDelete ? `<button class="btn btn-sm" style="font-size:11px;margin-left:4px;border:1px solid #f0a9a9;color:#dc2626;background:transparent;" onclick="event.stopPropagation();deleteTicketFlow('${t.id}','${escHtml(t.ticket_number||'')}','manage')">삭제</button>` : '';
-    const actionCell = `<td style="white-space:nowrap;"><button class="btn btn-primary btn-sm" style="font-size:11px;" onclick="event.stopPropagation();openManage(${idx})">처리</button>${delBtn}</td>`;
+    // 요청 교정(ticket_correct) — 유형(내부/일반)·등록 대상 변경. 권한 관리 화면의 "유형" 열과 연동.
+    const canCorrect = !!permState[currentUser?.role]?.ticket_correct;
+    const correctBtn = canCorrect ? `<button class="btn btn-sm" style="font-size:11px;margin-left:4px;border:1px solid #f0c36d;color:#92400e;background:#fef3c7;" onclick="event.stopPropagation();openCorrect(${idx})">유형</button>` : '';
+    const actionCell = `<td style="white-space:nowrap;"><button class="btn btn-primary btn-sm" style="font-size:11px;" onclick="event.stopPropagation();openManage(${idx})">처리</button>${correctBtn}${delBtn}</td>`;
     // 요청 관리 전용: 대리등록자를 별도 컬럼으로 보여주므로 요청자 셀엔 [대리] 배지를 붙이지 않는다
     // (요청 탭은 이 컬럼이 없어 기존 배지 유지 — TICKET_CELL.requester 그대로 사용).
     const requesterCell = `<td style="font-size:12px;">${t.requester?.name?escHtml(t.requester.name):(t.created_by_name?escHtml(t.created_by_name):'<span style="color:var(--faint);">—</span>')}</td>`;
@@ -11205,12 +11256,12 @@ async function loadRdHistory() {
     .order('created_at', { ascending: false });
   const ACTION_LABELS = {
     created: '요청 접수', comment: '내부 메모',
-    status_changed: '상태 변경', visibility_changed: '공개 범위 변경', assigned: '담당자 배정',
+    status_changed: '상태 변경', visibility_changed: '공개 범위 변경', requester_changed: '명의 변경', assigned: '담당자 배정',
     reassigned: '담당자 변경', message_added: '답변 등록',
     attachment_added: '첨부파일 추가', completed: '처리 완료', cancelled: '취소'
   };
   const ACTION_COLORS = {
-    created:'var(--faint)', comment:'var(--muted)', status_changed:'var(--accent)', visibility_changed:'var(--amber)',
+    created:'var(--faint)', comment:'var(--muted)', status_changed:'var(--accent)', visibility_changed:'var(--amber)', requester_changed:'var(--amber)',
     assigned:'var(--accent)', reassigned:'var(--amber)', message_added:'var(--green)',
     completed:'var(--green)', cancelled:'var(--red)'
   };
@@ -11540,6 +11591,9 @@ async function openManage(idx) {
   openModal('modal-manage');
 }
 
+
+
+
 // 요청자 + 추가 수신자를 합쳐 실제 메일 발송 대상을 미리 보여준다
 function updateMgRecipientPreview() {
   const box = document.getElementById('mg-recipient-preview');
@@ -11567,6 +11621,7 @@ let _savingManage = false;
 async function saveManage() {
   if (!mgTicket || _savingManage) return;
   _savingManage = true;
+
   const category   = document.getElementById('mg-category').value;
   const status     = document.getElementById('mg-status').value;
   const assigneeId = document.getElementById('mg-assignee').value || null;
@@ -11609,6 +11664,194 @@ async function saveManage() {
   const wasOpen = !!document.querySelector(`#ar-tbody tr.ticket-row[data-id="${savedTicketId}"].open`);
   await loadAllTickets();
   if (wasOpen) openAllTicketRowById(savedTicketId);
+}
+
+// ── 요청 교정 미니 모달 (유형·명의·대리등록자) — 관리자 전용 ──────────────
+// 잘못 등록된 요청 정리용. 저장은 manage 확장 API 재사용.
+// 상태/담당자/예정일은 현재 값 그대로 보내 manage의 무조건 UPDATE가 다른 필드를 덮어쓰지 않게 한다.
+let ctTicket = null, _ct = null;
+
+async function openCorrect(idx) {
+  ctTicket = allMgTickets[idx];
+  if (!ctTicket) return;
+  _ct = {
+    internal: !!ctTicket.is_internal,
+    type: ctTicket.is_internal ? 'internal' : 'public',
+    companyId: ctTicket.company_id || '',
+    custId: ctTicket.created_by || '',
+    unitId: ctTicket.unit_id || '',
+    registrarId: ctTicket.registered_by || '',
+    customers: [],
+  };
+  document.getElementById('ct-num').textContent = ctTicket.ticket_number || '';
+  setCtType(_ct.type);
+  await pxyBootstrap();
+  document.getElementById('ct-company').value = _ct.companyId;
+  document.getElementById('ct-company-search').value = _ct.companyId
+    ? (ctTicket.company?.name || ctTicket.company_name || '') : '— 미지정 —';
+  document.getElementById('ct-registrar').value = _ct.registrarId;
+  const curStaff = (_pxyStaff || []).find(x => x.id === _ct.registrarId);
+  document.getElementById('ct-rg-search').value = _ct.registrarId
+    ? (curStaff ? `${curStaff.name} (${ROLE_KO_SHORT[curStaff.role] || curStaff.role})` : (ctTicket.registered_by_name || '(알 수 없음)'))
+    : '— (고객 직접)';
+  document.getElementById('ct-rg-list').style.display = 'none';
+  await ctLoadCustomers(_ct.companyId, _ct.custId, _ct.unitId);
+  openModal('modal-correct');
+}
+
+async function ctLoadCustomers(companyId, selCust, selUnit) {
+  const custSel = document.getElementById('ct-cust');
+  const orgSel = document.getElementById('ct-org');
+  if (!custSel || !orgSel) return;
+  if (!companyId) {
+    custSel.innerHTML = '<option value="">고객사를 먼저 선택</option>'; custSel.disabled = true;
+    orgSel.innerHTML = '<option value="">—</option>'; orgSel.disabled = true;
+    ctChgNote(); return;
+  }
+  custSel.disabled = false; orgSel.disabled = false;
+  custSel.innerHTML = '<option value="">불러오는 중…</option>';
+  try {
+    const r = await fetch(`${API_BASE}/proxy/customers?company_id=${encodeURIComponent(companyId)}`, { headers: { ...authHeaders() } });
+    const d = r.ok ? await r.json() : {};
+    const customers = d.customers || [];
+    const units = d.units || [];
+    if (_ct) _ct.customers = customers;
+    custSel.innerHTML = customers.length
+      ? '<option value="">고객(요청자) 선택</option>' + customers.map(u => `<option value="${u.id}"${u.id === selCust ? ' selected' : ''}>${escHtml(u.name)}${u.email ? ' · ' + escHtml(u.email) : ''}</option>`).join('')
+      : '<option value="">고객 계정 없음 — 사용자 관리에서 먼저 등록</option>';
+    orgSel.innerHTML = '<option value="">— 조직 미지정 —</option>' + units.map(u => `<option value="${u.id}"${u.id === selUnit ? ' selected' : ''}>${escHtml(u.unit_no)} · ${escHtml(u.unit_name)}</option>`).join('');
+  } catch (e) { console.error('[ct customers]', e); custSel.innerHTML = '<option value="">불러오기 실패</option>'; }
+  ctChgNote();
+}
+
+function ctCoFilter(showAll) {
+  const q = (document.getElementById('ct-company-search')?.value || '').trim().toLowerCase();
+  const items = (_pxyCompanies || []).filter(c => showAll || !q || (c.name || '').toLowerCase().includes(q)).slice(0, 50)
+    .map(c => ({ id: c.id, label: c.name }));
+  _pxyRenderList('ct-company-list', items, ctCoPick, _pxyBootstrapped ? '일치하는 고객사가 없습니다' : '불러오는 중…');
+}
+
+// 대리등록자 콤보 — _pxyStaff 전체(internal 포함)를 검색. 맨 위 '고객 직접'으로 해제 가능.
+function ctRgFilter(showAll) {
+  const q = (document.getElementById('ct-rg-search')?.value || '').trim().toLowerCase();
+  // 대리등록자 후보(스태프+내부 일반)는 77명 수준 — 50 컷이면 ▾ 전체 목록에서 뒷순번이 잘리므로 자르지 않는다(목록은 스크롤).
+  const items = [{ id: '', label: '— (고객 직접)' }].concat(
+    (_pxyStaff || []).filter(x => showAll || !q || (x.name || '').toLowerCase().includes(q))
+      .map(x => ({ id: x.id, label: `${x.name} (${ROLE_KO_SHORT[x.role] || x.role})` })));
+  _pxyRenderList('ct-rg-list', items, ctRgPick, _pxyBootstrapped ? '검색 결과 없음' : '불러오는 중…');
+}
+function ctRgToggle() {
+  const box = document.getElementById('ct-rg-list');
+  if (box.style.display !== 'none') { box.style.display = 'none'; return; }
+  document.getElementById('ct-rg-search').value = '';
+  ctRgFilter(true);
+  document.getElementById('ct-rg-search')?.focus();
+}
+function ctRgPick(it) {
+  document.getElementById('ct-rg-search').value = it.label;
+  document.getElementById('ct-registrar').value = it.id;
+  document.getElementById('ct-rg-list').style.display = 'none';
+  ctChgNote();
+}
+function ctCoToggle() {
+  const box = document.getElementById('ct-company-list');
+  if (!box) return;
+  if (box.style.display !== 'none') { box.style.display = 'none'; return; }
+  const search = document.getElementById('ct-company-search');
+  if (search) search.value = '';
+  ctCoFilter(true);
+}
+
+function ctCoPick(c) {
+  document.getElementById('ct-company-search').value = c.label;
+  document.getElementById('ct-company').value = c.id;
+  document.getElementById('ct-company-list').style.display = 'none';
+  ctLoadCustomers(c.id, '', '');
+}
+
+document.addEventListener('click', (e) => {
+  const box = document.getElementById('ct-company-list');
+  if (box && box.style.display !== 'none' && !e.target.closest('#ct-company-wrap')) box.style.display = 'none';
+  const rbox = document.getElementById('ct-rg-list');
+  if (rbox && rbox.style.display !== 'none' && !e.target.closest('#ct-rg-wrap')) rbox.style.display = 'none';
+});
+
+function setCtType(t) {
+  if (!_ct) return;
+  _ct.type = t;
+  const on = 'flex:1;padding:6px;font:inherit;font-size:11.5px;border:none;cursor:pointer;background:var(--accent);color:#fff;font-weight:700;';
+  const off = 'flex:1;padding:6px;font:inherit;font-size:11.5px;border:none;cursor:pointer;background:transparent;color:var(--muted);';
+  const bi = document.getElementById('ct-type-int'), bp = document.getElementById('ct-type-pub');
+  if (bi) bi.style.cssText = (t === 'internal' ? on : off) + 'border-right:1px solid var(--border-md);';
+  if (bp) bp.style.cssText = t === 'internal' ? off : on;
+  ctChgNote();
+}
+
+// 변경 예정 사항을 안내 바 하나로 통합
+function ctChgNote() {
+  if (!_ct) return;
+  const note = document.getElementById('ct-chg-note');
+  if (!note) return;
+  const parts = [];
+  const wantInternal = _ct.type === 'internal';
+  if (wantInternal !== _ct.internal) {
+    parts.push(wantInternal ? '<b>🔒 내부 검토 전환</b>(고객 화면에서 즉시 숨김)' : '<b>일반 전환</b>(즉시 고객에게 표시)');
+  }
+  const cu = document.getElementById('ct-cust')?.value || '';
+  if (cu && cu !== (_ct.custId || '')) {
+    const cust = (_ct.customers || []).find(x => x.id === cu);
+    const coName = document.getElementById('ct-company-search')?.value || '';
+    parts.push(`<b>${escHtml(cust?.name || '')} (${escHtml(coName)})</b> 명의 변경(참조 초기화)`);
+  }
+  const rg = document.getElementById('ct-registrar')?.value || '';
+  if (rg !== (_ct.registrarId || '')) parts.push('대리등록자 변경');
+  if (!parts.length) { note.style.display = 'none'; return; }
+  note.style.cssText = 'display:block;margin-top:8px;border-radius:7px;padding:7px 10px;font-size:11.5px;line-height:1.55;background:#fff1f2;border:1px solid #f0a9a9;color:#dc2626;';
+  note.innerHTML = '⚠️ 저장 시: ' + parts.join(' · ') + ' — 메일 미발송, 답글·이력·첨부 유지.';
+}
+
+let _savingCorrect = false;
+async function saveCorrect() {
+  if (!ctTicket || !_ct || _savingCorrect) return;
+  const extra = {};
+  const wantInternal = _ct.type === 'internal';
+  if (wantInternal !== _ct.internal) {
+    if (wantInternal && !confirm('이 요청을 내부 검토로 전환할까요?\n고객 화면에서 즉시 사라지고 고객 메일이 발송되지 않습니다.')) return;
+    extra.visibility = wantInternal ? 'internal' : 'public';
+  }
+  const cu = document.getElementById('ct-cust')?.value || '';
+  const un = document.getElementById('ct-org')?.value || '';
+  if (cu && cu !== (_ct.custId || '')) {
+    const cuName = document.getElementById('ct-cust')?.selectedOptions?.[0]?.text || '';
+    const coName = document.getElementById('ct-company-search')?.value || '';
+    if (!confirm(`이 요청의 명의를 ${cuName} (${coName})(으)로 변경할까요?\n메일은 발송되지 않으며, 추가 수신자(참조)는 초기화됩니다.`)) return;
+    extra.on_behalf_of = cu;
+    if (un) extra.unit_id = un;
+  } else if (un && un !== (_ct.unitId || '')) {
+    extra.unit_id = un;
+  }
+  const rg = document.getElementById('ct-registrar')?.value || '';
+  if (rg !== (_ct.registrarId || '')) extra.registered_by = rg || null;
+
+  if (!Object.keys(extra).length) { closeModal('modal-correct'); showToast('변경 사항이 없습니다.'); return; }
+
+  _savingCorrect = true;
+  const { error } = await apiManageTicket(ctTicket.id, {
+    category: ctTicket.category, status: ctTicket.status,
+    assigned_to: ctTicket.assigned_to ?? ctTicket.assignee?.id ?? null,
+    due_date: ctTicket.due_date ? ctTicket.due_date.slice(0, 10) : null,
+    memo: '', send_email: false,
+    changed_by: currentUser?.id || null, changed_by_name: currentUser?.name || null,
+    ...extra,
+  });
+  _savingCorrect = false;
+  if (error) { showToast('저장 실패: ' + error.message, true); return; }
+  closeModal('modal-correct');
+  showToast('✅ 요청 교정이 저장됐습니다.');
+  const savedId = ctTicket.id;
+  const wasOpen = !!document.querySelector(`#ar-tbody tr.ticket-row[data-id="${savedId}"].open`);
+  await loadAllTickets();
+  if (wasOpen) openAllTicketRowById(savedId);
 }
 
 function switchLibTab() {

@@ -8,7 +8,7 @@
       contract     → 공통 + #영업-슬랙채널
       education    → 공통 + #교육-슬랙채널
   - 답글(TICKET_REPLY): 작성자가 customer일 때만 발송(공통 + 카테고리 채널),
-    스태프 답글은 무알림 (api-layer addReply의 role==='customer' 게이트)
+    스태프 답글도 알림 (2026-09-02 14eb33f로 전 역할 확대 — 예전엔 고객만)
   - 등록 시 접수 확인 메일 1통(요청자에게)
 
 판정은 log_notification.recipient(채널 표시명)로 한다 — '[테스트]' 라벨이라 실제 발송은
@@ -78,13 +78,15 @@ def run():
             t.check('고객 답글 슬랙: 공통+기술', reply_ch == {COMMON, '#기술지원-슬랙채널'},
                     '실제=%s' % sorted(reply_ch))
 
-            # 스태프 답글 — 무알림 (작성자 role은 DB 기준이므로 실제 스태프 계정으로)
+            # 스태프 답글도 알림 (2026-09-02 14eb33f로 확대 — 예전엔 고객 답글만 알림이 갔다.
+            # 협업 담당자가 직원 답글을 놓치던 문제 해소. 채널 팬아웃은 고객 답글과 동일).
             n_before = len(notif_rows(tid, 'slack'))
             r = api('POST', '/tickets/%s/reply' % tid, {'note': tname('직원 답글')}, role='internal', userId=st)
             t.check('스태프 답글 201', r.get('status') == 201, 'status=%s' % r.get('status'))
-            slack = wait_notif(tid, 'slack', n_before)  # 그대로여야 함
-            t.check('스태프 답글 무알림', len(slack) == n_before,
-                    '이전=%d 이후=%d' % (n_before, len(slack)))
+            slack = wait_notif(tid, 'slack', n_before + 2)  # 공통 + 기술 채널 추가
+            new_ch = {x.get('recipient') for x in slack if x.get('event_type') == 'reply'} - {COMMON, '#기술지원-슬랙채널'}
+            t.check('스태프 답글도 알림(+2, 채널 동일)', len(slack) == n_before + 2 and not new_ch,
+                    '이전=%d 이후=%d 예상외채널=%s' % (n_before, len(slack), sorted(new_ch)))
     finally:
         for x in created['tickets']:
             if len(dget('tickets', {'select': 'id', 'id': 'eq.' + x}, role='admin').get('body') or []):

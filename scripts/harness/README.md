@@ -17,7 +17,7 @@
 ## 스크립트
 | 명령 | 설명 |
 |---|---|
-| `bash scripts/harness/run-regression.sh` | 회귀 스위트 전체 실행(PASS/FAIL) |
+| `bash scripts/harness/run-regression.sh [스위트…]` | 회귀 실행 — 인자 없으면 전체(알림무관 스위트는 병렬), 인자 주면 그것만(예: `run-regression.sh auth stats`). L2 정적 스모크가 첫 단계 |
 | `bash scripts/harness/deploy-fn.sh <api-layer\|data-api\|public-inquiry\|send-email\|storage-api\|jwt-authorizer\|notify-handler>` | 안전 재배포(drift 진단→배포→스모크) |
 | `bash scripts/harness/promote.sh` | main → dev/Design/QA ff 전파 + SHA 일치 검증 |
 | `bash scripts/harness/guard-commit.sh [파일…]` | 커밋 전 clobber 점검(origin 최신·의도 파일만) |
