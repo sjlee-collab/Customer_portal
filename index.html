@@ -10520,7 +10520,7 @@ function renderAllTickets() {
     const delBtn = canDelete ? `<button class="btn btn-sm" style="font-size:11px;margin-left:4px;border:1px solid #f0a9a9;color:#dc2626;background:transparent;" onclick="event.stopPropagation();deleteTicketFlow('${t.id}','${escHtml(t.ticket_number||'')}','manage')">삭제</button>` : '';
     // 요청 교정(ticket_correct) — 유형(내부/일반)·등록 대상 변경. 권한 관리 화면의 "유형" 열과 연동.
     const canCorrect = !!permState[currentUser?.role]?.ticket_correct;
-    const correctBtn = canCorrect ? `<button class="btn btn-sm" style="font-size:11px;margin-left:4px;border:1px solid #f0c36d;color:#92400e;background:#fef3c7;" onclick="event.stopPropagation();openCorrect(${idx})">유형/등록</button>` : '';
+    const correctBtn = canCorrect ? `<button class="btn btn-sm" style="font-size:11px;margin-left:4px;border:1px solid #f0c36d;color:#92400e;background:#fef3c7;" onclick="event.stopPropagation();openCorrect(${idx})">유형</button>` : '';
     const actionCell = `<td style="white-space:nowrap;"><button class="btn btn-primary btn-sm" style="font-size:11px;" onclick="event.stopPropagation();openManage(${idx})">처리</button>${correctBtn}${delBtn}</td>`;
     // 요청 관리 전용: 대리등록자를 별도 컬럼으로 보여주므로 요청자 셀엔 [대리] 배지를 붙이지 않는다
     // (요청 탭은 이 컬럼이 없어 기존 배지 유지 — TICKET_CELL.requester 그대로 사용).
