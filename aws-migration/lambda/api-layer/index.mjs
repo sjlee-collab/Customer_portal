@@ -576,11 +576,10 @@ async function editTicket(ticketId, body, event) {
 
   // ── admin 전용 확장 필드: 요청 유형(visibility)·담당자(assigned_to) ──
   // 관리자 수정 모달(등록 화면과 동일 구성)에서만 보낸다. 명의(고객사/고객)는 변경 미지원.
-  const isAdmin = authz.role === 'admin';
   const wantsVisibility = body.visibility !== undefined;
   const wantsAssignee = Object.prototype.hasOwnProperty.call(body, 'assigned_to');
-  if ((wantsVisibility || wantsAssignee) && !isAdmin) {
-    return json(403, { error: '요청 유형·담당자 변경은 관리자만 할 수 있습니다' });
+  if ((wantsVisibility || wantsAssignee) && !(await hasPermission(authz.role, 'ticket_correct'))) {
+    return json(403, { error: '요청 교정(유형·담당자) 권한이 없습니다' });
   }
 
   let setInternal; // undefined = 미변경
@@ -698,13 +697,14 @@ async function manageTicket(ticketId, body, event) {
   // ── admin 전용 확장: 요청 유형(visibility)·명의(on_behalf_of/unit_id)·대리등록자(registered_by) ──
   // 직원이 고객사 지정 없이/내부검토로 잘못 등록한 요청을 처리 모달에서 바로 교정하기 위한 것.
   // 명의·유형 변경 자체로는 메일·슬랙을 일절 발송하지 않는다(변경 이후 알림부터 새 명의 기준).
-  const isAdminUser = authz.role === 'admin';
   const wantsVisibility = body.visibility !== undefined;
   const wantsRequester = Object.prototype.hasOwnProperty.call(body, 'on_behalf_of');
   const wantsUnit = body.unit_id !== undefined;
   const wantsRegistrar = Object.prototype.hasOwnProperty.call(body, 'registered_by');
-  if ((wantsVisibility || wantsRequester || wantsUnit || wantsRegistrar) && !isAdminUser) {
-    return json(403, { error: '요청 유형·명의·대리등록자 변경은 관리자만 할 수 있습니다' });
+  // 권한 관리 화면의 ticket_correct와 연동 — admin은 hasPermission이 항상 통과, 다른 역할은 토글로 부여 가능.
+  if ((wantsVisibility || wantsRequester || wantsUnit || wantsRegistrar)
+      && !(await hasPermission(authz.role, 'ticket_correct'))) {
+    return json(403, { error: '요청 교정(유형·명의·대리등록자) 권한이 없습니다' });
   }
 
   let setInternal; // undefined = 미변경

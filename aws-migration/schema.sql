@@ -266,7 +266,7 @@ create table public.role_permissions (
                check (role = any (array['customer','internal','tech_support','sales','education','admin'])),
   feature_key  text not null
                check (feature_key = any (array[
-                 'ticket_view','ticket_create','ticket_delete','ticket_manage',
+                 'ticket_view','ticket_create','ticket_delete','ticket_manage','ticket_correct',
                  'library_view','library_manage',
                  'company_view','company_manage',
                  'user_view','user_manage',
