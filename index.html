@@ -11669,8 +11669,9 @@ function ctCoFilter(showAll) {
 // 대리등록자 콤보 — _pxyStaff 전체(internal 포함)를 검색. 맨 위 '고객 직접'으로 해제 가능.
 function ctRgFilter(showAll) {
   const q = (document.getElementById('ct-rg-search')?.value || '').trim().toLowerCase();
+  // 대리등록자 후보(스태프+내부 일반)는 77명 수준 — 50 컷이면 ▾ 전체 목록에서 뒷순번이 잘리므로 자르지 않는다(목록은 스크롤).
   const items = [{ id: '', label: '— (고객 직접)' }].concat(
-    (_pxyStaff || []).filter(x => showAll || !q || (x.name || '').toLowerCase().includes(q)).slice(0, 50)
+    (_pxyStaff || []).filter(x => showAll || !q || (x.name || '').toLowerCase().includes(q))
       .map(x => ({ id: x.id, label: `${x.name} (${ROLE_KO_SHORT[x.role] || x.role})` })));
   _pxyRenderList('ct-rg-list', items, ctRgPick, _pxyBootstrapped ? '검색 결과 없음' : '불러오는 중…');
 }
