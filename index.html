@@ -1584,17 +1584,17 @@ textarea{resize:vertical;min-height:100px;}
           <div class="tbl-scroll list-scroll"><table class="tbl" style="border-collapse:separate;border-spacing:0;">
             <thead><tr>
               <th style="padding:8px 12px;">요청 번호</th>
-              <th style="padding:8px 12px;">제목</th>
-              <!-- 카테고리/긴급도/상태 필터는 시안대로 검색줄 옆 드롭다운으로 옮겼다(같은 id의 팝을
-                   툴바에서 재사용). 고객사/요청자/담당자는 데이터에서 옵션을 뽑는 동적 필터라 머리글에 남긴다. -->
-              <th style="padding:8px 12px;">카테고리</th>
-              <th style="padding:8px 12px;">긴급도</th>
-              <th style="padding:8px 12px;">상태</th>
               <th>
                 <button class="th-filter-btn" onclick="toggleArFilterPop(this,'company')">고객사 <span class="th-filter-caret">▾</span></button>
                 <div class="th-filter-pop" id="ar-pop-company"><div class="th-filter-empty">불러오는 중...</div></div>
               </th>
               <th style="padding:8px 12px;">조직</th>
+              <th style="padding:8px 12px;">제목</th>
+              <!-- 카테고리/긴급도/상태 필터는 시안대로 검색줄 옆 드롭다운으로 옮겼다(같은 id의 팝을
+                   툴바에서 재사용). 요청자/담당자는 데이터에서 옵션을 뽑는 동적 필터라 머리글에 남긴다. -->
+              <th style="padding:8px 12px;">카테고리</th>
+              <th style="padding:8px 12px;">긴급도</th>
+              <th style="padding:8px 12px;">상태</th>
               <th>
                 <button class="th-filter-btn" onclick="toggleArFilterPop(this,'requester')">요청자 <span class="th-filter-caret">▾</span></button>
                 <div class="th-filter-pop" id="ar-pop-requester"><div class="th-filter-empty">불러오는 중...</div></div>
