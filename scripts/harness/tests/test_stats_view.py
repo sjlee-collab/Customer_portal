@@ -54,18 +54,24 @@ def run():
         rtc = api('GET', '/stats/tickets', None, role='customer', userId='zz-c', companyId='zz')
         t.check('요청현황 고객 403', rtc.get('status') == 403, 'status=%s' % rtc.get('status'))
 
-        # 집계 반영: 미배정 open 테스트 티켓 1개를 넣으면 total/open/unassigned가 1씩 는다
-        base = tb.get('summary') or {}
+        # 집계 반영: 미배정 open 테스트 티켓 1개를 넣으면 total/open/unassigned가 1씩 는다.
+        # 공유 운영 백엔드라 스냅샷 사이에 남의 티켓이 생기거나 완료될 수 있다(실제 경합 관측:
+        # 다른 세션이 미배정 open 건을 완료하면 total +1 / open +0이 됨) — 최대 3회 재시도로 흡수.
         co = dpost('companies', {'name': tname('통계 회사'), 'status': 'active'})['body']['id']
         cu = dpost('users', {'email': temail('statsCust'), 'name': tname('통계고객'), 'role': 'customer',
                              'company_id': co, 'is_active': True})['body']['id']
-        tid = dpost('tickets', {'title': tname('통계 티켓'), 'category': 'other', 'status': 'received',
-                                'created_by': cu, 'company_id': co,
-                                'company_name': tname('통계 회사')}, role='admin')['body']['id']
-        created['companies'].append(co); created['users'].append(cu); created['tickets'].append(tid)
-        after = (api('GET', '/stats/tickets', None, role='admin', userId='zz-admin').get('body') or {}).get('summary') or {}
-        t.check('집계 반영(total/open/unassigned +1)',
-                all(after.get(k) == base.get(k, 0) + 1 for k in ('total', 'open', 'unassigned')),
+        created['companies'].append(co); created['users'].append(cu)
+        tid = None
+        for attempt in range(3):
+            base = (api('GET', '/stats/tickets', None, role='admin', userId='zz-admin').get('body') or {}).get('summary') or {}
+            new_tid = dpost('tickets', {'title': tname('통계 티켓%d' % attempt), 'category': 'other',
+                                        'status': 'received', 'created_by': cu, 'company_id': co,
+                                        'company_name': tname('통계 회사')}, role='admin')['body']['id']
+            created['tickets'].append(new_tid); tid = new_tid
+            after = (api('GET', '/stats/tickets', None, role='admin', userId='zz-admin').get('body') or {}).get('summary') or {}
+            ok = all(after.get(k) == base.get(k, 0) + 1 for k in ('total', 'open', 'unassigned'))
+            if ok: break
+        t.check('집계 반영(total/open/unassigned +1, %d회차)' % (attempt + 1), ok,
                 '전=%s 후=%s' % ({k: base.get(k) for k in ('total', 'open', 'unassigned')},
                                 {k: after.get(k) for k in ('total', 'open', 'unassigned')}))
         # 필터 파라미터가 SQL로 먹히는지 — 미배정 필터는 unassigned와 같은 정의의 부분집합

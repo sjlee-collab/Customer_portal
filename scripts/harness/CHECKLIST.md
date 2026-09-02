@@ -4,7 +4,8 @@
 
 ## 1) 프론트만 (index.html)
 - [ ] 편집
-- [ ] 로컬 프리뷰(.claude/launch.json)로 콘솔 에러 0 / 핵심 렌더 확인 (L2: tests/smoke_frontend.js)
+- [ ] `node scripts/harness/l2-smoke.mjs` — 문법·핸들러·DOM id 정적 검사(1초, 필수)
+- [ ] 로컬 프리뷰(.claude/launch.json)로 콘솔 에러 0 / 핵심 렌더 확인 (L2 런타임: scripts/smoke-frontend.js)
 - [ ] `guard-commit.sh index.html` → commit → `promote.sh`
 
 ## 2) data-api 변경 (범용 CRUD/권한/격리 로직)

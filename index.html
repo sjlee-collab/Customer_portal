@@ -3840,7 +3840,8 @@ async function requestPasswordReset() {
   resultEl.style.background = '#EAF3DE';
   resultEl.style.color = '#1a6e3a';
   resultEl.textContent = '재설정 링크를 보내드렸습니다. 메일함을 확인해주세요.';
-  document.getElementById('fp-form-group').style.display = 'none';
+  // (과거 fp-form-group 숨김이 여기 있었음 — 요소가 리팩터로 제거된 뒤 가드 없는 접근이
+  //  성공 메시지 직후 TypeError를 내서 아랫줄이 실행되지 않았다. L2 정적 스모크로 발견·제거)
   btn.style.display = 'none';
 }
 
