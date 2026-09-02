@@ -52,6 +52,28 @@ def temail(tag):
 _TMPDIR = os.environ.get('HARNESS_TMP', os.path.dirname(os.path.abspath(__file__)))
 _ctr = [0]
 
+# ── 스키마 계약 파서 ──────────────────────────────────────────────────────
+# schema.sql의 CHECK (col = any (array['a','b',...])) 제약에서 허용값 목록을 뽑는다.
+# 테스트가 상태값·카테고리 등을 하드코딩하는 대신 스키마를 단일 출처로 삼아,
+# 스키마가 바뀌면 계약 테스트가 자동으로 따라가거나 드리프트로 잡히게 한다(안 낡게).
+_SCHEMA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..', 'aws-migration', 'schema.sql')
+
+
+def schema_values(table, col):
+    """schema.sql에서 `create table public.<table>` 블록 안의 <col> CHECK 허용값 리스트.
+    못 찾으면 None(파서 깨짐/제약 없음 — 호출부에서 실패로 처리)."""
+    import re
+    try:
+        txt = open(_SCHEMA_PATH, encoding='utf-8').read()
+    except OSError:
+        return None
+    mt = re.search(r'create table public\.%s\s*\((.*?)\n\);' % re.escape(table), txt, re.S | re.I)
+    block = mt.group(1) if mt else txt
+    mc = re.search(r'\bcheck\s*\(\s*%s\s*=\s*any\s*\(\s*array\[(.*?)\]' % re.escape(col), block, re.S | re.I)
+    if not mc:
+        return None
+    return [v for v in re.findall(r"'([^']*)'", mc.group(1))]
+
 # boto3 클라이언트 캐시 — CLI subprocess는 호출당 ~1초(aws.exe 기동)를 쓰는데 테스트
 # 1회 전체가 수백 번 invoke하므로 이게 회귀 소요시간의 큰 몫이었다. boto3가 있으면
 # 단일 세션을 재사용하고(임시파일도 불필요), 없으면 기존 CLI 경로로 폴백한다.

@@ -74,6 +74,7 @@
 - `tests/test_internal_review.py` — **내부 검토(is_internal) 은닉 보안 경계**: 고객은 본인 명의여도 목록·직접조회·자식행·답글쓰기 전부 차단 · 스태프는 열람 · 메일 억제(슬랙만) · make_public 단방향 전환(스태프만)
 - `tests/test_ticket_rate.py` — **만족도 평가(`/rate`)**: 본인·완료 건만, 1~5 정수·200자 제한, 재제출 409, updated_at 미변경(현행 트리거)
 - `tests/test_stats_view.py` — 사용 통계 6개 엔드포인트(`active-users`/`login-history`/`tickets`/`companies`/`documents`/`company-detail`): 구조·고객 403·필터·집계 반영 + `stats_view` 동적 토글
+- `tests/test_schema_contract.py` — **스키마 계약(안 낡게)**: schema.sql의 CHECK 허용값을 파싱해 ① 라이브 DB가 전부 수용·불량값 거부(스키마↔배포 드리프트 감지) ② test_ticket_status 상태 커버리지 = 스키마−received(값 추가 시 미반영 경고)
 - `tests/test_auth.py` — 인증: 로그인 분기(404/401) · 비밀번호 변경/확인 · 재설정(무효 토큰·요청(request-reset)·관리자 재설정·권한상승 차단) · 초대 · 담당영업 조회
 - `tests/test_customer_e2e.py` — **고객 계정 전 기능 정상성**(등록·목록·상세·수정·답글·첨부·계약/자료 조회·내정보) + 보안 차단
 - L2 프론트: `l2-smoke.mjs`(정적, 자동) + `scripts/smoke-frontend.js`(콘솔 붙여넣기 — 런타임·렌더 확인은 여전히 이쪽)
