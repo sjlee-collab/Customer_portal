@@ -219,17 +219,24 @@ async function tenantRowFilterSql(table, authz, paramOffset, qs) {
     }
     // 고객: 내부 검토 티켓의 자식행(답글/첨부/이력/알림로그)도 함께 은닉한다.
     const notInternal = `coalesce(is_internal, false) = false`;
+    let childScope;
     if (unitIds.length) {
-      return userId
+      childScope = userId
         ? { sql: `"ticket_id" in (select id from tickets where (unit_id = any($${paramOffset}::uuid[]) or created_by = $${paramOffset + 1}) and ${notInternal})`, params: [unitIds, userId] }
         : { sql: `"ticket_id" in (select id from tickets where unit_id = any($${paramOffset}::uuid[]) and ${notInternal})`, params: [unitIds] };
+    } else if (contractId) {
+      childScope = { sql: `"ticket_id" in (select id from tickets where contract_id = $${paramOffset} and ${notInternal})`, params: [contractId] };
+    } else if (companyId) {
+      childScope = { sql: `"ticket_id" in (select id from tickets where company_id = $${paramOffset} and ${notInternal})`, params: [companyId] };
+    } else {
+      // 회사·계약 미지정 고객: 본인이 만든 티켓에 달린 답글/첨부/이력/알림로그만 보이게 폴백(위 tickets와 동일 기준)
+      childScope = userId
+        ? { sql: `"ticket_id" in (select id from tickets where created_by = $${paramOffset} and ${notInternal})`, params: [userId] }
+        : { sql: '1=0', params: [] };
     }
-    if (contractId) return { sql: `"ticket_id" in (select id from tickets where contract_id = $${paramOffset} and ${notInternal})`, params: [contractId] };
-    if (companyId) return { sql: `"ticket_id" in (select id from tickets where company_id = $${paramOffset} and ${notInternal})`, params: [companyId] };
-    // 회사·계약 미지정 고객: 본인이 만든 티켓에 달린 답글/첨부/이력/알림로그만 보이게 폴백(위 tickets와 동일 기준)
-    return userId
-      ? { sql: `"ticket_id" in (select id from tickets where created_by = $${paramOffset} and ${notInternal})`, params: [userId] }
-      : { sql: '1=0', params: [] };
+    // 명의 변경(requester_changed) 이력은 이전 명의(타사/스태프)가 note에 남으므로 고객에겐 숨긴다.
+    if (table === 'ticket_history') childScope.sql += ` and "action" <> 'requester_changed'`;
+    return childScope;
   }
   return null;
 }
