@@ -2666,7 +2666,14 @@ textarea{resize:vertical;min-height:100px;}
         </div>
         <div><label style="font-size:11.5px;">조직</label><select id="ct-org"></select></div>
         <div><label style="font-size:11.5px;">고객(요청자)</label><select id="ct-cust" onchange="ctChgNote()"></select></div>
-        <div><label style="font-size:11.5px;">대리등록자</label><select id="ct-registrar" onchange="ctChgNote()"></select></div>
+        <div><label style="font-size:11.5px;">대리등록자</label>
+          <div class="pxy-inp" id="ct-rg-wrap">
+            <input type="text" id="ct-rg-search" autocomplete="off" placeholder="검색 또는 ▾ 선택" oninput="ctRgFilter()" onfocus="ctRgFilter()">
+            <span class="pxy-caret" onclick="ctRgToggle()">▾</span>
+            <input type="hidden" id="ct-registrar">
+            <div id="ct-rg-list" class="pxy-list" style="display:none;"></div>
+          </div>
+        </div>
       </div>
       <div id="ct-chg-note" style="display:none;"></div>
     </div>
@@ -6199,7 +6206,7 @@ function setPxyType(t) {
 // 내부(internal)는 data-api로 회사/사용자/조직 목록을 못 읽으므로 api-layer 전용 엔드포인트
 // (/proxy/bootstrap, /proxy/customers)로 최소 정보만 받아 드롭다운을 채운다.
 let _pxyCompanies = [], _pxyStaff = [], _pxyCustomers = [], _pxyUnits = [], _pxyBootstrapped = false;
-const ROLE_KO_SHORT = { admin: '관리자', sales: '영업', tech_support: '기술지원', education: '교육' };
+const ROLE_KO_SHORT = { admin: '관리자', internal: '내부', sales: '영업', tech_support: '기술지원', education: '교육' };
 
 async function pxyBootstrap() {
   if (_pxyBootstrapped) return;
@@ -6269,7 +6276,8 @@ async function pxyPickCompany(c) {
 
 function pxyFilterStaff(showAll) {
   const q = (document.getElementById('pxy-staff-search')?.value || '').trim().toLowerCase();
-  const items = _pxyStaff.filter(s => showAll || !q || (s.name || '').toLowerCase().includes(q)).slice(0, 50)
+  // 담당자는 서버 검증상 스태프만 가능 — internal은 대리등록자 콤보에서만 노출
+  const items = _pxyStaff.filter(s => s.role !== 'internal').filter(s => showAll || !q || (s.name || '').toLowerCase().includes(q)).slice(0, 50)
     .map(s => ({ id: s.id, label: `${s.name} (${ROLE_KO_SHORT[s.role] || s.role})` }));
   _pxyRenderList('pxy-staff-list', items, pxyPickStaff, _pxyBootstrapped ? '검색 결과 없음' : '불러오는 중…');
 }
@@ -11616,13 +11624,12 @@ async function openCorrect(idx) {
   document.getElementById('ct-company').value = _ct.companyId;
   document.getElementById('ct-company-search').value = _ct.companyId
     ? (ctTicket.company?.name || ctTicket.company_name || '') : '— 미지정 —';
-  const regSel = document.getElementById('ct-registrar');
-  const regOpts = ['<option value="">— (고객 직접)</option>'].concat(
-    (_pxyStaff || []).map(x => `<option value="${x.id}"${x.id === _ct.registrarId ? ' selected' : ''}>${escHtml(x.name)} (${escHtml(ROLE_KO_SHORT[x.role] || x.role)})</option>`));
-  if (_ct.registrarId && !(_pxyStaff || []).some(x => x.id === _ct.registrarId)) {
-    regOpts.push(`<option value="${_ct.registrarId}" selected>${escHtml(ctTicket.registered_by_name || '(알 수 없음)')}</option>`);
-  }
-  regSel.innerHTML = regOpts.join('');
+  document.getElementById('ct-registrar').value = _ct.registrarId;
+  const curStaff = (_pxyStaff || []).find(x => x.id === _ct.registrarId);
+  document.getElementById('ct-rg-search').value = _ct.registrarId
+    ? (curStaff ? `${curStaff.name} (${ROLE_KO_SHORT[curStaff.role] || curStaff.role})` : (ctTicket.registered_by_name || '(알 수 없음)'))
+    : '— (고객 직접)';
+  document.getElementById('ct-rg-list').style.display = 'none';
   await ctLoadCustomers(_ct.companyId, _ct.custId, _ct.unitId);
   openModal('modal-correct');
 }
@@ -11659,6 +11666,27 @@ function ctCoFilter(showAll) {
   _pxyRenderList('ct-company-list', items, ctCoPick, _pxyBootstrapped ? '일치하는 고객사가 없습니다' : '불러오는 중…');
 }
 
+// 대리등록자 콤보 — _pxyStaff 전체(internal 포함)를 검색. 맨 위 '고객 직접'으로 해제 가능.
+function ctRgFilter(showAll) {
+  const q = (document.getElementById('ct-rg-search')?.value || '').trim().toLowerCase();
+  const items = [{ id: '', label: '— (고객 직접)' }].concat(
+    (_pxyStaff || []).filter(x => showAll || !q || (x.name || '').toLowerCase().includes(q)).slice(0, 50)
+      .map(x => ({ id: x.id, label: `${x.name} (${ROLE_KO_SHORT[x.role] || x.role})` })));
+  _pxyRenderList('ct-rg-list', items, ctRgPick, _pxyBootstrapped ? '검색 결과 없음' : '불러오는 중…');
+}
+function ctRgToggle() {
+  const box = document.getElementById('ct-rg-list');
+  if (box.style.display !== 'none') { box.style.display = 'none'; return; }
+  document.getElementById('ct-rg-search').value = '';
+  ctRgFilter(true);
+  document.getElementById('ct-rg-search')?.focus();
+}
+function ctRgPick(it) {
+  document.getElementById('ct-rg-search').value = it.label;
+  document.getElementById('ct-registrar').value = it.id;
+  document.getElementById('ct-rg-list').style.display = 'none';
+  ctChgNote();
+}
 function ctCoToggle() {
   const box = document.getElementById('ct-company-list');
   if (!box) return;
@@ -11678,6 +11706,8 @@ function ctCoPick(c) {
 document.addEventListener('click', (e) => {
   const box = document.getElementById('ct-company-list');
   if (box && box.style.display !== 'none' && !e.target.closest('#ct-company-wrap')) box.style.display = 'none';
+  const rbox = document.getElementById('ct-rg-list');
+  if (rbox && rbox.style.display !== 'none' && !e.target.closest('#ct-rg-wrap')) rbox.style.display = 'none';
 });
 
 function setCtType(t) {

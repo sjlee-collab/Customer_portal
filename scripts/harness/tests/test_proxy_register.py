@@ -59,7 +59,8 @@ def run():
         t.check('bootstrap internal 200', rb.get('status') == 200, 'status=%s' % rb.get('status'))
         t.check('bootstrap 구조(companies/staff)', isinstance(bb.get('companies'), list) and isinstance(bb.get('staff'), list))
         staff = bb.get('staff') or []
-        staff_id = staff[0]['id'] if staff else None
+        # bootstrap staff는 대리등록자 후보라 internal 포함 — 담당자(assigned_to)는 internal 불가이므로 제외하고 선택
+        staff_id = next((s2['id'] for s2 in staff if s2.get('role') != 'internal'), None)
         t.check('스태프 목록 비어있지 않음', bool(staff_id), 'staff=%d' % len(staff))
 
         rbc = api_get_qs('/proxy/bootstrap', {}, role='customer', userId=cust_id, companyId=co_id)

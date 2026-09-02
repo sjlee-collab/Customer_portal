@@ -306,7 +306,8 @@ async function proxyBootstrap(event) {
   if (!(await hasPermission(authz.role, 'ticket_create'))) return json(403, { error: '요청을 등록할 권한이 없습니다' });
   const [companies, staff] = await Promise.all([
     query('select id, name from companies order by name'),
-    query('select id, name, role from users where role = any($1) and coalesce(is_active,true)=true order by name', [[...STAFF_ROLES]]),
+    // staff = 대리등록자 후보(internal 포함). 담당자 콤보는 프론트에서 internal 제외해 사용.
+    query('select id, name, role from users where role = any($1) and coalesce(is_active,true)=true order by name', [[...PROXY_ROLES]]),
   ]);
   return json(200, { companies, staff });
 }
@@ -759,14 +760,14 @@ async function manageTicket(ticketId, body, event) {
     const rid = body.registered_by || null;
     if (rid) {
       const reg = await getUser(rid);
-      if (!reg || !STAFF_ROLES.has(reg.role)) return json(400, { error: '대리등록자는 빅스데이터 스태프여야 합니다' });
+      if (!reg || !PROXY_ROLES.has(reg.role)) return json(400, { error: '대리등록자는 빅스데이터 직원이어야 합니다' });
       registrarSet = { id: reg.id, name: reg.name };
     } else {
       registrarSet = { id: null, name: null };
     }
   } else if (requesterChanged && !prev.registered_by) {
     const orig = prev.created_by ? await getUser(prev.created_by) : null;
-    if (orig && STAFF_ROLES.has(orig.role)) registrarSet = { id: orig.id, name: orig.name };
+    if (orig && PROXY_ROLES.has(orig.role)) registrarSet = { id: orig.id, name: orig.name };
   }
 
   // 티켓 수정과 이력·메모 기록을 한 트랜잭션으로 묶는다 — 예전에는 tickets UPDATE가 먼저
