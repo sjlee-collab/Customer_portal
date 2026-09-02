@@ -1326,12 +1326,12 @@ textarea{resize:vertical;min-height:100px;}
         <div class="card" style="padding:0;overflow:hidden;">
           <div class="tbl-scroll list-scroll" style="padding:0;"><table class="tbl" style="border-collapse:separate;border-spacing:0;">
             <thead><tr>
-              <th>요청 번호</th><th>제목</th>
+              <th>요청 번호</th><th>고객사</th><th>조직</th><th>제목</th>
               <!-- 필터는 시안대로 검색줄 옆 드롭다운으로 옮겼다(같은 id의 팝을 툴바에서 재사용). -->
               <th>카테고리</th>
               <th>긴급도</th>
               <th>상태</th>
-              <th>고객사</th><th>조직</th><th>요청자</th><th data-show-roles="internal">대리등록자</th><th>담당자</th><th>접수일</th><th>업데이트 일자</th>
+              <th>요청자</th><th data-show-roles="internal">대리등록자</th><th>담당자</th><th>접수일</th><th>업데이트 일자</th>
               <th data-show-roles="internal">완료예정일</th>
             </tr></thead>
             <tbody id="ticket-tbody">
@@ -6087,8 +6087,8 @@ function renderTickets(tickets) {
     const registrarCell = isCustomerRole ? ''
       : `<td style="font-size:12px;">${t.registered_by_name?escHtml(t.registered_by_name):'<span style="color:var(--faint);">—</span>'}</td>`;
     const cells = [
-      numCell, TICKET_CELL.title(t), TICKET_CELL.category(t), TICKET_CELL.priority(t), TICKET_CELL.status(t),
-      TICKET_CELL.company(t), TICKET_CELL.org(t), requesterCell, registrarCell, TICKET_CELL.assignee(t),
+      numCell, TICKET_CELL.company(t), TICKET_CELL.org(t), TICKET_CELL.title(t), TICKET_CELL.category(t), TICKET_CELL.priority(t), TICKET_CELL.status(t),
+      requesterCell, registrarCell, TICKET_CELL.assignee(t),
       TICKET_CELL.created(t), TICKET_CELL.updated(t), dueDateCell,
     ].filter(Boolean);
     const span = cells.length;
@@ -10656,8 +10656,8 @@ function renderAllTickets() {
     const requesterCell = `<td style="font-size:12px;">${t.requester?.name?escHtml(t.requester.name):(t.created_by_name?escHtml(t.created_by_name):'<span style="color:var(--faint);">—</span>')}</td>`;
     const registrarCell = `<td style="font-size:12px;">${t.registered_by_name?escHtml(t.registered_by_name):'<span style="color:var(--faint);">—</span>'}</td>`;
     const cells = [
-      numCell, TICKET_CELL.title(t), TICKET_CELL.category(t), TICKET_CELL.priority(t), TICKET_CELL.status(t),
-      TICKET_CELL.company(t), TICKET_CELL.org(t), requesterCell, registrarCell, TICKET_CELL.assignee(t),
+      numCell, TICKET_CELL.company(t), TICKET_CELL.org(t), TICKET_CELL.title(t), TICKET_CELL.category(t), TICKET_CELL.priority(t), TICKET_CELL.status(t),
+      requesterCell, registrarCell, TICKET_CELL.assignee(t),
       TICKET_CELL.created(t), TICKET_CELL.updated(t), dueCell, actionCell,
     ];
     const span = cells.length;
