@@ -1973,6 +1973,13 @@ textarea{resize:vertical;min-height:100px;}
             <span id="notify-refresh-label">새로고침</span>
           </button>
         </div>
+        <div class="co-tabs" style="margin:0 0 12px;">
+          <button class="co-tab on" id="nl-tab-real" onclick="switchNotifyTab('real')">운영 알림 <span class="cnt" id="nl-cnt-real"></span></button>
+          <button class="co-tab" id="nl-tab-test" onclick="switchNotifyTab('test')">🧪 테스트 알림 <span class="cnt" id="nl-cnt-test"></span></button>
+        </div>
+        <div id="nl-testbar" style="display:none;margin-bottom:12px;padding:8px 12px;background:#F5F3FF;border:1px solid #DDD6FE;border-radius:var(--r-md);font-size:11.5px;color:#7C3AED;">
+          🧪 테스트로 발송된 알림입니다 — 하네스/QA가 만든 것으로, 실제 고객·담당자에게 간 알림이 아닙니다.
+        </div>
         <div class="card" style="padding:0;overflow:hidden;">
           <div class="tbl-scroll list-scroll"><table class="tbl">
             <thead><tr>
@@ -9366,6 +9373,26 @@ async function loadLoginHistory() {
 }
 
 // ── 알림 로그 ──────────────────────────────────────────────────
+// 운영/테스트 탭 — log_notification.is_test로 분리. 기본은 운영 탭이라
+// 평소엔 하네스/QA 테스트 알림이 보이지 않는다.
+let notifyTab = 'real';
+function switchNotifyTab(tab) {
+  notifyTab = tab;
+  document.getElementById('nl-tab-real')?.classList.toggle('on', tab === 'real');
+  document.getElementById('nl-tab-test')?.classList.toggle('on', tab === 'test');
+  const bar = document.getElementById('nl-testbar');
+  if (bar) bar.style.display = tab === 'test' ? '' : 'none';
+  loadNotifyLog();
+}
+async function updateNotifyTabCounts() {
+  if (!sb) return;
+  const [r, t] = await Promise.all([
+    sb.from('log_notification').select('id', { count: 'exact', head: true }).eq('is_test', false),
+    sb.from('log_notification').select('id', { count: 'exact', head: true }).eq('is_test', true),
+  ]);
+  const er = document.getElementById('nl-cnt-real'); if (er) er.textContent = r.count ?? '';
+  const et = document.getElementById('nl-cnt-test'); if (et) et.textContent = t.count ?? '';
+}
 // 알림 로그 수동 새로고침 — 조회가 끝날 때까지 버튼을 잠가 연타로 같은 조회가 겹치지 않게 한다.
 // loadNotifyLog()가 중간에 return하거나 예외를 던져도 finally에서 항상 원래 상태로 되돌린다.
 let _notifyRefreshing = false;
@@ -9405,10 +9432,13 @@ async function loadNotifyLog() {
   }
 
   let q = sb.from('log_notification')
-    .select(`id, ticket_id, channel, event_type, recipient, status, error_message, sent_at, created_at, retry_count, content,
+    .select(`id, ticket_id, channel, event_type, recipient, status, error_message, sent_at, created_at, retry_count, content, is_test,
              ticket:ticket_id(ticket_number, title, category, priority, created_at, assigned_to_name, company_name, created_by_name)`)
     .order('created_at', { ascending: false })
     .limit(200);
+
+  q = q.eq('is_test', notifyTab === 'test');   // 운영/테스트 탭 분리
+  updateNotifyTabCounts();                      // 탭 라벨 건수 갱신(비파괴 head count)
 
   if (typeFilter)   q = q.eq('channel', typeFilter);
   if (eventFilter)  q = q.eq('event_type', eventFilter);

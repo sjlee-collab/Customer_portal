@@ -60,7 +60,7 @@ async function sendSlack(webhookUrl, recipientName, ticketId, eventType, header,
   const origin = toTest ? ' _(원래 대상: '+recipientName+')_' : '';
   if (!target) {
     // 테스트 알림인데 테스트 웹훅이 없으면 실 채널로 새지 않도록 skip.
-    results.push({ channel: 'slack', eventType, recipient: recipientName, ticketId, status: 'failure',
+    results.push({ channel: 'slack', eventType, recipient: recipientName, ticketId, status: 'failure', isTest: toTest,
       errorMessage: toTest ? 'test webhook not set (skipped)' : `webhook not set (${recipientName})` });
     return;
   }
@@ -81,12 +81,12 @@ async function sendSlack(webhookUrl, recipientName, ticketId, eventType, header,
     });
     if (!res.ok) {
       const msg = await res.text();
-      results.push({ channel: 'slack', eventType, recipient: recipientName, ticketId, status: 'failure', errorMessage: `HTTP ${res.status}: ${msg}`, content: msgText });
+      results.push({ channel: 'slack', eventType, recipient: recipientName, ticketId, status: 'failure', isTest: toTest, errorMessage: `HTTP ${res.status}: ${msg}`, content: msgText });
     } else {
-      results.push({ channel: 'slack', eventType, recipient: recipientName, ticketId, status: 'success', content: msgText });
+      results.push({ channel: 'slack', eventType, recipient: recipientName, ticketId, status: 'success', isTest: toTest, content: msgText });
     }
   } catch (e) {
-    results.push({ channel: 'slack', eventType, recipient: recipientName, ticketId, status: 'failure', errorMessage: e?.message ?? String(e), content: msgText });
+    results.push({ channel: 'slack', eventType, recipient: recipientName, ticketId, status: 'failure', isTest: toTest, errorMessage: e?.message ?? String(e), content: msgText });
   }
 }
 
