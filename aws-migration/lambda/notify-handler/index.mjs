@@ -91,16 +91,25 @@ async function sendSlack(webhookUrl, recipientName, ticketId, eventType, header,
 }
 
 function buildBaseMessage(ticket, names) {
-  const createdAt = new Date(ticket.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+  // 초 단위는 노이즈라 분까지만 표기 (예: 2026. 9. 1. 16:11)
+  const createdAt = new Date(ticket.created_at).toLocaleString('ko-KR', {
+    timeZone: 'Asia/Seoul', year: 'numeric', month: 'numeric', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  });
+  // 등록자 — 누가 접수했는지 별도 항목으로 구분: 대리 등록이면 등록 직원, 아니면 고객 본인.
+  const registrar = ticket.registered_by
+    ? `${ticket.registered_by_name ?? '-'} (빅스데이터 직원)`
+    : `${names.requesterName ?? '-'} (고객 본인)`;
   return (
     `• *요청번호:* ${ticket.ticket_number}\n` +
     `• *제목:* ${ticket.title}\n` +
     `• *고객사:* ${names.companyName ?? '-'}\n` +
     `• *요청자:* ${names.requesterName ?? '-'}\n` +
+    `• *등록자:* ${registrar}\n` +
     `• *카테고리:* ${CATEGORY_KO[ticket.category] ?? ticket.category}\n` +
     `• *긴급도:* ${PRIORITY_KO[ticket.priority] ?? ticket.priority}\n` +
-    `• *등록일시:* ${createdAt}\n` +
-    `• *담당자:* ${names.assigneeName ?? '미배정'}`
+    `• *담당자:* ${names.assigneeName ?? '미배정'}\n` +
+    `• *등록일시:* ${createdAt}`
   );
 }
 
@@ -196,17 +205,18 @@ async function handleTicketInsert(payload, results) {
 
   const categoryLabel = CATEGORY_KO[ticket.category] ?? ticket.category;
   const urgentPrefix = isUrgent ? '[긴급] ' : '';
-  const emoji = isUrgent ? '🚨' : '🟦';
 
-  // 대리 등록(내부직원이 고객 대신 접수) — 헤더 태그 + 본문 별도 줄로 구분(신규 등록 알림에만).
+  // 등록 주체 구분 — 헤더에서 한눈에: 내부 검토(🔒·고객 비공개) / 대리 등록(👤) / 고객 직접(🙋).
+  // 등록자 상세는 buildBaseMessage의 "등록자" 항목에 나온다(예전 "…가 대신 접수" 줄 대체).
   const isProxy = !!ticket.registered_by;
-  const proxyTag = isProxy ? ' · 👤 *대리 등록*' : '';
-  const proxyLine = isProxy ? `\n• *대리 등록:* 빅스데이터 ${ticket.registered_by_name ?? '-'}가 대신 접수` : '';
-  // 내부 검토 — 고객에게 은닉되는 요청임을 채널에서 바로 알 수 있게 헤더에 표기.
-  const internalTag = ticket.is_internal ? ' · 🔒 *내부 검토*' : '';
+  const isInternal = !!ticket.is_internal;
+  const emoji = isUrgent ? '🚨' : isInternal ? '🔒' : '🟦';
+  const originTag = isInternal ? ' · *내부 검토* (고객 비공개)'
+                  : isProxy ? ' · 👤 *대리 등록*'
+                  : ' · 🙋 *고객 직접*';
 
-  const msgHeader = `${emoji} *${urgentPrefix}${categoryLabel} 등록*${proxyTag}${internalTag}`;
-  const msgBody = buildBaseMessage(ticket, payload) + proxyLine + attLine + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`;
+  const msgHeader = `${emoji} *${urgentPrefix}${categoryLabel} 등록*${originTag}`;
+  const msgBody = buildBaseMessage(ticket, payload) + attLine + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`;
   const evtType = isUrgent ? 'urgent' : 'new_ticket';
   const isTest = isTestTicket(ticket);
 
@@ -225,7 +235,7 @@ async function handleTicketInsert(payload, results) {
 
 async function handleTicketAssigned(payload, results) {
   const { ticket, prevAssigneeName } = payload;
-  const header = `👤 *담당자 배정* (${prevAssigneeName ?? '미배정'} → ${payload.assigneeName ?? '미배정'})`;
+  const header = `👤 *담당자 배정* (${prevAssigneeName ?? '미배정'} → ${payload.assigneeName ?? '미배정'})${ticket.is_internal ? ' · 🔒 *내부 검토*' : ''}`;
   const body = buildBaseMessage(ticket, payload) + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`;
   const isTest = isTestTicket(ticket);
   await sendSlack(SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, 'assigned', header, body, results, isTest);
@@ -247,15 +257,32 @@ async function handleTicketStatus(payload, results) {
   const body = buildBaseMessage(ticket, payload) + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`;
   const isTest = isTestTicket(ticket);
   await sendSlack(SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, evtType, header, body, results, isTest);
+  // 카테고리 채널 추가 발송 — 신규 등록과 동일한 팬아웃(기술지원→기술, 계약/라이선스→영업, 교육→교육).
+  if (['contract', 'license'].includes(ticket.category) && SLACK_WEBHOOK_SALES) {
+    await sendSlack(SLACK_WEBHOOK_SALES, '#영업-슬랙채널', ticket.id, evtType, header, body, results, isTest);
+  }
+  if (ticket.category === 'tech_support' && SLACK_WEBHOOK_TECH) {
+    await sendSlack(SLACK_WEBHOOK_TECH, '#기술지원-슬랙채널', ticket.id, evtType, header, body, results, isTest);
+  }
   if (ticket.category === 'education' && SLACK_WEBHOOK_EDU) {
     await sendSlack(SLACK_WEBHOOK_EDU, '#교육-슬랙채널', ticket.id, evtType, header, body, results, isTest);
   }
 }
 
+const REPLY_ROLE_KO = {
+  customer: '고객', internal: '내부직원', admin: '관리자',
+  sales: '영업', tech_support: '기술지원', education: '교육',
+};
+
 async function handleTicketReply(payload, results) {
-  const { ticket } = payload;
-  const header = `💬 *고객 답글 등록*`;
-  const body = buildBaseMessage(ticket, payload) + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`;
+  const { ticket, replyAuthorName, replyAuthorRole } = payload;
+  // 고객 답글은 기존 헤더 유지, 직원(스태프·내부) 답글은 구분해 표시(2026-09-02 확대).
+  const isCustomerReply = !replyAuthorRole || replyAuthorRole === 'customer';
+  const header = isCustomerReply ? `💬 *고객 답글 등록*` : `💬 *직원 답글 등록*`;
+  const authorLine = replyAuthorName
+    ? `\n• *작성자:* ${replyAuthorName}${REPLY_ROLE_KO[replyAuthorRole] ? ` (${REPLY_ROLE_KO[replyAuthorRole]})` : ''}`
+    : '';
+  const body = buildBaseMessage(ticket, payload) + authorLine + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`;
   const isTest = isTestTicket(ticket);
   await sendSlack(SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, 'reply', header, body, results, isTest);
   if (['contract', 'license'].includes(ticket.category) && SLACK_WEBHOOK_SALES) {

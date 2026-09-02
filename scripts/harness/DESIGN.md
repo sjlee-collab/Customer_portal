@@ -97,7 +97,8 @@
 |---|---|---|---|
 | L1 | 백엔드 계약(권한·격리·전이·알림 라우팅) | Lambda direct invoke | `run-regression.sh` |
 | L1-C | 고객 계정 전 기능 경로 | 〃 (실 api-layer 경로) | 〃 |
-| L2 | 프론트 렌더·핵심 함수 | `smoke-frontend.js`를 프리뷰 콘솔에 붙여넣기 | **수동** |
+| L2-정적 | 프론트 문법·핸들러·DOM id 참조 | `l2-smoke.mjs` (실행 없이 검사, 의존성 0) | run-regression 첫 단계 |
+| L2-런타임 | 프론트 렌더·핵심 함수 실동작 | `smoke-frontend.js`를 프리뷰 콘솔에 붙여넣기 | **수동** |
 | 스모크 | 배포 직후 생존 확인(비파괴) | `smoke.sh` (HTTP), deploy-fn 내장 스모크 | 반자동 |
 | L3 | 실브라우저 로그인 E2E | — | **부재**(§6.3) |
 
@@ -133,14 +134,16 @@
 | POST /auth/invite | test_auth | 404/403 포함 |
 | POST /auth/admin-reset-password | test_auth | 권한상승 차단(비관리자→내부직원 403) |
 | GET /my/account-manager | test_auth | |
-| GET /stats/* (6개) | test_stats_view | 구조·403·필터·집계 정합 |
+| GET /stats/* (8개) | test_stats_view | 구조·403·필터·집계 정합 |
 | GET /proxy/bootstrap·customers | test_proxy_register | |
 | POST /tickets | test_customer_e2e·notify_routing | 사칭 방지 + 카테고리 팬아웃 |
 | PATCH /tickets/{id}/status | test_ticket_status | 접수 제외 6개 상태 × 알림 |
 | PATCH /tickets/{id}/assign | test_ticket_assign | |
 | PATCH /tickets/{id}/manage | test_ticket_status | 이력·overdue·send_email |
 | POST /tickets/{id}/reply | test_customer_e2e·notify_routing | 고객만 알림 |
-| PATCH·DELETE /tickets/{id} | test_customer_e2e·ticket_delete | cascade 포함 |
+| PATCH·DELETE /tickets/{id} | test_customer_e2e·ticket_delete | cascade 포함 · make_public은 test_internal_review |
+| POST /tickets/{id}/rate | test_ticket_rate | 본인·완료·중복방지·범위 |
+| (횡단) is_internal 은닉 | test_internal_review | **보안 경계** — 고객 완전 은닉 + 메일 억제 |
 | **배치 3종(overdue_batch·license_expiry_notice·expire_contracts)** | **❌ 설계상 invoke 금지** | §6.2 |
 
 ### 기타 Lambda
@@ -185,7 +188,7 @@
 간접 검증하는 데서 멈춘다. 안전하게 만들려면 배치 핸들러가 `{"task":"...","only_test":true}`
 같은 파라미터로 `[테스트]` 라벨 행만 스캔하는 모드를 지원해야 한다(운영 코드 수정 필요 — 미착수).
 
-### 6.3 L2 자동화·L3 부재
+### 6.3 L2 런타임 자동화·L3 부재 (정적 검사는 l2-smoke.mjs로 확보, 2026-09-01)
 프론트 스모크는 콘솔 붙여넣기(수동)다. 실브라우저 로그인 E2E는 초대→재설정 토큰 경로가
 필요해 미구현. 도입한다면 테스트 계정의 reset_token을 DB로 직접 심는 방식이 로그인 화면
 의존 없이 가능하다. 단 성공 로그인의 login_events 오염 문제(§3.3)를 먼저 풀어야 한다

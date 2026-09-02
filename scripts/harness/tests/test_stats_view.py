@@ -6,6 +6,7 @@
   - /stats/tickets: admin 200(KPI 구조) + 필터 파라미터 + 테스트 티켓이 집계에 반영 / 고객 403
   - /stats/companies, /stats/documents, /stats/company-detail: admin 200(구조) / 고객 403,
     company-detail은 id 누락 400
+  - /stats/system, /stats/satisfaction (2026-09-01 추가 탭): admin 200(구조) / 고객 403
   - 권한관리 동적 토글(영업 OFF→403, ON→200)
 role_permissions.stats_view(sales)를 잠시 토글하지만 종료 시 기본값(sales=false)으로 원복.
 집계 반영 검증용 [테스트] 티켓 1개 생성 후 삭제(admin 직접 insert — 알림 없음).
@@ -53,18 +54,24 @@ def run():
         rtc = api('GET', '/stats/tickets', None, role='customer', userId='zz-c', companyId='zz')
         t.check('요청현황 고객 403', rtc.get('status') == 403, 'status=%s' % rtc.get('status'))
 
-        # 집계 반영: 미배정 open 테스트 티켓 1개를 넣으면 total/open/unassigned가 1씩 는다
-        base = tb.get('summary') or {}
+        # 집계 반영: 미배정 open 테스트 티켓 1개를 넣으면 total/open/unassigned가 1씩 는다.
+        # 공유 운영 백엔드라 스냅샷 사이에 남의 티켓이 생기거나 완료될 수 있다(실제 경합 관측:
+        # 다른 세션이 미배정 open 건을 완료하면 total +1 / open +0이 됨) — 최대 3회 재시도로 흡수.
         co = dpost('companies', {'name': tname('통계 회사'), 'status': 'active'})['body']['id']
         cu = dpost('users', {'email': temail('statsCust'), 'name': tname('통계고객'), 'role': 'customer',
                              'company_id': co, 'is_active': True})['body']['id']
-        tid = dpost('tickets', {'title': tname('통계 티켓'), 'category': 'other', 'status': 'received',
-                                'created_by': cu, 'company_id': co,
-                                'company_name': tname('통계 회사')}, role='admin')['body']['id']
-        created['companies'].append(co); created['users'].append(cu); created['tickets'].append(tid)
-        after = (api('GET', '/stats/tickets', None, role='admin', userId='zz-admin').get('body') or {}).get('summary') or {}
-        t.check('집계 반영(total/open/unassigned +1)',
-                all(after.get(k) == base.get(k, 0) + 1 for k in ('total', 'open', 'unassigned')),
+        created['companies'].append(co); created['users'].append(cu)
+        tid = None
+        for attempt in range(3):
+            base = (api('GET', '/stats/tickets', None, role='admin', userId='zz-admin').get('body') or {}).get('summary') or {}
+            new_tid = dpost('tickets', {'title': tname('통계 티켓%d' % attempt), 'category': 'other',
+                                        'status': 'received', 'created_by': cu, 'company_id': co,
+                                        'company_name': tname('통계 회사')}, role='admin')['body']['id']
+            created['tickets'].append(new_tid); tid = new_tid
+            after = (api('GET', '/stats/tickets', None, role='admin', userId='zz-admin').get('body') or {}).get('summary') or {}
+            ok = all(after.get(k) == base.get(k, 0) + 1 for k in ('total', 'open', 'unassigned'))
+            if ok: break
+        t.check('집계 반영(total/open/unassigned +1, %d회차)' % (attempt + 1), ok,
                 '전=%s 후=%s' % ({k: base.get(k) for k in ('total', 'open', 'unassigned')},
                                 {k: after.get(k) for k in ('total', 'open', 'unassigned')}))
         # 필터 파라미터가 SQL로 먹히는지 — 미배정 필터는 unassigned와 같은 정의의 부분집합
@@ -95,6 +102,21 @@ def run():
         t.check('고객상세 고객 403',
                 api('GET', '/stats/company-detail', None, qs={'id': co},
                     role='customer', userId='zz-c', companyId='zz').get('status') == 403)
+
+        # ── 시스템 현황(/stats/system) · 응답 현황(/stats/satisfaction) — 2026-09-01 추가 탭 ──
+        rsy = api('GET', '/stats/system', None, role='admin', userId='zz-admin')
+        sb_ = rsy.get('body') or {}
+        t.check('시스템현황 admin 200 + 구조(noti/byEvent)', rsy.get('status') == 200
+                and 'noti' in sb_ and 'byEvent' in sb_, 'keys=%s' % sorted(sb_)[:6])
+        t.check('시스템현황 고객 403',
+                api('GET', '/stats/system', None, role='customer', userId='zz-c', companyId='zz').get('status') == 403)
+
+        rsa = api('GET', '/stats/satisfaction', None, role='admin', userId='zz-admin')
+        sat = rsa.get('body') or {}
+        t.check('응답현황 admin 200 + 구조(summary/byRating)', rsa.get('status') == 200
+                and isinstance(sat.get('summary'), dict) and 'byRating' in sat, 'keys=%s' % sorted(sat)[:6])
+        t.check('응답현황 고객 403',
+                api('GET', '/stats/satisfaction', None, role='customer', userId='zz-c', companyId='zz').get('status') == 403)
 
         # 권한 동적 토글: 영업 stats_view OFF→403, ON→200
         rows = dget('role_permissions', {'select': 'id,enabled', 'role': 'eq.sales', 'feature_key': 'eq.stats_view'}, role='admin').get('body') or []

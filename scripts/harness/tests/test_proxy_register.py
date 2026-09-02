@@ -105,6 +105,15 @@ def run():
         t.check('고객 등록 201', r2.get('status') == 201, 'status=%s' % r2.get('status'))
         t.check('고객 등록은 created_by=본인(on_behalf_of 무시)', tk2.get('created_by') == cust_id, 'created_by=%s' % tk2.get('created_by'))
         t.check('고객 등록은 registered_by 없음(직접 등록)', not tk2.get('registered_by'), 'registered_by=%s' % tk2.get('registered_by'))
+
+        # ── 스태프의 "일반 요청"(on_behalf_of 없음) — isProxy가 undefined가 되며 is_internal이
+        #    NULL로 들어가 not-null 위반으로 등록 전체가 죽었던 회귀(2026-08-28). boolean 강제 확인.
+        r3 = api('POST', '/tickets', {'title': tname('스태프 일반요청'), 'category': 'other',
+                                      'description': 'staff self ticket'}, role='sales', userId=sales_id)
+        tk3 = (r3.get('body') or {}).get('ticket') or {}
+        if tk3.get('id'): tickets.append(tk3['id'])
+        t.check('스태프 일반 등록 201(내부검토 회귀)', r3.get('status') == 201, 'status=%s body=%s' % (r3.get('status'), r3.get('body')))
+        t.check('스태프 일반 등록 is_internal=false', tk3.get('is_internal') is False, 'is_internal=%s' % tk3.get('is_internal'))
     finally:
         for tid in tickets: wipe_ticket(tid)
         if cust_id: ddel('users', cust_id, role='admin')
