@@ -842,7 +842,8 @@ async function statsActiveUsers(event) {
   // 오늘(KST) 자정 이후 = DAU. KST 자정을 timestamptz로 만들어 created_at(timestamptz)과 비교.
   // days(7|30|90)는 추이·총로그인·비중·히트맵 창에만 적용 — DAU/WAU/MAU는 정의상 창이 고정이다.
   const qs = event.queryStringParameters || {};
-  const days = [7, 30, 90].includes(parseInt(qs.days, 10)) ? parseInt(qs.days, 10) : 30;
+  const days = [0, 7, 30, 90].includes(parseInt(qs.days, 10)) ? parseInt(qs.days, 10) : 30;
+  const P = days > 0 ? `and created_at >= now() - interval '${days} days'` : '';
   const CUST = `role = 'customer' and ${LE_REAL}`;
   const [d] = await query(
     `select count(distinct user_id)::int n from login_events
@@ -853,19 +854,19 @@ async function statsActiveUsers(event) {
     `select count(distinct user_id)::int n from login_events where ${CUST} and created_at >= now() - interval '30 days'`);
   const series = await query(
     `select to_char((created_at at time zone 'Asia/Seoul')::date, 'YYYY-MM-DD') d, count(distinct user_id)::int n
-       from login_events where ${CUST} and created_at >= now() - interval '${days} days' group by 1 order by 1`);
+       from login_events where ${CUST} ${P} group by 1 order by 1`);
   // 총 로그인 횟수(중복 포함, 선택 기간, 고객 기준) — DAU/WAU/MAU(고유)와 달리 재접속 빈도를 본다.
   const [tot] = await query(
-    `select count(*)::int n from login_events where ${CUST} and created_at >= now() - interval '${days} days'`);
+    `select count(*)::int n from login_events where ${CUST} ${P}`);
   // 역할별 고유 접속자 — 접속 비중 도넛용. 전체 역할. login_events.role(로그인 시점 스냅샷) 기준.
   const byRole = await query(
     `select role, count(distinct user_id)::int n from login_events
-      where ${LE_REAL} and created_at >= now() - interval '${days} days' group by role order by n desc`);
+      where ${LE_REAL} ${P} group by role order by n desc`);
   // 접속 시간대 히트맵(요일 0=일~6=토 × 시각 0~23, KST) — 점검·배포 창을 정하는 근거.
   const heatmap = await query(
     `select extract(dow  from created_at at time zone 'Asia/Seoul')::int d,
             extract(hour from created_at at time zone 'Asia/Seoul')::int h, count(*)::int n
-       from login_events where ${LE_REAL} and created_at >= now() - interval '${days} days' group by 1, 2`);
+       from login_events where ${LE_REAL} ${P} group by 1, 2`);
   return json(200, {
     dau: d.n, wau: w.n, mau: m.n,
     stickiness: m.n ? Math.round((d.n / m.n) * 100) : 0,
@@ -1213,14 +1214,18 @@ async function statsSatisfaction(event) {
 // 해당해서(2026-08-31 기준) 위험에 넣으면 96%가 빨강이 되어 우선순위를 못 가린다.
 // 성격도 다르다 — 쓰다가 끊긴 곳(이탈)과 아직 시작을 안 한 곳(온보딩)은 대응이 다르므로
 // 'none'으로 따로 뺀다. 그래야 빨강이 "쓰던 고객이 이탈 중"이라는 진짜 신호가 된다.
-//   미접속(none) = 로그인한 적 있는 계정이 하나도 없음(계정 미발급 포함)
-//   위험(bad)   = 접속 이력은 있으나 90일 넘게 무접속
-//   주의(mid)   = 활성화율 30% 미만 / 30~90일 무접속 / 30일+ 적체 보유
-//   양호(ok)    = 나머지
+//   계정 미발급(noacct) = 고객 계정 자체가 없음(줄 계정이 없는 상태 — 발급이 선행 과제)
+//   미접속(none)        = 계정은 발급했는데 로그인한 적 있는 계정이 하나도 없음(온보딩 대상)
+//   위험(bad)           = 접속 이력은 있으나 90일 넘게 무접속(이탈 신호)
+//   주의(mid)           = 활성화율 30% 미만 / 30~90일 무접속 / 30일+ 적체 보유
+//   양호(ok)            = 나머지
+// 미발급과 미접속을 가르는 이유: 같은 화면의 KPI '미접속 고객사'(계정 있고 로그인 0)와
+// 도넛의 미접속 수가 달라 혼란을 부르던 것을 정의 통일로 해소한다.
 // 접속 이벤트(login_events)는 기록 시작 이후만 있으므로 무접속 판정은 users.last_login을
 // 쓴다(전체 기간 유효). 기간 내 접속자 수만 login_events에서 센다.
 function _companyGradeSql() {
   return `case
+    when coalesce(u.total, 0) = 0 then 'noacct'
     when coalesce(u.activated, 0) = 0 then 'none'
     when u.last_login < now() - interval '90 days' then 'bad'
     when (u.total > 0 and coalesce(u.activated, 0)::numeric / u.total < 0.3)
@@ -1294,9 +1299,9 @@ async function statsCompanies(event) {
     // 이탈 위험: 쓰던 고객이 끊긴 곳(등급 위험) 또는 주의 상태에서 계약 만료가 임박한 곳
     outer.push(`(grade = 'bad' or (grade = 'mid' and next_end is not null and next_end <= current_date + 90))`);
   } else if (preset === 'onboard') {
-    // 온보딩 필요: 계정은 발급했는데 아무도 로그인한 적이 없는 곳(계정 미발급은 제외 —
-    // 아직 줄 계정이 없는 것과 주고도 안 쓰는 것은 다른 문제다)
-    outer.push(`grade = 'none' and users_total > 0`);
+    // 온보딩 필요: 계정은 발급했는데 아무도 로그인한 적이 없는 곳.
+    // 계정 미발급(noacct)은 별도 등급으로 분리됐으므로 조건이 등급 하나로 끝난다.
+    outer.push(`grade = 'none'`);
   } else if (preset === 'heavy') {
     outer.push(`tickets > 0`);
   }
@@ -1304,7 +1309,8 @@ async function statsCompanies(event) {
 
   // 정렬 — 기본은 위험도순(위험 → 주의 → 양호, 같은 등급이면 오래 안 들어온 순).
   const SORTS = {
-    risk:       `case grade when 'bad' then 0 when 'mid' then 1 when 'none' then 2 else 3 end,
+    risk:       `case grade when 'bad' then 0 when 'mid' then 1 when 'none' then 2
+                             when 'noacct' then 3 else 4 end,
                  last_login asc nulls last, users_total desc`,
     tickets:    `tickets desc`,
     open:       `open_cnt desc`,
@@ -1428,6 +1434,8 @@ async function statsTickets(event) {
   if (qs.category) { params.push(qs.category); where.push(`category = $${params.length}`); }
   if (qs.product)  { params.push(qs.product);  where.push(`product = $${params.length}`); }
   if (qs.priority) { params.push(qs.priority); where.push(`priority = $${params.length}`); }
+  const tq = (qs.q || '').trim();
+  if (tq) { params.push('%' + tq + '%'); where.push(`company_name ilike $${params.length}`); }
   if (qs.assignee === 'none') where.push('assigned_to is null');
   else if (qs.assignee) { params.push(qs.assignee); where.push(`assigned_to = $${params.length}`); }
 
