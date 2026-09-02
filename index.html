@@ -231,6 +231,7 @@ button,input,select,textarea{font-family:inherit;}
 .body>#p-stats.active.acct-mode{display:flex;flex-direction:column;overflow:hidden;}
 #p-stats.acct-mode>#stab-acct{flex:1;display:flex;flex-direction:column;min-height:0;overflow-y:auto;}
 #p-stats.acct-mode>#stab-acct>.card{flex:1;display:flex;flex-direction:column;min-height:0;margin-bottom:0;}
+#p-stats.acct-mode>#stab-acct>#acct-never{flex:none;display:block;margin-bottom:16px;}
 /* min-height: 창이 아주 낮을 때 표 영역이 0으로 찌그러지지 않게 하한을 둔다(이땐 패널이 대신 스크롤). */
 #p-stats.acct-mode #lh-scroll{flex:1;min-height:132px;overflow-y:auto;}
 
@@ -401,6 +402,7 @@ tr.co-org-sub>td{background:var(--surface2);padding:0 10px;}
 .cu-mid i{background:var(--amber);} .cu-mid{color:var(--amber-d);}
 .cu-bad i{background:var(--red);} .cu-bad{color:var(--red-d);}
 .cu-none i{background:var(--faint);} .cu-none{color:var(--muted);}
+.cu-noacct i{background:var(--border-md);} .cu-noacct{color:var(--faint);}
 .cu-mini{display:flex;align-items:center;gap:7px;white-space:nowrap;}
 .cu-track{width:42px;height:5px;border-radius:3px;background:var(--surface2);border:1px solid var(--border);overflow:hidden;flex:none;}
 .cu-fill{height:100%;background:var(--accent);}
@@ -2098,6 +2100,7 @@ textarea{resize:vertical;min-height:100px;}
               <button type="button" onclick="setActDays(7,this)">7일</button>
               <button type="button" class="on" onclick="setActDays(30,this)">30일</button>
               <button type="button" onclick="setActDays(90,this)">90일</button>
+              <button type="button" onclick="setActDays(0,this)">전체</button>
             </span></div>
           <div id="stats-active" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:14px;">
             <div style="padding:16px;text-align:center;color:var(--faint);grid-column:1/-1;">불러오는 중...</div>
@@ -2123,6 +2126,20 @@ textarea{resize:vertical;min-height:100px;}
         <div class="stab-panel" id="stab-acct" style="display:none;">
         <div class="card-title" style="margin-bottom:12px;">계정 현황</div>
         <div id="stats-accounts" style="margin-bottom:16px;"></div>
+
+        <!-- 미접속(고객) 카드 클릭 시 열리는 드릴다운 — 통계가 아니라 온보딩 작업 목록이다. -->
+        <div class="card" id="acct-never" hidden style="margin-bottom:16px;">
+          <div class="card-title" style="margin-bottom:10px;">미접속 고객 계정
+            <span id="acct-never-sub" style="font-size:11px;color:var(--faint);font-weight:400;"></span>
+            <button class="btn btn-outline btn-sm" style="margin-left:auto;" onclick="toggleNeverPanel()">닫기 ✕</button></div>
+          <div style="max-height:280px;overflow-y:auto;">
+            <table class="tbl tbl-compact">
+              <thead><tr><th>이름</th><th>고객사</th><th>담당영업</th><th style="text-align:right;">계정 생성일</th></tr></thead>
+              <tbody id="acct-never-body"><tr><td colspan="4" style="padding:14px;text-align:center;color:var(--faint);">불러오는 중...</td></tr></tbody>
+            </table>
+          </div>
+          <div class="rq-note" style="margin-top:10px;">ⓘ 한 번도 로그인하지 않은 활성 고객 계정입니다(테스트 계정 제외). 고객사·생성일 순 — 오래된 계정일수록 초대 재안내가 필요합니다.</div>
+        </div>
 
         <div class="card">
           <div class="card-title" style="display:flex;align-items:baseline;gap:8px;">사용자 로그인 이력 <span style="font-size:11px;color:var(--faint);font-weight:400;">로그인 이벤트 전체</span></div>
@@ -2153,9 +2170,9 @@ textarea{resize:vertical;min-height:100px;}
         <div class="stab-panel" id="stab-cust" style="display:none;">
           <div class="rq-filters">
             <span class="rq-seg" id="cu-days" role="group" aria-label="기간">
+              <button type="button" onclick="setCuDays(7,this)">7일</button>
               <button type="button" onclick="setCuDays(30,this)">30일</button>
               <button type="button" class="on" onclick="setCuDays(90,this)">90일</button>
-              <button type="button" onclick="setCuDays(180,this)">180일</button>
               <button type="button" onclick="setCuDays(0,this)">전체</button>
             </span>
             <select id="cu-type" onchange="applyCuFilter()"><option value="">전체 고객유형</option></select>
@@ -2180,7 +2197,8 @@ textarea{resize:vertical;min-height:100px;}
               <div class="rq-note" style="flex:1;min-width:240px;line-height:1.8;">
                 <b style="color:var(--red-d);font-weight:700;">위험</b> — 접속 이력은 있으나 90일 넘게 들어오지 않은 고객사 (쓰다가 끊긴 이탈 신호)<br>
                 <b style="color:var(--amber-d);font-weight:700;">주의</b> — 계정 활성화율 30% 미만, 30~90일 무접속, 또는 30일 넘은 적체 보유<br>
-                <b style="color:var(--muted);font-weight:700;">미접속</b> — 로그인한 적 있는 계정이 하나도 없음 (아직 시작 전 — 이탈과는 성격이 다르므로 위험과 분리)<br>
+                <b style="color:var(--muted);font-weight:700;">미접속</b> — 계정은 발급했는데 로그인한 적 있는 계정이 하나도 없음 (온보딩 대상 — 위 KPI의 미접속 고객사와 같은 정의)<br>
+                <b style="color:var(--faint);font-weight:700;">계정 미발급</b> — 고객 계정 자체가 없음 (발급이 선행 과제)<br>
                 <b style="color:var(--green-d);font-weight:700;">양호</b> — 그 외<br>
                 <span style="color:var(--faint);">ⓘ 판정은 계정의 최종 접속(전체 기간 유효)을 기준으로 합니다. 위 기간 필터는 접속자 수·요청 수 집계에만 적용됩니다.</span>
               </div>
@@ -2222,9 +2240,9 @@ textarea{resize:vertical;min-height:100px;}
         <div class="stab-panel" id="stab-req" style="display:none;">
           <div class="rq-filters">
             <span class="rq-seg" id="rq-days" role="group" aria-label="기간">
+              <button type="button" onclick="setRqDays(7,this)">7일</button>
               <button type="button" onclick="setRqDays(30,this)">30일</button>
               <button type="button" class="on" onclick="setRqDays(90,this)">90일</button>
-              <button type="button" onclick="setRqDays(180,this)">180일</button>
               <button type="button" onclick="setRqDays(0,this)">전체</button>
             </span>
             <select id="rq-category" onchange="loadTicketStats()">
@@ -2250,6 +2268,9 @@ textarea{resize:vertical;min-height:100px;}
                     title="접수 경로를 '대리 등록'으로 선택하면 활성화됩니다">
               <option value="">전체 대리 등록자</option>
             </select>
+            <input id="rq-q" class="search-box" style="flex:1;min-width:150px;box-sizing:border-box;"
+                   placeholder="고객사 검색" onkeydown="if(event.key==='Enter')loadTicketStats()">
+            <span class="rq-note" style="align-self:center;white-space:nowrap;">기간: 접수일 기준</span>
           </div>
 
           <div class="rq-ctx" id="rq-ctx" hidden>
@@ -2382,6 +2403,7 @@ textarea{resize:vertical;min-height:100px;}
             <span class="rq-seg" id="sys-days" role="group" aria-label="기간">
               <button type="button" onclick="setSysDays(7,this)">7일</button>
               <button type="button" onclick="setSysDays(30,this)">30일</button>
+              <button type="button" onclick="setSysDays(90,this)">90일</button>
               <button type="button" class="on" onclick="setSysDays(0,this)">전체</button>
             </span>
           </div>
@@ -2420,9 +2442,9 @@ textarea{resize:vertical;min-height:100px;}
         <div class="stab-panel" id="stab-sat" style="display:none;">
           <div class="rq-filters">
             <span class="rq-seg" id="sat-days" role="group" aria-label="기간">
+              <button type="button" onclick="setSatDays(7,this)">7일</button>
               <button type="button" onclick="setSatDays(30,this)">30일</button>
               <button type="button" class="on" onclick="setSatDays(90,this)">90일</button>
-              <button type="button" onclick="setSatDays(180,this)">180일</button>
               <button type="button" onclick="setSatDays(0,this)">전체</button>
             </span>
             <select id="sat-category" onchange="loadSatStats()">
@@ -2433,6 +2455,7 @@ textarea{resize:vertical;min-height:100px;}
             </select>
             <input id="sat-q" class="search-box" style="flex:1;min-width:160px;box-sizing:border-box;"
                    placeholder="고객사명 검색" onkeydown="if(event.key==='Enter')loadSatStats()">
+            <span class="rq-note" style="align-self:center;white-space:nowrap;">기간: 평가 제출일 기준</span>
           </div>
 
           <div class="rq-kpis" id="sat-kpis">
@@ -8001,9 +8024,45 @@ function filterLhFromCard(role, el) {
   if (el) { el.style.outline = '2px solid var(--accent)'; el.style.outlineOffset = '-1px'; }
   document.getElementById('lh-search')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
-// 미접속(고객)은 로그인 이벤트가 없어 이력 목록에 대상이 없다 — 안내만.
-function lhNoRecordNote() {
-  showToast('미접속 고객은 로그인 이력이 없어 필터를 적용하지 않습니다.', true);
+// 미접속(고객) 카드 → 드릴다운 패널. 로그인 이력 필터로는 보여줄 수 없는 대상이라
+// (이벤트 자체가 없다) 별도 목록을 연다 — 회사·담당영업·생성일이 붙으면 그대로
+// 온보딩 작업 목록이 된다. 통계 화면에서 실행으로 이어지는 유일한 지점.
+let _neverLoaded = false;
+async function toggleNeverPanel(cardEl) {
+  const panel = document.getElementById('acct-never');
+  if (!panel) return;
+  const open = panel.hidden;
+  panel.hidden = !open;
+  // 계정 탭은 높이 고정(acct-mode)이라 패널 개폐로 목록 높이가 바뀐다 — 행 수 재계산.
+  requestAnimationFrame(() => fitLhPageSize(true));
+  if (!open || _neverLoaded) { if (open) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); return; }
+  _neverLoaded = true;
+  const tbody = document.getElementById('acct-never-body');
+  try {
+    const [{ data: us }, { data: cos }] = await Promise.all([
+      sb.from('users').select('id,name,email,company_id,created_at,last_login,is_active').eq('role', 'customer').limit(1000),
+      sb.from('companies').select('id,name,account_manager').limit(1000),
+    ]);
+    const coMap = Object.fromEntries((cos || []).map(c => [c.id, c]));
+    const rows = (us || [])
+      .filter(u => !u.last_login && u.is_active !== false)
+      .filter(u => !String(u.email || '').startsWith('test.') && !String(u.name || '').startsWith('[테스트]'))
+      .map(u => ({ ...u, co: coMap[u.company_id] }))
+      .sort((a, b) => String(a.co?.name || '').localeCompare(String(b.co?.name || ''), 'ko')
+                   || String(a.created_at).localeCompare(String(b.created_at)));
+    document.getElementById('acct-never-sub').textContent = `${rows.length}명 · 온보딩 대상`;
+    tbody.innerHTML = rows.length
+      ? rows.map(u => `<tr>
+          <td style="font-weight:600;">${escHtml(u.name || '—')}</td>
+          <td style="color:var(--muted);">${escHtml(u.co?.name || '(소속 없음)')}</td>
+          <td style="color:var(--muted);">${escHtml(u.co?.account_manager || '—')}</td>
+          <td style="text-align:right;font-variant-numeric:tabular-nums;color:var(--muted);">${escHtml(String(u.created_at || '').slice(0, 10))}</td></tr>`).join('')
+      : '<tr><td colspan="4" style="padding:14px;text-align:center;color:var(--faint);">미접속 고객 계정이 없습니다.</td></tr>';
+  } catch (e) {
+    console.error('toggleNeverPanel 오류', e);
+    tbody.innerHTML = '<tr><td colspan="4" style="padding:14px;text-align:center;color:var(--faint);">목록을 불러오지 못했습니다.</td></tr>';
+  }
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 // 사용 통계 탭 전환 — 접속 활동(act) / 계정(acct). 데이터는 loadStats가 한 번에 로드하므로 표시만 토글.
@@ -8117,7 +8176,7 @@ async function loadStats() {
       ['전체 계정', users.length, '', `filterLhFromCard('', this)`],
       ['고객 계정', cust.length, '', `filterLhFromCard('customer', this)`],
       ['로그인 이력(고객)', withLogin, 'var(--accent)', `filterLhFromCard('customer', this)`],
-      ['미접속(고객)', cust.length - withLogin, 'var(--muted)', `lhNoRecordNote(this)`],
+      ['미접속(고객)', cust.length - withLogin, 'var(--muted)', `toggleNeverPanel(this)`],
     ];
     document.getElementById('stats-accounts').innerHTML =
       `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;">` +
@@ -8187,7 +8246,7 @@ function _satRenderKpis(s) {
     ? `<span style="font-size:12px;font-weight:700;margin-left:6px;color:${s.avg > s.prevAvg ? 'var(--green-d)' : 'var(--red-d)'};">${s.avg > s.prevAvg ? '▲' : '▼'} ${Math.abs(s.avg - s.prevAvg).toFixed(1)}</span>` : '';
   document.getElementById('sat-kpis').innerHTML = [
     `<div class="rq-kpi"><div class="k">평균 만족도</div><div class="v" style="color:#F59E0B;">${s.responses ? s.avg : '—'}<span style="font-size:14px;color:var(--faint);"> / 5</span>${delta}</div><div class="s">${s.responses ? _satStars(s.avg) + ` 응답 ${s.responses}건 기준${small}` : '아직 응답이 없습니다'}</div></div>`,
-    `<div class="rq-kpi good"><div class="k">응답률</div><div class="v">${s.eligible ? s.rate + '%' : '—'}</div><div class="s">완료된 직접 등록 ${s.eligible || 0}건 중 ${s.responses || 0}건 응답</div></div>`,
+    `<div class="rq-kpi good"><div class="k">응답률</div><div class="v">${s.eligible ? s.rate + '%' : '—'}</div><div class="s">완료된 직접 등록 ${s.eligible || 0}건 중 ${s.responses || 0}건 응답 (분모는 접수일 기준 근사)</div></div>`,
     `<div class="rq-kpi"><div class="k">한줄평 작성</div><div class="v">${s.comments || 0}</div><div class="s">${s.responses ? Math.round((s.comments / s.responses) * 100) + '% · 선택 항목' : '선택 항목'}</div></div>`,
     `<div class="rq-kpi ${s.low ? 'bad' : ''}"><div class="k">불만 응답 (1~2점)</div><div class="v">${s.low || 0}</div><div class="s">${s.responses ? Math.round((s.low / s.responses) * 100) + '% · 후속 확인 대상' : '후속 확인 대상'}</div></div>`,
   ].join('');
@@ -8203,12 +8262,14 @@ function _satRenderTrend(rows) {
   }
   const W = 640, H = 150, L = 36;
   const x = i => L + (i * (W - L - 20)) / Math.max(rows.length - 1, 1);
-  const y = v => 14 + ((5 - v) / 3) * (H - 40); // 2.0~5.0 구간을 세로에 매핑
-  const pts = rows.map((r, i) => `${x(i).toFixed(1)},${y(Math.max(r.avg, 2)).toFixed(1)}`).join(' ');
-  const grid = [5, 4, 3].map(v => `<line x1="${L}" y1="${y(v)}" x2="${W}" y2="${y(v)}" stroke="var(--border)"></line>
+  // 1.0~5.0 전 구간을 세로에 매핑한다 — 하한을 2.0으로 자르면 최악 구간(평균 2 미만)이
+  // 시각적으로 뭉개지는데, 그건 이 차트가 잡아야 할 신호와 정반대다.
+  const y = v => 12 + ((5 - v) / 4) * (H - 40);
+  const pts = rows.map((r, i) => `${x(i).toFixed(1)},${y(r.avg).toFixed(1)}`).join(' ');
+  const grid = [5, 4, 3, 2, 1].map(v => `<line x1="${L}" y1="${y(v)}" x2="${W}" y2="${y(v)}" stroke="var(--border)"></line>
     <text x="${L - 6}" y="${y(v) + 3}" text-anchor="end" font-size="10" fill="var(--faint)">${v}.0</text>`).join('');
   const labels = rows.map((r, i) => `<text x="${x(i).toFixed(1)}" y="${H - 4}" text-anchor="middle" font-size="9.5" fill="var(--faint)">${escHtml(r.ym.slice(5))}월</text>`).join('');
-  const dots = rows.map((r, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(Math.max(r.avg, 2)).toFixed(1)}" r="3"
+  const dots = rows.map((r, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(r.avg).toFixed(1)}" r="3"
       fill="var(--accent)"><title>${escHtml(r.ym)} · 평균 ${r.avg} (${r.n}건)</title></circle>`).join('');
   box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="none" role="img" aria-label="월별 평균 만족도 추이">
     ${grid}${rows.length > 1 ? `<polyline fill="none" stroke="var(--accent)" stroke-width="2.5" points="${pts}"></polyline>` : ''}${dots}${labels}</svg>`;
@@ -8636,9 +8697,11 @@ function _dlRenderZero(rows) {
 const CU_GRADE = { ok:{ ko:'양호', cls:'cu-ok', color:'var(--green)' },
                    mid:{ ko:'주의', cls:'cu-mid', color:'var(--amber)' },
                    bad:{ ko:'위험', cls:'cu-bad', color:'var(--red)' },
-                   none:{ ko:'미접속', cls:'cu-none', color:'#9CA3AF' } };
-// 도넛·범례 순서. 조치가 필요한 순(위험 → 주의 → 미접속 → 양호)으로 둔다.
-const CU_GRADE_ORDER = ['bad', 'mid', 'none', 'ok'];
+                   none:{ ko:'미접속', cls:'cu-none', color:'#9CA3AF' },
+                   noacct:{ ko:'계정 미발급', cls:'cu-noacct', color:'#D1D5DB' } };
+// 도넛·범례 순서. 조치가 필요한 순(위험 → 주의 → 미접속 → 미발급 → 양호)으로 둔다.
+// 미접속(계정은 있는데 로그인 0)과 계정 미발급을 분리해 KPI '미접속 고객사'와 정의를 맞춘다.
+const CU_GRADE_ORDER = ['bad', 'mid', 'none', 'noacct', 'ok'];
 const CU_PAGE_SIZE = 20;
 let _cuDays = 90, _cuPreset = '', _cuOffset = 0, _cuTotal = 0, _cuLoaded = false, _cuOptsFilled = false;
 let _cuOpenId = null; // 펼쳐진 고객사 — 다시 조회해도 같은 행이 열려 있게 유지
@@ -8916,7 +8979,9 @@ async function loadTicketStats() {
   const asg  = document.getElementById('rq-assignee')?.value || '';
   const path = document.getElementById('rq-path')?.value || '';
   const agent = document.getElementById('rq-agent')?.value || '';
+  const rqQ = (document.getElementById('rq-q')?.value || '').trim();
   if (cat)  params.set('category', cat);
+  if (rqQ)  params.set('q', rqQ);
   if (prod) params.set('product', prod);
   if (prio) params.set('priority', prio);
   if (asg)  params.set('assignee', asg);
