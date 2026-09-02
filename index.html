@@ -9423,6 +9423,66 @@ async function refreshNotifyLog() {
   }
 }
 
+// 회귀 알람 상세 — content(실행 요약 원문)를 파싱해 구조화 표시.
+// 스위트별 통과/실패 막대 + 실패 원인 + 접힌 원문. 파싱 실패 시 원문 그대로 폴백.
+const REG_SUITE_KO = {
+  'l2-smoke':'정적 검사', 'test_permissions':'권한·격리', 'test_ticket_delete':'요청 삭제',
+  'test_ticket_status':'상태 변경', 'test_ticket_assign':'담당자 배정', 'test_notify_routing':'슬랙 라우팅',
+  'test_internal_review':'내부 검토 은닉', 'test_ticket_rate':'만족도 평가', 'test_customer_e2e':'고객 전 기능',
+  'test_stats_view':'사용 통계', 'test_proxy_register':'대리 등록', 'test_storage_rules':'첨부 규칙', 'test_auth':'인증',
+};
+function regDetailHtml(n) {
+  const content = n.content || '';
+  const lines = content.split(/\r?\n/);
+  const suites = []; const fails = []; let cur = null;
+  for (const ln of lines) {
+    let m = ln.match(/^\u25b6\s*(l2-smoke|test_[a-z_]+)/);
+    if (m) { cur = { name: m[1], pass: null, total: null }; suites.push(cur); continue; }
+    m = ln.match(/^(\d+)\/(\d+)\s+(PASS|FAIL)/);
+    if (m && cur && cur.total === null) { cur.pass = +m[1]; cur.total = +m[2]; continue; }
+    m = ln.match(/^FAIL\s+(.+)/) || ln.match(/^\u2716\s+(.+)/);
+    if (m) fails.push(m[1].trim());
+  }
+  // 파싱이 비면 기존처럼 원문만 표시(폴백)
+  if (!suites.length) {
+    return `<div style="font-size:11px;color:var(--faint);margin-bottom:8px;">\ud68c\uadc0 \uc2e4\ud589 \uc694\uc57d</div>
+      <div style="white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.7;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">${escHtml(content)}</div>`;
+  }
+  const counted = suites.filter(s => s.total != null);
+  const tp = counted.reduce((a, s) => a + s.pass, 0);
+  const ta = counted.reduce((a, s) => a + s.total, 0);
+  const isFail = (n.status === 'failed' || n.status === 'failure') || fails.length > 0 || counted.some(s => s.pass < s.total);
+  const kpi = (label, val, color) =>
+    `<div style="flex:1;padding:9px 12px;border-right:1px solid var(--border);">
+       <div style="font-size:11px;color:var(--muted);">${label}</div>
+       <div style="font-size:17px;font-weight:700;margin-top:2px;${color ? 'color:' + color + ';' : ''}">${val}</div></div>`;
+  const strip = `<div style="display:flex;border:1px solid var(--border);border-radius:9px;overflow:hidden;margin-bottom:12px;background:var(--surface2);">
+      ${kpi('\uac80\uc0ac', tp + ' <span style=\'font-size:12px;color:var(--faint);\'>/ ' + ta + '</span>', isFail ? 'var(--red-d)' : 'var(--green-d)')}
+      ${kpi('\uc2a4\uc704\ud2b8', suites.length + '<span style=\'font-size:12px;color:var(--faint);\'>\uc885</span>', '')}
+      ${isFail ? kpi('\uc2e4\ud328', (ta - tp) + '<span style=\'font-size:12px;color:var(--faint);\'>\uac74</span>', 'var(--red-d)')
+               : kpi('\uacb0\uacfc', '\u2714 \ud1b5\uacfc', 'var(--green-d)')}
+    </div>`;
+  const callout = (isFail && fails.length) ? `<div style="background:var(--red-l);border:1px solid var(--red);border-left:3px solid var(--red);border-radius:8px;padding:10px 13px;margin-bottom:12px;">
+      <div style="font-weight:700;color:var(--red-d);font-size:12.5px;margin-bottom:5px;">\u2716 \uc2e4\ud328 \uc6d0\uc778</div>
+      ${fails.slice(0, 5).map(f => `<div style="font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--red-d);padding:2px 0;">\u2716 ${escHtml(f)}</div>`).join('')}
+    </div>` : '';
+  const rows = suites.map(s => {
+    const f = s.total != null && s.pass < s.total;
+    const pct = s.total ? Math.round(s.pass / s.total * 100) : 100;
+    const cnt = s.total != null ? (s.pass + '/' + s.total) : '\u2014';
+    const tag = REG_SUITE_KO[s.name] || '';
+    return `<div style="display:flex;align-items:center;gap:11px;padding:6px 10px;border-radius:7px;${f ? 'background:var(--red-l);' : ''}">
+        <span style="width:14px;text-align:center;color:${f ? 'var(--red)' : 'var(--green)'};font-size:12px;">${f ? '\u2716' : '\u2714'}</span>
+        <span style="flex:1;font-family:ui-monospace,Menlo,monospace;font-size:12px;">${escHtml(s.name)}<span style="font-family:'Noto Sans KR',sans-serif;font-size:10.5px;color:var(--faint);margin-left:7px;">${tag}</span></span>
+        <span style="width:96px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;"><span style="display:block;height:100%;width:${pct}%;background:${f ? 'var(--red)' : 'var(--green)'};"></span></span>
+        <span style="width:48px;text-align:right;font-family:ui-monospace,Menlo,monospace;font-size:12px;color:${f ? 'var(--red-d)' : 'var(--muted)'};${f ? 'font-weight:600;' : ''}">${cnt}</span>
+      </div>`;
+  }).join('');
+  const raw = `<details style="margin-top:10px;"><summary style="cursor:pointer;font-size:12px;color:var(--accent);">\uc2e4\ud589 \uc6d0\ubb38 \ubcf4\uae30</summary>
+      <div style="white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;line-height:1.6;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px 13px;margin-top:8px;max-height:320px;overflow:auto;">${escHtml(content)}</div></details>`;
+  return strip + callout + `<div style="display:flex;flex-direction:column;gap:1px;">${rows}</div>` + raw;
+}
+
 async function loadNotifyLog() {
   const tbody = document.getElementById('notify-tbody');
   if (!tbody) return;
@@ -9592,11 +9652,8 @@ async function loadNotifyLog() {
       ? `<div style="font-size:11px;color:var(--faint);margin-bottom:8px;">보낸 슬랙 메시지</div>
          <div style="white-space:pre-wrap;font-size:12.5px;line-height:1.7;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">${escHtml(n.content)}</div>`
       : '';
-    // 회귀 알람 — content는 실행 요약 전문(스위트별 PASS/FAIL). 슬랙처럼 pre-wrap 텍스트로.
-    const regPreview = (n.channel === 'regression' && n.content)
-      ? `<div style="font-size:11px;color:var(--faint);margin-bottom:8px;">회귀 실행 요약</div>
-         <div style="white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.7;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">${escHtml(n.content)}</div>`
-      : '';
+    // 회귀 알람 — content를 파싱해 스위트별 통과/실패 막대로 구조화 표시(regDetailHtml).
+    const regPreview = (n.channel === 'regression') ? regDetailHtml(n) : '';
     const detailRows = (mailPreview || slackPreview || regPreview || ticketDetailRows) + failReasonBlock;
 
     const isInternal = isInternalRecipient(n);
