@@ -1976,6 +1976,10 @@ textarea{resize:vertical;min-height:100px;}
         <div class="co-tabs" style="margin:0 0 12px;">
           <button class="co-tab on" id="nl-tab-real" onclick="switchNotifyTab('real')">운영 알림 <span class="cnt" id="nl-cnt-real"></span></button>
           <button class="co-tab" id="nl-tab-test" onclick="switchNotifyTab('test')">🧪 테스트 알림 <span class="cnt" id="nl-cnt-test"></span></button>
+          <button class="co-tab" id="nl-tab-reg" onclick="switchNotifyTab('reg')">🌙 회귀 알람 <span class="cnt" id="nl-cnt-reg"></span></button>
+        </div>
+        <div id="nl-regbar" style="display:none;margin-bottom:12px;padding:8px 12px;background:#E6F4EF;border:1px solid #B9E0D4;border-radius:var(--r-md);font-size:11.5px;color:#1C7A66;">
+          🌙 매일 새벽 자동 회귀 결과입니다 — 실행마다 한 건씩 쌓입니다. 행을 열면 어느 테스트가 통과·실패했는지 요약이 보입니다.
         </div>
         <div id="nl-testbar" style="display:none;margin-bottom:12px;padding:8px 12px;background:#F5F3FF;border:1px solid #DDD6FE;border-radius:var(--r-md);font-size:11.5px;color:#7C3AED;">
           🧪 테스트로 발송된 알림입니다 — 하네스/QA가 만든 것으로, 실제 고객·담당자에게 간 알림이 아닙니다.
@@ -9380,18 +9384,22 @@ function switchNotifyTab(tab) {
   notifyTab = tab;
   document.getElementById('nl-tab-real')?.classList.toggle('on', tab === 'real');
   document.getElementById('nl-tab-test')?.classList.toggle('on', tab === 'test');
-  const bar = document.getElementById('nl-testbar');
-  if (bar) bar.style.display = tab === 'test' ? '' : 'none';
+  document.getElementById('nl-tab-reg')?.classList.toggle('on', tab === 'reg');
+  const tbar = document.getElementById('nl-testbar'); if (tbar) tbar.style.display = tab === 'test' ? '' : 'none';
+  const rbar = document.getElementById('nl-regbar');  if (rbar) rbar.style.display = tab === 'reg'  ? '' : 'none';
   loadNotifyLog();
 }
 async function updateNotifyTabCounts() {
   if (!sb) return;
-  const [r, t] = await Promise.all([
+  // 테스트 탭은 회귀 알람(channel='regression')을 제외한다 — 회귀는 전용 탭에서만 보이게.
+  const [r, t, g] = await Promise.all([
     sb.from('log_notification').select('id', { count: 'exact', head: true }).eq('is_test', false),
-    sb.from('log_notification').select('id', { count: 'exact', head: true }).eq('is_test', true),
+    sb.from('log_notification').select('id', { count: 'exact', head: true }).eq('is_test', true).neq('channel', 'regression'),
+    sb.from('log_notification').select('id', { count: 'exact', head: true }).eq('channel', 'regression'),
   ]);
   const er = document.getElementById('nl-cnt-real'); if (er) er.textContent = r.count ?? '';
   const et = document.getElementById('nl-cnt-test'); if (et) et.textContent = t.count ?? '';
+  const eg = document.getElementById('nl-cnt-reg');  if (eg) eg.textContent = g.count ?? '';
 }
 // 알림 로그 수동 새로고침 — 조회가 끝날 때까지 버튼을 잠가 연타로 같은 조회가 겹치지 않게 한다.
 // loadNotifyLog()가 중간에 return하거나 예외를 던져도 finally에서 항상 원래 상태로 되돌린다.
@@ -9437,7 +9445,10 @@ async function loadNotifyLog() {
     .order('created_at', { ascending: false })
     .limit(200);
 
-  q = q.eq('is_test', notifyTab === 'test');   // 운영/테스트 탭 분리
+  // 탭 분리 — 운영(is_test=false) / 테스트(is_test=true, 회귀 제외) / 회귀(channel=regression)
+  if (notifyTab === 'reg')       q = q.eq('channel', 'regression');
+  else if (notifyTab === 'test') q = q.eq('is_test', true).neq('channel', 'regression');
+  else                           q = q.eq('is_test', false);
   updateNotifyTabCounts();                      // 탭 라벨 건수 갱신(비파괴 head count)
 
   if (typeFilter)   q = q.eq('channel', typeFilter);
@@ -9481,6 +9492,8 @@ async function loadNotifyLog() {
     account_invite:       '계정 초대',
     password_reset:       '비밀번호 재설정',
     password_admin_reset: '비밀번호 초기화(관리자)',
+    nightly_pass:         '통과',
+    nightly_fail:         '실패',
   };
 
   // 계정유형은 수신자 이메일 도메인이 아니라 users.role로 판정한다.
@@ -9579,12 +9592,19 @@ async function loadNotifyLog() {
       ? `<div style="font-size:11px;color:var(--faint);margin-bottom:8px;">보낸 슬랙 메시지</div>
          <div style="white-space:pre-wrap;font-size:12.5px;line-height:1.7;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">${escHtml(n.content)}</div>`
       : '';
-    const detailRows = (mailPreview || slackPreview || ticketDetailRows) + failReasonBlock;
+    // 회귀 알람 — content는 실행 요약 전문(스위트별 PASS/FAIL). 슬랙처럼 pre-wrap 텍스트로.
+    const regPreview = (n.channel === 'regression' && n.content)
+      ? `<div style="font-size:11px;color:var(--faint);margin-bottom:8px;">회귀 실행 요약</div>
+         <div style="white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.7;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">${escHtml(n.content)}</div>`
+      : '';
+    const detailRows = (mailPreview || slackPreview || regPreview || ticketDetailRows) + failReasonBlock;
 
     const isInternal = isInternalRecipient(n);
-    const accountTypeBadge = isInternal
-      ? '<span class="badge" style="font-size:11px;background:#ede9fe;color:#5b21b6;">내부직원</span>'
-      : '<span class="badge" style="font-size:11px;background:#dbeafe;color:#1e40af;">고객</span>';
+    const accountTypeBadge = n.channel === 'regression'
+      ? '<span class="badge" style="font-size:11px;background:#eaebf0;color:#6b7180;">시스템</span>'
+      : isInternal
+        ? '<span class="badge" style="font-size:11px;background:#ede9fe;color:#5b21b6;">내부직원</span>'
+        : '<span class="badge" style="font-size:11px;background:#dbeafe;color:#1e40af;">고객</span>';
     return `<tr style="cursor:pointer;" onclick="toggleNotifyDetail(this)">
       <td style="font-size:11px;font-variant-numeric:tabular-nums;color:var(--faint);">${escHtml(n.id.slice(0,8))}…</td>
       <td style="font-size:12px;font-weight:600;">${escHtml(ticketNum)}</td>
@@ -9592,7 +9612,9 @@ async function loadNotifyLog() {
         ? '<span class="badge" style="font-size:11px;background:#d1fae5;color:#065f46;">Slack</span>'
         : n.channel === 'email'
           ? '<span class="badge" style="font-size:11px;background:#fce7f3;color:#9d174d;">Outlook</span>'
-          : `<span class="badge b-gray" style="font-size:11px;">${escHtml(n.channel||'—')}</span>`
+          : n.channel === 'regression'
+            ? '<span class="badge" style="font-size:11px;background:#dcefea;color:#1c7a66;">🌙 회귀</span>'
+            : `<span class="badge b-gray" style="font-size:11px;">${escHtml(n.channel||'—')}</span>`
       }</td>
       <td style="font-size:12px;">${escHtml(EVENT_TYPE_KO[n.event_type] || n.event_type || '—')}</td>
       <td>${accountTypeBadge}</td>

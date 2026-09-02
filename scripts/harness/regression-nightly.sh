@@ -75,11 +75,46 @@ SUMMARY="$(grep -E '회귀 전체 PASS|실패한 테스트' "$LOG" | tail -1)"
 FAILS="$(grep -c 'FAIL ' "$LOG" 2>/dev/null || echo 0)"
 log "회귀 종료 rc=$RC / $SUMMARY"
 
-# ── 4) 결과 통지 ──
+SHA="$(git rev-parse --short HEAD)"
+
+# ── 4) 알림 로그(log_notification)에 회귀 알람 1건 기록 ──
+# 포탈 「알림 로그 › 회귀 알람」 탭에서 실행 이력을 본다. channel='regression',
+# is_test=true(운영 탭 제외), content=요약 전문. data-api admin insert(새 엔드포인트 불필요).
+# 실패해도 통지·종료엔 영향 없도록 오류는 삼킨다.
+{
+  # PASS/FAIL 라인 + 스위트별 결과 줄을 요약으로 추린다.
+  RESULT_LINES="$(grep -E '^▶ |^[0-9]+/[0-9]+ (PASS|FAIL)|✅ 회귀 전체 PASS|❌ 실패한 테스트|FAIL ' "$LOG" | tail -60)"
+  PASSED="$( { grep -oE '[0-9]+/[0-9]+ PASS' "$LOG" | awk -F/ '{s+=$1} END{print s+0}'; } 2>/dev/null )"
+  TOTAL="$(  { grep -oE '[0-9]+/[0-9]+ (PASS|FAIL)' "$LOG" | sed -E 's#[0-9]+/([0-9]+).*#\1#' | awk '{s+=$1} END{print s+0}'; } 2>/dev/null )"
+  if [ "$RC" -eq 0 ]; then EVT=nightly_pass; STC=success; RECIP="$SHA · ${TOTAL}건"; ERRMSG='';
+  else EVT=nightly_fail; STC=failed; RECIP="$SHA · ${PASSED}/${TOTAL}"
+       # 실패한 체크 설명(FAIL 라인)만 추린다 — 전체 테스트명이 아니라 실제로 깨진 것.
+       ERRMSG="$(grep -E '^FAIL ' "$LOG" | sed -E 's/^FAIL /✖ /' | head -3 | paste -sd '; ' -)"
+       [ -z "$ERRMSG" ] && ERRMSG="실패 ${FAILS}건(로그 참고)";
+  fi
+  CONTENT="🌙 새벽 회귀 $([ "$RC" = 0 ] && echo '✅ PASS' || echo "❌ FAIL(${FAILS}건)") — $SHA${DRIFT}
+
+${RESULT_LINES}
+
+로그: ${LOG//\\//}"
+  AWS_PROFILE="$AWS_PROFILE" HARNESS_TMP="$HDIR/lib" python - "$EVT" "$STC" "$RECIP" "$ERRMSG" "$CONTENT" <<'PY' >>"$LOG" 2>&1 || echo "[회귀 알람 기록 실패(무시)]" >>"$LOG"
+import sys, os
+sys.path.insert(0, os.path.join(os.environ['HARNESS_TMP']))
+from itest import dpost
+evt, stc, recip, errmsg, content = sys.argv[1:6]
+r = dpost('log_notification', {
+    'channel': 'regression', 'event_type': evt, 'recipient': recip,
+    'status': stc, 'error_message': (errmsg or None), 'content': content, 'is_test': True,
+}, role='admin')
+print('[회귀 알람 기록] status=%s' % r.get('status'))
+PY
+} || true
+
+# ── 5) 결과 통지 ──
 if [ "$RC" -eq 0 ]; then
-  notify_slack "🌙 새벽 회귀 ✅ PASS — $(git rev-parse --short HEAD)${DRIFT} · $SUMMARY"
+  notify_slack "🌙 새벽 회귀 ✅ PASS — ${SHA}${DRIFT} · $SUMMARY"
 else
-  notify_slack "🌙 새벽 회귀 ❌ FAIL($FAILS건) — $(git rev-parse --short HEAD)${DRIFT} · 로그: ${LOG//\\//}"
+  notify_slack "🌙 새벽 회귀 ❌ FAIL($FAILS건) — ${SHA}${DRIFT} · 로그: ${LOG//\\//}"
 fi
 
 # 오래된 로그 정리(30일 초과)
