@@ -7,9 +7,15 @@ Lambda(data-api / api-layer / public-inquiry / send-email / storage-api)를 직�
 사용 전제: AWS CLI(aws.exe) + 프로파일 customer_portal, 리전 ap-northeast-2.
 Windows/Git Bash 환경 기준(임시파일은 스레드 안전하게 고유 이름 사용).
 """
-import os, json, subprocess, threading
+import os, json, subprocess, threading, time
 
 REGION = 'ap-northeast-2'
+# 한 실행(프로세스)을 식별하는 토큰 — temail()에 섞어 테스트 계정 이메일을 실행마다 고유하게
+# 만든다. users.email은 unique 제약이 있어, 예전엔 고정 주소(sjlee+permA@…)가 중단된 실행의
+# 잔재 계정과 충돌해 재생성이 500(unique violation)→KeyError로 죽었다. pid+시각으로 충돌 제거.
+# 한 프로세스 안에서는 값이 고정이라 "계정 생성 → 메일 트리거 → recipient로 로그 조회"가
+# 같은 주소로 이어진다. +태그 뒤 무엇이 붙든 메일은 sjlee 싱크로 배달된다(plus-addressing).
+_RUN = '%x%x' % (os.getpid(), int(time.time()) % 0x100000)
 ENV = dict(os.environ); ENV['AWS_PROFILE'] = ENV.get('AWS_PROFILE', 'customer_portal')
 
 # 소스 폴더명 ↔ 실제 배포 함수명 (CLAUDE.md 매핑)
@@ -37,17 +43,59 @@ def tname(suffix=''):
 
 
 def temail(tag):
-    """테스트 계정 메일 생성 — sink 주소의 +태그. 예: temail('custA') -> sjlee+custA@bigxdata.io."""
+    """테스트 계정 메일 — sink 주소의 +태그(+실행토큰). 예: temail('custA') ->
+    sjlee+custA_<run>@bigxdata.io. 실행마다 고유해 잔재 계정과 충돌하지 않고, 전부 sjlee로 배달."""
     local, _, dom = TEST_EMAIL_BASE.partition('@')
-    return '%s+%s@%s' % (local, tag, dom)
+    return '%s+%s_%s@%s' % (local, tag, _RUN, dom)
 
 
 _TMPDIR = os.environ.get('HARNESS_TMP', os.path.dirname(os.path.abspath(__file__)))
 _ctr = [0]
 
+# boto3 클라이언트 캐시 — CLI subprocess는 호출당 ~1초(aws.exe 기동)를 쓰는데 테스트
+# 1회 전체가 수백 번 invoke하므로 이게 회귀 소요시간의 큰 몫이었다. boto3가 있으면
+# 단일 세션을 재사용하고(임시파일도 불필요), 없으면 기존 CLI 경로로 폴백한다.
+_boto = {'client': None, 'tried': False, 'lock': threading.Lock()}
+
+
+def _lambda_client():
+    with _boto['lock']:
+        if not _boto['tried']:
+            _boto['tried'] = True
+            try:
+                import boto3
+                _boto['client'] = boto3.session.Session(
+                    profile_name=ENV.get('AWS_PROFILE', 'customer_portal'),
+                    region_name=REGION).client('lambda')
+            except Exception:
+                _boto['client'] = None  # boto3 미설치/프로파일 문제 → CLI 폴백
+    return _boto['client']
+
+
+def _parse(raw):
+    if isinstance(raw, dict) and 'statusCode' in raw:
+        body = raw.get('body')
+        try:
+            body = json.loads(body) if isinstance(body, str) else body
+        except Exception:
+            pass
+        return {'status': raw['statusCode'], 'body': body}
+    return {'raw': raw}
+
 
 def invoke(fn, event):
     """fn: FN 키('data'|'api'|...). event: Lambda 이벤트(dict). 응답을 파싱해 반환."""
+    client = _lambda_client()
+    if client is not None:
+        try:
+            res = client.invoke(FunctionName=FN[fn],
+                                Payload=json.dumps(event, ensure_ascii=False).encode('utf-8'))
+            raw = json.loads(res['Payload'].read().decode('utf-8'))
+        except Exception as e:
+            return {'_invoke_error': str(e)}
+        return _parse(raw)
+
+    # ── CLI 폴백 (boto3 없는 환경) ──
     _ctr[0] += 1
     tag = '%d_%d' % (threading.get_ident(), _ctr[0])
     pf = os.path.join(_TMPDIR, '_payload_%s.json' % tag)
@@ -67,14 +115,7 @@ def invoke(fn, event):
         for p in (pf, of):
             try: os.remove(p)
             except OSError: pass
-    if isinstance(raw, dict) and 'statusCode' in raw:
-        body = raw.get('body')
-        try:
-            body = json.loads(body) if isinstance(body, str) else body
-        except Exception:
-            pass
-        return {'status': raw['statusCode'], 'body': body}
-    return {'raw': raw}
+    return _parse(raw)
 
 
 def ctx(role, userId=None, companyId=None, contractId=None, unitIds=None):
