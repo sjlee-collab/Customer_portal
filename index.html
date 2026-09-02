@@ -2581,23 +2581,40 @@ textarea{resize:vertical;min-height:100px;}
     </div>
     <div style="padding:18px 24px;display:flex;flex-direction:column;gap:13px;">
       <div style="font-size:13px;font-weight:600;color:var(--text);border-bottom:1px solid var(--border);padding-bottom:8px;" id="mg-ticket-title"></div>
-      <!-- 관리자 전용: 요청 유형·명의(고객사/조직/요청자)·대리등록자 교정 — 잘못 등록된 요청 정리용 -->
+      <!-- 관리자 전용: 요청 유형·명의(고객사/조직/요청자)·대리등록자 교정 — 잘못 등록된 요청 정리용.
+           평소엔 접힌 요약 한 줄만 보이고, 교정할 때만 펼친다. -->
       <div id="mg-admin-target" style="display:none;background:var(--accent-l);border:1px solid #C7D2FE;border-radius:var(--r-md);padding:10px 12px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;">
-          <label style="margin:0;font-size:11.5px;font-weight:600;">요청 유형</label>
-          <div style="display:flex;border:1px solid var(--border-md);border-radius:8px;overflow:hidden;background:var(--surface);width:250px;">
-            <button type="button" id="mg-type-int" onclick="setMgType('internal')" style="flex:1;padding:6px;font:inherit;font-size:11.5px;border:none;border-right:1px solid var(--border-md);cursor:pointer;background:transparent;color:var(--muted);">🔒 내부 검토</button>
-            <button type="button" id="mg-type-pub" onclick="setMgType('public')" style="flex:1;padding:6px;font:inherit;font-size:11.5px;border:none;cursor:pointer;background:transparent;color:var(--muted);">일반 (고객 표시)</button>
+        <div onclick="mgAdmToggle()" style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;">
+          <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:12px;min-width:0;">
+            <span style="font-weight:700;font-size:11.5px;white-space:nowrap;">요청 유형·등록 대상</span>
+            <span id="mg-adm-sum" style="color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
           </div>
+          <span id="mg-adm-arrow" style="font-size:11px;color:var(--accent);white-space:nowrap;flex-shrink:0;">펼치기 ▾</span>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;">
-          <div><label style="font-size:11.5px;">고객사</label><select id="mg-t-company" onchange="mgCompanyChange()"></select></div>
-          <div><label style="font-size:11.5px;">조직</label><select id="mg-t-org"></select></div>
-          <div><label style="font-size:11.5px;">고객(요청자)</label><select id="mg-t-cust" onchange="mgTargetNote()"></select></div>
-          <div><label style="font-size:11.5px;">대리등록자</label><select id="mg-t-registrar"></select></div>
+        <div id="mg-admin-body" style="display:none;margin-top:10px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;">
+            <label style="margin:0;font-size:11.5px;font-weight:600;">요청 유형</label>
+            <div style="display:flex;border:1px solid var(--border-md);border-radius:8px;overflow:hidden;background:var(--surface);width:250px;">
+              <button type="button" id="mg-type-int" onclick="setMgType('internal')" style="flex:1;padding:6px;font:inherit;font-size:11.5px;border:none;border-right:1px solid var(--border-md);cursor:pointer;background:transparent;color:var(--muted);">🔒 내부 검토</button>
+              <button type="button" id="mg-type-pub" onclick="setMgType('public')" style="flex:1;padding:6px;font:inherit;font-size:11.5px;border:none;cursor:pointer;background:transparent;color:var(--muted);">일반 (고객 표시)</button>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;">
+            <div><label style="font-size:11.5px;">고객사</label>
+              <div class="pxy-inp" id="mg-t-company-wrap">
+                <input type="text" id="mg-t-company-search" autocomplete="off" placeholder="검색 또는 ▾ 선택" oninput="mgCoFilter()" onfocus="mgCoFilter()">
+                <span class="pxy-caret" onclick="mgCoToggle()">▾</span>
+                <input type="hidden" id="mg-t-company">
+                <div id="mg-t-company-list" class="pxy-list" style="display:none;"></div>
+              </div>
+            </div>
+            <div><label style="font-size:11.5px;">조직</label><select id="mg-t-org"></select></div>
+            <div><label style="font-size:11.5px;">고객(요청자)</label><select id="mg-t-cust" onchange="mgTargetNote()"></select></div>
+            <div><label style="font-size:11.5px;">대리등록자</label><select id="mg-t-registrar" onchange="mgAdmSummary()"></select></div>
+          </div>
+          <div id="mg-type-note" style="display:none;"></div>
+          <div id="mg-target-note" style="display:none;"></div>
         </div>
-        <div id="mg-type-note" style="display:none;"></div>
-        <div id="mg-target-note" style="display:none;"></div>
       </div>
       <!-- 선택 항목 4개는 짧은 컨트롤이라 2×2로 접는다 — 모달 높이 절약(세로 4줄 → 2줄) -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;">
@@ -11516,11 +11533,19 @@ async function mgAdminInit() {
     registrarId: mgTicket.registered_by || '',
     customers: [],
   };
+  // 평소엔 접힌 요약만 — 교정할 때만 펼친다
+  const body = document.getElementById('mg-admin-body');
+  if (body) body.style.display = 'none';
+  const arrow = document.getElementById('mg-adm-arrow');
+  if (arrow) arrow.textContent = '펼치기 ▾';
   setMgType(_mgAdmin.type);
   await pxyBootstrap();
-  const coSel = document.getElementById('mg-t-company');
-  coSel.innerHTML = '<option value="">— 미지정 —</option>' +
-    (_pxyCompanies || []).map(c => `<option value="${c.id}"${c.id === _mgAdmin.companyId ? ' selected' : ''}>${escHtml(c.name)}</option>`).join('');
+  const coHidden = document.getElementById('mg-t-company');
+  const coSearch = document.getElementById('mg-t-company-search');
+  if (coHidden) coHidden.value = _mgAdmin.companyId || '';
+  if (coSearch) coSearch.value = _mgAdmin.companyId
+    ? (mgTicket.company?.name || mgTicket.company_name || '')
+    : '— 미지정 —';
   const regSel = document.getElementById('mg-t-registrar');
   const regOpts = ['<option value="">— (고객 직접)</option>'].concat(
     (_pxyStaff || []).map(s => `<option value="${s.id}"${s.id === _mgAdmin.registrarId ? ' selected' : ''}>${escHtml(s.name)} (${escHtml(ROLE_KO_SHORT[s.role] || s.role)})</option>`));
@@ -11529,7 +11554,64 @@ async function mgAdminInit() {
   }
   regSel.innerHTML = regOpts.join('');
   await mgLoadCustomers(_mgAdmin.companyId, _mgAdmin.custId, _mgAdmin.unitId);
+  mgAdmSummary();
 }
+
+// 접힘 토글 + 접힘 상태에서 보이는 한 줄 요약
+function mgAdmToggle() {
+  const body = document.getElementById('mg-admin-body');
+  if (!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : '';
+  const arrow = document.getElementById('mg-adm-arrow');
+  if (arrow) arrow.textContent = open ? '펼치기 ▾' : '접기 ▴';
+}
+
+function mgAdmSummary() {
+  const el = document.getElementById('mg-adm-sum');
+  if (!el || !_mgAdmin) return;
+  const typeBadge = _mgAdmin.type === 'internal'
+    ? '<span style="font-size:10.5px;font-weight:700;background:#fef3c7;color:#92400e;padding:1px 7px;border-radius:12px;">🔒 내부 검토</span>'
+    : '<span style="font-size:10.5px;font-weight:700;background:#dbeafe;color:#1e40af;padding:1px 7px;border-radius:12px;">일반</span>';
+  const coName = document.getElementById('mg-t-company-search')?.value || '— 미지정 —';
+  const cuSel = document.getElementById('mg-t-cust');
+  const cuName = cuSel?.value ? (cuSel.options[cuSel.selectedIndex]?.text || '').split(' · ')[0] : '—';
+  const rgSel = document.getElementById('mg-t-registrar');
+  const rgName = rgSel?.value ? (rgSel.options[rgSel.selectedIndex]?.text || '').replace(/ \(.*\)$/, '') : '고객 직접';
+  el.innerHTML = `${typeBadge} · ${escHtml(coName)} · ${escHtml(cuName)} · 등록 ${escHtml(rgName)}`;
+}
+
+// 고객사 검색+선택 콤보 (대리 등록 폼의 pxy 콤보와 동일 스타일/부품 재사용)
+function mgCoFilter(showAll) {
+  const q = (document.getElementById('mg-t-company-search')?.value || '').trim().toLowerCase();
+  const items = (_pxyCompanies || []).filter(c => showAll || !q || (c.name || '').toLowerCase().includes(q)).slice(0, 50)
+    .map(c => ({ id: c.id, label: c.name }));
+  _pxyRenderList('mg-t-company-list', items, mgCoPick, _pxyBootstrapped ? '일치하는 고객사가 없습니다' : '불러오는 중…');
+}
+
+function mgCoToggle() {
+  const box = document.getElementById('mg-t-company-list');
+  if (!box) return;
+  if (box.style.display !== 'none') { box.style.display = 'none'; return; }
+  const search = document.getElementById('mg-t-company-search');
+  if (search) search.value = '';
+  mgCoFilter(true);
+}
+
+function mgCoPick(c) {
+  document.getElementById('mg-t-company-search').value = c.label;
+  document.getElementById('mg-t-company').value = c.id;
+  document.getElementById('mg-t-company-list').style.display = 'none';
+  mgLoadCustomers(c.id, '', '');
+}
+
+document.addEventListener('click', (e) => {
+  const box = document.getElementById('mg-t-company-list');
+  if (box && box.style.display !== 'none'
+      && !e.target.closest('#mg-t-company-wrap')) {
+    box.style.display = 'none';
+  }
+});
 
 async function mgLoadCustomers(companyId, selCust, selUnit) {
   const custSel = document.getElementById('mg-t-cust');
@@ -11556,13 +11638,18 @@ async function mgLoadCustomers(companyId, selCust, selUnit) {
   mgTargetNote();
 }
 
-function mgCompanyChange() {
-  mgLoadCustomers(document.getElementById('mg-t-company')?.value || '', '', '');
-}
-
 function setMgType(t) {
   if (!_mgAdmin) return;
   _mgAdmin.type = t;
+  // 내부 검토 = 고객 메일 억제 대상이므로 발송 체크를 자동 해제(일반로 되돌리면 다시 켬)
+  const chk = document.getElementById('mg-send-email');
+  if (chk) chk.checked = t !== 'internal';
+  const lb = document.getElementById('mg-send-email-label');
+  if (lb) lb.textContent = t === 'internal' ? '상태 변경 메일 발송' : '고객에게 상태 변경 메일 발송';
+  const sn = document.getElementById('mg-send-email-note');
+  if (sn) sn.style.display = t === 'internal' ? '' : 'none';
+  if (typeof updateMgRecipientPreview === 'function') updateMgRecipientPreview();
+  mgAdmSummary();
   const on = 'flex:1;padding:6px;font:inherit;font-size:11.5px;border:none;cursor:pointer;background:var(--accent);color:#fff;font-weight:700;';
   const off = 'flex:1;padding:6px;font:inherit;font-size:11.5px;border:none;cursor:pointer;background:transparent;color:var(--muted);';
   const bi = document.getElementById('mg-type-int'), bp = document.getElementById('mg-type-pub');
@@ -11587,7 +11674,7 @@ function mgTargetNote() {
   const note = document.getElementById('mg-target-note');
   if (!note) return;
   const changed = cu && cu !== (_mgAdmin.custId || '');
-  if (!changed) { note.style.display = 'none'; return; }
+  if (!changed) { note.style.display = 'none'; mgAdmSummary(); return; }
   const cust = (_mgAdmin.customers || []).find(x => x.id === cu);
   const coName = document.getElementById('mg-t-company')?.selectedOptions?.[0]?.text || '';
   note.style.cssText = 'display:block;margin-top:8px;border-radius:7px;padding:8px 11px;font-size:11.5px;line-height:1.6;background:#fff1f2;border:1px solid #f0a9a9;color:#dc2626;';
@@ -11595,6 +11682,7 @@ function mgTargetNote() {
   // 옛 회사 참조 주소가 그대로 저장되지 않게 입력창도 비운다(서버도 명의 변경 시 강제 초기화).
   const cc = document.getElementById('mg-cc-emails');
   if (cc && cc.value) { cc.value = ''; updateMgRecipientPreview(); }
+  mgAdmSummary();
 }
 
 // 요청자 + 추가 수신자를 합쳐 실제 메일 발송 대상을 미리 보여준다
