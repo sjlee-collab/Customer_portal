@@ -2654,16 +2654,28 @@ textarea{resize:vertical;min-height:100px;}
         <label>내부 메모 <span style="font-size:11px;color:var(--faint);">(고객에게 노출되지 않음)</span></label>
         <textarea id="mg-memo" placeholder="처리 내용, 참고 사항 등을 기록하세요." style="min-height:56px;"></textarea>
       </div>
-      <div class="form-group">
-        <label>추가 수신자</label>
-        <input type="text" id="mg-cc-emails" placeholder="추가로 메일을 받을 주소 (쉼표로 구분)" oninput="updateMgRecipientPreview()">
-        <div style="font-size:11px;color:var(--faint);">비워두면 요청자에게만 발송됩니다. 여러 명은 쉼표(,)로 구분해서 입력하세요.</div>
-        <div class="mg-recipient-preview" id="mg-recipient-preview"></div>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;padding:10px 0 2px;">
-        <input type="checkbox" id="mg-send-email" checked style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent);" onchange="updateMgRecipientPreview()">
-        <label for="mg-send-email" id="mg-send-email-label" style="font-size:13px;color:var(--fg);cursor:pointer;margin:0;font-weight:500;">고객에게 상태 변경 메일 발송</label>
-        <span id="mg-send-email-note" style="display:none;font-size:10.5px;color:var(--faint);">— 내부 검토 요청은 기본 발송 안 함</span>
+      <!-- 메일 섹션: 평소 접힌 요약 한 줄, 펼치면 기존 구성 그대로 (모달 높이 절약) -->
+      <div style="border-top:1px solid var(--border);padding-top:9px;">
+        <div onclick="mgMailFold()" style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;">
+          <div style="font-size:12.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+            <span style="font-weight:700;font-size:12px;">상태 변경 메일</span>
+            <span id="mg-mail-sum" style="font-size:11.5px;"></span>
+          </div>
+          <span id="mg-mail-arrow" style="font-size:11px;color:var(--accent);white-space:nowrap;flex-shrink:0;">펼치기 ▾</span>
+        </div>
+        <div id="mg-mail-body" style="display:none;margin-top:9px;">
+          <div class="form-group">
+            <label>추가 수신자</label>
+            <input type="text" id="mg-cc-emails" placeholder="추가로 메일을 받을 주소 (쉼표로 구분)" oninput="updateMgRecipientPreview()">
+            <div style="font-size:11px;color:var(--faint);">비워두면 요청자에게만 발송됩니다. 여러 명은 쉼표(,)로 구분해서 입력하세요.</div>
+            <div class="mg-recipient-preview" id="mg-recipient-preview"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 0 2px;">
+            <input type="checkbox" id="mg-send-email" checked style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent);" onchange="updateMgRecipientPreview()">
+            <label for="mg-send-email" id="mg-send-email-label" style="font-size:13px;color:var(--fg);cursor:pointer;margin:0;font-weight:500;">고객에게 상태 변경 메일 발송</label>
+            <span id="mg-send-email-note" style="display:none;font-size:10.5px;color:var(--faint);">— 내부 검토 요청은 기본 발송 안 함</span>
+          </div>
+        </div>
       </div>
     </div>
     <div style="padding:14px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;">
@@ -11505,6 +11517,11 @@ async function openManage(idx) {
   // 추가 수신자는 티켓에 저장돼 있어 다음에 열 때도 그대로 남는다(없으면 빈 칸).
   const savedCc = Array.isArray(mgTicket.cc_emails) ? mgTicket.cc_emails : [];
   document.getElementById('mg-cc-emails').value = savedCc.join(', ');
+  // 메일 섹션은 평소 접힌 요약으로 시작
+  const mgMailBody = document.getElementById('mg-mail-body');
+  if (mgMailBody) mgMailBody.style.display = 'none';
+  const mgMailArrow = document.getElementById('mg-mail-arrow');
+  if (mgMailArrow) mgMailArrow.textContent = '펼치기 ▾';
   updateMgRecipientPreview();
 
   await populateMgAssigneeOptions(mgTicket.category, mgTicket.assignee?.id);
@@ -11691,8 +11708,34 @@ function mgTargetNote() {
 }
 
 
+// 메일 섹션 접기/펼치기 — 평소엔 요약 한 줄만
+function mgMailFold() {
+  const body = document.getElementById('mg-mail-body');
+  if (!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : '';
+  const arrow = document.getElementById('mg-mail-arrow');
+  if (arrow) arrow.textContent = open ? '펼치기 ▾' : '접기 ▴';
+}
+
+// 접힘 요약 줄 갱신 — 발송 여부·대상 인원을 한 줄로
+function mgMailSum() {
+  const el = document.getElementById('mg-mail-sum');
+  if (!el) return;
+  const on = document.getElementById('mg-send-email')?.checked;
+  if (!on) { el.textContent = '– 발송 안 함'; el.style.color = 'var(--faint)'; return; }
+  const requesterEmail = mgTicket?.requester?.email || '';
+  const ccEmails = (document.getElementById('mg-cc-emails')?.value || '')
+    .split(',').map(s => s.trim()).filter(s => s.includes('@'));
+  const addrs = [requesterEmail, ...ccEmails].filter(Boolean);
+  if (!addrs.length) { el.textContent = '– 요청자 이메일 없음'; el.style.color = 'var(--faint)'; return; }
+  el.textContent = `✓ 발송 — 대상 ${addrs.length}명 (${addrs[0]}${addrs.length > 1 ? ` 외 ${addrs.length - 1}명` : ''})`;
+  el.style.color = 'var(--green, #15803d)';
+}
+
 // 요청자 + 추가 수신자를 합쳐 실제 메일 발송 대상을 미리 보여준다
 function updateMgRecipientPreview() {
+  mgMailSum();
   const box = document.getElementById('mg-recipient-preview');
   if (!box) return;
   const sendChecked = document.getElementById('mg-send-email')?.checked;
