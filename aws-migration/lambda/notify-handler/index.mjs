@@ -262,10 +262,20 @@ async function handleTicketStatus(payload, results) {
   }
 }
 
+const REPLY_ROLE_KO = {
+  customer: '고객', internal: '내부직원', admin: '관리자',
+  sales: '영업', tech_support: '기술지원', education: '교육',
+};
+
 async function handleTicketReply(payload, results) {
-  const { ticket } = payload;
-  const header = `💬 *고객 답글 등록*`;
-  const body = buildBaseMessage(ticket, payload) + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`;
+  const { ticket, replyAuthorName, replyAuthorRole } = payload;
+  // 고객 답글은 기존 헤더 유지, 직원(스태프·내부) 답글은 구분해 표시(2026-09-02 확대).
+  const isCustomerReply = !replyAuthorRole || replyAuthorRole === 'customer';
+  const header = isCustomerReply ? `💬 *고객 답글 등록*` : `💬 *직원 답글 등록*`;
+  const authorLine = replyAuthorName
+    ? `\n• *작성자:* ${replyAuthorName}${REPLY_ROLE_KO[replyAuthorRole] ? ` (${REPLY_ROLE_KO[replyAuthorRole]})` : ''}`
+    : '';
+  const body = buildBaseMessage(ticket, payload) + authorLine + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`;
   const isTest = isTestTicket(ticket);
   await sendSlack(SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, 'reply', header, body, results, isTest);
   if (['contract', 'license'].includes(ticket.category) && SLACK_WEBHOOK_SALES) {

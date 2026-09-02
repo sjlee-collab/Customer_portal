@@ -515,21 +515,24 @@ async function addReply(ticketId, body, event) {
   // 고객이 답글만 단 요청은 아무도 손대지 않은 것처럼 보인다.
   await query(`update tickets set updated_at=now() where id=$1`, [ticketId]);
 
-  if (author?.role === 'customer') {
-    await deferNotify('reply', { ticketId });
-  }
+  // 답글 슬랙 알림은 작성자 역할과 무관하게 전부 보낸다(2026-09-02, 기존엔 고객만).
+  // 본인 답글 제외 없음, 내부 검토 요청 포함. 누가 달았는지는 페이로드로 넘겨
+  // 알림 메시지에서 고객/직원을 구분한다.
+  await deferNotify('reply', { ticketId, authorId: changed_by });
 
   return json(201, { ok: true });
 }
 
-async function notifyForReply(ticketId) {
+async function notifyForReply(ticketId, authorId) {
   const ticket = await getTicket(ticketId);
   if (!ticket) return;
   const requester = await getUser(ticket.created_by);
+  const author = authorId ? await getUser(authorId) : null;
 
   await notifySlack({
     type: 'TICKET_REPLY', ticket, companyName: ticket.company_name,
     requesterName: requester?.name, assigneeName: ticket.assigned_to_name,
+    replyAuthorName: author?.name || null, replyAuthorRole: author?.role || null,
   });
 }
 
@@ -1849,7 +1852,7 @@ const DEFERRED_HANDLERS = {
   status: (job) => notifyForStatus(job.ticketId, job.prevStatus),
   assign: (job) => notifyForAssign(job.ticketId, job.prevAssigneeId),
   manage: (job) => notifyForManage(job),
-  reply: (job) => notifyForReply(job.ticketId),
+  reply: (job) => notifyForReply(job.ticketId, job.authorId),
 };
 
 export const handler = async (event) => {
