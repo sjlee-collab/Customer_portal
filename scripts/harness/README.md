@@ -74,6 +74,7 @@
 - `tests/test_internal_review.py` — **내부 검토(is_internal) 은닉 보안 경계**: 고객은 본인 명의여도 목록·직접조회·자식행·답글쓰기 전부 차단 · 스태프는 열람 · 메일 억제(슬랙만) · make_public 단방향 전환(스태프만)
 - `tests/test_ticket_rate.py` — **만족도 평가(`/rate`)**: 본인·완료 건만, 1~5 정수·200자 제한, 재제출 409, updated_at 미변경(현행 트리거)
 - `tests/test_stats_view.py` — 사용 통계 6개 엔드포인트(`active-users`/`login-history`/`tickets`/`companies`/`documents`/`company-detail`): 구조·고객 403·필터·집계 반영 + `stats_view` 동적 토글
+- `tests/test_l2_runtime.py` — **L2 런타임(헤드리스 크로미움, P5)**: index.html을 실제로 띄워 부팅 콘솔 에러·smoke-frontend 자동 주입·실로그인→메인 렌더 검증. playwright 필요, 미설치 시 자동 skip
 - `tests/test_jwt.py` — **JWT 문지기(authorizer) 실경유**: 실로그인→토큰, 클레임 스코프(자사만), 무토큰 401·위조/변조 403, P4(이력 제외) 검증. 유일한 HTTP 스위트
 - `tests/test_batch.py` — **배치 3종(only_test)**: overdue(기한 지난 [테스트] 티켓만 알림·당일 제외) · expire_contracts([테스트] 계약만 만료·운영 불변) · license_expiry([테스트] 고객사만). 배치에 only_test 모드 추가로 사각지대 해소
 - `tests/test_schema_contract.py` — **스키마 계약(안 낡게)**: schema.sql의 CHECK 허용값을 파싱해 ① 라이브 DB가 전부 수용·불량값 거부(스키마↔배포 드리프트 감지) ② test_ticket_status 상태 커버리지 = 스키마−received(값 추가 시 미반영 경고)
