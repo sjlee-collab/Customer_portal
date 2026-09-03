@@ -702,8 +702,9 @@ async function manageTicket(ticketId, body, event) {
   const wantsRequester = Object.prototype.hasOwnProperty.call(body, 'on_behalf_of');
   const wantsUnit = body.unit_id !== undefined;
   const wantsRegistrar = Object.prototype.hasOwnProperty.call(body, 'registered_by');
+  const wantsCompany = Object.prototype.hasOwnProperty.call(body, 'company_id');
   // 권한 관리 화면의 ticket_correct와 연동 — admin은 hasPermission이 항상 통과, 다른 역할은 토글로 부여 가능.
-  if ((wantsVisibility || wantsRequester || wantsUnit || wantsRegistrar)
+  if ((wantsVisibility || wantsRequester || wantsUnit || wantsRegistrar || wantsCompany)
       && !(await hasPermission(authz.role, 'ticket_correct'))) {
     return json(403, { error: '요청 교정(유형·명의·대리등록자) 권한이 없습니다' });
   }
@@ -718,8 +719,37 @@ async function manageTicket(ticketId, body, event) {
   // 명의 변경 — 새 요청자(customer) 기준으로 회사/계약/조직 스냅샷 재계산.
   let requesterSet; // 갱신할 컬럼 모음(키=컬럼명). note는 이력용.
   const requesterChanged = wantsRequester && (body.on_behalf_of || null) !== (prev.created_by ?? null);
-  if (requesterChanged) {
-    if (!body.on_behalf_of) return json(400, { error: '요청자(고객)를 지정해야 합니다' });
+  let companyOnlyNote; // 'company_changed' 이력용 — 명의는 그대로 두고 고객사만 바꿀 때
+  if (requesterChanged && !body.on_behalf_of) {
+    // ── 명의 해제(요청자 미지정) — 계정이 아직 없는 고객사 건 등. created_by를 비우고
+    //    고객사·조직은 함께 온 값(없으면 기존)을 스냅샷. 참조(cc)는 아래 공통 로직이 초기화.
+    let newCompanyId = prev.company_id ?? null;
+    if (wantsCompany) {
+      newCompanyId = body.company_id || null;
+      if (newCompanyId) {
+        const co = await query('select id from companies where id=$1', [newCompanyId]);
+        if (!co[0]) return json(400, { error: '존재하지 않는 고객사입니다' });
+      }
+    }
+    const newCompanyName = await getCompanyName(newCompanyId);
+    let newUnitId = null, newUnitName = null;
+    if (wantsUnit && body.unit_id) {
+      const u = await query('select unit_name from org_units where id=$1 and company_id=$2', [body.unit_id, newCompanyId]);
+      if (!u[0]) return json(403, { error: '해당 고객사 소속 조직이 아닙니다' });
+      newUnitId = body.unit_id; newUnitName = u[0].unit_name;
+    } else if (newCompanyId === (prev.company_id ?? null)) {
+      newUnitId = prev.unit_id ?? null; newUnitName = prev.unit_name ?? null; // 회사 그대로면 조직 유지
+    }
+    requesterSet = {
+      created_by: null, created_by_name: null,
+      company_id: newCompanyId, company_name: newCompanyName,
+      contract_id: null, unit_id: newUnitId, unit_name: newUnitName,
+    };
+    const prevLabel = prev.created_by_name
+      ? `${prev.created_by_name}${prev.company_name && prev.company_name !== '-' ? `(${prev.company_name})` : ''}`
+      : '미지정';
+    requesterSet._note = `${prevLabel} → 미지정${newCompanyName !== '-' ? `(${newCompanyName})` : ''}`;
+  } else if (requesterChanged) {
     const target = await getUser(body.on_behalf_of);
     if (!target || target.role !== 'customer') return json(400, { error: '요청자는 고객 계정이어야 합니다' });
     const tUnits = Array.isArray(target.unit_ids) ? target.unit_ids : [];
@@ -744,13 +774,42 @@ async function manageTicket(ticketId, body, event) {
       ? `${prev.created_by_name}${prev.company_name && prev.company_name !== '-' ? `(${prev.company_name})` : ''}`
       : '미지정';
     requesterSet._note = `${prevLabel} → ${target.name}(${newCompanyName})`;
+  } else if (wantsCompany && (body.company_id || null) !== (prev.company_id ?? null)) {
+    // ── 고객사만 지정/변경 — 명의(요청자)는 그대로. 고객 명의가 붙어 있으면 회사-명의가
+    //    어긋나므로 거부(요청자를 함께 바꾸거나 해제해야 함). 미지정/스태프 명의 건 전용.
+    if (prev.created_by) {
+      const pr = await getUser(prev.created_by);
+      if (pr && pr.role === 'customer') return json(400, { error: '고객 명의가 지정된 요청은 고객사만 바꿀 수 없습니다 — 요청자를 함께 변경하거나 해제하세요' });
+    }
+    const newCompanyId = body.company_id || null;
+    if (newCompanyId) {
+      const co = await query('select id from companies where id=$1', [newCompanyId]);
+      if (!co[0]) return json(400, { error: '존재하지 않는 고객사입니다' });
+    }
+    const newCompanyName = await getCompanyName(newCompanyId);
+    let newUnitId = null, newUnitName = null;
+    if (wantsUnit && body.unit_id) {
+      const u = await query('select unit_name from org_units where id=$1 and company_id=$2', [body.unit_id, newCompanyId]);
+      if (!u[0]) return json(403, { error: '해당 고객사 소속 조직이 아닙니다' });
+      newUnitId = body.unit_id; newUnitName = u[0].unit_name;
+    }
+    requesterSet = { company_id: newCompanyId, company_name: newCompanyName, unit_id: newUnitId, unit_name: newUnitName };
+    const prevCo = prev.company_name && prev.company_name !== '-' ? prev.company_name : '미지정';
+    companyOnlyNote = `${prevCo} → ${newCompanyName !== '-' ? newCompanyName : '미지정'}`;
   } else if (wantsUnit && body.unit_id && body.unit_id !== (prev.unit_id ?? null)) {
-    // 명의는 그대로, 조직만 변경 — 현 요청자의 배정 조직만 허용
-    const requester = await getUser(prev.created_by);
-    const rUnits = Array.isArray(requester?.unit_ids) ? requester.unit_ids : [];
-    if (!rUnits.includes(body.unit_id)) return json(403, { error: '해당 고객에게 배정되지 않은 조직입니다' });
-    const u = await query('select unit_name from org_units where id=$1', [body.unit_id]);
-    if (u[0]?.unit_name) requesterSet = { unit_id: body.unit_id, unit_name: u[0].unit_name };
+    // 명의는 그대로, 조직만 변경. 고객 명의 건은 그 고객의 배정 조직만,
+    // 요청자 미지정/스태프 명의 건은 티켓 고객사 소속 조직이면 허용.
+    const requester = prev.created_by ? await getUser(prev.created_by) : null;
+    if (requester && requester.role === 'customer') {
+      const rUnits = Array.isArray(requester.unit_ids) ? requester.unit_ids : [];
+      if (!rUnits.includes(body.unit_id)) return json(403, { error: '해당 고객에게 배정되지 않은 조직입니다' });
+      const u = await query('select unit_name from org_units where id=$1', [body.unit_id]);
+      if (u[0]?.unit_name) requesterSet = { unit_id: body.unit_id, unit_name: u[0].unit_name };
+    } else {
+      const u = await query('select unit_name from org_units where id=$1 and company_id=$2', [body.unit_id, prev.company_id ?? null]);
+      if (!u[0]) return json(403, { error: '해당 고객사 소속 조직이 아닙니다' });
+      requesterSet = { unit_id: body.unit_id, unit_name: u[0].unit_name };
+    }
   }
 
   // 대리등록자 — 표기 스냅샷(registered_by) 변경. 스태프 본인 명의로 잘못 등록된 건을
@@ -832,6 +891,12 @@ async function manageTicket(ticketId, body, event) {
       await q(
         `insert into ticket_history (ticket_id, action, note, changed_by, changed_by_name) values ($1,'requester_changed',$2,$3,$4)`,
         [ticketId, requesterSet._note, changed_by ?? null, changed_by_name ?? null]
+      );
+    }
+    if (companyOnlyNote) {
+      await q(
+        `insert into ticket_history (ticket_id, action, note, changed_by, changed_by_name) values ($1,'company_changed',$2,$3,$4)`,
+        [ticketId, companyOnlyNote, changed_by ?? null, changed_by_name ?? null]
       );
     }
     return finalRow;

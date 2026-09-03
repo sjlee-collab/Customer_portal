@@ -165,7 +165,7 @@ create table public.ticket_history (
   ticket_id       uuid not null,
   changed_by      uuid,
   action          text not null
-                  check (action = any (array['created','status_changed','assigned','reassigned','message_added','attachment_added','memo_updated','completed','cancelled','visibility_changed','requester_changed'])),
+                  check (action = any (array['created','status_changed','assigned','reassigned','message_added','attachment_added','memo_updated','completed','cancelled','visibility_changed','requester_changed','company_changed'])),
   field_name      text,
   old_value       text,
   new_value       text,

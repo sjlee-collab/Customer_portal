@@ -4424,6 +4424,7 @@ const TICKET_ACTION_LABELS = {
   status_changed:   { label: '상태 변경',     color: 'var(--accent)' },
   visibility_changed:{ label: '공개 범위 변경', color: 'var(--amber)' },
   requester_changed:{ label: '명의 변경',     color: 'var(--amber)' },
+  company_changed:{ label: '고객사 변경',    color: 'var(--amber)' },
   assigned:         { label: '담당자 배정',   color: 'var(--accent)' },
   reassigned:       { label: '담당자 변경',   color: 'var(--amber)' },
   message_added:    { label: '답변 등록',     color: 'var(--green)' },
@@ -5127,6 +5128,7 @@ async function loadCustomerTimeline(ticketId) {
     status_changed: { label: '상태 변경',   color: 'var(--accent)' },
     visibility_changed: { label: '공개 범위 변경', color: 'var(--amber)' },
     requester_changed: { label: '명의 변경', color: 'var(--amber)' },
+    company_changed: { label: '고객사 변경', color: 'var(--amber)' },
     assigned:       { label: '담당자 배정', color: 'var(--accent)' },
     reassigned:     { label: '담당자 변경', color: 'var(--amber)' },
     completed:      { label: '처리 완료',   color: 'var(--green)' },
@@ -11468,12 +11470,12 @@ async function loadRdHistory() {
     .order('created_at', { ascending: false });
   const ACTION_LABELS = {
     created: '요청 접수', comment: '내부 메모',
-    status_changed: '상태 변경', visibility_changed: '공개 범위 변경', requester_changed: '명의 변경', assigned: '담당자 배정',
+    status_changed: '상태 변경', visibility_changed: '공개 범위 변경', requester_changed: '명의 변경', company_changed: '고객사 변경', assigned: '담당자 배정',
     reassigned: '담당자 변경', message_added: '답변 등록',
     attachment_added: '첨부파일 추가', completed: '처리 완료', cancelled: '취소'
   };
   const ACTION_COLORS = {
-    created:'var(--faint)', comment:'var(--muted)', status_changed:'var(--accent)', visibility_changed:'var(--amber)', requester_changed:'var(--amber)',
+    created:'var(--faint)', comment:'var(--muted)', status_changed:'var(--accent)', visibility_changed:'var(--amber)', requester_changed:'var(--amber)', company_changed:'var(--amber)',
     assigned:'var(--accent)', reassigned:'var(--amber)', message_added:'var(--green)',
     completed:'var(--green)', cancelled:'var(--red)'
   };
@@ -11928,9 +11930,9 @@ async function ctLoadCustomers(companyId, selCust, selUnit) {
     const customers = d.customers || [];
     const units = d.units || [];
     if (_ct) _ct.customers = customers;
-    custSel.innerHTML = customers.length
-      ? '<option value="">고객(요청자) 선택</option>' + customers.map(u => `<option value="${u.id}"${u.id === selCust ? ' selected' : ''}>${escHtml(u.name)}${u.email ? ' · ' + escHtml(u.email) : ''}</option>`).join('')
-      : '<option value="">고객 계정 없음 — 사용자 관리에서 먼저 등록</option>';
+    // 요청자는 필수가 아님 — 계정이 없는 고객사도 '미지정'으로 저장 가능(계정 등록 후 재지정).
+    const cuLead = customers.length ? '— 미지정 —' : '— 미지정 (계정 없음 — 등록 후 지정 가능)';
+    custSel.innerHTML = `<option value="">${cuLead}</option>` + customers.map(u => `<option value="${u.id}"${u.id === selCust ? ' selected' : ''}>${escHtml(u.name)}${u.email ? ' · ' + escHtml(u.email) : ''}</option>`).join('');
     orgSel.innerHTML = '<option value="">— 조직 미지정 —</option>' + units.map(u => `<option value="${u.id}"${u.id === selUnit ? ' selected' : ''}>${escHtml(u.unit_no)} · ${escHtml(u.unit_name)}</option>`).join('');
   } catch (e) { console.error('[ct customers]', e); custSel.innerHTML = '<option value="">불러오기 실패</option>'; }
   ctChgNote();
@@ -12010,10 +12012,16 @@ function ctChgNote() {
     parts.push(wantInternal ? '<b>🔒 내부 검토 전환</b>(고객 화면에서 즉시 숨김)' : '<b>일반 전환</b>(즉시 고객에게 표시)');
   }
   const cu = document.getElementById('ct-cust')?.value || '';
+  const coIdN = document.getElementById('ct-company')?.value || '';
   if (cu && cu !== (_ct.custId || '')) {
     const cust = (_ct.customers || []).find(x => x.id === cu);
     const coName = document.getElementById('ct-company-search')?.value || '';
     parts.push(`<b>${escHtml(cust?.name || '')} (${escHtml(coName)})</b> 명의 변경(참조 초기화)`);
+  } else if (!cu && _ct.custId) {
+    parts.push('<b>명의 해제(요청자 미지정)</b> — 참조 초기화, 계정 등록 후 재지정 가능');
+  } else if (coIdN !== (_ct.companyId || '')) {
+    const coName = document.getElementById('ct-company-search')?.value || '';
+    parts.push(coIdN ? `<b>고객사 ${escHtml(coName)}</b> 지정(요청자 미지정 유지)` : '<b>고객사 해제</b>');
   }
   const rg = document.getElementById('ct-registrar')?.value || '';
   if (rg !== (_ct.registrarId || '')) parts.push('대리등록자 변경');
@@ -12033,11 +12041,23 @@ async function saveCorrect() {
   }
   const cu = document.getElementById('ct-cust')?.value || '';
   const un = document.getElementById('ct-org')?.value || '';
+  const coId = document.getElementById('ct-company')?.value || '';
+  const coChanged = coId !== (_ct.companyId || '');
   if (cu && cu !== (_ct.custId || '')) {
     const cuName = document.getElementById('ct-cust')?.selectedOptions?.[0]?.text || '';
     const coName = document.getElementById('ct-company-search')?.value || '';
     if (!confirm(`이 요청의 명의를 ${cuName} (${coName})(으)로 변경할까요?\n메일은 발송되지 않으며, 추가 수신자(참조)는 초기화됩니다.`)) return;
     extra.on_behalf_of = cu;
+    if (un) extra.unit_id = un;
+  } else if (!cu && _ct.custId) {
+    // 명의 해제 — 요청자 미지정으로 전환(고객사·조직은 현재 콤보 값 반영)
+    if (!confirm('이 요청을 요청자 미지정으로 전환할까요?\n명의가 비워지고 추가 수신자(참조)도 초기화됩니다. 계정 등록 후 다시 지정할 수 있습니다.')) return;
+    extra.on_behalf_of = null;
+    if (coChanged) extra.company_id = coId || null;
+    if (un) extra.unit_id = un;
+  } else if (coChanged) {
+    // 요청자 미지정 상태에서 고객사만 지정/변경 — 계정 없는 고객사도 기록 가능
+    extra.company_id = coId || null;
     if (un) extra.unit_id = un;
   } else if (un && un !== (_ct.unitId || '')) {
     extra.unit_id = un;
