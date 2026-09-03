@@ -68,13 +68,26 @@ else
   DRIFT=""
 fi
 
+# ── 2.5) 사이트 스모크 — 실제 API가 HTTP로 살아있나(비파괴). 회귀(Lambda 직접 invoke)는
+# 백엔드 계약만 봐서, Amplify 배포·API Gateway가 밤사이 죽어도 못 잡는다. smoke.sh가 그 빈 곳을
+# 메운다(로그인 엔드포인트·공개 계정문의 생존). 실패해도 회귀는 계속하되, 통지엔 크게 표시한다.
+bash "$HDIR/../smoke.sh" >>"$LOG" 2>&1; SMOKE_RC=$?
+SMOKE_SUM="$(grep -E '^== 결과:' "$LOG" | tail -1 | sed 's/^== //;s/ ==$//')"
+if [ "$SMOKE_RC" -ne 0 ]; then
+  log "🚑 사이트 스모크 실패 — $SMOKE_SUM (실제 API 경로 이상)"
+  SMOKETAG=" · 🚑스모크실패"
+else
+  log "사이트 스모크 OK — $SMOKE_SUM"
+  SMOKETAG=""
+fi
+
 # ── 3) 회귀 실행 ──
 log "회귀 실행…"
 bash "$HDIR/run-regression.sh" >>"$LOG" 2>&1; RC=$?
 SUMMARY="$(grep -E '✅ 회귀 전체 PASS|⚠ 회귀 통과\(불안정|❌ 회귀 실패' "$LOG" | tail -1)"
-FAILS="$(grep -c '^FAIL ' "$LOG" 2>/dev/null || echo 0)"
+FAILS="$(grep -c '^FAIL ' "$LOG" 2>/dev/null)"; FAILS="${FAILS:-0}"
 # flaky = 재시도에서 통과한 불안정 스위트 수(치명 아님). 실행 전체가 PASS여도 있을 수 있다.
-FLAKYN="$(grep -c '^⚠ FLAKY:' "$LOG" 2>/dev/null || echo 0)"
+FLAKYN="$(grep -c '^⚠ FLAKY:' "$LOG" 2>/dev/null)"; FLAKYN="${FLAKYN:-0}"
 log "회귀 종료 rc=$RC / flaky=$FLAKYN / $SUMMARY"
 
 SHA="$(git rev-parse --short HEAD)"
@@ -101,8 +114,16 @@ SHA="$(git rev-parse --short HEAD)"
   else
     EVT=nightly_pass; STC=success; RECIP="$SHA · ${TOTAL}건"; ERRMSG='';
   fi
+  # 사이트 스모크 실패는 회귀 통과여도 실패로 승격한다 — 사용자가 보는 API 경로가 죽은 것이라 red.
+  if [ "$SMOKE_RC" -ne 0 ]; then
+    [ "$STC" = success ] && { EVT=nightly_fail; STC=failed; }
+    ERRMSG="🚑 사이트 스모크 실패(${SMOKE_SUM})${ERRMSG:+ · $ERRMSG}"
+  fi
   HEAD="$([ "$RC" -ne 0 ] && echo "❌ FAIL(${FAILS}건)" || { [ "${FLAKYN:-0}" -gt 0 ] && echo "⚠ PASS(불안정 ${FLAKYN}종)" || echo '✅ PASS'; })"
+  [ "$SMOKE_RC" -ne 0 ] && HEAD="🚑 스모크실패 · $HEAD"
   CONTENT="🌙 새벽 회귀 ${HEAD} — $SHA${DRIFT}
+
+[사이트 스모크] $([ "$SMOKE_RC" -eq 0 ] && echo '✅' || echo '❌') ${SMOKE_SUM}
 
 ${RESULT_LINES}
 
@@ -120,9 +141,11 @@ print('[회귀 알람 기록] status=%s' % r.get('status'))
 PY
 } || true
 
-# ── 5) 결과 통지 ── 실패 / 불안정 / 통과 3분기
+# ── 5) 결과 통지 ── 회귀실패 / 사이트다운 / 불안정 / 통과
 if [ "$RC" -ne 0 ]; then
-  notify_slack "🌙 새벽 회귀 ❌ FAIL($FAILS건) — ${SHA}${DRIFT} · 로그: ${LOG//\\//}"
+  notify_slack "🌙 새벽 회귀 ❌ FAIL($FAILS건)${SMOKETAG} — ${SHA}${DRIFT} · 로그: ${LOG//\\//}"
+elif [ "$SMOKE_RC" -ne 0 ]; then
+  notify_slack "🌙 새벽 회귀 🚑 사이트 스모크 실패(${SMOKE_SUM}) — ${SHA}${DRIFT} · 회귀는 통과했으나 실제 API 경로 이상 · 로그: ${LOG//\\//}"
 elif [ "${FLAKYN:-0}" -gt 0 ]; then
   notify_slack "🌙 새벽 회귀 ⚠ PASS(불안정 ${FLAKYN}종: ${FLAKY_LIST}) — ${SHA}${DRIFT} · 재시도 통과, 경합 의심"
 else
@@ -131,4 +154,6 @@ fi
 
 # 오래된 로그 정리(30일 초과)
 find "$LOGDIR" -name '*.log' -type f -mtime +30 -delete 2>/dev/null || true
-exit $RC
+# 종료코드: 회귀 실패 또는 사이트 스모크 실패면 1 (스케줄러 LastResult로 감지)
+[ "$RC" -ne 0 ] || [ "$SMOKE_RC" -ne 0 ] && exit 1
+exit 0
