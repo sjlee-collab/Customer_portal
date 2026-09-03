@@ -56,7 +56,7 @@ _ctr = [0]
 # schema.sql의 CHECK (col = any (array['a','b',...])) 제약에서 허용값 목록을 뽑는다.
 # 테스트가 상태값·카테고리 등을 하드코딩하는 대신 스키마를 단일 출처로 삼아,
 # 스키마가 바뀌면 계약 테스트가 자동으로 따라가거나 드리프트로 잡히게 한다(안 낡게).
-_SCHEMA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..', 'aws-migration', 'schema.sql')
+_SCHEMA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..', 'backend', 'schema.sql')
 
 
 def schema_values(table, col):

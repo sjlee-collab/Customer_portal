@@ -8,7 +8,7 @@ export AWS_PROFILE="${AWS_PROFILE:-customer_portal}"
 REGION=ap-northeast-2
 KEY="${1:-}"
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"           # Customer_portal 루트
-LDIR="$REPO/aws-migration/lambda"
+LDIR="$REPO/backend/lambda"
 
 case "$KEY" in
   api-layer)      FN=customer-portal_slack_status_change; SRC="$LDIR/api-layer" ;;

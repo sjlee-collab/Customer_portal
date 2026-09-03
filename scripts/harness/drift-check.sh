@@ -17,7 +17,7 @@ set -uo pipefail
 export AWS_PROFILE="${AWS_PROFILE:-customer_portal}"
 REGION=ap-northeast-2
 HDIR="$(cd "$(dirname "$0")" && pwd)"
-LDIR="$(cd "$HDIR/../../aws-migration/lambda" && pwd)"
+LDIR="$(cd "$HDIR/../../backend/lambda" && pwd)"
 
 declare -A FN=(
   [api-layer]=customer-portal_slack_status_change

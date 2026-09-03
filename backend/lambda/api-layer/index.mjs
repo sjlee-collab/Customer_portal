@@ -702,8 +702,9 @@ async function manageTicket(ticketId, body, event) {
   const wantsRequester = Object.prototype.hasOwnProperty.call(body, 'on_behalf_of');
   const wantsUnit = body.unit_id !== undefined;
   const wantsRegistrar = Object.prototype.hasOwnProperty.call(body, 'registered_by');
+  const wantsCompany = Object.prototype.hasOwnProperty.call(body, 'company_id');
   // 권한 관리 화면의 ticket_correct와 연동 — admin은 hasPermission이 항상 통과, 다른 역할은 토글로 부여 가능.
-  if ((wantsVisibility || wantsRequester || wantsUnit || wantsRegistrar)
+  if ((wantsVisibility || wantsRequester || wantsUnit || wantsRegistrar || wantsCompany)
       && !(await hasPermission(authz.role, 'ticket_correct'))) {
     return json(403, { error: '요청 교정(유형·명의·대리등록자) 권한이 없습니다' });
   }
@@ -718,8 +719,37 @@ async function manageTicket(ticketId, body, event) {
   // 명의 변경 — 새 요청자(customer) 기준으로 회사/계약/조직 스냅샷 재계산.
   let requesterSet; // 갱신할 컬럼 모음(키=컬럼명). note는 이력용.
   const requesterChanged = wantsRequester && (body.on_behalf_of || null) !== (prev.created_by ?? null);
-  if (requesterChanged) {
-    if (!body.on_behalf_of) return json(400, { error: '요청자(고객)를 지정해야 합니다' });
+  let companyOnlyNote; // 'company_changed' 이력용 — 명의는 그대로 두고 고객사만 바꿀 때
+  if (requesterChanged && !body.on_behalf_of) {
+    // ── 명의 해제(요청자 미지정) — 계정이 아직 없는 고객사 건 등. created_by를 비우고
+    //    고객사·조직은 함께 온 값(없으면 기존)을 스냅샷. 참조(cc)는 아래 공통 로직이 초기화.
+    let newCompanyId = prev.company_id ?? null;
+    if (wantsCompany) {
+      newCompanyId = body.company_id || null;
+      if (newCompanyId) {
+        const co = await query('select id from companies where id=$1', [newCompanyId]);
+        if (!co[0]) return json(400, { error: '존재하지 않는 고객사입니다' });
+      }
+    }
+    const newCompanyName = await getCompanyName(newCompanyId);
+    let newUnitId = null, newUnitName = null;
+    if (wantsUnit && body.unit_id) {
+      const u = await query('select unit_name from org_units where id=$1 and company_id=$2', [body.unit_id, newCompanyId]);
+      if (!u[0]) return json(403, { error: '해당 고객사 소속 조직이 아닙니다' });
+      newUnitId = body.unit_id; newUnitName = u[0].unit_name;
+    } else if (newCompanyId === (prev.company_id ?? null)) {
+      newUnitId = prev.unit_id ?? null; newUnitName = prev.unit_name ?? null; // 회사 그대로면 조직 유지
+    }
+    requesterSet = {
+      created_by: null, created_by_name: null,
+      company_id: newCompanyId, company_name: newCompanyName,
+      contract_id: null, unit_id: newUnitId, unit_name: newUnitName,
+    };
+    const prevLabel = prev.created_by_name
+      ? `${prev.created_by_name}${prev.company_name && prev.company_name !== '-' ? `(${prev.company_name})` : ''}`
+      : '미지정';
+    requesterSet._note = `${prevLabel} → 미지정${newCompanyName !== '-' ? `(${newCompanyName})` : ''}`;
+  } else if (requesterChanged) {
     const target = await getUser(body.on_behalf_of);
     if (!target || target.role !== 'customer') return json(400, { error: '요청자는 고객 계정이어야 합니다' });
     const tUnits = Array.isArray(target.unit_ids) ? target.unit_ids : [];
@@ -744,13 +774,42 @@ async function manageTicket(ticketId, body, event) {
       ? `${prev.created_by_name}${prev.company_name && prev.company_name !== '-' ? `(${prev.company_name})` : ''}`
       : '미지정';
     requesterSet._note = `${prevLabel} → ${target.name}(${newCompanyName})`;
+  } else if (wantsCompany && (body.company_id || null) !== (prev.company_id ?? null)) {
+    // ── 고객사만 지정/변경 — 명의(요청자)는 그대로. 고객 명의가 붙어 있으면 회사-명의가
+    //    어긋나므로 거부(요청자를 함께 바꾸거나 해제해야 함). 미지정/스태프 명의 건 전용.
+    if (prev.created_by) {
+      const pr = await getUser(prev.created_by);
+      if (pr && pr.role === 'customer') return json(400, { error: '고객 명의가 지정된 요청은 고객사만 바꿀 수 없습니다 — 요청자를 함께 변경하거나 해제하세요' });
+    }
+    const newCompanyId = body.company_id || null;
+    if (newCompanyId) {
+      const co = await query('select id from companies where id=$1', [newCompanyId]);
+      if (!co[0]) return json(400, { error: '존재하지 않는 고객사입니다' });
+    }
+    const newCompanyName = await getCompanyName(newCompanyId);
+    let newUnitId = null, newUnitName = null;
+    if (wantsUnit && body.unit_id) {
+      const u = await query('select unit_name from org_units where id=$1 and company_id=$2', [body.unit_id, newCompanyId]);
+      if (!u[0]) return json(403, { error: '해당 고객사 소속 조직이 아닙니다' });
+      newUnitId = body.unit_id; newUnitName = u[0].unit_name;
+    }
+    requesterSet = { company_id: newCompanyId, company_name: newCompanyName, unit_id: newUnitId, unit_name: newUnitName };
+    const prevCo = prev.company_name && prev.company_name !== '-' ? prev.company_name : '미지정';
+    companyOnlyNote = `${prevCo} → ${newCompanyName !== '-' ? newCompanyName : '미지정'}`;
   } else if (wantsUnit && body.unit_id && body.unit_id !== (prev.unit_id ?? null)) {
-    // 명의는 그대로, 조직만 변경 — 현 요청자의 배정 조직만 허용
-    const requester = await getUser(prev.created_by);
-    const rUnits = Array.isArray(requester?.unit_ids) ? requester.unit_ids : [];
-    if (!rUnits.includes(body.unit_id)) return json(403, { error: '해당 고객에게 배정되지 않은 조직입니다' });
-    const u = await query('select unit_name from org_units where id=$1', [body.unit_id]);
-    if (u[0]?.unit_name) requesterSet = { unit_id: body.unit_id, unit_name: u[0].unit_name };
+    // 명의는 그대로, 조직만 변경. 고객 명의 건은 그 고객의 배정 조직만,
+    // 요청자 미지정/스태프 명의 건은 티켓 고객사 소속 조직이면 허용.
+    const requester = prev.created_by ? await getUser(prev.created_by) : null;
+    if (requester && requester.role === 'customer') {
+      const rUnits = Array.isArray(requester.unit_ids) ? requester.unit_ids : [];
+      if (!rUnits.includes(body.unit_id)) return json(403, { error: '해당 고객에게 배정되지 않은 조직입니다' });
+      const u = await query('select unit_name from org_units where id=$1', [body.unit_id]);
+      if (u[0]?.unit_name) requesterSet = { unit_id: body.unit_id, unit_name: u[0].unit_name };
+    } else {
+      const u = await query('select unit_name from org_units where id=$1 and company_id=$2', [body.unit_id, prev.company_id ?? null]);
+      if (!u[0]) return json(403, { error: '해당 고객사 소속 조직이 아닙니다' });
+      requesterSet = { unit_id: body.unit_id, unit_name: u[0].unit_name };
+    }
   }
 
   // 대리등록자 — 표기 스냅샷(registered_by) 변경. 스태프 본인 명의로 잘못 등록된 건을
@@ -832,6 +891,12 @@ async function manageTicket(ticketId, body, event) {
       await q(
         `insert into ticket_history (ticket_id, action, note, changed_by, changed_by_name) values ($1,'requester_changed',$2,$3,$4)`,
         [ticketId, requesterSet._note, changed_by ?? null, changed_by_name ?? null]
+      );
+    }
+    if (companyOnlyNote) {
+      await q(
+        `insert into ticket_history (ticket_id, action, note, changed_by, changed_by_name) values ($1,'company_changed',$2,$3,$4)`,
+        [ticketId, companyOnlyNote, changed_by ?? null, changed_by_name ?? null]
       );
     }
     return finalRow;
@@ -1201,6 +1266,121 @@ async function statsSystem(event) {
       order by created_at desc limit 10`);
 
   return json(200, { noti, byEvent, notiFails, bySystem, duration: dur, integFails });
+}
+
+// ── GET /stats/activity ──
+// 사용 통계 > 고객 활동 탭. "어떤 고객이 어떤 액션을 했는지"를 한 줄씩 — 이미 기록 중인
+// 6개 원천(로그인·요청 등록·답글·첨부·자료 다운로드·만족도 평가)을 UNION해 시간순 피드로 만든다.
+// 새 수집 없음. 고객 역할의 행위만 모으고, 테스트 계정·[테스트] 데이터는 접속 지표와 같은
+// 기준으로 제외한다. 답글·첨부는 이름 스냅샷이 없어 users 조인 — 계정 삭제 시 '(삭제된 사용자)'.
+// 쿼리스트링: days(0|7|30|90), kind(login|ticket|reply|attach|download|rate), q(이름·고객사),
+//             limit/offset(피드 페이지네이션).
+async function statsActivity(event) {
+  const authz = getAuthz(event);
+  if (!(await hasPermission(authz.role, 'stats_view'))) return json(403, { error: '권한이 없습니다' });
+
+  const qs = event.queryStringParameters || {};
+  const days = [0, 7, 30, 90].includes(parseInt(qs.days, 10)) ? parseInt(qs.days, 10) : 30;
+  const KINDS = new Set(['login', 'ticket', 'reply', 'attach', 'download', 'rate']);
+  const kind = KINDS.has(qs.kind) ? qs.kind : '';
+  const q = (qs.q || '').trim();
+  const limit = Math.min(100, Math.max(1, parseInt(qs.limit, 10) || 30));
+  const offset = Math.max(0, parseInt(qs.offset, 10) || 0);
+
+  const TESTU = `u.email not like 'test.%@bigxdata.io' and u.name not like '[테스트]%'`;
+  // 각 원천을 (시각, 종류, 사람, 고객사, 대상번호, 대상라벨)로 정규화한다.
+  const CTE = `
+    select le.created_at at, 'login' kind,
+           coalesce(nullif(le.user_name,''), '(삭제된 사용자)') uname,
+           coalesce(le.company_name, '') comp, null::text obj_no, null::text obj_label
+      from login_events le
+     where le.role = 'customer' and ${LE_REAL}
+    union all
+    select t.created_at, 'ticket', u.name, coalesce(t.company_name, ''), t.ticket_number, t.title
+      from tickets t join users u on u.id = t.created_by
+     where u.role = 'customer' and ${TESTU} and t.title not like '[테스트]%'
+    union all
+    select r.created_at, 'reply', coalesce(u.name, '(삭제된 사용자)'), coalesce(t.company_name, ''),
+           t.ticket_number, left(regexp_replace(coalesce(r.note, ''), '<[^>]+>', '', 'g'), 60)
+      from ticket_replies r
+      join users u on u.id = r.changed_by
+      left join tickets t on t.id = r.ticket_id
+     where u.role = 'customer' and ${TESTU}
+    union all
+    select a.created_at, 'attach', coalesce(u.name, '(삭제된 사용자)'), coalesce(t.company_name, ''),
+           t.ticket_number, a.file_name
+      from ticket_attachments a
+      join users u on u.id = a.uploaded_by
+      left join tickets t on t.id = a.ticket_id
+     where u.role = 'customer' and ${TESTU}
+    union all
+    select d.created_at, 'download', coalesce(nullif(d.user_name,''), '(삭제된 사용자)'),
+           coalesce(d.company_name, ''), null::text, d.doc_title
+      from document_downloads d
+     where d.role = 'customer'
+       and (d.user_name is null or d.user_name not like '[테스트]%')
+       and (d.user_id is null or d.user_id not in (select id from users where email like 'test.%@bigxdata.io'))
+    union all
+    select t.rated_at, 'rate', u.name, coalesce(t.company_name, ''),
+           t.ticket_number, t.satisfaction_rating::text
+      from tickets t join users u on u.id = t.created_by
+     where t.rated_at is not null and u.role = 'customer' and ${TESTU}`;
+
+  const period = days > 0 ? `at >= now() - interval '${days} days'` : 'true';
+
+  // 피드(종류·검색 모두 적용)
+  const pw = [], fc = [period];
+  if (kind) { pw.push(kind); fc.push(`kind = $${pw.length}`); }
+  if (q) { pw.push('%' + q + '%'); fc.push(`(uname ilike $${pw.length} or comp ilike $${pw.length})`); }
+  const feedWhere = 'where ' + fc.join(' and ');
+  const rows = await query(
+    `with act as (${CTE})
+     select to_char(at at time zone 'Asia/Seoul', 'YYYY-MM-DD') d,
+            to_char(at at time zone 'Asia/Seoul', 'HH24:MI') tm,
+            kind, uname, comp, obj_no, obj_label
+       from act ${feedWhere} order by at desc limit ${limit} offset ${offset}`, pw);
+  const [{ n: total }] = await query(
+    `with act as (${CTE}) select count(*)::int n from act ${feedWhere}`, pw);
+
+  // 구성·요약(종류 칩과 무관 — 구성을 보여주는 게 목적이므로 기간·검색만 적용)
+  const sw = [], sc = [period];
+  if (q) { sw.push('%' + q + '%'); sc.push(`(uname ilike $${sw.length} or comp ilike $${sw.length})`); }
+  const sumWhere = 'where ' + sc.join(' and ');
+  const byKind = await query(
+    `with act as (${CTE}) select kind, count(*)::int n from act ${sumWhere} group by 1`, sw);
+  const [who] = await query(
+    `with act as (${CTE})
+     select count(distinct uname)::int users, count(distinct nullif(comp, ''))::int companies
+       from act ${sumWhere}`, sw);
+  // "로그인만 하고 나감" — 로그인은 있는데 다른 액션이 0인 사람의 비율. 이 탭에서만 나오는 신호:
+  // 들어와서 아무것도 못 찾고 나간 방문이 얼마나 되는가.
+  const [lonly] = await query(
+    `with act as (${CTE}), pu as (
+       select uname,
+              count(*) filter (where kind = 'login')::int l,
+              count(*) filter (where kind <> 'login')::int o
+         from act ${sumWhere} group by 1)
+     select count(*) filter (where l > 0 and o = 0)::int only_login,
+            count(*) filter (where l > 0)::int logged from pu`, sw);
+  const byUser = await query(
+    `with act as (${CTE})
+     select uname, max(comp) comp,
+            count(*) filter (where kind = 'login')::int login,
+            count(*) filter (where kind = 'ticket')::int ticket,
+            count(*) filter (where kind in ('reply','attach'))::int reply,
+            count(*) filter (where kind = 'download')::int download,
+            count(*) filter (where kind = 'rate')::int rate,
+            count(*)::int total
+       from act ${sumWhere} group by 1 order by total desc limit 8`, sw);
+
+  return json(200, {
+    total, rows, byKind, byUser,
+    summary: {
+      users: who.users, companies: who.companies,
+      onlyLogin: lonly.only_login, logged: lonly.logged,
+      onlyLoginPct: lonly.logged ? Math.round((lonly.only_login / lonly.logged) * 100) : 0,
+    },
+  });
 }
 
 // ── GET /stats/satisfaction ──
@@ -1951,7 +2131,8 @@ async function runLicenseExpiryNotice(event) {
        left join company_contracts ct on ct.id = l.contract_id
       where l.status = '활성'
         and l.quantity is not null and l.quantity > 0
-        and (l.end_date = $1 or l.renewal_date = $1)${onlyTest ? " and c.name like '[테스트]%'" : ''}
+        and (l.end_date = $1 or l.renewal_date = $1)
+        ${onlyTest ? " and c.name like '[테스트]%'" : " and c.name not like '[테스트]%'"}
       group by c.name, ct.contract_name, ct.bixs_contact, ct.status,
                ct.start_date, ct.end_date,
                l.product_info, l.end_date, l.renewal_date
@@ -1965,8 +2146,9 @@ async function runLicenseExpiryNotice(event) {
   const renewRows = rows.filter(r => r.renewal_date === targetDate);
 
   // 해당 종류가 0건이면 그 메시지는 보내지 않는다 — 매일 "0건" 알림은 소음이다.
-  if (endRows.length)   await notifySlack({ type: 'LICENSE_EXPIRY', kind: 'end',     targetDate, licenses: endRows });
-  if (renewRows.length) await notifySlack({ type: 'LICENSE_EXPIRY', kind: 'renewal', targetDate, licenses: renewRows });
+  // only_test(직접 invoke)면 알림도 테스트로 표시해 테스트 채널로만 보낸다.
+  if (endRows.length)   await notifySlack({ type: 'LICENSE_EXPIRY', kind: 'end',     targetDate, licenses: endRows,   isTest: onlyTest });
+  if (renewRows.length) await notifySlack({ type: 'LICENSE_EXPIRY', kind: 'renewal', targetDate, licenses: renewRows, isTest: onlyTest });
   return json(200, { targetDate, expiring: endRows.length, renewing: renewRows.length });
 }
 
@@ -2067,6 +2249,9 @@ export const handler = async (event) => {
     }
     if (method === 'GET' && path === '/stats/satisfaction') {
       return await statsSatisfaction(event);
+    }
+    if (method === 'GET' && path === '/stats/activity') {
+      return await statsActivity(event);
     }
     if (method === 'POST' && path === '/docs/download-event') {
       return await docDownloadEvent(event, body);

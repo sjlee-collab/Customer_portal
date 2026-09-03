@@ -235,7 +235,7 @@ async function tenantRowFilterSql(table, authz, paramOffset, qs) {
         : { sql: '1=0', params: [] };
     }
     // 명의 변경(requester_changed) 이력은 이전 명의(타사/스태프)가 note에 남으므로 고객에겐 숨긴다.
-    if (table === 'ticket_history') childScope.sql += ` and "action" <> 'requester_changed'`;
+    if (table === 'ticket_history') childScope.sql += ` and "action" not in ('requester_changed','company_changed')`;
     return childScope;
   }
   return null;

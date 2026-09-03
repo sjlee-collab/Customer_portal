@@ -5,23 +5,23 @@
 ## 1) 프론트만 (index.html)
 - [ ] 편집
 - [ ] `node scripts/harness/l2-smoke.mjs` — 문법·핸들러·DOM id 정적 검사(1초, 필수)
-- [ ] 로컬 프리뷰(.claude/launch.json)로 콘솔 에러 0 / 핵심 렌더 확인 (L2 런타임: scripts/smoke-frontend.js)
+- [ ] 로컬 프리뷰(.claude/launch.json)로 콘솔 에러 0 / 핵심 렌더 확인 (L2 런타임: scripts/harness/smoke-frontend.js)
 - [ ] `guard-commit.sh index.html` → commit → `promote.sh`
 
 ## 2) data-api 변경 (범용 CRUD/권한/격리 로직)
-- [ ] `aws-migration/lambda/data-api/index.mjs` 편집
+- [ ] `backend/lambda/data-api/index.mjs` 편집
 - [ ] `deploy-fn.sh data-api` (drift 진단 → 배포 → data-api 스모크)
 - [ ] `run-regression.sh` (권한/격리/삭제/고객 전 기능 재검증)
 - [ ] guard-commit(소스+필요시 index.html) → commit → promote
 
 ## 3) api-layer 변경 (티켓 액션/알림/인증)
-- [ ] `aws-migration/lambda/api-layer/index.mjs` 편집 (⚠ db/notify/jwt.mjs는 그대로 두면 됨 — deploy-fn이 4개 다 포함)
+- [ ] `backend/lambda/api-layer/index.mjs` 편집 (⚠ db/notify/jwt.mjs는 그대로 두면 됨 — deploy-fn이 4개 다 포함)
 - [ ] `deploy-fn.sh api-layer` (로그인 스모크까지)
 - [ ] `run-regression.sh`
 - [ ] commit → promote
 
 ## 4) DDL (스키마/제약 변경) — 5432 직접접속 불가
-- [ ] `aws-migration/schema.sql` 갱신(소스 동기화)
+- [ ] `backend/schema.sql` 갱신(소스 동기화)
 - [ ] 마이그레이션 경로로 실제 적용: public-inquiry `__migrate` 임시 패치 → invoke `{"__migrate":true}` → **원복**
       (단일 statement씩 실행, 제약 변경은 기존목록의 상위집합으로 ADD해야 안전)
 - [ ] 적용 검증(대상 테이블 조회)

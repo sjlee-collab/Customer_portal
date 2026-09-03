@@ -3,9 +3,9 @@
 # 고객지원포탈 백엔드 스모크 테스트 — 핵심 API 경로가 살아있는지 빠르게(비파괴) 점검.
 #
 # 사용법:
-#   scripts/smoke.sh                         # 비인증 경로만 (로그인 없이 안전)
-#   SMOKE_EMAIL=... SMOKE_PASSWORD=... scripts/smoke.sh   # 로그인·조회 경로까지
-#   API_BASE=https://dev... scripts/smoke.sh # dev 등 다른 환경 대상
+#   scripts/harness/smoke.sh                         # 비인증 경로만 (로그인 없이 안전)
+#   SMOKE_EMAIL=... SMOKE_PASSWORD=... scripts/harness/smoke.sh   # 로그인·조회 경로까지
+#   API_BASE=https://dev... scripts/harness/smoke.sh # dev 등 다른 환경 대상
 #
 # 성격: 전부 읽기전용/비파괴. account-inquiry는 허니팟 값이라 DB·Slack 미발생.
 # 종료코드: 실패 0건이면 0, 하나라도 실패면 1 (CI/배포 후 훅에서 사용 가능)

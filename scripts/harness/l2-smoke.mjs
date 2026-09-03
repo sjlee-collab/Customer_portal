@@ -10,7 +10,7 @@
 //   1) <script> 블록별 문법 컴파일(vm) — 오타·괄호 불일치 등 파싱 단계 오류
 //   2) HTML 인라인 핸들러(onclick 등)가 부르는 함수가 정의돼 있는지 — 함수 리네임 누락
 //   3) JS의 getElementById/querySelector('#id') 리터럴이 실제 id로 존재하는지 — DOM 리네임 누락
-//   4) 수동 스모크(scripts/smoke-frontend.js)가 확인하는 함수·DOM id 목록을 그대로 읽어
+//   4) 수동 스모크(scripts/harness/smoke-frontend.js)가 확인하는 함수·DOM id 목록을 그대로 읽어
 //      정의 여부를 검사 — 수동 체크리스트와 단일 출처
 //
 // 한계(정직하게): 실행하지 않으므로 런타임 오류(undefined 접근, 잘못된 데이터 바인딩)와
@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const htmlPath = process.argv[2] || path.join(here, '..', '..', 'index.html');
-const smokePath = path.join(here, '..', 'smoke-frontend.js');
+const smokePath = path.join(here, 'smoke-frontend.js');
 
 const html = fs.readFileSync(htmlPath, 'utf8');
 const results = [];

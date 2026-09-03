@@ -34,17 +34,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **계정:** 605163667429 / **리전:** ap-northeast-2 (서울)
 - **RDS:** 인스턴스 식별자 `csdb` (PostgreSQL 18.3, DB명 `customer_portal`), 엔드포인트 `csdb.cngoihiekj6q.ap-northeast-2.rds.amazonaws.com:5432`. 기본적으로 퍼블릭 액세스 꺼짐 + 보안그룹(`sg-034f2d418a20a6f95`)에서 특정 IP만 허용. 마스터 비밀번호는 Secrets Manager 관리형 시크릿(`rds!db-...`).
 - **API Gateway:** `https://8xbmazu4ij.execute-api.ap-northeast-2.amazonaws.com` — index.html의 `API_BASE`가 이 주소를 호출.
-  - `/data/:table` — `data-api` Lambda, PostgREST 흉내낸 범용 CRUD (허용 테이블 16개, `aws-migration/lambda/data-api/index.mjs` 참고)
+  - `/data/:table` — `data-api` Lambda, PostgREST 흉내낸 범용 CRUD (허용 테이블 16개, `backend/lambda/data-api/index.mjs` 참고)
   - `/tickets`, `/tickets/{id}/status|assign|reply|manage`, `/auth/*`, `/my/account-manager` — `api-layer` Lambda (알림·이력이 걸리는 액션 + 인증)
   - `/storage/upload-url|remove|signed-url` — `storage-api` Lambda (S3 presigned URL 발급)
-- **Lambda 배포 함수명 매핑(소스 폴더 ↔ 실제 함수명 다름 주의):** `aws-migration/lambda/data-api` → `customer_portal_data-api` · `jwt-authorizer` → `customer_portal_jwt-authorizer` · `storage-api` → `customer_portal_storage-api` · `notify-handler` → `customer_portal_notify-handler` · `send-email` → `customer_portal_send-email` · `public-inquiry` → `customer_portal_public-inquiry` · **`api-layer` → `customer-portal_slack_status_change`**(이름이 안 맞음).
+- **Lambda 배포 함수명 매핑(소스 폴더 ↔ 실제 함수명 다름 주의):** `backend/lambda/data-api` → `customer_portal_data-api` · `jwt-authorizer` → `customer_portal_jwt-authorizer` · `storage-api` → `customer_portal_storage-api` · `notify-handler` → `customer_portal_notify-handler` · `send-email` → `customer_portal_send-email` · `public-inquiry` → `customer_portal_public-inquiry` · **`api-layer` → `customer-portal_slack_status_change`**(이름이 안 맞음).
 - **계정 문의(공개 엔드포인트)** (2026-08-14): 로그인 전 "담당자에게 문의" 폼 → `POST /public/account-inquiry`(**인증 NONE** — 공개 라우트). Lambda `customer_portal_public-inquiry`(data-api와 동일 VPC/서브넷 `subnet-0749…`/SG `sg-01c9…`/DB 시크릿·실행역할 재사용, 메모리 512MB, env에 공통 웹훅 `SLACK_WEEBHOOK_COMMON`)가 검증→`account_inquiries` insert→**공통 Slack 채널(#고객지원포탈-공통)** 발송(전용 채널 계획은 철회)→**관리자(role=admin) 이메일 알림**(2026-08-14 추가: DB에서 admin 이메일 조회 후 `send-email` Lambda를 비동기(Event) direct-invoke, type `ACCOUNT_INQUIRY`). send-email 호출 위해 공유 실행역할(`customer_portal_data-api-role-vcnec06f`)에 인라인 정책 `invoke-send-email`(send-email ARN 한정) 추가, public-inquiry에 `@aws-sdk/client-lambda` 의존성 추가. 남용 방지: 허니팟(`website` 필드)·필수/이메일/길이 검증. 테이블 생성은 이 Lambda 직접 invoke `{"__migrate":true}`(HTTP 경유 아닐 때만). 관리자 조회 화면은 미구현(Phase 2, data-api ALLOWED_TABLES 미등록).
   - ⚠️ **api-layer 재배포 시 소스 4개(`index.mjs`·`db.mjs`·`notify.mjs`·`jwt.mjs`)를 모두 zip에 넣어야 한다.** `index.mjs`만 교체하면 `db.mjs`의 `withTransaction` 등 누락으로 **로그인 전체 순단**이 난다(2026-08-12 실제 발생). data-api/jwt-authorizer도 각자 소스 파일 전체 동봉.
 - **보안 헤더 / CSP:** 레포 루트 `customHttp.yml`이 Amplify에 적용됨 — `default-src/script-src/style-src/font-src 'self'`, img/connect는 API GW·S3 버킷만 허용. 즉 **외부 CDN 폰트·스크립트는 CSP로 차단**되므로 자체 호스팅 또는 인라인(+필요 시 `data:` 허용) 해야 한다. (artifacts와 무관, 운영 사이트 한정)
   - `/functions/:fnName` — `notify-handler`(Slack), `send-email`(Outlook/MS Graph API) Lambda 호출
 - **S3 버킷:** `bigxdata-portal-contract-attachments`(비공개), `bigxdata-portal-documents`(공개), `bigxdata-portal-ticket-attachments`(공개)
 - **NAT 인스턴스** `customer-portal-nat`(t3.micro): `lambda-private-subnet`(172.31.100.0/24)의 인터넷 아웃바운드 전용 (NAT Gateway 대신 비용 절감)
-- **스키마/Lambda 소스:** 레포 내 `aws-migration/schema.sql`, `aws-migration/lambda/{api-layer,data-api,jwt-authorizer,notify-handler,send-email,storage-api}/`
+- **스키마/Lambda 소스:** 레포 내 `backend/schema.sql`, `backend/lambda/{api-layer,data-api,jwt-authorizer,notify-handler,send-email,storage-api}/`
 - **IAM 사용자:** `customer_portal` (CLI 연동용, 세션마다 자격증명 발급받아 사용)
 - **샌드박스 네트워크 제약:** 원격 세션 환경은 443(HTTPS) 아웃바운드만 허용되고 5432 등 다른 포트는 막혀있어 RDS 직접 psql 접속 불가 — DB 데이터 확인은 위 API Gateway(`/data/:table`)를 통해 할 것. 로컬 세션에서는 이 제약이 없음.
 
@@ -118,8 +118,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### 스모크 테스트(회귀 안전망)
 배포/리팩터 후 핵심 경로가 살아있는지 빠르게(비파괴) 점검한다. `amplify.yml`이 `index.html`만 배포하므로 `scripts/`는 웹에 노출되지 않는다.
-- **백엔드**: `bash scripts/smoke.sh` (비인증 경로) / `SMOKE_EMAIL=.. SMOKE_PASSWORD=.. bash scripts/smoke.sh` (로그인·조회까지). 로그인 엔드포인트·계정신청(허니팟 비파괴)·인증보호·(선택)티켓조회 확인, 실패 시 종료코드 1.
-- **프론트**: `scripts/smoke-frontend.js` 내용을 브라우저 콘솔에 붙여넣기 → 폼 옵션 채움·통합 함수(openDocModal/filterPop*)·렌더러·핵심 DOM 존재를 즉시 확인. 로컬 검증은 `.claude/launch.json`의 static 서버(preview)로 로그인 없이 가능.
+- **백엔드**: `bash scripts/harness/smoke.sh` (비인증 경로) / `SMOKE_EMAIL=.. SMOKE_PASSWORD=.. bash scripts/harness/smoke.sh` (로그인·조회까지). 로그인 엔드포인트·계정신청(허니팟 비파괴)·인증보호·(선택)티켓조회 확인, 실패 시 종료코드 1.
+- **프론트**: `scripts/harness/smoke-frontend.js` 내용을 브라우저 콘솔에 붙여넣기 → 폼 옵션 채움·통합 함수(openDocModal/filterPop*)·렌더러·핵심 DOM 존재를 즉시 확인. 로컬 검증은 `.claude/launch.json`의 static 서버(preview)로 로그인 없이 가능.
 
 ### 3. 개발현황.html 수정 금지
 이 채팅에서 진척 보고 요청이 와도 `개발현황.html` 파일은 건드리지 않는다.
