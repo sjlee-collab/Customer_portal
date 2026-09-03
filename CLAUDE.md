@@ -74,8 +74,8 @@
 
 ### 스모크 테스트(회귀 안전망)
 배포/리팩터 후 핵심 경로가 살아있는지 빠르게(비파괴) 점검한다. `amplify.yml`이 `index.html`만 배포하므로 `scripts/`는 웹에 노출되지 않는다.
-- **백엔드**: `bash scripts/smoke.sh` (비인증 경로) / `SMOKE_EMAIL=.. SMOKE_PASSWORD=.. bash scripts/smoke.sh` (로그인·조회까지). 로그인 엔드포인트·계정신청(허니팟 비파괴)·인증보호·(선택)티켓조회 확인, 실패 시 종료코드 1.
-- **프론트**: `scripts/smoke-frontend.js` 내용을 브라우저 콘솔에 붙여넣기 → 폼 옵션 채움·통합 함수(openDocModal/filterPop*)·렌더러·핵심 DOM 존재를 즉시 확인. 로컬 검증은 `.claude/launch.json`의 static 서버(preview)로 로그인 없이 가능.
+- **백엔드**: `bash scripts/harness/smoke.sh` (비인증 경로) / `SMOKE_EMAIL=.. SMOKE_PASSWORD=.. bash scripts/harness/smoke.sh` (로그인·조회까지). 로그인 엔드포인트·계정신청(허니팟 비파괴)·인증보호·(선택)티켓조회 확인, 실패 시 종료코드 1.
+- **프론트**: `scripts/harness/smoke-frontend.js` 내용을 브라우저 콘솔에 붙여넣기 → 폼 옵션 채움·통합 함수(openDocModal/filterPop*)·렌더러·핵심 DOM 존재를 즉시 확인. 로컬 검증은 `.claude/launch.json`의 static 서버(preview)로 로그인 없이 가능.
 
 ### 3. 개발현황.html 수정 금지
 이 채팅에서 진척 보고 요청이 와도 `개발현황.html` 파일은 건드리지 않는다.

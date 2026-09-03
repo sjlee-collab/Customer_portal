@@ -8,7 +8,7 @@
 
 ## 표준 변경 루프
 1. 편집(레포 소스)
-2. 프론트 스모크(프리뷰 콘솔·렌더 / `tests/smoke_frontend.js`)
+2. 프론트 스모크(프리뷰 콘솔·렌더 / `smoke-frontend.js`)
 3. 백엔드면 `deploy-fn.sh <fn>` — drift 진단·배포·스모크
 4. DDL이면 마이그레이션 경로 적용 + 검증 (CHECKLIST 4번)
 5. `run-regression.sh` — L1(권한/격리)+L1(삭제)+L1‑C(고객 전 기능)
@@ -78,7 +78,7 @@
 - `tests/test_schema_contract.py` — **스키마 계약(안 낡게)**: schema.sql의 CHECK 허용값을 파싱해 ① 라이브 DB가 전부 수용·불량값 거부(스키마↔배포 드리프트 감지) ② test_ticket_status 상태 커버리지 = 스키마−received(값 추가 시 미반영 경고)
 - `tests/test_auth.py` — 인증: 로그인 분기(404/401) · 비밀번호 변경/확인 · 재설정(무효 토큰·요청(request-reset)·관리자 재설정·권한상승 차단) · 초대 · 담당영업 조회
 - `tests/test_customer_e2e.py` — **고객 계정 전 기능 정상성**(등록·목록·상세·수정·답글·첨부·계약/자료 조회·내정보) + 보안 차단
-- L2 프론트: `l2-smoke.mjs`(정적, 자동) + `scripts/smoke-frontend.js`(콘솔 붙여넣기 — 런타임·렌더 확인은 여전히 이쪽)
+- L2 프론트: `l2-smoke.mjs`(정적, 자동) + `scripts/harness/smoke-frontend.js`(콘솔 붙여넣기 — 런타임·렌더 확인은 여전히 이쪽)
 - 데이터 원칙: `[테스트]` 라벨 + admin 직접 insert(알림 없음) + 종료 시 정리(+ 잔여물 `sweep`). 개별 실행: `python scripts/harness/tests/test_customer_e2e.py`
 - **슬랙 원칙 — `[테스트]` 라벨로 자동 라우팅(필수)**: notify-handler·public-inquiry는 알림 대상 데이터의 **제목/기업명이 `[테스트]`로 시작하면**
   실 채널(공통/영업/기술지원/교육) 대신 **테스트 전용 채널로만** 보낸다(운영 알림은 항상 실 채널). 메시지 본문에 `(원래 대상: 채널명)`이 붙어 어디로 갈 알림이었는지 알 수 있다.
