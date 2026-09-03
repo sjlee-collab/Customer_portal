@@ -2655,12 +2655,18 @@ textarea{resize:vertical;min-height:100px;}
             </div>
 
             <div class="card" style="margin-bottom:0;">
-              <div class="card-title">사용자별 활동 요약 <span style="font-size:11px;color:var(--faint);font-weight:400;">기간 합계 · 상위 8명 · 행 클릭 시 그 사람만</span></div>
+              <div class="card-title">사용자별 활동 요약 <span id="fd-byuser-sub" style="font-size:11px;color:var(--faint);font-weight:400;">기간 합계 · 상위 8명 · 행 클릭 시 그 사람만</span></div>
               <div class="tbl-scroll"><table class="tbl tbl-compact" style="min-width:460px;">
-                <thead><tr><th>사용자</th><th style="text-align:right;">🔑</th><th style="text-align:right;">📮</th><th style="text-align:right;">💬</th><th style="text-align:right;">📥</th><th style="text-align:right;">⭐</th><th style="text-align:right;">계</th></tr></thead>
+                <thead><tr><th>사용자</th>
+                  <th style="text-align:right;" title="로그인">🔑</th>
+                  <th style="text-align:right;" title="요청 등록">📮</th>
+                  <th style="text-align:right;" title="답글 + 첨부">💬📎</th>
+                  <th style="text-align:right;" title="자료 다운로드">📥</th>
+                  <th style="text-align:right;" title="만족도 평가">⭐</th>
+                  <th style="text-align:right;" title="합계">계</th></tr></thead>
                 <tbody id="fd-byuser"></tbody>
               </table></div>
-              <div class="rq-note" style="margin-top:12px;">🔑 로그인 · 📮 요청 등록 · 💬 답글+첨부 · 📥 다운로드 · ⭐ 평가.
+              <div class="rq-note" style="margin-top:12px;">🔑 로그인 · 📮 요청 등록 · 💬📎 답글+첨부 · 📥 다운로드 · ⭐ 평가.
                 로그인만 반복하고 다른 액션이 없는 패턴은 찾는 걸 못 찾고 있다는 신호일 수 있습니다.</div>
             </div>
           </div>
@@ -8473,7 +8479,15 @@ async function loadActivity(more) {
   if (!d) { feedEl.innerHTML = '<div class="rq-empty">활동 내역을 불러오지 못했습니다.</div>'; return; }
 
   _fdTotal = d.total || 0;
-  if (!more) { _fdRenderKpis(d); _fdRenderByUser(d.byUser || []); }
+  if (!more) {
+    _fdRenderKpis(d);
+    _fdRenderByUser(d.byUser || []);
+    // 표도 같은 조건으로 집계되므로 필터가 걸린 상태를 제목 옆에 밝힌다.
+    const bu = document.getElementById('fd-byuser-sub');
+    if (bu) bu.textContent = _fdKind
+      ? `${FD_META[_fdKind] ? FD_META[_fdKind].ko : _fdKind}만 · 상위 8명 · 행 클릭 시 그 사람만`
+      : '기간 합계 · 상위 8명 · 행 클릭 시 그 사람만';
+  }
   _fdRenderFeed(d.rows || [], more);
   _fdOffset += (d.rows || []).length;
   document.getElementById('fd-total').textContent = `총 ${_fdTotal}건 중 ${Math.min(_fdOffset, _fdTotal)}건 표시`;
@@ -8481,15 +8495,28 @@ async function loadActivity(more) {
 }
 
 function _fdRenderKpis(d) {
+  // KPI는 피드와 같은 조건(기간·검색·액션)을 따른다 — 화면에 서로 다른 총계가 동시에 뜨지 않게.
   const s = d.summary || {};
   const km = Object.fromEntries((d.byKind || []).map(r => [r.kind, r.n]));
   const tot = (d.byKind || []).reduce((a, r) => a + r.n, 0);
+  const all = (d.kindAll || []).reduce((a, r) => a + r.n, 0);
+  const kind = _fdKind;
   const comp = ['login','ticket','reply','attach','download','rate']
     .filter(k => km[k]).map(k => `${FD_META[k].ic}${km[k]}`).join(' · ') || '없음';
+  // 액션 칩이 켜져 있으면 "무엇을 보고 있는지"와 전체 대비 비중을 부제로 밝힌다.
+  const sub1 = kind
+    ? `${FD_META[kind] ? FD_META[kind].ic + ' ' + FD_META[kind].ko : kind}만 · 전체 ${all}건의 ${all ? Math.round((tot / all) * 100) : 0}%`
+    : comp;
+  const who = kind
+    ? `${s.companies || 0}개 고객사 · 이 액션을 한 사람`
+    : `${s.companies || 0}개 고객사`;
   document.getElementById('fd-kpis').innerHTML = [
-    `<div class="rq-kpi"><div class="k">기간 활동</div><div class="v">${tot}</div><div class="s">${comp}</div></div>`,
-    `<div class="rq-kpi good"><div class="k">활동 고객</div><div class="v">${s.users || 0}<span style="font-size:14px;color:var(--faint);">명</span></div><div class="s">${s.companies || 0}개 고객사</div></div>`,
-    `<div class="rq-kpi ${s.onlyLoginPct >= 50 ? 'warn' : ''}"><div class="k">로그인만 하고 나감</div><div class="v">${s.logged ? s.onlyLoginPct + '%' : '—'}</div><div class="s">로그인 ${s.logged || 0}명 중 ${s.onlyLogin || 0}명 — 다른 액션 없음</div></div>`,
+    `<div class="rq-kpi"><div class="k">${kind ? '선택 액션' : '기간 활동'}</div><div class="v">${tot}</div><div class="s">${sub1}</div></div>`,
+    `<div class="rq-kpi good"><div class="k">활동 고객</div><div class="v">${s.users || 0}<span style="font-size:14px;color:var(--faint);">명</span></div><div class="s">${who}</div></div>`,
+    // 로그인만 하고 나간 비율은 로그인 이력이 모집단이라, 다른 액션만 보는 중일 땐 계산이 성립하지 않는다.
+    (kind && kind !== 'login')
+      ? `<div class="rq-kpi"><div class="k">로그인만 하고 나감</div><div class="v" style="font-size:18px;color:var(--faint);">—</div><div class="s">액션 필터를 해제하면 표시됩니다</div></div>`
+      : `<div class="rq-kpi ${s.onlyLoginPct >= 50 ? 'warn' : ''}"><div class="k">로그인만 하고 나감</div><div class="v">${s.logged ? s.onlyLoginPct + '%' : '—'}</div><div class="s">로그인한 ${s.logged || 0}명 중 ${s.onlyLogin || 0}명 — 다른 액션 없음</div></div>`,
   ].join('');
 }
 
