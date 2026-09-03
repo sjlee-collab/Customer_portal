@@ -2105,14 +2105,14 @@ textarea{resize:vertical;min-height:100px;}
         <div class="section-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
           <div>
             <div class="section-title">사용 통계</div>
-            <div class="section-sub">접속 활동과 계정 현황을 봅니다.</div>
+            <div class="section-sub">포탈 사용 현황을 봅니다.</div>
           </div>
           <button class="btn btn-outline btn-sm" onclick="loadStats()"><span id="stats-refresh-ico">↻</span> 새로고침</button>
         </div>
 
         <!-- 사용 통계 탭 (접속 활동 / 계정) -->
         <div class="stab-bar" id="stats-tabs">
-          <button type="button" class="on" data-stab="act" onclick="switchStatsTab('act')">📈 접속 활동</button>
+          <button type="button" class="on" data-stab="act" onclick="switchStatsTab('act')">📈 활성 사용자 지표</button>
           <button type="button" data-stab="acct" onclick="switchStatsTab('acct')">👥 계정</button>
           <button type="button" data-stab="cust" onclick="switchStatsTab('cust')">🏢 고객 활용</button>
           <button type="button" data-stab="req" onclick="switchStatsTab('req')">📮 요청 현황</button>
@@ -2124,7 +2124,7 @@ textarea{resize:vertical;min-height:100px;}
 
         <div class="stab-panel" id="stab-act">
         <div class="card">
-          <div class="card-title">접속 활동 <span style="font-size:11px;color:var(--faint);font-weight:400;">고객 계정 기준 · 고유 로그인 사용자 · 테스트 계정 제외</span>
+          <div class="card-title">활성 사용자 지표 <span style="font-size:11px;color:var(--faint);font-weight:400;">고객 계정 기준 · 고유 로그인 사용자 · 테스트 계정 제외</span>
             <span class="rq-seg" id="act-days" role="group" aria-label="기간" style="margin-left:auto;">
               <button type="button" onclick="setActDays(7,this)">7일</button>
               <button type="button" class="on" onclick="setActDays(30,this)">30일</button>
