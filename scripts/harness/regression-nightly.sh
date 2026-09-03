@@ -75,7 +75,7 @@ fi
 # SMOKE_EMAIL/SMOKE_PASSWORD를 정의한 파일(chmod 600 권장)로, 자격증명을 레포에 두지 않기 위한 장치.
 # 파일이 없으면 smoke.sh가 해당 항목만 스스로 skip하고 비인증 3종은 그대로 검사한다.
 [ -f "$LOGDIR/smoke.env" ] && . "$LOGDIR/smoke.env"
-bash "$HDIR/../smoke.sh" >>"$LOG" 2>&1; SMOKE_RC=$?
+bash "$HDIR/smoke.sh" >>"$LOG" 2>&1; SMOKE_RC=$?
 SMOKE_SUM="$(grep -E '^== 결과:' "$LOG" | tail -1 | sed 's/^== //;s/ ==$//')"
 if [ "$SMOKE_RC" -ne 0 ]; then
   log "🚑 사이트 스모크 실패 — $SMOKE_SUM (실제 API 경로 이상)"
