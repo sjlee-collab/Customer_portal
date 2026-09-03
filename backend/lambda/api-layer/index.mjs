@@ -1122,6 +1122,9 @@ async function statsDocuments(event) {
   if (qs.visibility === 'public') where.push('is_public');
   else if (qs.visibility === 'private') where.push('not is_public');
   const w = where.length ? 'where ' + where.join(' and ') : '';
+  // 기간은 다운로드 이벤트에만 적용한다 — 누적 카운터(download_count)에는 시각이 없어
+  // 자료 등록일로 거르면 "언제 받았나"와 무관한 숫자가 나온다.
+  const dlDays = [0, 7, 30, 90].includes(parseInt(qs.days, 10)) ? parseInt(qs.days, 10) : 0;
 
   // ── 다운로드 주체 필터 (who=customer|internal, person=user uuid) ──
   // 이 필터는 document_downloads 이벤트 기준이라 기록 시작(2026-08-31) 이후만 집계된다.
@@ -1135,6 +1138,7 @@ async function statsDocuments(event) {
     else if (who === 'internal') ew.push(`d.role <> 'customer'`);
     if (person) { ep.push(person); ew.push(`d.user_id = $${ep.length}`); }
     if (qs.category) { ep.push(qs.category); ew.push(`cd.category = $${ep.length}`); }
+    if (dlDays > 0) ew.push(`d.created_at >= now() - interval '${dlDays} days'`);
     const eWhere = ew.length ? 'where ' + ew.join(' and ') : '';
     const joined = `from document_downloads d left join content_documents cd on cd.id = d.doc_id`;
 
