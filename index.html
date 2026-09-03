@@ -12631,16 +12631,19 @@ function renderLibFiles() {
 
 function libFaqActions(d, isAdmin, isPublic) {
   const btnStyle = 'padding:4px 8px;font-size:11px;';
-  // 자료 다운로드(libRowActions)와 동일한 다운로드 버튼 — 공개(또는 관리자)이고 첨부가 있으면 활성, 없으면 비활성
-  const downloadBtn = (!isAdmin && !isPublic) ? '' : d.storage_path
-    ? `<button class="btn btn-outline btn-sm" style="${btnStyle}" onclick="downloadPrivateFile('documents','${escHtml(d.storage_path)}','${escHtml(d.file_name || d.title)}','${d.id}')">⬇ 다운로드</button>`
-    : `<button class="btn btn-outline btn-sm" style="${btnStyle}" disabled>⬇ 다운로드</button>`;
+  // 첨부가 없으면 버튼 자체를 내지 않는다 — FAQ는 첨부 없는 문답이 대부분이라 비활성 버튼이 모든 행에
+  // 남으면 어느 행에 받을 파일이 있는지 목록에서 구분되지 않는다. 판정은 파일명이 아니라 storage_path로
+  // 한다(실제 다운로드가 그 값으로 이뤄지므로 파일명만 남은 행에서도 안전하게 빠진다).
+  const downloadBtn = (!isAdmin && !isPublic) || !d.storage_path ? '' :
+    `<button class="btn btn-outline btn-sm" style="${btnStyle}" onclick="downloadPrivateFile('documents','${escHtml(d.storage_path)}','${escHtml(d.file_name || d.title)}','${d.id}')">⬇ 다운로드</button>`;
   const dJson = escHtml(JSON.stringify(d).replace(/'/g,"&#39;"));
   const adminBtns = isAdmin ? `
     <button class="btn btn-ghost btn-sm" style="${btnStyle}color:${isPublic?'var(--faint)':'var(--accent)'};" onclick="toggleDocPublic('${d.id}',${isPublic})" title="${isPublic?'비공개로 전환':'공개로 전환'}">${isPublic?'비공개':'공개'}</button>
     <button class="btn btn-ghost btn-sm" style="${btnStyle}" onclick='openDocModal(${dJson})'>수정</button>
     <button class="btn btn-ghost btn-sm" style="${btnStyle}color:#e53e3e;" onclick="deleteDoc('${d.id}','${escHtml(d.storage_path||'')}','${escHtml(d.title||'')}')">삭제</button>` : '';
-  return `<div style="display:flex;gap:4px;flex-wrap:nowrap;overflow:hidden;">${downloadBtn}${adminBtns}</div>`;
+  // 오른쪽 정렬 — 다운로드 버튼이 있는 행과 없는 행이 섞이므로, 왼쪽 정렬이면 수정·삭제 위치가
+  // 행마다 어긋난다. 오른쪽에 붙이면 첨부 유무와 무관하게 같은 자리에 온다.
+  return `<div style="display:flex;gap:4px;flex-wrap:nowrap;overflow:hidden;justify-content:flex-end;">${downloadBtn}${adminBtns}</div>`;
 }
 
 function renderLibFaq() {

@@ -1,0 +1,20 @@
+{
+  "name": "harness",
+  "version": "1.0.0",
+  "description": "하네스 프론트 검증용 Node 의존성 — l2-runtime.mjs(headless chromium, P5)가 playwright 사용. node_modules는 커밋 제외, 새 장비에서 npm install && npx playwright install chromium.",
+  "main": "l2-runtime.mjs",
+  "directories": {
+    "lib": "lib",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "playwright": "^1.62.1"
+  }
+}

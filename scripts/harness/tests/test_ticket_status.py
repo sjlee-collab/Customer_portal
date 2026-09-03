@@ -73,16 +73,15 @@ def run():
             created['tickets'].append(tid); return tid
 
         # ── A) PATCH /tickets/{id}/status — 상태 단독 변경 ──────────────────
-        # event_type은 notify-handler가 "발송 시점의 티켓 상태"를 읽어 정한다(비동기). 전이를
-        # 연속으로 쏘면 알림이 다음 상태에서 읽혀 라벨이 밀리므로(예: on_hold→completed로
-        # 넘어간 뒤 on_hold 알림이 completed로 기록), 전이마다 그 알림이 정착할 때까지 기다린다.
+        # 알림은 트리거 시점 스냅샷을 페이로드로 받아 처리하므로(2026-09-03 B 수정),
+        # 전이를 연속으로 쏴도 라벨이 밀리지 않는다 — 정착 대기 없이 결정적이어야 한다.
         tA = mk('상태 경로')
         for i, s in enumerate(STATUSES, 1):
             r = api('PATCH', '/tickets/%s/status' % tA, {'status': s}, role='admin', userId=u)
             t.check('[status] %s 전이 200' % s, r.get('status') == 200,
                     'status=%s body=%s' % (r.get('status'), r.get('body')))
             t.check('[status] %s 저장 반영' % s, cur_status(tA) == s, 'db=%s' % cur_status(tA))
-            wait_notif(tA, 'slack', i, grace_sec=0)   # 이 전이의 슬랙이 찍힌 뒤 다음 상태로(초과유예 불필요)
+            # (정착 대기 제거 — 알림이 스냅샷 기반이 되어 연속 전이에도 라벨이 안 밀린다)
 
         # 고객은 전 상태에서 차단(ticket_manage 권한 없음)
         for s in STATUSES:
@@ -133,7 +132,7 @@ def run():
             hs = history_rows(tB)
             t.check('[manage] %s 이력 기록(%d건)' % (s, i), len(hs) == i,
                     '기대=%d 실제=%d' % (i, len(hs)))
-            wait_notif(tB, 'slack', i, grace_sec=0)   # 비동기 알림 라벨 밀림 방지 — 전이마다 정착 대기(경로 A 참고)
+            # (정착 대기 제거 — 스냅샷 알림으로 불필요)
 
         for s in STATUSES:
             r = api('PATCH', '/tickets/%s/manage' % tB, {'status': s, 'send_email': False},
