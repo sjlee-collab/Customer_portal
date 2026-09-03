@@ -71,6 +71,10 @@ fi
 # ── 2.5) 사이트 스모크 — 실제 API가 HTTP로 살아있나(비파괴). 회귀(Lambda 직접 invoke)는
 # 백엔드 계약만 봐서, Amplify 배포·API Gateway가 밤사이 죽어도 못 잡는다. smoke.sh가 그 빈 곳을
 # 메운다(로그인 엔드포인트·공개 계정문의 생존). 실패해도 회귀는 계속하되, 통지엔 크게 표시한다.
+# 실로그인 항목(smoke.sh 4번: 로그인→티켓 조회, 소요시간 측정)은 $LOGDIR/smoke.env가 있을 때만 활성 —
+# SMOKE_EMAIL/SMOKE_PASSWORD를 정의한 파일(chmod 600 권장)로, 자격증명을 레포에 두지 않기 위한 장치.
+# 파일이 없으면 smoke.sh가 해당 항목만 스스로 skip하고 비인증 3종은 그대로 검사한다.
+[ -f "$LOGDIR/smoke.env" ] && . "$LOGDIR/smoke.env"
 bash "$HDIR/../smoke.sh" >>"$LOG" 2>&1; SMOKE_RC=$?
 SMOKE_SUM="$(grep -E '^== 결과:' "$LOG" | tail -1 | sed 's/^== //;s/ ==$//')"
 if [ "$SMOKE_RC" -ne 0 ]; then
