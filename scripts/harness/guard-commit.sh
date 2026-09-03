@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 커밋 전 clobber 방지 점검 — origin/main 최신 여부 + 워킹트리 변경이 '의도한 파일'만인지.
 # 사용: bash scripts/harness/guard-commit.sh [의도한파일...]
-#   예) bash scripts/harness/guard-commit.sh index.html aws-migration/lambda/api-layer/index.mjs
+#   예) bash scripts/harness/guard-commit.sh index.html backend/lambda/api-layer/index.mjs
 # 병렬 세션이 같은 워크트리를 건드릴 수 있으므로, 커밋 전에 실제 변경 파일 목록을 확인한다.
 set -uo pipefail
 cd "$(cd "$(dirname "$0")/../.." && pwd)"
