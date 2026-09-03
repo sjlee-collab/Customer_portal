@@ -1268,6 +1268,121 @@ async function statsSystem(event) {
   return json(200, { noti, byEvent, notiFails, bySystem, duration: dur, integFails });
 }
 
+// ── GET /stats/activity ──
+// 사용 통계 > 고객 활동 탭. "어떤 고객이 어떤 액션을 했는지"를 한 줄씩 — 이미 기록 중인
+// 6개 원천(로그인·요청 등록·답글·첨부·자료 다운로드·만족도 평가)을 UNION해 시간순 피드로 만든다.
+// 새 수집 없음. 고객 역할의 행위만 모으고, 테스트 계정·[테스트] 데이터는 접속 지표와 같은
+// 기준으로 제외한다. 답글·첨부는 이름 스냅샷이 없어 users 조인 — 계정 삭제 시 '(삭제된 사용자)'.
+// 쿼리스트링: days(0|7|30|90), kind(login|ticket|reply|attach|download|rate), q(이름·고객사),
+//             limit/offset(피드 페이지네이션).
+async function statsActivity(event) {
+  const authz = getAuthz(event);
+  if (!(await hasPermission(authz.role, 'stats_view'))) return json(403, { error: '권한이 없습니다' });
+
+  const qs = event.queryStringParameters || {};
+  const days = [0, 7, 30, 90].includes(parseInt(qs.days, 10)) ? parseInt(qs.days, 10) : 30;
+  const KINDS = new Set(['login', 'ticket', 'reply', 'attach', 'download', 'rate']);
+  const kind = KINDS.has(qs.kind) ? qs.kind : '';
+  const q = (qs.q || '').trim();
+  const limit = Math.min(100, Math.max(1, parseInt(qs.limit, 10) || 30));
+  const offset = Math.max(0, parseInt(qs.offset, 10) || 0);
+
+  const TESTU = `u.email not like 'test.%@bigxdata.io' and u.name not like '[테스트]%'`;
+  // 각 원천을 (시각, 종류, 사람, 고객사, 대상번호, 대상라벨)로 정규화한다.
+  const CTE = `
+    select le.created_at at, 'login' kind,
+           coalesce(nullif(le.user_name,''), '(삭제된 사용자)') uname,
+           coalesce(le.company_name, '') comp, null::text obj_no, null::text obj_label
+      from login_events le
+     where le.role = 'customer' and ${LE_REAL}
+    union all
+    select t.created_at, 'ticket', u.name, coalesce(t.company_name, ''), t.ticket_number, t.title
+      from tickets t join users u on u.id = t.created_by
+     where u.role = 'customer' and ${TESTU} and t.title not like '[테스트]%'
+    union all
+    select r.created_at, 'reply', coalesce(u.name, '(삭제된 사용자)'), coalesce(t.company_name, ''),
+           t.ticket_number, left(regexp_replace(coalesce(r.note, ''), '<[^>]+>', '', 'g'), 60)
+      from ticket_replies r
+      join users u on u.id = r.changed_by
+      left join tickets t on t.id = r.ticket_id
+     where u.role = 'customer' and ${TESTU}
+    union all
+    select a.created_at, 'attach', coalesce(u.name, '(삭제된 사용자)'), coalesce(t.company_name, ''),
+           t.ticket_number, a.file_name
+      from ticket_attachments a
+      join users u on u.id = a.uploaded_by
+      left join tickets t on t.id = a.ticket_id
+     where u.role = 'customer' and ${TESTU}
+    union all
+    select d.created_at, 'download', coalesce(nullif(d.user_name,''), '(삭제된 사용자)'),
+           coalesce(d.company_name, ''), null::text, d.doc_title
+      from document_downloads d
+     where d.role = 'customer'
+       and (d.user_name is null or d.user_name not like '[테스트]%')
+       and (d.user_id is null or d.user_id not in (select id from users where email like 'test.%@bigxdata.io'))
+    union all
+    select t.rated_at, 'rate', u.name, coalesce(t.company_name, ''),
+           t.ticket_number, t.satisfaction_rating::text
+      from tickets t join users u on u.id = t.created_by
+     where t.rated_at is not null and u.role = 'customer' and ${TESTU}`;
+
+  const period = days > 0 ? `at >= now() - interval '${days} days'` : 'true';
+
+  // 피드(종류·검색 모두 적용)
+  const pw = [], fc = [period];
+  if (kind) { pw.push(kind); fc.push(`kind = $${pw.length}`); }
+  if (q) { pw.push('%' + q + '%'); fc.push(`(uname ilike $${pw.length} or comp ilike $${pw.length})`); }
+  const feedWhere = 'where ' + fc.join(' and ');
+  const rows = await query(
+    `with act as (${CTE})
+     select to_char(at at time zone 'Asia/Seoul', 'YYYY-MM-DD') d,
+            to_char(at at time zone 'Asia/Seoul', 'HH24:MI') tm,
+            kind, uname, comp, obj_no, obj_label
+       from act ${feedWhere} order by at desc limit ${limit} offset ${offset}`, pw);
+  const [{ n: total }] = await query(
+    `with act as (${CTE}) select count(*)::int n from act ${feedWhere}`, pw);
+
+  // 구성·요약(종류 칩과 무관 — 구성을 보여주는 게 목적이므로 기간·검색만 적용)
+  const sw = [], sc = [period];
+  if (q) { sw.push('%' + q + '%'); sc.push(`(uname ilike $${sw.length} or comp ilike $${sw.length})`); }
+  const sumWhere = 'where ' + sc.join(' and ');
+  const byKind = await query(
+    `with act as (${CTE}) select kind, count(*)::int n from act ${sumWhere} group by 1`, sw);
+  const [who] = await query(
+    `with act as (${CTE})
+     select count(distinct uname)::int users, count(distinct nullif(comp, ''))::int companies
+       from act ${sumWhere}`, sw);
+  // "로그인만 하고 나감" — 로그인은 있는데 다른 액션이 0인 사람의 비율. 이 탭에서만 나오는 신호:
+  // 들어와서 아무것도 못 찾고 나간 방문이 얼마나 되는가.
+  const [lonly] = await query(
+    `with act as (${CTE}), pu as (
+       select uname,
+              count(*) filter (where kind = 'login')::int l,
+              count(*) filter (where kind <> 'login')::int o
+         from act ${sumWhere} group by 1)
+     select count(*) filter (where l > 0 and o = 0)::int only_login,
+            count(*) filter (where l > 0)::int logged from pu`, sw);
+  const byUser = await query(
+    `with act as (${CTE})
+     select uname, max(comp) comp,
+            count(*) filter (where kind = 'login')::int login,
+            count(*) filter (where kind = 'ticket')::int ticket,
+            count(*) filter (where kind in ('reply','attach'))::int reply,
+            count(*) filter (where kind = 'download')::int download,
+            count(*) filter (where kind = 'rate')::int rate,
+            count(*)::int total
+       from act ${sumWhere} group by 1 order by total desc limit 8`, sw);
+
+  return json(200, {
+    total, rows, byKind, byUser,
+    summary: {
+      users: who.users, companies: who.companies,
+      onlyLogin: lonly.only_login, logged: lonly.logged,
+      onlyLoginPct: lonly.logged ? Math.round((lonly.only_login / lonly.logged) * 100) : 0,
+    },
+  });
+}
+
 // ── GET /stats/satisfaction ──
 // 사용 통계 > 응답 현황 탭. 완료 건 만족도 조사(tickets.satisfaction_rating 1~5 +
 // satisfaction_comment)를 집계한다. 새 테이블 없음 — 전부 tickets 컬럼에서 나온다.
@@ -2134,6 +2249,9 @@ export const handler = async (event) => {
     }
     if (method === 'GET' && path === '/stats/satisfaction') {
       return await statsSatisfaction(event);
+    }
+    if (method === 'GET' && path === '/stats/activity') {
+      return await statsActivity(event);
     }
     if (method === 'POST' && path === '/docs/download-event') {
       return await docDownloadEvent(event, body);

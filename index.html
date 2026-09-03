@@ -295,6 +295,20 @@ button,input,select,textarea{font-family:inherit;}
 .rq-age-bad{color:var(--red-d);font-weight:700;} .rq-age-warn{color:var(--amber-d);font-weight:600;}
 .rq-unassigned{color:var(--red-d);font-weight:600;}
 .rq-empty{padding:28px;text-align:center;color:var(--faint);font-size:13px;}
+/* ── 사용 통계 > 고객 활동 탭 ── */
+.fd-chip{border:1px solid var(--border-md);background:var(--surface);border-radius:99px;padding:5px 12px;
+  font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:5px;}
+.fd-chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.fd-chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;}
+.fd-day{font-size:11px;font-weight:700;color:var(--faint);letter-spacing:.04em;padding:10px 2px 6px;}
+.fd-item{display:flex;gap:11px;padding:8px 10px;border-radius:8px;align-items:flex-start;}
+.fd-item:hover{background:var(--surface2);}
+.fd-ic{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;margin-top:1px;}
+.fd-body{flex:1;min-width:0;font-size:12.5px;line-height:1.55;word-break:break-all;}
+.fd-body b{font-weight:700;}
+.fd-body .co{color:var(--muted);}
+.fd-body .obj{color:var(--accent);}
+.fd-time{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--faint);white-space:nowrap;margin-top:3px;font-variant-numeric:tabular-nums;}
 /* ── 사용 통계 > 응답 현황 탭 ── */
 .sat-stars{color:#F59E0B;letter-spacing:1px;font-size:13px;white-space:nowrap;}
 .sat-stars .off{color:var(--border-md);}
@@ -2103,8 +2117,9 @@ textarea{resize:vertical;min-height:100px;}
           <button type="button" data-stab="cust" onclick="switchStatsTab('cust')">🏢 고객 활용</button>
           <button type="button" data-stab="req" onclick="switchStatsTab('req')">📮 요청 현황</button>
           <button type="button" data-stab="lib" onclick="switchStatsTab('lib')">📄 자료실 활용</button>
-          <button type="button" data-stab="sys" onclick="switchStatsTab('sys')">⚙️ 시스템 현황</button>
+          <button type="button" data-stab="sys" onclick="switchStatsTab('sys')">🔔 알람 현황</button>
           <button type="button" data-stab="sat" onclick="switchStatsTab('sat')">⭐ 응답 현황</button>
+          <button type="button" data-stab="feed" onclick="switchStatsTab('feed')">👣 고객 활동</button>
         </div>
 
         <div class="stab-panel" id="stab-act">
@@ -2513,6 +2528,52 @@ textarea{resize:vertical;min-height:100px;}
             </div>
           </div>
         </div><!-- /stab-sat -->
+
+        <div class="stab-panel" id="stab-feed" style="display:none;">
+          <div class="rq-filters">
+            <span class="rq-seg" id="fd-days" role="group" aria-label="기간">
+              <button type="button" onclick="setFdDays(7,this)">7일</button>
+              <button type="button" class="on" onclick="setFdDays(30,this)">30일</button>
+              <button type="button" onclick="setFdDays(90,this)">90일</button>
+              <button type="button" onclick="setFdDays(0,this)">전체</button>
+            </span>
+            <span class="fd-chip" data-k="" aria-pressed="true" onclick="setFdKind('',this)">전체</span>
+            <span class="fd-chip" data-k="login" aria-pressed="false" onclick="setFdKind('login',this)">🔑 로그인</span>
+            <span class="fd-chip" data-k="ticket" aria-pressed="false" onclick="setFdKind('ticket',this)">📮 요청 등록</span>
+            <span class="fd-chip" data-k="reply" aria-pressed="false" onclick="setFdKind('reply',this)">💬 답글</span>
+            <span class="fd-chip" data-k="attach" aria-pressed="false" onclick="setFdKind('attach',this)">📎 첨부</span>
+            <span class="fd-chip" data-k="download" aria-pressed="false" onclick="setFdKind('download',this)">📥 다운로드</span>
+            <span class="fd-chip" data-k="rate" aria-pressed="false" onclick="setFdKind('rate',this)">⭐ 평가</span>
+            <input id="fd-q" class="search-box" style="flex:1;min-width:150px;box-sizing:border-box;"
+                   placeholder="이름·고객사 검색" onkeydown="if(event.key==='Enter')applyFdFilter()">
+          </div>
+
+          <div class="rq-kpis" id="fd-kpis">
+            <div class="rq-kpi" style="grid-column:1/-1;"><div class="s" style="margin:0;">불러오는 중...</div></div>
+          </div>
+
+          <div class="rq-g2" style="margin-bottom:0;">
+            <div class="card" style="margin-bottom:0;">
+              <div class="card-title">활동 타임라인 <span style="font-size:11px;color:var(--faint);font-weight:400;">고객 계정의 모든 액션 · 최신순</span>
+                <span id="fd-total" style="margin-left:auto;font-size:11px;color:var(--muted);font-weight:400;"></span></div>
+              <div id="fd-feed"></div>
+              <div style="text-align:center;margin-top:10px;">
+                <button class="btn btn-outline btn-sm" id="fd-more" onclick="loadActivity(true)" style="display:none;">더 보기 ↓</button>
+              </div>
+              <div class="rq-note" style="margin-top:10px;">ⓘ 자료 다운로드는 기록 시작(2026-08-31) 이후만, 화면 조회는 수집하지 않아 포함되지 않습니다. 답글·첨부는 계정 삭제 시 "(삭제된 사용자)"로 표시됩니다.</div>
+            </div>
+
+            <div class="card" style="margin-bottom:0;">
+              <div class="card-title">사용자별 활동 요약 <span style="font-size:11px;color:var(--faint);font-weight:400;">기간 합계 · 상위 8명 · 행 클릭 시 그 사람만</span></div>
+              <div class="tbl-scroll"><table class="tbl tbl-compact" style="min-width:460px;">
+                <thead><tr><th>사용자</th><th style="text-align:right;">🔑</th><th style="text-align:right;">📮</th><th style="text-align:right;">💬</th><th style="text-align:right;">📥</th><th style="text-align:right;">⭐</th><th style="text-align:right;">계</th></tr></thead>
+                <tbody id="fd-byuser"></tbody>
+              </table></div>
+              <div class="rq-note" style="margin-top:12px;">🔑 로그인 · 📮 요청 등록 · 💬 답글+첨부 · 📥 다운로드 · ⭐ 평가.
+                로그인만 반복하고 다른 액션이 없는 패턴은 찾는 걸 못 찾고 있다는 신호일 수 있습니다.</div>
+            </div>
+          </div>
+        </div><!-- /stab-feed -->
       </div>
 
       <!-- ══ 연동 관리 ══ -->
@@ -8098,6 +8159,8 @@ function switchStatsTab(tab) {
   if (sys) sys.style.display = tab === 'sys' ? '' : 'none';
   const sat = document.getElementById('stab-sat');
   if (sat) sat.style.display = tab === 'sat' ? '' : 'none';
+  const feed = document.getElementById('stab-feed');
+  if (feed) feed.style.display = tab === 'feed' ? '' : 'none';
   // 계정 탭에서만 페이지를 뷰포트 높이에 고정하고(acct-mode) 목록으로 남는 공간을 채운다.
   // 요청 현황 탭은 블록이 많아 세로로 길므로 기존처럼 스크롤되게 둔다.
   document.getElementById('p-stats')?.classList.toggle('acct-mode', tab === 'acct');
@@ -8107,6 +8170,7 @@ function switchStatsTab(tab) {
   if (tab === 'lib' && !_dlLoaded) loadDocStats();
   if (tab === 'sys' && !_sysLoaded) loadSystemStats();
   if (tab === 'sat' && !_satLoaded) loadSatStats();
+  if (tab === 'feed' && !_fdLoaded) loadActivity();
 }
 
 // 창 크기가 바뀌면 표시 행 수를 다시 맞춘다 — 계정 탭이 열려 있을 때만.
@@ -8159,6 +8223,7 @@ async function loadStats() {
   if (_dlLoaded) loadDocStats();
   if (_sysLoaded) loadSystemStats();
   if (_satLoaded) loadSatStats();
+  if (_fdLoaded) loadActivity();
   try {
     // 접속 활동(서버 집계)
     let active = { dau: 0, wau: 0, mau: 0, stickiness: 0, series: [] };
@@ -8211,6 +8276,118 @@ async function loadStats() {
   } finally {
     if (ico) ico.classList.remove('spin');
   }
+}
+
+// ── 고객 활동 (GET /stats/activity, 서버 집계 피드) ─────────────────
+// 6개 원천(로그인·요청·답글·첨부·다운로드·평가)의 통합 타임라인. 고객 역할만, 테스트 제외.
+const FD_META = {
+  login:    { ic:'🔑', bg:'var(--surface2)', ko:'로그인' },
+  ticket:   { ic:'📮', bg:'var(--accent-l)', ko:'요청 등록' },
+  reply:    { ic:'💬', bg:'var(--amber-l)',  ko:'답글 작성' },
+  attach:   { ic:'📎', bg:'var(--amber-l)',  ko:'첨부 업로드' },
+  download: { ic:'📥', bg:'var(--green-l)',  ko:'자료 다운로드' },
+  rate:     { ic:'⭐', bg:'#FEF9C3',         ko:'만족도 평가' },
+};
+const FD_PAGE = 30;
+let _fdDays = 30, _fdKind = '', _fdOffset = 0, _fdTotal = 0, _fdLoaded = false, _fdLastDay = '';
+
+function setFdDays(d, btn) {
+  _fdDays = d;
+  document.querySelectorAll('#fd-days button').forEach(b => b.classList.toggle('on', b === btn));
+  applyFdFilter();
+}
+function setFdKind(k, el) {
+  _fdKind = k;
+  document.querySelectorAll('.fd-chip').forEach(c => c.setAttribute('aria-pressed', String(c === el)));
+  applyFdFilter();
+}
+function applyFdFilter() { _fdOffset = 0; _fdLastDay = ''; loadActivity(); }
+function fdFilterUser(name) {
+  const q = document.getElementById('fd-q');
+  if (q) q.value = name;
+  applyFdFilter();
+}
+
+async function loadActivity(more) {
+  const feedEl = document.getElementById('fd-feed');
+  if (!feedEl) return;
+  if (!more) feedEl.innerHTML = '<div class="rq-empty">불러오는 중...</div>';
+  const params = new URLSearchParams({ days: String(_fdDays), limit: String(FD_PAGE), offset: String(_fdOffset) });
+  if (_fdKind) params.set('kind', _fdKind);
+  const q = (document.getElementById('fd-q')?.value || '').trim();
+  if (q) params.set('q', q);
+
+  let d = null;
+  try {
+    const r = await fetch(`${API_BASE}/stats/activity?${params}`, { headers: { ...authHeaders() } });
+    if (r.ok) d = await r.json();
+  } catch (e) { console.error('loadActivity 오류', e); }
+  _fdLoaded = true;
+  if (!d) { feedEl.innerHTML = '<div class="rq-empty">활동 내역을 불러오지 못했습니다.</div>'; return; }
+
+  _fdTotal = d.total || 0;
+  if (!more) { _fdRenderKpis(d); _fdRenderByUser(d.byUser || []); }
+  _fdRenderFeed(d.rows || [], more);
+  _fdOffset += (d.rows || []).length;
+  document.getElementById('fd-total').textContent = `총 ${_fdTotal}건 중 ${Math.min(_fdOffset, _fdTotal)}건 표시`;
+  document.getElementById('fd-more').style.display = _fdOffset < _fdTotal ? '' : 'none';
+}
+
+function _fdRenderKpis(d) {
+  const s = d.summary || {};
+  const km = Object.fromEntries((d.byKind || []).map(r => [r.kind, r.n]));
+  const tot = (d.byKind || []).reduce((a, r) => a + r.n, 0);
+  const comp = ['login','ticket','reply','attach','download','rate']
+    .filter(k => km[k]).map(k => `${FD_META[k].ic}${km[k]}`).join(' · ') || '없음';
+  document.getElementById('fd-kpis').innerHTML = [
+    `<div class="rq-kpi"><div class="k">기간 활동</div><div class="v">${tot}</div><div class="s">${comp}</div></div>`,
+    `<div class="rq-kpi good"><div class="k">활동 고객</div><div class="v">${s.users || 0}<span style="font-size:14px;color:var(--faint);">명</span></div><div class="s">${s.companies || 0}개 고객사</div></div>`,
+    `<div class="rq-kpi ${s.onlyLoginPct >= 50 ? 'warn' : ''}"><div class="k">로그인만 하고 나감</div><div class="v">${s.logged ? s.onlyLoginPct + '%' : '—'}</div><div class="s">로그인 ${s.logged || 0}명 중 ${s.onlyLogin || 0}명 — 다른 액션 없음</div></div>`,
+  ].join('');
+}
+
+function _fdRenderFeed(rows, more) {
+  const feedEl = document.getElementById('fd-feed');
+  if (!more) { feedEl.innerHTML = ''; _fdLastDay = ''; }
+  if (!rows.length && !more) {
+    feedEl.innerHTML = '<div class="rq-empty">이 조건의 활동이 없습니다.</div>';
+    return;
+  }
+  const frag = [];
+  rows.forEach(r => {
+    if (r.d !== _fdLastDay) {
+      _fdLastDay = r.d;
+      frag.push(`<div class="fd-day">${escHtml(r.d)}</div>`);
+    }
+    const m = FD_META[r.kind] || { ic:'•', bg:'var(--surface2)', ko:r.kind };
+    let obj = '';
+    if (r.kind === 'rate') {
+      const n = parseInt(r.obj_label, 10) || 0;
+      obj = ` <span class="obj">${escHtml(r.obj_no || '')}</span> <span style="color:#F59E0B;letter-spacing:1px;">${'★'.repeat(n)}<span style="color:var(--border-md);">${'★'.repeat(5 - n)}</span></span>`;
+    } else if (r.kind === 'reply') {
+      obj = r.obj_no ? ` <span class="obj">${escHtml(r.obj_no)}</span>` : '';
+      if (r.obj_label) obj += `<div style="font-size:11px;color:var(--faint);margin-top:1px;">"${escHtml(r.obj_label)}"</div>`;
+    } else if (r.obj_label || r.obj_no) {
+      obj = ` <span class="obj">${r.obj_no ? escHtml(r.obj_no) + ' ' : ''}${r.obj_label ? '「' + escHtml(r.obj_label) + '」' : ''}</span>`;
+    }
+    frag.push(`<div class="fd-item"><div class="fd-ic" style="background:${m.bg};">${m.ic}</div>
+      <div class="fd-body"><b>${escHtml(r.uname)}</b> <span class="co">${escHtml(r.comp || '')}</span> — ${m.ko}${obj}</div>
+      <div class="fd-time">${escHtml(r.tm)}</div></div>`);
+  });
+  feedEl.insertAdjacentHTML('beforeend', frag.join(''));
+}
+
+function _fdRenderByUser(rows) {
+  document.getElementById('fd-byuser').innerHTML = rows.length
+    ? rows.map(u => `<tr onclick="fdFilterUser('${escHtml(u.uname).replace(/'/g, "\\'")}')">
+        <td><b>${escHtml(u.uname)}</b><div style="font-size:10.5px;color:var(--faint);">${escHtml(u.comp || '')}</div></td>
+        <td style="text-align:right;font-variant-numeric:tabular-nums;">${u.login}</td>
+        <td style="text-align:right;font-variant-numeric:tabular-nums;">${u.ticket}</td>
+        <td style="text-align:right;font-variant-numeric:tabular-nums;">${u.reply}</td>
+        <td style="text-align:right;font-variant-numeric:tabular-nums;">${u.download}</td>
+        <td style="text-align:right;font-variant-numeric:tabular-nums;">${u.rate}</td>
+        <td style="text-align:right;font-variant-numeric:tabular-nums;font-weight:700;">${u.total}</td></tr>`).join('')
+    : '<tr><td colspan="7" style="padding:14px;text-align:center;color:var(--faint);">활동한 고객이 없습니다.</td></tr>';
 }
 
 // ── 응답 현황 (GET /stats/satisfaction, 서버 집계) ─────────────────
@@ -8399,7 +8576,7 @@ function _sysRenderKpis(n, bySystem, dur) {
   const iFail = bySystem.reduce((a, r) => a + r.fail, 0);
   document.getElementById('sys-kpis').innerHTML = [
     `<div class="rq-kpi"><div class="k">알림 발송</div><div class="v">${n.total || 0}</div><div class="s">슬랙 ${n.slack || 0} · 메일 ${n.email || 0}</div></div>`,
-    `<div class="rq-kpi ${n.fail ? 'bad' : 'good'}"><div class="k">알림 성공률</div><div class="v">${pct(n.ok, n.total)}%</div><div class="s">실패 ${n.fail || 0}건 · 재시도 ${n.retried || 0}건</div></div>`,
+    `<div class="rq-kpi ${n.fail ? 'bad' : 'good'}"><div class="k">알림 성공률</div><div class="v">${n.total ? (n.fail ? Math.floor((n.ok / n.total) * 1000) / 10 : 100) : 0}%</div><div class="s">실패 ${n.fail || 0}건 · 재시도 ${n.retried || 0}건</div></div>`,
     `<div class="rq-kpi"><div class="k">연동 호출</div><div class="v">${iTotal}</div><div class="s">${bySystem.map(r => `${escHtml(r.system)} ${r.total}`).join(' · ') || '기록 없음'}</div></div>`,
     `<div class="rq-kpi ${iFail ? 'bad' : 'good'}"><div class="k">연동 실패</div><div class="v">${iFail}</div><div class="s">${iTotal ? pct(iFail, iTotal) + '%' : '—'} · ${bySystem.filter(r => r.fail).map(r => `${escHtml(r.system)} ${r.fail}`).join(' · ') || '없음'}</div></div>`,
     `<div class="rq-kpi ${dur.max > 3000 ? 'warn' : ''}"><div class="k">연동 응답</div><div class="v">${dur.median || 0}<span style="font-size:15px;font-weight:600;color:var(--faint);">ms</span></div><div class="s">중앙값 · 평균 ${(dur.avg || 0).toLocaleString()} · 최대 ${(dur.max || 0).toLocaleString()}</div></div>`,
