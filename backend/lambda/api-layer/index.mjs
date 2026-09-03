@@ -284,7 +284,7 @@ async function createTicket(body, event) {
   );
   const ticket = inserted[0];
 
-  await deferNotify('create', { ticketId: ticket.id });
+  await deferNotify('create', { ticketId: ticket.id, ticket });
 
   return json(201, { ticket });
 }
@@ -330,8 +330,9 @@ async function proxyCustomers(event) {
   return json(200, { customers, units });
 }
 
-async function notifyForCreate(ticketId) {
-  const ticket = await getTicket(ticketId);
+async function notifyForCreate(ticketId, snapshot) {
+  // 스냅샷 우선 — 트리거 시점 상태를 보고(라이브 재조회는 경합으로 밀린 값을 읽음). 폴백은 하위 호환.
+  const ticket = snapshot ?? await getTicket(ticketId);
   if (!ticket) return;
   const requester = await getUser(ticket.created_by);
   const notifyPayload = { companyName: ticket.company_name, requesterName: ticket.created_by_name, assigneeName: ticket.assigned_to_name };
@@ -385,7 +386,7 @@ async function updateStatus(ticketId, body, event) {
   const ticket = updated[0];
 
   if (prevStatus !== status) {
-    await deferNotify('status', { ticketId, prevStatus });
+    await deferNotify('status', { ticketId, prevStatus, ticket });
   }
 
   return json(200, { ticket });
@@ -394,8 +395,9 @@ async function updateStatus(ticketId, body, event) {
 // 상태 변경 시 슬랙 알림을 보낼 상태들. 접수(received)는 최초 생성 상태라 제외하고 나머지 전부.
 const SLACK_STATUS_CHANGE = new Set(['classifying', 'in_progress', 'pending_customer', 'on_hold', 'completed', 'cancelled']);
 
-async function notifyForStatus(ticketId, prevStatus) {
-  const ticket = await getTicket(ticketId);
+async function notifyForStatus(ticketId, prevStatus, snapshot) {
+  // 스냅샷 우선 — 상태를 연속으로 바꾸면 라이브 재조회가 다음 상태를 읽어 알림 라벨이 밀렸다(경합).
+  const ticket = snapshot ?? await getTicket(ticketId);
   if (!ticket) return;
   const nextStatus = ticket.status;
   const companyName = ticket.company_name;
@@ -438,14 +440,15 @@ async function assignTicket(ticketId, body, event) {
   const ticket = updated[0];
 
   if (prevAssigneeId !== assigned_to) {
-    await deferNotify('assign', { ticketId, prevAssigneeId });
+    await deferNotify('assign', { ticketId, prevAssigneeId, ticket });
   }
 
   return json(200, { ticket });
 }
 
-async function notifyForAssign(ticketId, prevAssigneeId) {
-  const ticket = await getTicket(ticketId);
+async function notifyForAssign(ticketId, prevAssigneeId, snapshot) {
+  // 스냅샷 우선 — 빠른 재배정 시 라이브 재조회가 새 담당자를 읽어 "미배정→직원2"로 밀렸다(경합).
+  const ticket = snapshot ?? await getTicket(ticketId);
   if (!ticket) return;
   const requester = await getUser(ticket.created_by);
   const prevAssignee = await getUser(prevAssigneeId);
@@ -630,7 +633,7 @@ async function editTicket(ticketId, body, event) {
         `insert into ticket_history (ticket_id, action, note, changed_by, changed_by_name) values ($1,$2,$3,$4,$5)`,
         [ticketId, before[0].assigned_to ? 'reassigned' : 'assigned', `${prevName} → ${setAssignee.name ?? '미배정'}`, authz.userId, actor?.name ?? null]
       );
-      await deferNotify('assign', { ticketId, prevAssigneeId: before[0].assigned_to ?? null });
+      await deferNotify('assign', { ticketId, prevAssigneeId: before[0].assigned_to ?? null, ticket });
     }
   }
   return json(200, { ticket });
@@ -905,7 +908,7 @@ async function manageTicket(ticketId, body, event) {
   if (statusChanged || assigneeChanged) {
     await deferNotify('manage', {
       ticketId, prevStatus, prevAssigneeId, statusChanged, assigneeChanged,
-      sendEmail: !!send_email, ccEmails: cc_emails,
+      sendEmail: !!send_email, ccEmails: cc_emails, ticket,
     });
   }
 
@@ -914,7 +917,8 @@ async function manageTicket(ticketId, body, event) {
 
 async function notifyForManage(job) {
   const { ticketId, prevStatus, prevAssigneeId, statusChanged, assigneeChanged, sendEmail, ccEmails } = job;
-  const ticket = await getTicket(ticketId);
+  // 스냅샷 우선 — notifyForStatus와 같은 경합 방지. job.ticket은 manage가 커밋한 최종 행.
+  const ticket = job.ticket ?? await getTicket(ticketId);
   if (!ticket) return;
   const companyName = ticket.company_name;
   const requester = await getUser(ticket.created_by);
@@ -2154,9 +2158,9 @@ async function runLicenseExpiryNotice(event) {
 
 // 자기 자신에게 비동기(Event)로 재호출됐을 때 처리할 알림 작업 — kind별 디스패치
 const DEFERRED_HANDLERS = {
-  create: (job) => notifyForCreate(job.ticketId),
-  status: (job) => notifyForStatus(job.ticketId, job.prevStatus),
-  assign: (job) => notifyForAssign(job.ticketId, job.prevAssigneeId),
+  create: (job) => notifyForCreate(job.ticketId, job.ticket),
+  status: (job) => notifyForStatus(job.ticketId, job.prevStatus, job.ticket),
+  assign: (job) => notifyForAssign(job.ticketId, job.prevAssigneeId, job.ticket),
   manage: (job) => notifyForManage(job),
   reply: (job) => notifyForReply(job.ticketId, job.authorId),
 };
