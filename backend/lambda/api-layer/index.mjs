@@ -1951,7 +1951,8 @@ async function runLicenseExpiryNotice(event) {
        left join company_contracts ct on ct.id = l.contract_id
       where l.status = '활성'
         and l.quantity is not null and l.quantity > 0
-        and (l.end_date = $1 or l.renewal_date = $1)${onlyTest ? " and c.name like '[테스트]%'" : ''}
+        and (l.end_date = $1 or l.renewal_date = $1)
+        ${onlyTest ? " and c.name like '[테스트]%'" : " and c.name not like '[테스트]%'"}
       group by c.name, ct.contract_name, ct.bixs_contact, ct.status,
                ct.start_date, ct.end_date,
                l.product_info, l.end_date, l.renewal_date
@@ -1965,8 +1966,9 @@ async function runLicenseExpiryNotice(event) {
   const renewRows = rows.filter(r => r.renewal_date === targetDate);
 
   // 해당 종류가 0건이면 그 메시지는 보내지 않는다 — 매일 "0건" 알림은 소음이다.
-  if (endRows.length)   await notifySlack({ type: 'LICENSE_EXPIRY', kind: 'end',     targetDate, licenses: endRows });
-  if (renewRows.length) await notifySlack({ type: 'LICENSE_EXPIRY', kind: 'renewal', targetDate, licenses: renewRows });
+  // only_test(직접 invoke)면 알림도 테스트로 표시해 테스트 채널로만 보낸다.
+  if (endRows.length)   await notifySlack({ type: 'LICENSE_EXPIRY', kind: 'end',     targetDate, licenses: endRows,   isTest: onlyTest });
+  if (renewRows.length) await notifySlack({ type: 'LICENSE_EXPIRY', kind: 'renewal', targetDate, licenses: renewRows, isTest: onlyTest });
   return json(200, { targetDate, expiring: endRows.length, renewing: renewRows.length });
 }
 

@@ -159,6 +159,9 @@ const LICENSE_KIND = {
 async function handleLicenseExpiry(payload, results) {
   const licenses = payload.licenses || [];
   if (!licenses.length) return;
+  // only_test 호출이거나 목록에 [테스트] 회사가 섞였으면 테스트 채널로만 보낸다
+  // (운영 배치는 api-layer에서 [테스트]를 이미 제외하지만, 이중 안전망).
+  const isTest = payload.isTest === true || licenses.some(l => /^\[테스트\]/.test(l.company_name || ''));
   const target = payload.targetDate;
   const kind = LICENSE_KIND[payload.kind] || LICENSE_KIND.end;
   const isEnd = (payload.kind || 'end') === 'end';
@@ -192,7 +195,7 @@ async function handleLicenseExpiry(payload, results) {
     isEnd ? 'license_expiry' : 'license_renewal',
     `${kind.header} — ${target} 기준 ${licenses.length}건`,
     lines.join('\n'),
-    results
+    results, isTest
   );
 }
 
