@@ -12641,9 +12641,9 @@ function libFaqActions(d, isAdmin, isPublic) {
     <button class="btn btn-ghost btn-sm" style="${btnStyle}color:${isPublic?'var(--faint)':'var(--accent)'};" onclick="toggleDocPublic('${d.id}',${isPublic})" title="${isPublic?'비공개로 전환':'공개로 전환'}">${isPublic?'비공개':'공개'}</button>
     <button class="btn btn-ghost btn-sm" style="${btnStyle}" onclick='openDocModal(${dJson})'>수정</button>
     <button class="btn btn-ghost btn-sm" style="${btnStyle}color:#e53e3e;" onclick="deleteDoc('${d.id}','${escHtml(d.storage_path||'')}','${escHtml(d.title||'')}')">삭제</button>` : '';
-  // 오른쪽 정렬 — 다운로드 버튼이 있는 행과 없는 행이 섞이므로, 왼쪽 정렬이면 수정·삭제 위치가
-  // 행마다 어긋난다. 오른쪽에 붙이면 첨부 유무와 무관하게 같은 자리에 온다.
-  return `<div style="display:flex;gap:4px;flex-wrap:nowrap;overflow:hidden;justify-content:flex-end;">${downloadBtn}${adminBtns}</div>`;
+  // 가운데 정렬 — 첨부가 있는 행에만 버튼이 생기는데, 오른쪽 끝에 붙이면 고객 화면(버튼 1개)에서
+  // 표 바깥으로 밀린 것처럼 보인다. 열 가운데로 모으면 행마다 버튼 수가 달라도 자리가 흔들리지 않는다.
+  return `<div style="display:flex;gap:4px;flex-wrap:nowrap;overflow:hidden;justify-content:center;">${downloadBtn}${adminBtns}</div>`;
 }
 
 function renderLibFaq() {
@@ -12658,7 +12658,7 @@ function renderLibFaq() {
   }
   const thead = document.getElementById('lib-faq-thead');
   if (thead) {
-    thead.innerHTML = '<tr><th>카테고리</th><th>질문</th><th>파일명</th><th style="text-align:center;">조회수</th><th>등록일</th><th>액션</th></tr>';
+    thead.innerHTML = '<tr><th>카테고리</th><th>질문</th><th>파일명</th><th style="text-align:center;">조회수</th><th>등록일</th><th style="text-align:center;">액션</th></tr>';
   }
 
   const q = (document.getElementById('lib-faq-search')?.value || '').toLowerCase();
