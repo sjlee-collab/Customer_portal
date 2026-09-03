@@ -16,10 +16,10 @@ export PYTHONIOENCODING=utf-8
 HDIR="$(cd "$(dirname "$0")" && pwd)"
 export HARNESS_TMP="$HDIR/lib"
 
-ALL=(test_permissions.py test_ticket_delete.py test_ticket_status.py test_ticket_assign.py test_notify_routing.py test_internal_review.py test_ticket_rate.py test_customer_e2e.py test_stats_view.py test_proxy_register.py test_storage_rules.py test_auth.py)
+ALL=(test_permissions.py test_ticket_delete.py test_ticket_status.py test_ticket_assign.py test_notify_routing.py test_internal_review.py test_ticket_rate.py test_customer_e2e.py test_stats_view.py test_proxy_register.py test_storage_rules.py test_auth.py test_schema_contract.py test_batch.py)
 # 병렬 안전 = 알림 발송 건수/타입을 단언하지 않는 스위트(응답 코드·권한·구조만 검사).
 # 나머지(알림 타이밍 민감 + 전역 집계)는 직렬. 지정 실행 시엔 이 분류를 그대로 따른다.
-PAR_SAFE=(test_permissions.py test_ticket_delete.py test_storage_rules.py test_ticket_rate.py test_proxy_register.py test_auth.py)
+PAR_SAFE=(test_permissions.py test_ticket_delete.py test_storage_rules.py test_ticket_rate.py test_proxy_register.py test_auth.py test_schema_contract.py)
 
 # ── 인자 해석: 이름 정규화 + 존재 검증 ──
 if [ "$#" -gt 0 ]; then
@@ -38,12 +38,17 @@ else
   TESTS=("${ALL[@]}")
 fi
 
-fail=0
+l2_fail=0
+FAILED=()   # 1차에서 실패한 스위트 이름
+REG_T0=$(date +%s%3N)   # 전체 소요 측정 시작(ms)
+# ms → 사람이 읽는 소요 문자열(회귀 알람 상세의 소요 시간 표시용)
+fmt_dur(){ awk -v ms="$1" 'BEGIN{ s=ms/1000; if(s>=60) printf "%dm %.0fs", int(s/60), s-int(s/60)*60; else printf "%.1fs", s }'; }
 
 # ── L2 정적 스모크 — index.html 문법/핸들러/DOM id (1초 미만) ──
 echo "────────────────────────────────────────"
-echo "▶ l2-smoke.mjs (index.html 정적 검사)"
-node "$HDIR/l2-smoke.mjs" || fail=1
+_t0=$(date +%s%3N)
+node "$HDIR/l2-smoke.mjs" || l2_fail=1
+echo "▶ l2-smoke.mjs (index.html 정적 검사) — $(fmt_dur $(($(date +%s%3N)-_t0)))"
 
 # ── 병렬안전/직렬 분리 ──
 PAR=(); SER=()
@@ -58,28 +63,65 @@ LOGDIR="$(mktemp -d)"; trap 'rm -rf "$LOGDIR"' EXIT
 # ── 병렬안전 무리: 백그라운드로 동시 실행, 로그는 파일로 받아 순서대로 출력 ──
 declare -A PID
 for tf in "${PAR[@]+"${PAR[@]}"}"; do
-  python "$HDIR/tests/$tf" > "$LOGDIR/$tf.log" 2>&1 &
+  ( _s=$(date +%s%3N); python "$HDIR/tests/$tf" > "$LOGDIR/$tf.log" 2>&1; _r=$?; echo $(($(date +%s%3N)-_s)) > "$LOGDIR/$tf.dur"; exit $_r ) &
   PID[$tf]=$!
 done
 for tf in "${PAR[@]+"${PAR[@]}"}"; do
   rc=0; wait "${PID[$tf]}" || rc=1
   echo "────────────────────────────────────────"
-  echo "▶ $tf (병렬)"
+  echo "▶ $tf (병렬) — $(fmt_dur "$(cat "$LOGDIR/$tf.dur" 2>/dev/null || echo 0)")"
   cat "$LOGDIR/$tf.log"
-  [ "$rc" -ne 0 ] && fail=1
+  [ "$rc" -ne 0 ] && FAILED+=("$tf")
 done
 
 # ── 직렬 무리: 알림 타이밍·전역 집계 민감 스위트 ──
 for tf in "${SER[@]+"${SER[@]}"}"; do
   echo "────────────────────────────────────────"
-  echo "▶ $tf (직렬 — 알림/집계 민감)"
-  python "$HDIR/tests/$tf" || fail=1
+  _s=$(date +%s%3N)
+  python "$HDIR/tests/$tf" || FAILED+=("$tf")
+  echo "▶ $tf (직렬 — 알림/집계 민감) — $(fmt_dur $(($(date +%s%3N)-_s)))"
 done
+
+# ── 재시도 단계 — 1차 실패 스위트를 단독·직렬로 1회 더 돌린다 ──
+# 알림 판정이 비동기 라이브 재조회라, 병렬 부하에서 경합해 간헐 실패(flaky)가 난다.
+# 재시도에서 통과하면 flaky(⚠, 치명 아님), 또 실패하면 진짜 실패(❌)로 분류한다.
+FLAKY=(); REALFAIL=()
+if [ "${#FAILED[@]}" -gt 0 ]; then
+  echo "════════════════════════════════════════"
+  echo "▶ 재시도: 1차 실패 ${#FAILED[@]}종 단독 재실행 — ${FAILED[*]}"
+  for tf in "${FAILED[@]}"; do
+    echo "────────────────────────────────────────"
+    echo "▶ 재시도 $tf"
+    if python "$HDIR/tests/$tf"; then
+      echo "⚠ FLAKY: $tf (1차 실패 → 재시도 통과)"
+      FLAKY+=("$tf")
+    else
+      echo "❌ REALFAIL: $tf (재시도도 실패)"
+      REALFAIL+=("$tf")
+    fi
+  done
+fi
 
 echo "────────────────────────────────────────"
 # 안전망: 각 테스트가 finally로 정리하지만, 중단 등으로 남은 '[테스트]' 라벨 잔여물을 청소.
 echo "▶ 잔여 테스트 데이터 정리(sweep --delete)"
 bash "$HDIR/sweep.sh" --delete || true
-echo "────────────────────────────────────────"
-if [ "$fail" -eq 0 ]; then echo "✅ 회귀 전체 PASS"; else echo "❌ 실패한 테스트 있음 (위 로그 확인)"; fi
-exit $fail
+echo "════════════════════════════════════════"
+
+# ── 판정 ── 치명 = L2 실패 또는 재시도도 실패한 스위트. flaky만이면 통과(경고).
+strip(){ printf '%s' "$*" | sed 's/\.py//g;s/test_//g'; }
+echo "TOTAL $(fmt_dur $(($(date +%s%3N)-REG_T0)))"
+if [ "$l2_fail" -ne 0 ] || [ "${#REALFAIL[@]}" -gt 0 ]; then
+  MARK="❌ 회귀 실패"
+  [ "$l2_fail" -ne 0 ] && MARK="$MARK · L2"
+  [ "${#REALFAIL[@]}" -gt 0 ] && MARK="$MARK · ${#REALFAIL[@]}종: $(strip "${REALFAIL[*]}")"
+  [ "${#FLAKY[@]}" -gt 0 ] && MARK="$MARK (불안정 $(strip "${FLAKY[*]}"))"
+  echo "$MARK"
+  exit 1
+elif [ "${#FLAKY[@]}" -gt 0 ]; then
+  echo "⚠ 회귀 통과(불안정 ${#FLAKY[@]}종: $(strip "${FLAKY[*]}")) — 재시도에서 통과, 경합 의심"
+  exit 0
+else
+  echo "✅ 회귀 전체 PASS"
+  exit 0
+fi

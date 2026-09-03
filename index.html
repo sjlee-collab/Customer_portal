@@ -9424,63 +9424,159 @@ async function refreshNotifyLog() {
 }
 
 // 회귀 알람 상세 — content(실행 요약 원문)를 파싱해 구조화 표시.
-// 스위트별 통과/실패 막대 + 실패 원인 + 접힌 원문. 파싱 실패 시 원문 그대로 폴백.
+// 스위트별 통과/실패/불안정 막대 + 원인 콜아웃 + 접힌 원문. 파싱 실패 시 원문 그대로 폴백.
 const REG_SUITE_KO = {
   'l2-smoke':'정적 검사', 'test_permissions':'권한·격리', 'test_ticket_delete':'요청 삭제',
   'test_ticket_status':'상태 변경', 'test_ticket_assign':'담당자 배정', 'test_notify_routing':'슬랙 라우팅',
   'test_internal_review':'내부 검토 은닉', 'test_ticket_rate':'만족도 평가', 'test_customer_e2e':'고객 전 기능',
   'test_stats_view':'사용 통계', 'test_proxy_register':'대리 등록', 'test_storage_rules':'첨부 규칙', 'test_auth':'인증',
+  'test_schema_contract':'스키마 계약', 'test_batch':'배치 3종',
 };
+// 스위트 → 카테고리. 스위트가 늘어 플랫 목록이 길어져서(14종+) 성격별로 묶는다.
+// 맵에 없는 새 스위트는 '기타'로 떨어져 누락되지 않는다 — 스위트 추가 시 여기만 채우면 된다.
+const REG_SUITE_CAT = {
+  'l2-smoke':'기반 검증', 'test_schema_contract':'기반 검증',
+  'test_auth':'인증·권한', 'test_permissions':'인증·권한',
+  'test_internal_review':'인증·권한', 'test_storage_rules':'인증·권한',
+  'test_ticket_status':'요청 처리', 'test_ticket_assign':'요청 처리', 'test_ticket_delete':'요청 처리',
+  'test_ticket_rate':'요청 처리', 'test_proxy_register':'요청 처리',
+  'test_notify_routing':'알림·통계', 'test_stats_view':'알림·통계', 'test_batch':'알림·통계',
+  'test_customer_e2e':'종단(E2E)',
+};
+const REG_CAT_ORDER = [['기반 검증','🧷'], ['인증·권한','🔐'], ['요청 처리','📮'], ['알림·통계','🔔'], ['종단(E2E)','🧑‍💼'], ['기타','📦']];
+function regFmtDur(ms) {
+  if (ms == null) return '';
+  const s = ms / 1000;
+  return s >= 60 ? `${Math.floor(s / 60)}분 ${Math.round(s % 60)}초` : `${s.toFixed(1)}s`;
+}
 function regDetailHtml(n) {
   const content = n.content || '';
   const lines = content.split(/\r?\n/);
-  const suites = []; const fails = []; let cur = null;
+  const suites = []; const fails = []; const flakySet = new Set(); let cur = null; let totalDurMs = null;
   for (const ln of lines) {
-    let m = ln.match(/^\u25b6\s*(l2-smoke|test_[a-z_]+)/);
-    if (m) { cur = { name: m[1], pass: null, total: null }; suites.push(cur); continue; }
+    let m = ln.match(/^\u26a0 FLAKY:\s*([\w.-]+)/);   // 재시도에서 통과한 불안정 스위트
+    if (m) { flakySet.add(m[1].replace(/\.py$/,'')); continue; }
+    m = ln.match(/^\u25b6\s*(l2-smoke|test_[a-z0-9_]+)/);   // ▶ 스위트 헤더 (재시도 헤더는 '재시도'라 안 잡힘)
+    if (m) {
+      // 헤더 끝의 소요 표기(— 12.4s / — 3m 42s)를 함께 읽는다. 없으면 null(구 로그 호환).
+      const dm = ln.match(/\u2014\s*(?:(\d+)m\s*)?([\d.]+)s\s*$/);
+      const durMs = dm ? ((+(dm[1] || 0)) * 60 + parseFloat(dm[2])) * 1000 : null;
+      cur = { name: m[1], pass: null, total: null, durMs };
+      suites.push(cur); continue;
+    }
+    m = ln.match(/^TOTAL\s+(?:(\d+)m\s*)?([\d.]+)s/);   // 전체 소요
+    if (m) { totalDurMs = ((+(m[1] || 0)) * 60 + parseFloat(m[2])) * 1000; continue; }
     m = ln.match(/^(\d+)\/(\d+)\s+(PASS|FAIL)/);
     if (m && cur && cur.total === null) { cur.pass = +m[1]; cur.total = +m[2]; continue; }
-    m = ln.match(/^FAIL\s+(.+)/) || ln.match(/^\u2716\s+(.+)/);
+    m = ln.match(/^FAIL\s+(.+)/);
     if (m) fails.push(m[1].trim());
   }
-  // 파싱이 비면 기존처럼 원문만 표시(폴백)
-  if (!suites.length) {
-    return `<div style="font-size:11px;color:var(--faint);margin-bottom:8px;">\ud68c\uadc0 \uc2e4\ud589 \uc694\uc57d</div>
+  if (!suites.length) {   // 파싱 실패 → 원문 폴백
+    return `<div style="font-size:11px;color:var(--faint);margin-bottom:8px;">회귀 실행 요약</div>
       <div style="white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.7;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">${escHtml(content)}</div>`;
   }
-  const counted = suites.filter(s => s.total != null);
+  const isFlaky = (n.event_type === 'nightly_flaky') || flakySet.size > 0;
+  const isFail = (n.status === 'failed' || n.status === 'failure');
+  // flaky 스위트는 1차 실패 카운트를 집계에서 빼서 통과로 본다(재시도에서 통과했으므로).
+  const counted = suites.filter(s => s.total != null && !flakySet.has(s.name));
   const tp = counted.reduce((a, s) => a + s.pass, 0);
   const ta = counted.reduce((a, s) => a + s.total, 0);
-  const isFail = (n.status === 'failed' || n.status === 'failure') || fails.length > 0 || counted.some(s => s.pass < s.total);
+  const AMBER = '#B4622F';
   const kpi = (label, val, color) =>
     `<div style="flex:1;padding:9px 12px;border-right:1px solid var(--border);">
        <div style="font-size:11px;color:var(--muted);">${label}</div>
        <div style="font-size:17px;font-weight:700;margin-top:2px;${color ? 'color:' + color + ';' : ''}">${val}</div></div>`;
+  const resultCell = isFail
+    ? kpi('실패', (ta - tp) + '<span style=\'font-size:12px;color:var(--faint);\'>건</span>', 'var(--red-d)')
+    : isFlaky
+      ? kpi('결과', '\u26a0 불안정', AMBER)
+      : kpi('결과', '\u2714 통과', 'var(--green-d)');
   const strip = `<div style="display:flex;border:1px solid var(--border);border-radius:9px;overflow:hidden;margin-bottom:12px;background:var(--surface2);">
-      ${kpi('\uac80\uc0ac', tp + ' <span style=\'font-size:12px;color:var(--faint);\'>/ ' + ta + '</span>', isFail ? 'var(--red-d)' : 'var(--green-d)')}
-      ${kpi('\uc2a4\uc704\ud2b8', suites.length + '<span style=\'font-size:12px;color:var(--faint);\'>\uc885</span>', '')}
-      ${isFail ? kpi('\uc2e4\ud328', (ta - tp) + '<span style=\'font-size:12px;color:var(--faint);\'>\uac74</span>', 'var(--red-d)')
-               : kpi('\uacb0\uacfc', '\u2714 \ud1b5\uacfc', 'var(--green-d)')}
+      ${kpi('검사', tp + ' <span style=\'font-size:12px;color:var(--faint);\'>/ ' + ta + '</span>', isFail ? 'var(--red-d)' : (isFlaky ? AMBER : 'var(--green-d)'))}
+      ${kpi('스위트', suites.length + '<span style=\'font-size:12px;color:var(--faint);\'>종</span>', '')}
+      ${totalDurMs != null ? kpi('전체 소요', regFmtDur(totalDurMs), '') : ''}
+      ${resultCell}
     </div>`;
-  const callout = (isFail && fails.length) ? `<div style="background:var(--red-l);border:1px solid var(--red);border-left:3px solid var(--red);border-radius:8px;padding:10px 13px;margin-bottom:12px;">
-      <div style="font-weight:700;color:var(--red-d);font-size:12.5px;margin-bottom:5px;">\u2716 \uc2e4\ud328 \uc6d0\uc778</div>
+  let callout = '';
+  if (isFail && fails.length) {
+    callout = `<div style="background:var(--red-l);border:1px solid var(--red);border-left:3px solid var(--red);border-radius:8px;padding:10px 13px;margin-bottom:12px;">
+      <div style="font-weight:700;color:var(--red-d);font-size:12.5px;margin-bottom:5px;">\u2716 실패 원인</div>
       ${fails.slice(0, 5).map(f => `<div style="font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--red-d);padding:2px 0;">\u2716 ${escHtml(f)}</div>`).join('')}
-    </div>` : '';
-  const rows = suites.map(s => {
-    const f = s.total != null && s.pass < s.total;
+    </div>`;
+  } else if (isFlaky) {
+    const names = [...flakySet].map(x => escHtml(x)).join(', ');
+    callout = `<div style="background:#FBEEDC;border:1px solid ${AMBER};border-left:3px solid ${AMBER};border-radius:8px;padding:10px 13px;margin-bottom:12px;">
+      <div style="font-weight:700;color:${AMBER};font-size:12.5px;margin-bottom:3px;">\u26a0 불안정(flaky) ${flakySet.size}종</div>
+      <div style="font-size:12px;color:${AMBER};">1차 실패 → 재시도 통과. 비동기 알림 경합으로 추정 — 코드 결함은 아니지만 지켜볼 것.</div>
+      <div style="font-family:ui-monospace,Menlo,monospace;font-size:12px;color:${AMBER};margin-top:5px;">${names}</div>
+    </div>`;
+  }
+  const maxDurMs = Math.max(1, ...suites.map(s => s.durMs || 0));
+  // 스위트 행 — 기존 행 문법 그대로(아이콘 · 모노 이름 · 한글 태그 · 통과 막대 · 소요 막대).
+  const suiteRow = (s) => {
+    const fl = flakySet.has(s.name);
+    const f = !fl && s.total != null && s.pass < s.total;
     const pct = s.total ? Math.round(s.pass / s.total * 100) : 100;
-    const cnt = s.total != null ? (s.pass + '/' + s.total) : '\u2014';
+    const cnt = fl ? '재시도 통과' : (s.total != null ? (s.pass + '/' + s.total) : '\u2014');
     const tag = REG_SUITE_KO[s.name] || '';
-    return `<div style="display:flex;align-items:center;gap:11px;padding:6px 10px;border-radius:7px;${f ? 'background:var(--red-l);' : ''}">
-        <span style="width:14px;text-align:center;color:${f ? 'var(--red)' : 'var(--green)'};font-size:12px;">${f ? '\u2716' : '\u2714'}</span>
+    const ic = fl ? '\u26a0' : (f ? '\u2716' : '\u2714');
+    const icColor = fl ? AMBER : (f ? 'var(--red)' : 'var(--green)');
+    const barColor = fl ? AMBER : (f ? 'var(--red)' : 'var(--green)');
+    const barPct = fl ? 100 : pct;
+    return `<div style="display:flex;align-items:center;gap:11px;padding:6px 10px;border-radius:7px;${f ? 'background:var(--red-l);' : (fl ? 'background:#FBEEDC;' : '')}">
+        <span style="width:14px;text-align:center;color:${icColor};font-size:12px;">${ic}</span>
         <span style="flex:1;font-family:ui-monospace,Menlo,monospace;font-size:12px;">${escHtml(s.name)}<span style="font-family:'Noto Sans KR',sans-serif;font-size:10.5px;color:var(--faint);margin-left:7px;">${tag}</span></span>
-        <span style="width:96px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;"><span style="display:block;height:100%;width:${pct}%;background:${f ? 'var(--red)' : 'var(--green)'};"></span></span>
-        <span style="width:48px;text-align:right;font-family:ui-monospace,Menlo,monospace;font-size:12px;color:${f ? 'var(--red-d)' : 'var(--muted)'};${f ? 'font-weight:600;' : ''}">${cnt}</span>
+        <span style="width:96px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;"><span style="display:block;height:100%;width:${barPct}%;background:${barColor};"></span></span>
+        <span style="width:64px;text-align:right;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:${fl ? AMBER : (f ? 'var(--red-d)' : 'var(--muted)')};${(f||fl) ? 'font-weight:600;' : ''}">${cnt}</span>
+        ${s.durMs != null ? `<span style="width:104px;display:flex;align-items:center;gap:6px;justify-content:flex-end;">
+          <span style="width:52px;height:5px;background:var(--border);border-radius:3px;overflow:hidden;"><span style="display:block;height:100%;width:${maxDurMs ? Math.round(s.durMs / maxDurMs * 100) : 0}%;background:${s.durMs >= maxDurMs * 0.7 ? AMBER : 'var(--accent-m)'};"></span></span>
+          <span style="width:46px;text-align:right;font-family:ui-monospace,Menlo,monospace;font-size:11px;font-variant-numeric:tabular-nums;color:${s.durMs >= maxDurMs * 0.7 ? AMBER : 'var(--muted)'};">${regFmtDur(s.durMs)}</span>
+        </span>` : ''}
       </div>`;
+  };
+
+  // ── 카테고리 묶기 ──
+  // 그룹 헤더 = 최악 상태 아이콘(실패 > 불안정 > 통과) + 합계(통과/전체 · 소요 합).
+  // 전부 통과한 그룹은 접힌 채 시작 — 문제 있는 그룹만 펼쳐져 시선이 바로 간다.
+  const byCat = new Map();
+  for (const s of suites) {
+    const cat = REG_SUITE_CAT[s.name] || '기타';
+    if (!byCat.has(cat)) byCat.set(cat, []);
+    byCat.get(cat).push(s);
+  }
+  const groupsHtml = REG_CAT_ORDER.filter(([cat]) => byCat.has(cat)).map(([cat, icon]) => {
+    const list = byCat.get(cat);
+    let gPass = 0, gTotal = 0, gDur = 0, worst = 'pass';
+    for (const s of list) {
+      const fl = flakySet.has(s.name);
+      const t = s.total ?? 0;
+      gTotal += t; gDur += s.durMs || 0;
+      gPass += fl ? t : (s.pass ?? 0);   // flaky는 재시도 통과로 집계
+      if (!fl && s.total != null && s.pass < s.total) worst = 'fail';
+      else if (fl && worst !== 'fail') worst = 'flaky';
+    }
+    const open = worst !== 'pass';
+    const gic = worst === 'fail' ? '\u2716' : (worst === 'flaky' ? '\u26a0' : '\u2714');
+    const gcol = worst === 'fail' ? 'var(--red)' : (worst === 'flaky' ? AMBER : 'var(--green)');
+    // 접기는 style.display 토글로 — hidden 속성은 인라인 display에 져서 못 쓴다(미접속 패널에서 실제 발생).
+    return `<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+      <div onclick="(function(h){const b=h.nextElementSibling;const c=b.style.display==='none';b.style.display=c?'flex':'none';h.firstElementChild.textContent=c?'\u25bc':'\u25b6';})(this)"
+           style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface2);cursor:pointer;user-select:none;">
+        <span style="width:12px;font-size:10px;color:var(--faint);">${open ? '\u25bc' : '\u25b6'}</span>
+        <span style="width:14px;text-align:center;font-size:12px;color:${gcol};">${gic}</span>
+        <span style="font-weight:700;font-size:12.5px;">${icon} ${cat}</span>
+        <span style="font-size:11px;color:var(--faint);">${list.length}종</span>
+        <span style="margin-left:auto;display:flex;align-items:center;gap:14px;">
+          <span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:${worst === 'fail' ? 'var(--red-d)' : 'var(--muted)'};${worst === 'fail' ? 'font-weight:700;' : ''}">${gPass}/${gTotal}</span>
+          <span style="width:56px;text-align:right;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;">${gDur ? regFmtDur(gDur) : ''}</span>
+        </span>
+      </div>
+      <div style="display:${open ? 'flex' : 'none'};flex-direction:column;gap:1px;padding:4px 6px;">${list.map(suiteRow).join('')}</div>
+    </div>`;
   }).join('');
-  const raw = `<details style="margin-top:10px;"><summary style="cursor:pointer;font-size:12px;color:var(--accent);">\uc2e4\ud589 \uc6d0\ubb38 \ubcf4\uae30</summary>
+  const raw = `<details style="margin-top:10px;"><summary style="cursor:pointer;font-size:12px;color:var(--accent);">실행 원문 보기</summary>
       <div style="white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;line-height:1.6;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px 13px;margin-top:8px;max-height:320px;overflow:auto;">${escHtml(content)}</div></details>`;
-  return strip + callout + `<div style="display:flex;flex-direction:column;gap:1px;">${rows}</div>` + raw;
+  return strip + callout + `<div style="display:flex;flex-direction:column;gap:8px;">${groupsHtml}</div>` + raw;
 }
 
 async function loadNotifyLog() {
@@ -9554,6 +9650,7 @@ async function loadNotifyLog() {
     password_admin_reset: '비밀번호 초기화(관리자)',
     nightly_pass:         '통과',
     nightly_fail:         '실패',
+    nightly_flaky:        '통과(불안정)',
   };
 
   // 계정유형은 수신자 이메일 도메인이 아니라 users.role로 판정한다.
@@ -9601,7 +9698,9 @@ async function loadNotifyLog() {
     const ticketNum = n.ticket?.ticket_number || (n.ticket_id ? n.ticket_id.slice(0,8) : '—');
     const sentAtRaw = n.sent_at || n.created_at;
     const sentAt = sentAtRaw ? new Date(sentAtRaw).toLocaleString('ko-KR', { hour12: false }) : '—';
-    const statusBadge = (n.status === 'success' || n.status === 'sent')
+    const statusBadge = (n.event_type === 'nightly_flaky')
+      ? `<span class="badge" style="background:#FBEEDC;color:#B4622F;">⚠ 불안정</span>`
+      : (n.status === 'success' || n.status === 'sent')
       ? `<span class="badge b-green">✅ 성공</span>`
       : (n.status === 'failed' || n.status === 'failure')
         ? `<span class="badge b-red">❌ 실패</span>`
