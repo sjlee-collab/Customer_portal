@@ -317,6 +317,13 @@ button,input,select,textarea{font-family:inherit;}
 .fd-body .co{color:var(--muted);}
 .fd-body .obj{color:var(--accent);}
 .fd-time{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--faint);white-space:nowrap;margin-top:3px;font-variant-numeric:tabular-nums;}
+/* 사용자별 활동 요약 — 카드 폭에 맞춰 줄어들게(가로 스크롤 방지).
+   숫자 열은 좁게 고정하고 이름 열이 남는 폭을 가져간다. 좁아지면 이름만 말줄임된다. */
+.fd-utbl{table-layout:fixed;width:100%;}
+.fd-utbl th,.fd-utbl td{padding-left:4px;padding-right:4px;}
+.fd-utbl th:first-child,.fd-utbl td:first-child{padding-left:10px;}
+.fd-utbl td:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fd-utbl td:first-child div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 /* ── 사용 통계 > 응답 현황 탭 ── */
 .sat-stars{color:#F59E0B;letter-spacing:1px;font-size:13px;white-space:nowrap;}
 .sat-stars .off{color:var(--border-md);}
@@ -2656,7 +2663,8 @@ textarea{resize:vertical;min-height:100px;}
 
             <div class="card" style="margin-bottom:0;">
               <div class="card-title">사용자별 활동 요약 <span id="fd-byuser-sub" style="font-size:11px;color:var(--faint);font-weight:400;">기간 합계 · 상위 8명 · 행 클릭 시 그 사람만</span></div>
-              <div class="tbl-scroll"><table class="tbl tbl-compact" style="min-width:460px;">
+              <div><table class="tbl tbl-compact fd-utbl">
+                <colgroup><col><col span="5" style="width:34px;"><col style="width:38px;"></colgroup>
                 <thead><tr><th>사용자</th>
                   <th style="text-align:right;" title="로그인">🔑</th>
                   <th style="text-align:right;" title="요청 등록">📮</th>
