@@ -1679,7 +1679,7 @@ async function statsCompanyDetail(event) {
               where company_id = $1
                 and to_char(created_at at time zone 'Asia/Seoul', 'YYYY-MM') = m.ym) tickets,
             (select count(distinct user_id)::int from login_events
-              where company_id = $1
+              where company_id = $1 and ${LE_REAL}
                 and to_char(created_at at time zone 'Asia/Seoul', 'YYYY-MM') = m.ym) visitors
        from m order by m.ym`, [id]);
 
@@ -1858,7 +1858,10 @@ async function statsLoginHistory(event) {
   if (days > 0) where.push(`created_at >= now() - interval '${days} days'`);
   const limit = Math.min(200, Math.max(1, parseInt(qs.limit, 10) || 50));
   const offset = Math.max(0, parseInt(qs.offset, 10) || 0);
-  const wsql = where.length ? 'where ' + where.join(' and ') : '';
+  // 테스트 계정 로그인은 이력에서도 제외한다(P4) — 하네스가 실로그인(JWT 검증)을 해도
+  // 감사 화면이 오염되지 않는다. 행 자체는 남긴다(감사 보존, LE_REAL 주석 참고).
+  where.push(LE_REAL);
+  const wsql = 'where ' + where.join(' and ');
   const [{ n: total }] = await query(`select count(*)::int n from login_events ${wsql}`, params);
   const rows = await query(
     `select id, coalesce(user_name,'(삭제된 사용자)') as name, role,
