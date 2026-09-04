@@ -383,6 +383,10 @@ button,input,select,textarea{font-family:inherit;}
 .rd-hist-sum .h-pre{flex:none;margin-right:4px;}
 .rd-hist-sum .h-tail{flex:none;white-space:nowrap;margin-left:4px;}
 .rd-hist-sum .h-who{color:var(--text);font-weight:700;}
+/* 새 요청 카테고리 드롭다운 — 등록 버튼 아래에서 카테고리를 먼저 고르고 폼을 연다 (고객 전용) */
+.nrq-dd{position:absolute;z-index:520;width:150px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 32px rgba(20,20,50,.16);padding:5px;}
+.nrq-dd-item{padding:8px 12px;font-size:12.5px;font-weight:600;border-radius:7px;cursor:pointer;}
+.nrq-dd-item:hover{background:var(--accent-l);color:var(--accent);}
 /* 만족도 팝업 (고객 홈) — 상세의 평가 카드와 같은 별점 UI를 모달로 */
 #modal-survey-box .sv-hd{padding:18px 22px 0;text-align:center;}
 #modal-survey-box .sv-done-badge{display:inline-block;font-size:10.5px;font-weight:700;color:var(--green);background:var(--green-l);border:1px solid #A7F3D0;border-radius:999px;padding:2px 10px;}
@@ -1241,7 +1245,7 @@ textarea{resize:vertical;min-height:100px;}
         <div class="card" style="display:flex;flex-direction:column;overflow:hidden;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-shrink:0;">
             <div class="card-title" style="margin-bottom:0;">최근 요청건</div>
-            <button class="btn btn-primary btn-sm" data-show-roles="customer,internal" data-perm="ticket_create" onclick="openModal('modal-new')">+ 새 요청 등록</button>
+            <button class="btn btn-primary btn-sm" data-show-roles="customer,internal" data-perm="ticket_create" data-nrq onclick="openNewRequestMenu(this)">+ 새 요청 등록 <span style="font-size:9px;">▼</span></button>
           </div>
           <div class="tbl-scroll list-scroll" style="flex:1;min-height:0;overflow-y:hidden;overflow-x:auto;"><table class="tbl">
             <thead><tr>
@@ -1327,7 +1331,7 @@ textarea{resize:vertical;min-height:100px;}
       <div id="p-my-requests" class="page u-page">
       <div class="section-header">
         <div><div class="section-title">기술 지원</div><div class="section-sub">요청을 등록하고 처리 이력을 확인합니다.</div></div>
-        <button class="btn btn-primary" id="btn-new-request" data-show-roles="customer,internal" data-perm="ticket_create" onclick="openModal('modal-new')">+ 새 요청 등록</button>
+        <button class="btn btn-primary" id="btn-new-request" data-show-roles="customer,internal" data-perm="ticket_create" data-nrq onclick="openNewRequestMenu(this)">+ 새 요청 등록 <span style="font-size:9px;">▼</span></button>
       </div>
       <div class="filter-bar">
         <div class="search-wrap">
@@ -2969,7 +2973,13 @@ textarea{resize:vertical;min-height:100px;}
 <div id="modal-new" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.35);align-items:center;justify-content:center;">
   <div class="modal-box" style="background:var(--surface);border-radius:var(--r-lg);width:720px;max-width:calc(100vw - 32px);max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
     <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
-      <div style="font-size:16px;font-weight:800;">요청</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="font-size:16px;font-weight:800;">요청</div>
+        <span id="nw-cat-chip" style="display:none;align-items:center;gap:6px;background:var(--accent-l);color:var(--accent);font-size:12px;font-weight:700;border-radius:20px;padding:4px 12px;">
+          <span id="nw-cat-chip-label"></span>
+          <button type="button" onclick="nrqChangeCategory()" style="background:none;border:none;color:inherit;font-size:11px;cursor:pointer;text-decoration:underline;opacity:.75;font-family:inherit;">변경</button>
+        </span>
+      </div>
       <button onclick="closeModal('modal-new')" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--faint);">✕</button>
     </div>
     <div style="padding:18px 22px;">
@@ -3024,7 +3034,7 @@ textarea{resize:vertical;min-height:100px;}
           <label>요청 제목 <span class="req">*</span></label>
           <input type="text" id="f-title" placeholder="문제를 간략하게 설명해 주세요">
         </div>
-        <div class="form-group">
+        <div class="form-group" id="nw-cat-group">
           <label>요청 카테고리 <span class="req">*</span></label>
           <select id="f-category"><!-- 옵션은 populateStaticSelects()가 채움(단일 출처) --></select>
         </div>
@@ -5412,6 +5422,11 @@ function openModal(id) {
   document.getElementById(id).style.display = 'flex';
   if (id === 'modal-user') populateCompanySelect(document.getElementById('u-company').dataset.pending);
   if (id === 'modal-new') {
+    // 카테고리 선택 상태 초기화 — 드롭다운 경유(nrqPick)가 이 뒤에 다시 숨긴다
+    const catGrp = document.getElementById('nw-cat-group');
+    if (catGrp) catGrp.style.display = '';
+    const catChip = document.getElementById('nw-cat-chip');
+    if (catChip) catChip.style.display = 'none';
     const companyEl = document.getElementById('nw-company');
     const companyTxt = document.getElementById('nw-company-txt');
     const _co = (currentUser && currentUser.company) || '';
@@ -5468,6 +5483,61 @@ function closeModal(id) {
     _attachFiles = [];
   }
 }
+
+// ── 새 요청 카테고리 드롭다운 (고객 전용) ──────────────────
+// "+ 새 요청 등록" 클릭 시 폼을 바로 열지 않고 카테고리 메뉴를 먼저 펼친다.
+// 항목을 고르면 폼이 열리고(카테고리 확정), 폼의 카테고리 셀렉트는 숨긴 채
+// 헤더 칩으로 표시한다("변경"으로 재선택). 스태프/내부는 기존 대리 등록 폼 그대로.
+let _nrqAnchor = null;
+function openNewRequestMenu(btn) {
+  if (!currentUser || currentUser.role !== 'customer') { openModal('modal-new'); return; }
+  const existing = document.getElementById('nrq-dd');
+  if (existing) {
+    existing.remove();
+    if (_nrqAnchor === btn) { _nrqAnchor = null; return; } // 같은 버튼 재클릭 = 닫기
+  }
+  _nrqAnchor = btn;
+  const menu = document.createElement('div');
+  menu.id = 'nrq-dd';
+  menu.className = 'nrq-dd';
+  menu.innerHTML = TICKET_CATEGORY_FORM_KEYS.map(k =>
+    `<div class="nrq-dd-item" onclick="nrqPick('${k}')">${CATEGORY_LABELS[k] || k}</div>`).join('');
+  document.body.appendChild(menu);
+  const r = btn.getBoundingClientRect();
+  menu.style.top = (r.bottom + 6 + window.scrollY) + 'px';
+  menu.style.left = Math.max(12, r.right - menu.offsetWidth + window.scrollX) + 'px';
+}
+function nrqPick(cat) {
+  closeNrqMenu();
+  openModal('modal-new'); // 안에서 칩/그룹 상태가 초기화된 뒤 아래에서 다시 세팅
+  const sel = document.getElementById('f-category');
+  if (sel) sel.value = cat;
+  const grp = document.getElementById('nw-cat-group');
+  if (grp) grp.style.display = 'none';
+  const chip = document.getElementById('nw-cat-chip');
+  const chipLabel = document.getElementById('nw-cat-chip-label');
+  if (chip && chipLabel) {
+    chipLabel.textContent = CATEGORY_LABELS[cat] || cat;
+    chip.style.display = 'inline-flex';
+  }
+}
+function nrqChangeCategory() {
+  closeModal('modal-new');
+  if (_nrqAnchor && document.body.contains(_nrqAnchor) && _nrqAnchor.offsetParent !== null) {
+    openNewRequestMenu(_nrqAnchor);
+  } else {
+    // 앵커 버튼이 화면에 없으면(페이지 전환 등) 폼을 카테고리 셀렉트 보이는 상태로 다시 연다
+    openModal('modal-new');
+  }
+}
+function closeNrqMenu() {
+  const m = document.getElementById('nrq-dd');
+  if (m) m.remove();
+}
+// 메뉴 밖 클릭 시 닫기 (등록 버튼 자체 클릭은 토글 로직이 처리하므로 제외)
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#nrq-dd') && !e.target.closest('[data-nrq]')) closeNrqMenu();
+});
 
 // ESC 키로 현재 열려있는 모달 닫기 (여러 모달이 겹쳐 있으면 가장 위(z-index가 높은) 것만 닫음)
 document.addEventListener('keydown', (e) => {
