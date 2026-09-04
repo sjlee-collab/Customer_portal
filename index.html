@@ -2099,11 +2099,11 @@ textarea{resize:vertical;min-height:100px;}
                 <option value="internal">내부직원</option>
                 <option value="customer">고객</option>
               </select></th>
-              <th>이름</th>
-              <th>수신자</th>
               <th><select id="notify-filter-company" onchange="loadNotifyLog()" class="th-filter">
                 <option value="">고객사</option>
               </select></th>
+              <th>이름</th>
+              <th>수신자</th>
               <th><select id="notify-filter-status" onchange="loadNotifyLog()" class="th-filter">
                 <option value="">발송 상태</option>
                 <option value="sent">성공</option>
@@ -10163,9 +10163,9 @@ async function loadNotifyLog() {
       }</td>
       <td style="font-size:12px;">${escHtml(EVENT_TYPE_KO[n.event_type] || n.event_type || '—')}</td>
       <td>${accountTypeBadge}</td>
+      <td style="font-size:12px;">${t?.company_name ? escHtml(t.company_name) : '<span style="color:var(--faint);">—</span>'}</td>
       <td style="font-size:12px;white-space:nowrap;">${recipientName(n) ? escHtml(recipientName(n)) : '<span style="color:var(--faint);">—</span>'}</td>
       <td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(n.recipient || '—')}</td>
-      <td style="font-size:12px;">${t?.company_name ? escHtml(t.company_name) : '<span style="color:var(--faint);">—</span>'}</td>
       <td>${statusBadge}</td>
       <td style="font-size:11px;color:var(--red);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(n.error_message || '')}">${escHtml(n.error_message || '—')}</td>
       <td style="font-size:12px;white-space:nowrap;">${sentAt}</td>
