@@ -19,7 +19,7 @@
 |---|---|
 | `bash scripts/harness/run-regression.sh [스위트…]` | 회귀 실행 — 인자 없으면 전체(알림무관 스위트는 병렬), 인자 주면 그것만(예: `run-regression.sh auth stats`). L2 정적 스모크가 첫 단계 |
 | `bash scripts/harness/deploy-fn.sh <api-layer\|data-api\|public-inquiry\|send-email\|storage-api\|jwt-authorizer\|notify-handler>` | 안전 재배포(drift 진단→배포→스모크) |
-| `bash scripts/harness/promote.sh` | main → dev/Design/QA ff 전파 + SHA 일치 검증 |
+| `bash scripts/harness/promote.sh` | main → dev/Design/QA/notion-migration ff 전파 + SHA 일치 검증 (ff-only — 갈라지면 보고만) |
 | `bash scripts/harness/guard-commit.sh [파일…]` | 커밋 전 clobber 점검(origin 최신·의도 파일만) |
 | `bash scripts/harness/email-safe.sh on\|off\|status` | 운영 상태 리셋(잔여 리다이렉트/태그 env 제거). 테스트 격리는 자동 — **메일=temail() 싱크 수신자**, **슬랙=`[테스트]` 제목/기업명 자동 라우팅**(SLACK_WEBHOOK_TEST). status로 현재 env 확인 |
 | `bash scripts/harness/apigw-route.sh list\|add "METHOD /path"` | API GW 라우트 조회/추가 |
@@ -80,7 +80,7 @@
 - `tests/test_schema_contract.py` — **스키마 계약(안 낡게)**: schema.sql의 CHECK 허용값을 파싱해 ① 라이브 DB가 전부 수용·불량값 거부(스키마↔배포 드리프트 감지) ② test_ticket_status 상태 커버리지 = 스키마−received(값 추가 시 미반영 경고)
 - `tests/test_auth.py` — 인증: 로그인 분기(404/401) · 비밀번호 변경/확인 · 재설정(무효 토큰·요청(request-reset)·관리자 재설정·권한상승 차단) · 초대 · 담당영업 조회
 - `tests/test_customer_e2e.py` — **고객 계정 전 기능 정상성**(등록·목록·상세·수정·답글·첨부·계약/자료 조회·내정보) + 보안 차단
-- L2 프론트: `l2-smoke.mjs`(정적, 자동) + `scripts/harness/smoke-frontend.js`(콘솔 붙여넣기 — 런타임·렌더 확인은 여전히 이쪽)
+- L2 프론트: `l2-smoke.mjs`(정적, 자동) + `l2-runtime.mjs`(런타임·렌더·실로그인, 자동 — test_l2_runtime이 회귀에서 실행). smoke-frontend.js 수동 붙여넣기는 회귀 없이 즉석 확인할 때만
 - 데이터 원칙: `[테스트]` 라벨 + admin 직접 insert(알림 없음) + 종료 시 정리(+ 잔여물 `sweep`). 개별 실행: `python scripts/harness/tests/test_customer_e2e.py`
 - **슬랙 원칙 — `[테스트]` 라벨로 자동 라우팅(필수)**: notify-handler·public-inquiry는 알림 대상 데이터의 **제목/기업명이 `[테스트]`로 시작하면**
   실 채널(공통/영업/기술지원/교육) 대신 **테스트 전용 채널로만** 보낸다(운영 알림은 항상 실 채널). 메시지 본문에 `(원래 대상: 채널명)`이 붙어 어디로 갈 알림이었는지 알 수 있다.

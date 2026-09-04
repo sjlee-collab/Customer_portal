@@ -1595,6 +1595,9 @@ textarea{resize:vertical;min-height:100px;}
         </div>
         <div class="filter-bar">
           <input class="search-box" id="ar-search" placeholder="요청 번호, 제목 검색..." oninput="renderAllTickets()">
+          <!-- [테스트] 요청 숨김 토글 — 관리자 전용(renderAllTickets가 표시 제어). 서버는 관리자에게
+               테스트 요청을 그대로 내려주므로(비관리자 스태프는 data-api가 이미 숨김) 클라이언트 필터로 충분. -->
+          <label id="ar-hide-test" style="display:none;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:pointer;white-space:nowrap;user-select:none;"><input type="checkbox" onchange="arHideTest=this.checked;renderAllTickets()" style="accent-color:var(--accent);"> [테스트] 숨기기</label>
           <div class="flt-wrap">
             <button class="th-filter-btn flt-btn" onclick="toggleArFilterPop(this,'category')"><span class="flt-label" data-flt="category">전체 카테고리</span> <span class="th-filter-caret">▾</span></button>
             <div class="th-filter-pop" id="ar-pop-category">
@@ -10949,6 +10952,8 @@ let mgTicket = null;
 
 // ── 요청 관리: 표 헤더 클릭 필터 ──────────────────────────────
 let arFilters = { category: [], priority: [], status: [], company: [], requester: [], assignee: [] };
+// [테스트] 요청 숨김(관리자 전용 토글) — 서버가 관리자에겐 테스트 요청을 내려주므로 화면에서 거른다.
+let arHideTest = false;
 
 const AR_FILTER_NAME_KO = { category: '카테고리', priority: '긴급도', status: '상태', company: '고객사', requester: '요청자', assignee: '담당자' };
 const AR_FILTER_VALUE_KO = {
@@ -11226,7 +11231,12 @@ function renderAllTickets() {
   const ROLE_ALLOWED_CATS_RENDER = {}; // 스태프 전 카테고리 조회 — 카테고리 제한 없음(조회/필터팝업/상세목록/홈과 동일)
   const renderAllowedCats = ROLE_ALLOWED_CATS_RENDER[currentUser?.role] || null;
   const q = (document.getElementById('ar-search')?.value || '').toLowerCase();
+  // [테스트] 숨김 토글은 관리자에게만 노출(비관리자 스태프는 서버가 이미 숨겨 토글이 무의미).
+  const htEl = document.getElementById('ar-hide-test');
+  if (htEl) htEl.style.display = currentUser?.role === 'admin' ? 'inline-flex' : 'none';
+  const isTestRow = (t) => String(t.title || '').startsWith('[테스트]') || String(t.company?.name || t.company_name || '').startsWith('[테스트]');
   const list = allMgTickets.filter(t => {
+    if (arHideTest && isTestRow(t)) return false;
     if (renderAllowedCats && !renderAllowedCats.includes(t.category)) return false;
     if (q && !((t.ticket_number||'').toLowerCase().includes(q) || (t.title||'').toLowerCase().includes(q))) return false;
     if (arFilters.category.length && !arFilters.category.includes(t.category)) return false;
@@ -11244,7 +11254,7 @@ function renderAllTickets() {
   });
 
   // 검색어/필터가 실제로 바뀐 경우에만 1페이지로 리셋 (저장 후 재조회 등에는 현재 페이지 유지)
-  const filterKey = JSON.stringify([q, arFilters.category, arFilters.priority, arFilters.status, arFilters.company, arFilters.requester, arFilters.assignee]);
+  const filterKey = JSON.stringify([q, arHideTest, arFilters.category, arFilters.priority, arFilters.status, arFilters.company, arFilters.requester, arFilters.assignee]);
   if (filterKey !== arLastFilterKey) { arPage = 1; arLastFilterKey = filterKey; }
 
   const countEl = document.getElementById('ar-count');

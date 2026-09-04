@@ -78,6 +78,6 @@ if [ "$drift" -eq 0 ]; then
   echo "✅ 레포 = 배포본 (재배포 안전)"
 else
   echo "❌ drift 있음 — 재배포 전 반드시 원인 확인. 배포본이 앞서 있으면 레포를 먼저"
-  echo "   역동기화할 것(그냥 deploy-fn 하면 운영이 옛 동작으로 롤백된다). DESIGN.md §5.5 참고."
+  echo "   역동기화할 것(그냥 deploy-fn 하면 운영이 옛 동작으로 롤백된다). DESIGN.md §6.5 참고."
 fi
 exit $drift

@@ -31,6 +31,21 @@ const TEST_TAG = process.env.TEST_TAG || '';
 // 테스트 모드(email-safe on)면 이 실행의 모든 메일 로그를 테스트로 표시한다.
 const EMAIL_IS_TEST = !!(TEST_EMAIL_OVERRIDE || TEST_TAG);
 
+// [테스트] 라벨 백스톱 — 운영 백엔드를 공유하는 하네스가 만든 데이터의 메일이 실 수신자에게
+// 닿지 않도록, 슬랙(notify-handler)처럼 발송 직전에 한 겹 더 거른다. 특히 티켓 생성 시
+// getAdminEmails()/getAccountManagerEmail()이 끌어오는 실 관리자·영업 주소는 요청자와 달리
+// temail() 싱크가 아니라 진짜 주소라, 이 백스톱이 유일한 방어선이다. 판정은 티켓 제목/고객사명
+// [테스트] 접두(notify-handler.isTestTicket과 동일 규칙). EMAIL_TEST_SINK가 있으면 그리로
+// 돌리고(원래 수신자는 로그 recipient·본문 배너에 보존), 없으면 실 발송 대신 건너뛴다(안전 우선).
+const EMAIL_TEST_SINK = process.env.EMAIL_TEST_SINK || '';
+const isTestLabel = (s) => typeof s === 'string' && /^\[테스트\]/.test(s);
+function payloadIsTest(p) {
+  return isTestLabel(p && p.ticket && p.ticket.title) || isTestLabel(p && p.companyName) || isTestLabel(p && p.company);
+}
+// 이 실행이 [테스트] 페이로드인지 — 핸들러 진입 시 매번 결정한다(웜 컨테이너 재사용 시 잔류 방지).
+// Lambda는 컨테이너당 한 이벤트씩 처리하므로 모듈 변수로 안전하게 sendAndLog에 전달된다.
+let TEST_BACKSTOP = false;
+
 const CATEGORY_KO = {
   tech_support: '기술지원', contract: '계약 문의', license: '라이선스 문의',
   education: '교육 문의', other: '기타 문의',
@@ -77,27 +92,40 @@ async function sendMail(to, subject, html) {
 // 제목에 원래 수신자 이메일을 그대로 노출하면(예: "[TEST→a@b.com] ...") Microsoft 365
 // 사칭/피싱 방지 필터에 걸려 Graph API는 202를 반환해도 실제로는 조용히 격리(quarantine)되는
 // 문제가 있었다. 그래서 원래 수신자 정보는 제목이 아니라 본문 상단 배너로 표시한다.
-function withTestBanner(html, originalTo) {
-  if (!TEST_EMAIL_OVERRIDE) return html;
+function withTestBanner(html, originalTo, active) {
+  if (!active) return html;
   const banner = `<div style="background:#111827;color:#fbbf24;font:12px/1.6 monospace;padding:8px 16px;text-align:center;">TEST MODE (원래 수신자: ${originalTo})</div>`;
   return html.replace('<body>', `<body>${banner}`);
 }
 
 async function sendAndLog(to, subject, html, ticketId, eventType, results) {
-  const actualTo = TEST_EMAIL_OVERRIDE || to;
-  const actualSubject = TEST_TAG ? `${TEST_TAG} ${subject}` : (TEST_EMAIL_OVERRIDE ? `[TEST] ${subject}` : subject);
-  const actualHtml = withTestBanner(html, to);
+  // 수신자 결정 우선순위: ① 명시적 테스트 override(email-safe on) ② [테스트] 백스톱 싱크
+  //                     ③ 실제 수신자. isTest 로그도 override 또는 백스톱이면 true.
+  const backstop = !TEST_EMAIL_OVERRIDE && TEST_BACKSTOP;
+  const isTestLog = EMAIL_IS_TEST || backstop;
+  if (backstop && !EMAIL_TEST_SINK) {
+    // 싱크 미설정 — 실 수신자로 보내느니 건너뛴다(안전 우선). 로그엔 남겨 추적 가능하게 한다.
+    console.warn(`[테스트 백스톱] EMAIL_TEST_SINK 미설정 → 발송 생략 to=${to} event=${eventType}`);
+    results.push({ channel: 'email', eventType, recipient: to, subject, ticketId, status: 'skipped', isTest: true, content: html });
+    return;
+  }
+  const actualTo = TEST_EMAIL_OVERRIDE || (backstop ? EMAIL_TEST_SINK : to);
+  const actualSubject = TEST_TAG ? `${TEST_TAG} ${subject}`
+    : TEST_EMAIL_OVERRIDE ? `[TEST] ${subject}`
+    : backstop ? `[테스트] ${subject}`
+    : subject;
+  const actualHtml = withTestBanner(html, to, !!TEST_EMAIL_OVERRIDE || backstop);
   try {
     await sendMail(actualTo, actualSubject, actualHtml);
     // 알림 로그 상세에서 "실제 보낸 메일"을 그대로 보여주기 위해 생성한 본문 HTML을 함께 반환한다.
     // (log_notification.content 컬럼에 저장 — 기존 미사용 컬럼 재사용) 테스트 배너는 운영에선 없고
-    // 있어도 저장 불필요하므로 순수 html을 넘긴다.
-    results.push({ channel: 'email', eventType, recipient: to, subject, ticketId, status: 'sent', isTest: EMAIL_IS_TEST, content: html });
+    // 있어도 저장 불필요하므로 순수 html을 넘긴다. recipient는 항상 원래 대상을 남긴다(백스톱 무관).
+    results.push({ channel: 'email', eventType, recipient: to, subject, ticketId, status: 'sent', isTest: isTestLog, content: html });
   } catch (err) {
     // 실패를 결과 배열로만 돌려주고 로그에 남기지 않아, 나중에 CloudWatch로 원인을 볼 수 없었다
     // (2026-09-04 긴급 메일 1통 실패 시 실제로 추적 불가). 수신자·이벤트와 함께 남긴다.
     console.error(`[메일 발송 실패] to=${to} event=${eventType} ticket=${ticketId ?? '-'}`, err);
-    results.push({ channel: 'email', eventType, recipient: to, subject, ticketId, status: 'failed', isTest: EMAIL_IS_TEST, errorMessage: String(err), content: html });
+    results.push({ channel: 'email', eventType, recipient: to, subject, ticketId, status: 'failed', isTest: isTestLog, errorMessage: String(err), content: html });
   }
 }
 
@@ -224,6 +252,10 @@ export const handler = async (event) => {
   const results = [];
   try {
     const payload = typeof event.body === 'string' ? JSON.parse(event.body) : (event.body || event);
+    // [테스트] 라벨 백스톱 판정 — 이 실행 동안 sendAndLog가 실 수신자를 싱크로 돌린다.
+    // 매 호출마다 재설정해 웜 컨테이너 잔류를 막는다. 실 티켓은 절대 [테스트]로 시작하지 않으므로
+    // 운영 메일에는 영향이 없다.
+    TEST_BACKSTOP = payloadIsTest(payload);
 
     if (isPublicGatewayRequest(event)) {
       const role = getRequesterRole(event);

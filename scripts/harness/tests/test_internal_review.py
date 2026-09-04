@@ -79,7 +79,8 @@ def run():
         t.check('고객 평가 404(존재 은닉)', r.get('status') == 404, 'status=%s' % r.get('status'))
 
         # ── 스태프는 정상 열람 ──
-        rows = dget('tickets', {'select': 'id', 'id': 'eq.' + tid}, role='internal', userId=st).get('body') or []
+        # include_test=1 — 기본값에선 [테스트] 요청이 비관리자 스태프·internal에게 숨겨진다(테스트 요청 은닉).
+        rows = dget('tickets', {'select': 'id', 'id': 'eq.' + tid, 'include_test': '1'}, role='internal', userId=st).get('body') or []
         t.check('내부직원 조회 가능', len(rows) == 1, '결과=%d건' % len(rows))
 
         # ── 알림: 슬랙은 발송(스태프 인지용), 메일은 접수확인부터 0건 ──
