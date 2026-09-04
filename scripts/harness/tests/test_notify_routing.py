@@ -139,6 +139,18 @@ def run():
             t.check('처리 모달 상태변경도 공통+기술+영업',
                     pend_ch == {COMMON, '#기술지원-슬랙채널', '#영업-슬랙채널'}, '실제=%s' % sorted(pend_ch))
 
+        # 계약 카테고리(고객 직접 등록)의 담당자 배정도 영업 채널로 — 신규·상태·답글과 같은 기준
+        ctid = tids.get('contract')
+        if ctid:
+            staff2 = (dget('users', {'select': 'id', 'role': 'eq.sales', 'is_active': 'eq.true',
+                                     'limit': '1'}, role='admin').get('body') or [{}])[0].get('id')
+            base = len(notif_rows(ctid, 'slack'))
+            r = api('PATCH', '/tickets/%s/assign' % ctid, {'assigned_to': staff2}, role='admin')
+            t.check('계약 건 담당자 배정 200', r.get('status') == 200, 'status=%s body=%s' % (r.get('status'), r.get('body')))
+            slack = wait_notif(ctid, 'slack', base + 2)
+            a_ch = {x.get('recipient') for x in slack if x.get('event_type') == 'assigned'}
+            t.check('계약 건 배정 슬랙: 공통+영업', a_ch == {COMMON, '#영업-슬랙채널'}, '실제=%s' % sorted(a_ch))
+
         # 고객 직접 등록(대리등록자 없음)은 영업 채널로 가지 않는다 — 규칙이 과하게 퍼지지 않는지 확인
         base_tid = tids.get('tech_support')
         if base_tid:

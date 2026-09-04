@@ -253,9 +253,8 @@ async function handleTicketAssigned(payload, results) {
   const body = buildBaseMessage(ticket, payload) + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`;
   const isTest = isTestTicket(ticket);
   await sendSlack(SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, 'assigned', header, body, results, isTest);
-  // 배정 알림은 원래 카테고리 팬아웃이 교육뿐이었다 — 기존 동작은 그대로 두고,
-  // 영업이 대리 등록한 건만 영업 채널을 추가한다(계약·라이선스 카테고리 규칙은 미적용).
-  if (registeredBySales(payload) && SLACK_WEBHOOK_SALES) {
+  // 다른 알림(신규·상태·답글)과 같은 기준 — 계약·라이선스이거나 영업이 대리 등록한 건.
+  if (needsSalesChannel(ticket, payload) && SLACK_WEBHOOK_SALES) {
     await sendSlack(SLACK_WEBHOOK_SALES, '#영업-슬랙채널', ticket.id, 'assigned', header, body, results, isTest);
   }
   if (ticket.category === 'education' && SLACK_WEBHOOK_EDU) {
