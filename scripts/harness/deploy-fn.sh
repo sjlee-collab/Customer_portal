@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Lambda 안전 재배포 — 배포본 zip을 받아 레포 소스(.mjs)로 교체, drift 진단 후 배포.
-# 사용: bash scripts/harness/deploy-fn.sh <api-layer|data-api|public-inquiry|send-email|storage-api>
+# 사용: bash scripts/harness/deploy-fn.sh <api-layer|data-api|public-inquiry|send-email|storage-api|jwt-authorizer|notify-handler>
 # 특징: api-layer는 소스 4개(index/db/notify/jwt) 자동 포함(단일 파일만 올리면 로그인 순단).
 #       배포본 index.mjs ↔ 레포 index.mjs diff를 보여줘 예기치 않은 drift(병렬 세션)를 잡는다.
 set -euo pipefail

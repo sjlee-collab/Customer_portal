@@ -4,7 +4,9 @@
 > **이 문서(DESIGN.md)** = 왜 이렇게 만들었는지(위험 모델·설계 원칙·구조·한계·로드맵).
 > 하네스를 고치거나 확장할 때는 이 문서의 원칙과 충돌하지 않는지 먼저 확인한다.
 
-작성 2026-08-31 (기준 커밋 93066ab, 회귀 10종 231건).
+작성 2026-08-31 (기준 커밋 93066ab, 회귀 10종 231건). **갱신 2026-09-04 — 회귀 17종 337건.**
+그간 추가: 스키마 계약·배치 only_test·JWT 실경유·L2 런타임(헤드리스)·이메일 백스톱·flaky
+허용목록·알림 스냅샷·테스트 요청 은닉(관리자만). 상세는 §3~§7.
 
 ---
 
@@ -60,7 +62,7 @@
 
 ```
 ┌─ 테스트 계층 ──────────────────────────────────────────────┐
-│ tests/ (10종 231건)                                        │
+│ tests/ (17종 337건, 2026-09-04)                            │
 │   └── lib/itest.py                                         │
 │        invoke(fn, event) ─ aws lambda invoke + authorizer  │
 │        ctx/api/dget/dpost/dpatch/ddel ─ 역할 주입 헬퍼      │
@@ -68,7 +70,11 @@
 │        notif_rows/wait_notif ─ 알림 판정(log_notification) │
 │        wipe_ticket/sweep_test_data ─ 정리                  │
 ├─ 운영 스크립트 계층 ────────────────────────────────────────┤
-│ run-regression.sh  스위트 실행 + 종료 시 sweep --delete     │
+│ run-regression.sh  병렬/직렬·재시도(flaky 허용목록)·sweep    │
+│ regression-nightly.sh  새벽 자동: ff→drift→스모크→회귀→기록  │
+│ drift-check.sh     레포↔배포본 대조 (R4, 읽기 전용)          │
+│ l2-smoke.mjs / l2-runtime.mjs  프론트 정적/헤드리스 런타임   │
+│ smoke.sh           HTTP 생존 확인(비파괴)                    │
 │ deploy-fn.sh       drift 진단 → 전체 소스 zip → 배포 → 스모크│
 │ guard-commit.sh    origin 대비 + 의도 파일 검증 (R2)        │
 │ promote.sh         main → 형제 브랜치 ff-only 전파 (R3)     │
@@ -103,7 +109,7 @@
 | L2-정적 | 프론트 문법·핸들러·DOM id 참조 | `l2-smoke.mjs` (실행 없이 검사, 의존성 0) | run-regression 첫 단계 |
 | L2-런타임 | 프론트 렌더·핵심 함수·실로그인 후 화면 | `l2-runtime.mjs`(headless chromium) ← `test_l2_runtime` | 자동(P5, 2026-09-03) |
 | 스모크 | 배포 직후 생존 확인(비파괴) | `smoke.sh` (HTTP), deploy-fn 내장 스모크 | 반자동 |
-| L3 | 실브라우저 로그인 E2E | — | **부재**(§6.3) |
+| L3 | 실브라우저 클릭 흐름 E2E | (핵심 렌더·로그인은 l2-runtime이 커버) | 부재 — 필요성 낮음 |
 
 ### 3.2b 실행 속도 (2026-09-02)
 전체 회귀가 10~13분이던 것을 세 가지로 줄였다:
@@ -137,7 +143,7 @@
 
 ---
 
-## 4. 커버리지 맵 (2026-08-31, 231건)
+## 4. 커버리지 맵 (2026-09-04, 17종 337건)
 
 ### api-layer 라우트 22개
 
@@ -163,6 +169,8 @@
 | (횡단) is_internal 은닉 | test_internal_review | **보안 경계** — 고객 완전 은닉 + 메일 억제 |
 | (횡단) enum CHECK 계약 | test_schema_contract | schema.sql 허용값 ↔ 라이브 DB ↔ 테스트 커버리지 (드리프트 감지) |
 | 배치 3종(overdue_batch·license_expiry_notice·expire_contracts) | test_batch | only_test 모드로 [테스트] 라벨만 스캔 — 안전 검증 |
+| (횡단) 이메일 [테스트] 백스톱 | test_email_backstop | 실 관리자·영업 주소로 가는 메일도 발송 직전 싱크로 재라우팅 — 격리의 마지막 겹 |
+| (횡단) 테스트 요청 은닉 | test_permissions(3건) | 비관리자 스태프·internal 목록에서 [테스트] 요청 제외, admin·include_test=1만 노출 |
 
 ### 기타 Lambda
 

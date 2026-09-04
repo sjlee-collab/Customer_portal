@@ -43,10 +43,23 @@ def run():
         r = dget('content_documents', {'select': 'id,is_public', 'limit': '1000'}, **A).get('body') or []
         t.check('고객 자료=공개만', all(x.get('is_public') is not False for x in r), 'private_leak=%d' % sum(1 for x in r if x.get('is_public') is False))
 
-        rowsS = dget('tickets', {'select': 'id,company_id', 'limit': '1000'}, role='tech_support', userId='zz-staff').get('body') or []
+        # 교차조회 검증은 include_test=1로 — 기본값에선 [테스트] 티켓이 비관리자 스태프에게
+        # 숨겨지므로(테스트 요청 은닉), 하네스 픽스처를 보려면 명시 우회가 필요하다.
+        rowsS = dget('tickets', {'select': 'id,company_id', 'limit': '1000', 'include_test': '1'}, role='tech_support', userId='zz-staff').get('body') or []
         seesA = any(x.get('company_id') == coA for x in rowsS)
         seesB = any(x.get('company_id') == coB for x in rowsS)
         t.check('스태프 교차조회 가능', seesA and seesB, 'A=%s B=%s' % (seesA, seesB))
+
+        # ── [테스트] 요청 은닉: 관리자만 기본 노출 ──
+        # 비관리자 스태프 기본 조회 → [테스트] 픽스처 안 보임 / admin은 보임 / 우회는 위에서 검증됨.
+        hidS = dget('tickets', {'select': 'id', 'limit': '1000'}, role='tech_support', userId='zz-staff').get('body') or []
+        hid_ids = {x['id'] for x in hidS}
+        t.check('[테스트] 은닉: 스태프 기본 조회에 테스트 티켓 없음', tA not in hid_ids and tB not in hid_ids,
+                '노출=%s' % [x for x in (tA, tB) if x in hid_ids])
+        admS = dget('tickets', {'select': 'id', 'id': 'in.%s,%s' % (tA, tB)}, role='admin').get('body') or []
+        t.check('[테스트] 은닉: admin은 테스트 티켓 보임', len(admS) == 2, '%d/2건' % len(admS))
+        intS = dget('tickets', {'select': 'id', 'id': 'eq.' + tA}, role='internal', userId='zz-int').get('body') or []
+        t.check('[테스트] 은닉: internal 기본 조회도 제외', len(intS) == 0, '결과=%d건' % len(intS))
     finally:
         for tid in created['tickets']: wipe_ticket(tid)
         for uid in created['users']: ddel('users', uid, role='admin')

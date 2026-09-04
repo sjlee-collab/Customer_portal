@@ -166,6 +166,17 @@ async function tenantRowFilterSql(table, authz, paramOffset, qs) {
     return { sql: `"is_public" = true`, params: [] };
   }
 
+  // [테스트] 요청 은닉 — 하네스가 운영 백엔드에 만드는 테스트 요청은 관리자에게만 보인다.
+  // 실 고객은 회사 스코프로 이미 격리되므로 이 필터의 실제 대상은 비관리자 스태프
+  // (sales·tech_support·education)와 internal: 요청 관리 화면이 테스트 건으로 어지럽혀지지
+  // 않게 한다. 보안 경계가 아니라 화면 정돈 목적이라, 하네스 자신(스태프 역할 검증 테스트)은
+  // ?include_test=1 로 우회한다. 실 요청은 절대 [테스트]로 시작하지 않으므로 영향 없음.
+  // (internal 포함 — 내부직원의 "전체 티켓 열람"은 유지하되 테스트 건만 빠진다.)
+  if (table === 'tickets' && role !== 'admin' && (STAFF_ROLES.has(role) || role === 'internal')
+      && qs?.include_test !== '1') {
+    return { sql: `not ("title" like '[테스트]%' or coalesce("company_name", '') like '[테스트]%')`, params: [] };
+  }
+
   if (STAFF_ROLES.has(role)) return null;
 
   if (table === 'companies') {
@@ -418,7 +429,7 @@ const OPS = {
 
 function buildWhere(table, queryParams, params) {
   const clauses = [];
-  const reserved = new Set(['select', 'order', 'limit', 'single', 'count', 'head', 'on_conflict']);
+  const reserved = new Set(['select', 'order', 'limit', 'single', 'count', 'head', 'on_conflict', 'include_test']);
   for (const [col, rawVal] of Object.entries(queryParams || {})) {
     if (reserved.has(col)) continue;
     assertIdent(col, '필터 컬럼');
