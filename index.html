@@ -8361,6 +8361,11 @@ function fbAddField(type) {
   setTimeout(() => { const inps = document.querySelectorAll('#fb-fields .fb-label-inp'); inps[inps.length - 1]?.focus(); }, 30);
 }
 
+function fbOptsInput(i, el) {
+  // 인라인 핸들러 속성 문자열에는 개행 리터럴을 안전하게 넣을 수 없어 전용 함수로 분리
+  fbCur.fields[i].options = el.value.split(String.fromCharCode(10));
+}
+
 function fbMove(i, dir) {
   const j = i + dir;
   if (j < 0 || j >= fbCur.fields.length) return;
@@ -8396,7 +8401,7 @@ function renderFbFields() {
       </div>
       <input type="text" class="fb-label-inp" placeholder="문항을 입력하세요" value="${_fbAttr(f.label)}" ${dis} oninput="fbCur.fields[${i}].label=this.value">
       ${(f.type === 'single' || f.type === 'multi')
-        ? `<textarea class="fb-opts" rows="3" placeholder="보기를 한 줄에 하나씩 입력하세요" ${dis} oninput="fbCur.fields[${i}].options=this.value.split('\n')">${escHtml((f.options || []).join('\n'))}</textarea>`
+        ? `<textarea class="fb-opts" rows="3" placeholder="보기를 한 줄에 하나씩 입력하세요" ${dis} oninput="fbOptsInput(${i}, this)">${escHtml((f.options || []).join('\n'))}</textarea>`
         : ''}
     </div>`).join('');
 }
