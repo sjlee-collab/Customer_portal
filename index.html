@@ -4059,6 +4059,27 @@ function toggleLoginPw() {
 
 let _resetToken = null;
 
+// 실패 응답을 사람이 읽을 문구로 바꾼다. 서버가 JSON 오류를 준 게 아니면(API Gateway 5xx·
+// Lambda 오류·HTML 응답 등) fallback을 그대로 쓰면 "등록된 이메일이 아닙니다"처럼 계정·입력
+// 문제로 오해하게 된다 — 그 경우 서버 오류임을 밝히고 상태 코드를 함께 남긴다.
+function httpErrMsg(res, data, fallback) {
+  if (data?.error) return data.error;
+  const st = res?.status;
+  if (!st) return fallback;
+  if (st >= 500) return `서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요. (오류 ${st})`;
+  if ([400, 401, 403, 404, 409].includes(st)) return fallback;   // 입력·계정 문제 — 원래 문구가 맞다
+  return `${fallback} (오류 ${st})`;
+}
+
+// fetch 자체가 실패한 경우(TypeError: Failed to fetch) — 응답이 아예 없었다는 뜻이라
+// 네트워크·접속 주소 문제일 가능성이 크다. 계정 문제로 읽히지 않게 따로 안내한다.
+function netErrMsg(e) {
+  const m = e?.message || String(e);
+  return /Failed to fetch|NetworkError|Load failed/i.test(m)
+    ? '서버에 연결하지 못했습니다. 네트워크 상태와 접속 주소를 확인한 뒤 다시 시도해주세요.'
+    : '요청 중 오류가 발생했습니다: ' + m;
+}
+
 async function requestPasswordReset() {
   const email = (document.getElementById('fp-email').value || '').trim();
   const resultEl = document.getElementById('fp-result');
@@ -4081,7 +4102,7 @@ async function requestPasswordReset() {
       resultEl.style.display = '';
       resultEl.style.background = '#FEF2F2';
       resultEl.style.color = '#DC2626';
-      resultEl.textContent = data?.error || '등록된 이메일이 아닙니다.';
+      resultEl.textContent = httpErrMsg(res, data, '등록된 이메일이 아닙니다.');
       btn.disabled = false;
       return;
     }
@@ -4089,7 +4110,7 @@ async function requestPasswordReset() {
     resultEl.style.display = '';
     resultEl.style.background = '#FEF2F2';
     resultEl.style.color = '#DC2626';
-    resultEl.textContent = '요청 중 오류가 발생했습니다: ' + e.message;
+    resultEl.textContent = netErrMsg(e);
     btn.disabled = false;
     return;
   }
@@ -4120,7 +4141,7 @@ async function submitPasswordReset() {
     });
     const data = await res.json().catch(() => null);
     if (!res.ok) {
-      errEl.textContent = data?.error || '재설정에 실패했습니다.';
+      errEl.textContent = httpErrMsg(res, data, '재설정에 실패했습니다.');
       errEl.style.display = '';
       btn.disabled = false;
       return;
@@ -4168,7 +4189,7 @@ async function doLogin() {
     return;
   }
   if (!res.ok) {
-    errEl.textContent = data?.error || '로그인에 실패했습니다.';
+    errEl.textContent = httpErrMsg(res, data, '로그인에 실패했습니다.');
     errEl.style.display = '';
     return;
   }
@@ -4394,7 +4415,7 @@ async function saveMyPage() {
       const data = await res?.json().catch(() => null);
       if (!res?.ok) {
         if (res && isAuthRejection(res.status, data)) { handleAuthExpired(); return; }
-        pwErr.textContent = data?.error || '현재 비밀번호 확인에 실패했습니다.'; pwErr.style.display = ''; return;
+        pwErr.textContent = httpErrMsg(res, data, '현재 비밀번호 확인에 실패했습니다.'); pwErr.style.display = ''; return;
       }
     }
     pwErr.style.display = 'none';
@@ -10733,7 +10754,7 @@ async function resetUserPassword(id, name) {
       body: JSON.stringify({ userId: id }),
     });
     const data = await res.json().catch(() => null);
-    if (!res.ok) { showToast(data?.error || '재설정 메일 발송에 실패했습니다.', true); return; }
+    if (!res.ok) { showToast(httpErrMsg(res, data, '재설정 메일 발송에 실패했습니다.'), true); return; }
     // 링크 유효기간이 30분이라 "언제까지"를 같이 알려줘야 관리자가 사용자에게 안내할 수 있다.
     showToast(data?.emailSent
       ? '✅ ' + name + ' 님에게 비밀번호 재설정 메일을 보냈습니다. 링크는 30분간 유효합니다.'
