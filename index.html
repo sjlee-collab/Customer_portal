@@ -10229,9 +10229,12 @@ function toggleNotifyDetail(tr) {
 
 async function retryNotify(id) {
   if (!sb) return;
-  const { error } = await sb.from('log_notification').update({ status: 'pending', error_message: null }).eq('id', id);
+  // 실패 사유는 지우지 않는다 — 예전에는 error_message를 null로 덮어써서, 나중에 왜 실패했는지
+  // 추적할 방법이 사라졌다(2026-09-04 실제로 원인 확인 불가). 상태만 대기로 바꾸고 사유는 남긴다.
+  const { error } = await sb.from('log_notification').update({ status: 'pending' }).eq('id', id);
   if (error) { showToast('재시도 처리 실패: ' + error.message, true); return; }
-  showToast('재시도 요청이 등록됐습니다.');
+  // 실제 재발송은 아직 없다 — "재시도했는데 왜 안 오지?"라는 오해가 실제로 있었어서 문구로 밝힌다.
+  showToast('재시도 대기로 표시했습니다. (자동 재발송은 아직 지원하지 않습니다)');
   loadNotifyLog();
 }
 
