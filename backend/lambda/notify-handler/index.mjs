@@ -200,11 +200,14 @@ async function handleLicenseExpiry(payload, results) {
   );
 }
 
-// 영업 채널 대상 여부 — 계약·라이선스 카테고리이거나, 영업(role=sales)이 대리 등록한 건.
+// 영업이 대리 등록한 건 — 카테고리와 무관하게 영업 채널 대상.
 // registrarRole은 DB를 못 보는 이 Lambda 대신 api-layer가 조회해 payload로 넘겨준다.
+function registeredBySales(payload) { return payload?.registrarRole === 'sales'; }
+
+// 영업 채널 대상 여부 — 계약·라이선스 카테고리이거나, 영업이 대리 등록한 건.
 // 두 조건을 한 곳에서 판정해 카테고리와 등록자가 겹칠 때 중복 발송되지 않게 한다.
 function needsSalesChannel(ticket, payload) {
-  return ['contract', 'license'].includes(ticket.category) || payload?.registrarRole === 'sales';
+  return ['contract', 'license'].includes(ticket.category) || registeredBySales(payload);
 }
 
 async function handleTicketInsert(payload, results) {
@@ -250,6 +253,11 @@ async function handleTicketAssigned(payload, results) {
   const body = buildBaseMessage(ticket, payload) + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`;
   const isTest = isTestTicket(ticket);
   await sendSlack(SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, 'assigned', header, body, results, isTest);
+  // 배정 알림은 원래 카테고리 팬아웃이 교육뿐이었다 — 기존 동작은 그대로 두고,
+  // 영업이 대리 등록한 건만 영업 채널을 추가한다(계약·라이선스 카테고리 규칙은 미적용).
+  if (registeredBySales(payload) && SLACK_WEBHOOK_SALES) {
+    await sendSlack(SLACK_WEBHOOK_SALES, '#영업-슬랙채널', ticket.id, 'assigned', header, body, results, isTest);
+  }
   if (ticket.category === 'education' && SLACK_WEBHOOK_EDU) {
     await sendSlack(SLACK_WEBHOOK_EDU, '#교육-슬랙채널', ticket.id, 'assigned', header, body, results, isTest);
   }
@@ -297,7 +305,7 @@ async function handleTicketReply(payload, results) {
   const body = buildBaseMessage(ticket, payload) + authorLine + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`;
   const isTest = isTestTicket(ticket);
   await sendSlack(SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, 'reply', header, body, results, isTest);
-  if (['contract', 'license'].includes(ticket.category) && SLACK_WEBHOOK_SALES) {
+  if (needsSalesChannel(ticket, payload) && SLACK_WEBHOOK_SALES) {
     await sendSlack(SLACK_WEBHOOK_SALES, '#영업-슬랙채널', ticket.id, 'reply', header, body, results, isTest);
   }
   if (ticket.category === 'tech_support' && SLACK_WEBHOOK_TECH) {
