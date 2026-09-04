@@ -62,8 +62,13 @@ def run():
         rows = dget('tickets', {'select': 'id', 'id': 'eq.' + tid}, **CUST).get('body') or []
         t.check('고객 id 직접조회 은닉', len(rows) == 0, '결과=%d건' % len(rows))
 
-        # 자식행: 스태프가 답글을 달아두고, 고객이 그 답글을 못 보는지
-        dpost('ticket_replies', {'ticket_id': tid, 'note': tname('내부 답글'), 'changed_by': st}, role='admin')
+        # 자식행: 스태프가 답글을 달아두고, 고객이 그 답글을 못 보는지.
+        # 양성대조 필수 — 생성 확인 없이 "고객 0건"만 보면, insert가 실패했을 때도 공허하게
+        # 통과해 is_internal 자식행 은닉이 깨져도 못 잡는다(거짓통과 감사 T2-1).
+        rp = dpost('ticket_replies', {'ticket_id': tid, 'note': tname('내부 답글'), 'changed_by': st}, role='admin')
+        t.check('양성대조: 답글 생성됨', bool((rp.get('body') or {}).get('id')), 'status=%s' % rp.get('status'))
+        staff_sees = dget('ticket_replies', {'select': 'id', 'ticket_id': 'eq.' + tid}, role='admin').get('body') or []
+        t.check('양성대조: 스태프는 답글 보임', len(staff_sees) >= 1, '%d건' % len(staff_sees))
         rows = dget('ticket_replies', {'select': 'id', 'ticket_id': 'eq.' + tid}, **CUST).get('body') or []
         t.check('고객 자식행(답글) 은닉', len(rows) == 0, '결과=%d건' % len(rows))
 
