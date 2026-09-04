@@ -468,6 +468,7 @@ async function notifyForAssign(ticketId, prevAssigneeId, snapshot) {
     type: 'TICKET_ASSIGNED', ticket, companyName: ticket.company_name,
     requesterName: requester?.name, assigneeName: ticket.assigned_to_name,
     prevAssigneeName: prevAssignee?.name ?? '미배정',
+    registrarRole: await getRegistrarRole(ticket),
   });
 }
 
@@ -548,6 +549,7 @@ async function notifyForReply(ticketId, authorId) {
     type: 'TICKET_REPLY', ticket, companyName: ticket.company_name,
     requesterName: requester?.name, assigneeName: ticket.assigned_to_name,
     replyAuthorName: author?.name || null, replyAuthorRole: author?.role || null,
+    registrarRole: await getRegistrarRole(ticket),
   });
 }
 
@@ -935,12 +937,15 @@ async function notifyForManage(job) {
   const requester = await getUser(ticket.created_by);
   const notifyBase = { companyName, requesterName: requester?.name, assigneeName: ticket.assigned_to_name ?? '미배정' };
 
+  // 처리 모달은 상태·담당자를 한 번에 바꾸므로 알림도 여기서 따로 보낸다 —
+  // /status·/assign 단독 경로와 같은 정보를 실어야 채널 분기가 어긋나지 않는다.
+  const registrarRole = await getRegistrarRole(ticket);
   if (assigneeChanged) {
     const prevAssignee = await getUser(prevAssigneeId);
-    await notifySlack({ type: 'TICKET_ASSIGNED', ticket, ...notifyBase, prevAssigneeName: prevAssignee?.name ?? '미배정' });
+    await notifySlack({ type: 'TICKET_ASSIGNED', ticket, ...notifyBase, prevAssigneeName: prevAssignee?.name ?? '미배정', registrarRole });
   }
   if (statusChanged && SLACK_STATUS_CHANGE.has(ticket.status)) {
-    await notifySlack({ type: 'TICKET_STATUS', ticket, ...notifyBase, prevStatus });
+    await notifySlack({ type: 'TICKET_STATUS', ticket, ...notifyBase, prevStatus, registrarRole });
   }
   if (statusChanged && !['completed', 'cancelled'].includes(ticket.status) && isOverdue(ticket.due_date)) {
     await notifySlack({ type: 'TICKET_OVERDUE', ticket, ...notifyBase });

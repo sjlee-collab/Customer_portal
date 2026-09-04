@@ -7,8 +7,9 @@
       tech_support → 공통 + #기술지원-슬랙채널
       contract     → 공통 + #영업-슬랙채널
       education    → 공통 + #교육-슬랙채널
-  - 영업(role=sales) 대리 등록: 카테고리와 무관하게 신규 등록·상태 변경이 #영업-슬랙채널에도
-    (api-layer가 등록자 role을 조회해 registrarRole로 넘기고 notify-handler가 분기)
+  - 영업(role=sales) 대리 등록: 카테고리와 무관하게 신규 등록·상태 변경·답글·담당자 배정이
+    #영업-슬랙채널에도 (api-layer가 등록자 role을 조회해 registrarRole로 넘기고 notify-handler가 분기).
+    상태 변경은 /status 단독 경로와 처리 모달(/manage) 두 경로 모두 확인한다.
   - 답글(TICKET_REPLY): 작성자가 customer일 때만 발송(공통 + 카테고리 채널),
     스태프 답글도 알림 (2026-09-02 14eb33f로 전 역할 확대 — 예전엔 고객만)
   - 등록 시 접수 확인 메일 1통(요청자에게)
@@ -113,6 +114,30 @@ def run():
             st_ch = {x.get('recipient') for x in slack if x.get('event_type') == 'status_change'}
             t.check('영업 대리등록 상태변경 슬랙: 공통+기술+영업',
                     st_ch == {COMMON, '#기술지원-슬랙채널', '#영업-슬랙채널'}, '실제=%s' % sorted(st_ch))
+
+            # 답글 — 영업 대리등록 건이면 답글 알림도 영업 채널로
+            base = len(notif_rows(ptid, 'slack'))
+            r = api('POST', '/tickets/%s/reply' % ptid, {'note': tname('영업건 답글')}, **C)
+            t.check('영업 대리등록 답글 201', r.get('status') == 201, 'status=%s' % r.get('status'))
+            slack = wait_notif(ptid, 'slack', base + 3)
+            rp_ch = {x.get('recipient') for x in slack if x.get('event_type') == 'reply'}
+            t.check('영업 대리등록 답글 슬랙: 공통+기술+영업',
+                    rp_ch == {COMMON, '#기술지원-슬랙채널', '#영업-슬랙채널'}, '실제=%s' % sorted(rp_ch))
+
+            # 담당자 배정 + 상태 변경을 처리 모달(/manage) 한 번에 — 두 알림 모두 영업 채널 포함
+            staff = (dget('users', {'select': 'id', 'role': 'eq.tech_support', 'is_active': 'eq.true',
+                                    'limit': '1'}, role='admin').get('body') or [{}])[0].get('id')
+            base = len(notif_rows(ptid, 'slack'))
+            r = api('PATCH', '/tickets/%s/manage' % ptid,
+                    {'category': 'tech_support', 'status': 'pending_customer', 'assigned_to': staff,
+                     'due_date': None, 'memo': '', 'send_email': False}, role='admin')
+            t.check('처리 모달 저장 200', r.get('status') == 200, 'status=%s' % r.get('status'))
+            slack = wait_notif(ptid, 'slack', base + 6)   # 배정 3 + 상태 3
+            asg_ch = {x.get('recipient') for x in slack if x.get('event_type') == 'assigned'}
+            pend_ch = {x.get('recipient') for x in slack if x.get('event_type') == 'pending_customer'}
+            t.check('영업 대리등록 배정 슬랙에 영업 포함', '#영업-슬랙채널' in asg_ch, '실제=%s' % sorted(asg_ch))
+            t.check('처리 모달 상태변경도 공통+기술+영업',
+                    pend_ch == {COMMON, '#기술지원-슬랙채널', '#영업-슬랙채널'}, '실제=%s' % sorted(pend_ch))
 
         # 고객 직접 등록(대리등록자 없음)은 영업 채널로 가지 않는다 — 규칙이 과하게 퍼지지 않는지 확인
         base_tid = tids.get('tech_support')
