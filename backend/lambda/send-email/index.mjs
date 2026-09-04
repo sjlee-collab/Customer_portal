@@ -94,6 +94,9 @@ async function sendAndLog(to, subject, html, ticketId, eventType, results) {
     // 있어도 저장 불필요하므로 순수 html을 넘긴다.
     results.push({ channel: 'email', eventType, recipient: to, subject, ticketId, status: 'sent', isTest: EMAIL_IS_TEST, content: html });
   } catch (err) {
+    // 실패를 결과 배열로만 돌려주고 로그에 남기지 않아, 나중에 CloudWatch로 원인을 볼 수 없었다
+    // (2026-09-04 긴급 메일 1통 실패 시 실제로 추적 불가). 수신자·이벤트와 함께 남긴다.
+    console.error(`[메일 발송 실패] to=${to} event=${eventType} ticket=${ticketId ?? '-'}`, err);
     results.push({ channel: 'email', eventType, recipient: to, subject, ticketId, status: 'failed', isTest: EMAIL_IS_TEST, errorMessage: String(err), content: html });
   }
 }

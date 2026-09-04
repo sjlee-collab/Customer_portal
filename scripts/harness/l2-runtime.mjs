@@ -39,9 +39,20 @@ const URL_ = `http://127.0.0.1:${server.address().port}/index.html`;
 // 페이지를 127.0.0.1에서 서빙하므로 실 API GW(운영 오리진만 허용)로 가는 fetch가 CORS로
 // 막힌다. L2 런타임은 CORS 정책이 아니라 프론트 렌더를 검증하므로 웹 보안을 꺼 실 응답을
 // 그대로 흐르게 한다(Python 경로인 test_jwt가 CORS와 무관하게 API 계약을 이미 검증).
-const browser = await chromium.launch({
-  args: ['--disable-web-security', '--disable-features=IsolateOrigins,site-per-process'],
-});
+// 브라우저 실행 실패(바이너리 부재 등 — 예: 작업 스케줄러 환경에서 경로 해석 어긋남)는
+// 제품 결함이 아니므로 '실패'가 아니라 '건너뜀'으로 신호한다(REALFAIL 오탐 방지).
+let browser;
+try {
+  browser = await chromium.launch({
+    args: ['--disable-web-security', '--disable-features=IsolateOrigins,site-per-process'],
+  });
+} catch (e) {
+  const msg = String((e && e.message) || e).split('\n')[0].slice(0, 200);
+  console.log('L2R_SKIP: chromium 실행 불가 — ' + msg);
+  console.log(JSON.stringify({ skip: true, reason: msg }));
+  server.close();
+  process.exit(0);
+}
 try {
   const page = await browser.newPage();
   const errors = [];   // 콘솔 error + 페이지 예외 수집
