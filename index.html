@@ -240,7 +240,15 @@ button,input,select,textarea{font-family:inherit;}
 
 /* ── 사용 통계 > 요청 현황 탭 ─────────────────────────────────
    차트는 외부 라이브러리 없이 flex/grid 막대와 인라인 SVG로 그린다(CSP가 CDN을 막음). */
+/* 통일 필터 바 — 검색은 항상 맨 왼쪽 고정 폭, 기간·필터는 오른쪽 묶음.
+   검색을 flex:1로 늘리면 셀렉트 개수에 따라 탭마다 위치·폭이 달라져서 고정 폭으로 둔다.
+   .rq-fspace가 둘 사이를 벌리고, 넘치는 셀렉트·칩은 둘째 줄(.rq-filters2)에서 같은 우측 축에 붙는다. */
 .rq-filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px;}
+.rq-filters .rq-fspace{flex:1 1 auto;min-width:8px;}
+.rq-filters select{flex:none;}
+.rq-filters2{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:-6px 0 14px;}
+.rq-filters2 .rq-fspace{flex:1 1 auto;min-width:8px;}
+.rq-fnote{font-size:11px;color:var(--faint);}
 .rq-filters select{width:auto;flex:none;}
 .rq-seg{display:inline-flex;background:var(--surface2);border:1px solid var(--border-md);border-radius:var(--r-md);overflow:hidden;}
 .rq-seg button{border:none;background:none;padding:6px 12px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;}
@@ -309,6 +317,18 @@ button,input,select,textarea{font-family:inherit;}
 .fd-body .co{color:var(--muted);}
 .fd-body .obj{color:var(--accent);}
 .fd-time{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--faint);white-space:nowrap;margin-top:3px;font-variant-numeric:tabular-nums;}
+/* 사용자별 활동 요약 — 카드 폭에 맞춰 줄어들게(가로 스크롤 방지).
+   숫자 열은 좁게 고정하고 이름 열이 남는 폭을 가져간다. 좁아지면 이름만 말줄임된다. */
+.fd-utbl{table-layout:fixed;width:100%;}
+.fd-utbl th,.fd-utbl td{padding-left:4px;padding-right:4px;}
+.fd-utbl th:first-child,.fd-utbl td:first-child{padding-left:10px;}
+.fd-utbl td:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fd-utbl td:first-child div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+/* 고객 활동 탭은 우측 요약 표에 열이 7개라 기본 340px로는 이름이 과하게 잘린다.
+   이 탭에서만 우측을 넓혀 이름·소속이 온전히 보이게 한다. */
+.fd-g2{grid-template-columns:1fr 460px;}
+@media (max-width:1280px){.fd-g2{grid-template-columns:1fr 400px;}}
+@media (max-width:1100px){.fd-g2{grid-template-columns:1fr;}}
 /* ── 사용 통계 > 응답 현황 탭 ── */
 .sat-stars{color:#F59E0B;letter-spacing:1px;font-size:13px;white-space:nowrap;}
 .sat-stars .off{color:var(--border-md);}
@@ -755,6 +775,13 @@ textarea{resize:vertical;min-height:100px;}
 /* 검색창 — 시안대로 왼쪽에 돋보기를 배경 SVG로 심는다(마크업 수정 없이 전 검색창 공통 적용).
    CSP img-src에 data:가 허용돼 있어 외부 요청 없이 그려진다. */
 .search-box{flex:1;min-width:200px;padding:9px 12px 9px 34px;border:1px solid var(--border-md);border-radius:var(--r-lg);font-size:13px;font-family:inherit;outline:none;background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath stroke-linecap='round' d='M21 21l-4.35-4.35'/%3E%3C/svg%3E") no-repeat 12px center;transition:.12s;}
+/* 통일 필터 바 안에서는 검색 폭을 고정한다 — flex:1이면 셀렉트 개수에 따라
+   탭마다 폭·위치가 달라진다. .search-box 정의 뒤에 둬야 소스 순서로 이긴다. */
+.rq-filters .search-box{flex:0 0 260px;min-width:170px;}
+/* 둘째 줄도 같은 규칙 — 셀렉트가 전체 폭으로 늘어나 한 줄씩 차지하는 것을 막는다. */
+.rq-filters select,
+.rq-filters2 select{flex:none;width:auto;}
+.rq-filters2 .search-box{flex:0 0 260px;min-width:170px;}
 .search-box:focus{border-color:var(--accent-m);box-shadow:var(--shadow-sm);}
 /* 요청 목록 검색창 — 시안의 "검색창 안에 인디고 검색 버튼" 형태. */
 .search-wrap{flex:1;min-width:220px;position:relative;display:flex;align-items:center;}
@@ -2072,6 +2099,7 @@ textarea{resize:vertical;min-height:100px;}
                 <option value="internal">내부직원</option>
                 <option value="customer">고객</option>
               </select></th>
+              <th>이름</th>
               <th>수신자</th>
               <th><select id="notify-filter-company" onchange="loadNotifyLog()" class="th-filter">
                 <option value="">고객사</option>
@@ -2086,7 +2114,7 @@ textarea{resize:vertical;min-height:100px;}
               <th><button onclick="document.querySelectorAll('[id^=notify-filter-]').forEach(s=>s.value='');loadNotifyLog();" style="font-size:11px;padding:2px 8px;border:1px solid var(--border-md);border-radius:4px;background:transparent;cursor:pointer;color:var(--muted);">초기화</button></th>
             </tr></thead>
             <tbody id="notify-tbody">
-              <tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
+              <tr><td colspan="12" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
             </tbody>
           </table></div>
           <div id="notify-pager" style="padding:12px 18px;border-top:1px solid var(--border);display:none;align-items:center;justify-content:flex-end;gap:10px;background:var(--surface2);flex-shrink:0;">
@@ -2168,14 +2196,19 @@ textarea{resize:vertical;min-height:100px;}
         </div>
 
         <div class="stab-panel" id="stab-act">
+        <div class="rq-filters">
+          <span class="rq-fspace"></span>
+          <span class="rq-seg" id="act-days" role="group" aria-label="기간">
+            <button type="button" onclick="setActDays(7,this)">7일</button>
+            <button type="button" class="on" onclick="setActDays(30,this)">30일</button>
+            <button type="button" onclick="setActDays(90,this)">90일</button>
+            <button type="button" onclick="setActDays(0,this)">전체</button>
+          </span>
+        </div>
+        <div class="rq-filters2"><span class="rq-fnote">기간: 로그인 시각 기준</span></div>
+
         <div class="card">
-          <div class="card-title">활성 사용자 지표 <span style="font-size:11px;color:var(--faint);font-weight:400;">고객 계정 기준 · 고유 로그인 사용자 · 테스트 계정 제외</span>
-            <span class="rq-seg" id="act-days" role="group" aria-label="기간" style="margin-left:auto;">
-              <button type="button" onclick="setActDays(7,this)">7일</button>
-              <button type="button" class="on" onclick="setActDays(30,this)">30일</button>
-              <button type="button" onclick="setActDays(90,this)">90일</button>
-              <button type="button" onclick="setActDays(0,this)">전체</button>
-            </span></div>
+          <div class="card-title">활성 사용자 지표 <span style="font-size:11px;color:var(--faint);font-weight:400;">고객 계정 기준 · 고유 로그인 사용자 · 테스트 계정 제외</span></div>
           <div id="stats-active" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:14px;">
             <div style="padding:16px;text-align:center;color:var(--faint);grid-column:1/-1;">불러오는 중...</div>
           </div>
@@ -2199,6 +2232,22 @@ textarea{resize:vertical;min-height:100px;}
 
         <div class="stab-panel" id="stab-acct" style="display:none;">
         <div class="card-title" style="margin-bottom:12px;">계정 현황</div>
+        <div class="rq-filters">
+          <input id="lh-search" class="search-box" placeholder="이름·고객사 검색" onkeydown="if(event.key==='Enter')applyLhFilter()">
+          <span class="rq-fspace"></span>
+          <span class="rq-seg" id="lh-seg" role="group" aria-label="기간">
+            <button type="button" onclick="setLhDays(7,this)">7일</button>
+            <button type="button" onclick="setLhDays(30,this)">30일</button>
+            <button type="button" onclick="setLhDays(90,this)">90일</button>
+            <button type="button" class="on" onclick="setLhDays(0,this)">전체</button>
+          </span>
+          <select id="lh-role" onchange="applyLhFilter()" style="width:140px;">
+            <option value="">전체 역할</option><option value="customer">고객</option><option value="admin">관리자</option>
+            <option value="sales">영업</option><option value="tech_support">기술지원</option><option value="education">교육</option><option value="internal">내부</option>
+          </select>
+        </div>
+        <div class="rq-filters2"><span class="rq-fnote">기간: 로그인 시각 기준</span></div>
+
         <div id="stats-accounts" style="margin-bottom:16px;"></div>
 
         <!-- 미접속(고객) 카드 클릭 시 열리는 드릴다운 — 통계가 아니라 온보딩 작업 목록이다. -->
@@ -2217,16 +2266,6 @@ textarea{resize:vertical;min-height:100px;}
 
         <div class="card">
           <div class="card-title" style="display:flex;align-items:baseline;gap:8px;">사용자 로그인 이력 <span style="font-size:11px;color:var(--faint);font-weight:400;">로그인 이벤트 전체</span></div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-            <input id="lh-search" class="search-box" style="flex:1;min-width:180px;box-sizing:border-box;" placeholder="이름·고객사 검색" onkeydown="if(event.key==='Enter')applyLhFilter()">
-            <select id="lh-role" onchange="applyLhFilter()" style="width:140px;flex:none;">
-              <option value="">전체 역할</option><option value="customer">고객</option><option value="admin">관리자</option>
-              <option value="sales">영업</option><option value="tech_support">기술지원</option><option value="education">교육</option><option value="internal">내부</option>
-            </select>
-            <select id="lh-days" onchange="applyLhFilter()" style="width:130px;flex:none;">
-              <option value="0">전체 기간</option><option value="7">최근 7일</option><option value="30">최근 30일</option><option value="90">최근 90일</option>
-            </select>
-          </div>
           <div class="tbl-scroll" id="lh-scroll"><table class="tbl tbl-compact">
             <thead><tr><th>사용자</th><th>역할</th><th>고객사</th><th style="text-align:right;">로그인 일시</th></tr></thead>
             <tbody id="lh-tbody"><tr><td colspan="4" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr></tbody>
@@ -2243,6 +2282,8 @@ textarea{resize:vertical;min-height:100px;}
 
         <div class="stab-panel" id="stab-cust" style="display:none;">
           <div class="rq-filters">
+            <input id="cu-search" class="search-box" placeholder="고객사명 검색" onkeydown="if(event.key==='Enter')applyCuFilter()">
+            <span class="rq-fspace"></span>
             <span class="rq-seg" id="cu-days" role="group" aria-label="기간">
               <button type="button" onclick="setCuDays(7,this)">7일</button>
               <button type="button" onclick="setCuDays(30,this)">30일</button>
@@ -2251,14 +2292,14 @@ textarea{resize:vertical;min-height:100px;}
             </span>
             <select id="cu-type" onchange="applyCuFilter()"><option value="">전체 고객유형</option></select>
             <select id="cu-manager" onchange="applyCuFilter()"><option value="">전체 담당영업</option></select>
-            <input id="cu-search" class="search-box" style="flex:1;min-width:160px;box-sizing:border-box;"
-                   placeholder="고객사명 검색" onkeydown="if(event.key==='Enter')applyCuFilter()">
-            <span style="font-size:11px;color:var(--faint);font-weight:600;letter-spacing:.04em;">프리셋</span>
+          </div>
+        <div class="rq-filters2"><span class="rq-fnote">기간: 접속·요청 집계에만 적용 (등급 판정은 전체 기간)</span>
+          <span class="rq-fspace"></span><span style="font-size:11px;color:var(--faint);font-weight:600;">프리셋</span>
             <button class="cu-preset" type="button" data-p="" aria-pressed="true" onclick="setCuPreset('',this)">전체</button>
             <button class="cu-preset" type="button" data-p="risk" aria-pressed="false" onclick="setCuPreset('risk',this)"><span class="dot" style="background:var(--red);"></span>이탈 위험</button>
             <button class="cu-preset" type="button" data-p="onboard" aria-pressed="false" onclick="setCuPreset('onboard',this)"><span class="dot" style="background:var(--faint);"></span>온보딩 필요</button>
             <button class="cu-preset" type="button" data-p="heavy" aria-pressed="false" onclick="setCuPreset('heavy',this)"><span class="dot" style="background:var(--accent);"></span>부하 집중</button>
-          </div>
+        </div>
 
           <div class="rq-kpis" id="cu-kpis">
             <div class="rq-kpi" style="grid-column:1/-1;"><div class="s" style="margin:0;">불러오는 중...</div></div>
@@ -2313,6 +2354,8 @@ textarea{resize:vertical;min-height:100px;}
 
         <div class="stab-panel" id="stab-req" style="display:none;">
           <div class="rq-filters">
+            <input id="rq-q" class="search-box" placeholder="고객사 검색" onkeydown="if(event.key==='Enter')loadTicketStats()">
+            <span class="rq-fspace"></span>
             <span class="rq-seg" id="rq-days" role="group" aria-label="기간">
               <button type="button" onclick="setRqDays(7,this)">7일</button>
               <button type="button" onclick="setRqDays(30,this)">30일</button>
@@ -2330,6 +2373,10 @@ textarea{resize:vertical;min-height:100px;}
               <option value="">전체 우선순위</option>
               <option value="critical">긴급</option><option value="high">빠른 확인 필요</option><option value="normal">일반</option>
             </select>
+          </div>
+          <div class="rq-filters2">
+            <span class="rq-fnote">기간: 요청 접수일 기준</span>
+            <span class="rq-fspace"></span>
             <select id="rq-assignee" onchange="loadTicketStats()">
               <option value="">전체 담당자</option><option value="none">미배정</option>
             </select>
@@ -2342,9 +2389,6 @@ textarea{resize:vertical;min-height:100px;}
                     title="접수 경로를 '대리 등록'으로 선택하면 활성화됩니다">
               <option value="">전체 대리 등록자</option>
             </select>
-            <input id="rq-q" class="search-box" style="flex:1;min-width:150px;box-sizing:border-box;"
-                   placeholder="고객사 검색" onkeydown="if(event.key==='Enter')loadTicketStats()">
-            <span class="rq-note" style="align-self:center;white-space:nowrap;">기간: 접수일 기준</span>
           </div>
 
           <div class="rq-ctx" id="rq-ctx" hidden>
@@ -2412,6 +2456,13 @@ textarea{resize:vertical;min-height:100px;}
 
         <div class="stab-panel" id="stab-lib" style="display:none;">
           <div class="rq-filters">
+            <span class="rq-fspace"></span>
+            <span class="rq-seg" id="dl-days" role="group" aria-label="기간">
+              <button type="button" onclick="setDlDays(7,this)">7일</button>
+              <button type="button" onclick="setDlDays(30,this)">30일</button>
+              <button type="button" onclick="setDlDays(90,this)">90일</button>
+              <button type="button" class="on" onclick="setDlDays(0,this)">전체</button>
+            </span>
             <select id="dl-category" onchange="applyDlFilter()"><option value="">전체 카테고리</option></select>
             <select id="dl-product" onchange="applyDlFilter()"><option value="">전체 제품</option></select>
             <select id="dl-visibility" onchange="applyDlFilter()">
@@ -2429,6 +2480,7 @@ textarea{resize:vertical;min-height:100px;}
               <option value="">전체 사람</option>
             </select>
           </div>
+          <div class="rq-filters2"><span class="rq-fnote">기간: 다운로드 기록 기준 (2026-08-31~)</span></div>
 
           <div class="rq-ctx" id="dl-ctx" hidden>
             <span class="rq-ctx-tag" id="dl-ctx-tag"></span>
@@ -2474,6 +2526,7 @@ textarea{resize:vertical;min-height:100px;}
 
         <div class="stab-panel" id="stab-sys" style="display:none;">
           <div class="rq-filters">
+            <span class="rq-fspace"></span>
             <span class="rq-seg" id="sys-days" role="group" aria-label="기간">
               <button type="button" onclick="setSysDays(7,this)">7일</button>
               <button type="button" onclick="setSysDays(30,this)">30일</button>
@@ -2481,6 +2534,7 @@ textarea{resize:vertical;min-height:100px;}
               <button type="button" class="on" onclick="setSysDays(0,this)">전체</button>
             </span>
           </div>
+          <div class="rq-filters2"><span class="rq-fnote">기간: 발송 시각 기준</span></div>
 
           <div class="rq-kpis" id="sys-kpis">
             <div class="rq-kpi" style="grid-column:1/-1;"><div class="s" style="margin:0;">불러오는 중...</div></div>
@@ -2515,6 +2569,8 @@ textarea{resize:vertical;min-height:100px;}
 
         <div class="stab-panel" id="stab-sat" style="display:none;">
           <div class="rq-filters">
+            <input id="sat-q" class="search-box" placeholder="고객사명 검색" onkeydown="if(event.key==='Enter')loadSatStats()">
+            <span class="rq-fspace"></span>
             <span class="rq-seg" id="sat-days" role="group" aria-label="기간">
               <button type="button" onclick="setSatDays(7,this)">7일</button>
               <button type="button" onclick="setSatDays(30,this)">30일</button>
@@ -2527,10 +2583,8 @@ textarea{resize:vertical;min-height:100px;}
               <option value="contract">계약</option><option value="education">교육</option>
               <option value="customer">고객문의</option><option value="other">기타</option>
             </select>
-            <input id="sat-q" class="search-box" style="flex:1;min-width:160px;box-sizing:border-box;"
-                   placeholder="고객사명 검색" onkeydown="if(event.key==='Enter')loadSatStats()">
-            <span class="rq-note" style="align-self:center;white-space:nowrap;">기간: 평가 제출일 기준</span>
           </div>
+          <div class="rq-filters2"><span class="rq-fnote">기간: 평가 제출일 기준 (응답률 분모는 접수일 근사)</span></div>
 
           <div class="rq-kpis" id="sat-kpis">
             <div class="rq-kpi" style="grid-column:1/-1;"><div class="s" style="margin:0;">불러오는 중...</div></div>
@@ -2576,12 +2630,19 @@ textarea{resize:vertical;min-height:100px;}
 
         <div class="stab-panel" id="stab-feed" style="display:none;">
           <div class="rq-filters">
+            <input id="fd-q" class="search-box" placeholder="이름·고객사 검색" onkeydown="if(event.key==='Enter')applyFdFilter()">
+            <span class="rq-fspace"></span>
             <span class="rq-seg" id="fd-days" role="group" aria-label="기간">
               <button type="button" onclick="setFdDays(7,this)">7일</button>
               <button type="button" class="on" onclick="setFdDays(30,this)">30일</button>
               <button type="button" onclick="setFdDays(90,this)">90일</button>
               <button type="button" onclick="setFdDays(0,this)">전체</button>
             </span>
+          </div>
+          <div class="rq-filters2">
+            <span class="rq-fnote">기간: 활동 발생 시각 기준</span>
+            <span class="rq-fspace"></span>
+            <span style="font-size:11px;color:var(--faint);font-weight:600;">액션</span>
             <span class="fd-chip" data-k="" aria-pressed="true" onclick="setFdKind('',this)">전체</span>
             <span class="fd-chip" data-k="login" aria-pressed="false" onclick="setFdKind('login',this)">🔑 로그인</span>
             <span class="fd-chip" data-k="ticket" aria-pressed="false" onclick="setFdKind('ticket',this)">📮 요청 등록</span>
@@ -2589,15 +2650,13 @@ textarea{resize:vertical;min-height:100px;}
             <span class="fd-chip" data-k="attach" aria-pressed="false" onclick="setFdKind('attach',this)">📎 첨부</span>
             <span class="fd-chip" data-k="download" aria-pressed="false" onclick="setFdKind('download',this)">📥 다운로드</span>
             <span class="fd-chip" data-k="rate" aria-pressed="false" onclick="setFdKind('rate',this)">⭐ 평가</span>
-            <input id="fd-q" class="search-box" style="flex:1;min-width:150px;box-sizing:border-box;"
-                   placeholder="이름·고객사 검색" onkeydown="if(event.key==='Enter')applyFdFilter()">
           </div>
 
           <div class="rq-kpis" id="fd-kpis">
             <div class="rq-kpi" style="grid-column:1/-1;"><div class="s" style="margin:0;">불러오는 중...</div></div>
           </div>
 
-          <div class="rq-g2" style="margin-bottom:0;">
+          <div class="rq-g2 fd-g2" style="margin-bottom:0;">
             <div class="card" style="margin-bottom:0;">
               <div class="card-title">활동 타임라인 <span style="font-size:11px;color:var(--faint);font-weight:400;">고객 계정의 모든 액션 · 최신순</span>
                 <span id="fd-total" style="margin-left:auto;font-size:11px;color:var(--muted);font-weight:400;"></span></div>
@@ -2609,12 +2668,19 @@ textarea{resize:vertical;min-height:100px;}
             </div>
 
             <div class="card" style="margin-bottom:0;">
-              <div class="card-title">사용자별 활동 요약 <span style="font-size:11px;color:var(--faint);font-weight:400;">기간 합계 · 상위 8명 · 행 클릭 시 그 사람만</span></div>
-              <div class="tbl-scroll"><table class="tbl tbl-compact" style="min-width:460px;">
-                <thead><tr><th>사용자</th><th style="text-align:right;">🔑</th><th style="text-align:right;">📮</th><th style="text-align:right;">💬</th><th style="text-align:right;">📥</th><th style="text-align:right;">⭐</th><th style="text-align:right;">계</th></tr></thead>
+              <div class="card-title">사용자별 활동 요약 <span id="fd-byuser-sub" style="font-size:11px;color:var(--faint);font-weight:400;">기간 합계 · 상위 8명 · 행 클릭 시 그 사람만</span></div>
+              <div><table class="tbl tbl-compact fd-utbl">
+                <colgroup><col><col span="5" style="width:34px;"><col style="width:38px;"></colgroup>
+                <thead><tr><th>사용자</th>
+                  <th style="text-align:right;" title="로그인">🔑</th>
+                  <th style="text-align:right;" title="요청 등록">📮</th>
+                  <th style="text-align:right;" title="답글 + 첨부">💬📎</th>
+                  <th style="text-align:right;" title="자료 다운로드">📥</th>
+                  <th style="text-align:right;" title="만족도 평가">⭐</th>
+                  <th style="text-align:right;" title="합계">계</th></tr></thead>
                 <tbody id="fd-byuser"></tbody>
               </table></div>
-              <div class="rq-note" style="margin-top:12px;">🔑 로그인 · 📮 요청 등록 · 💬 답글+첨부 · 📥 다운로드 · ⭐ 평가.
+              <div class="rq-note" style="margin-top:12px;">🔑 로그인 · 📮 요청 등록 · 💬📎 답글+첨부 · 📥 다운로드 · ⭐ 평가.
                 로그인만 반복하고 다른 액션이 없는 패턴은 찾는 걸 못 찾고 있다는 신호일 수 있습니다.</div>
             </div>
           </div>
@@ -8427,7 +8493,15 @@ async function loadActivity(more) {
   if (!d) { feedEl.innerHTML = '<div class="rq-empty">활동 내역을 불러오지 못했습니다.</div>'; return; }
 
   _fdTotal = d.total || 0;
-  if (!more) { _fdRenderKpis(d); _fdRenderByUser(d.byUser || []); }
+  if (!more) {
+    _fdRenderKpis(d);
+    _fdRenderByUser(d.byUser || []);
+    // 표도 같은 조건으로 집계되므로 필터가 걸린 상태를 제목 옆에 밝힌다.
+    const bu = document.getElementById('fd-byuser-sub');
+    if (bu) bu.textContent = _fdKind
+      ? `${FD_META[_fdKind] ? FD_META[_fdKind].ko : _fdKind}만 · 상위 8명 · 행 클릭 시 그 사람만`
+      : '기간 합계 · 상위 8명 · 행 클릭 시 그 사람만';
+  }
   _fdRenderFeed(d.rows || [], more);
   _fdOffset += (d.rows || []).length;
   document.getElementById('fd-total').textContent = `총 ${_fdTotal}건 중 ${Math.min(_fdOffset, _fdTotal)}건 표시`;
@@ -8435,15 +8509,28 @@ async function loadActivity(more) {
 }
 
 function _fdRenderKpis(d) {
+  // KPI는 피드와 같은 조건(기간·검색·액션)을 따른다 — 화면에 서로 다른 총계가 동시에 뜨지 않게.
   const s = d.summary || {};
   const km = Object.fromEntries((d.byKind || []).map(r => [r.kind, r.n]));
   const tot = (d.byKind || []).reduce((a, r) => a + r.n, 0);
+  const all = (d.kindAll || []).reduce((a, r) => a + r.n, 0);
+  const kind = _fdKind;
   const comp = ['login','ticket','reply','attach','download','rate']
     .filter(k => km[k]).map(k => `${FD_META[k].ic}${km[k]}`).join(' · ') || '없음';
+  // 액션 칩이 켜져 있으면 "무엇을 보고 있는지"와 전체 대비 비중을 부제로 밝힌다.
+  const sub1 = kind
+    ? `${FD_META[kind] ? FD_META[kind].ic + ' ' + FD_META[kind].ko : kind}만 · 전체 ${all}건의 ${all ? Math.round((tot / all) * 100) : 0}%`
+    : comp;
+  const who = kind
+    ? `${s.companies || 0}개 고객사 · 이 액션을 한 사람`
+    : `${s.companies || 0}개 고객사`;
   document.getElementById('fd-kpis').innerHTML = [
-    `<div class="rq-kpi"><div class="k">기간 활동</div><div class="v">${tot}</div><div class="s">${comp}</div></div>`,
-    `<div class="rq-kpi good"><div class="k">활동 고객</div><div class="v">${s.users || 0}<span style="font-size:14px;color:var(--faint);">명</span></div><div class="s">${s.companies || 0}개 고객사</div></div>`,
-    `<div class="rq-kpi ${s.onlyLoginPct >= 50 ? 'warn' : ''}"><div class="k">로그인만 하고 나감</div><div class="v">${s.logged ? s.onlyLoginPct + '%' : '—'}</div><div class="s">로그인 ${s.logged || 0}명 중 ${s.onlyLogin || 0}명 — 다른 액션 없음</div></div>`,
+    `<div class="rq-kpi"><div class="k">${kind ? '선택 액션' : '기간 활동'}</div><div class="v">${tot}</div><div class="s">${sub1}</div></div>`,
+    `<div class="rq-kpi good"><div class="k">활동 고객</div><div class="v">${s.users || 0}<span style="font-size:14px;color:var(--faint);">명</span></div><div class="s">${who}</div></div>`,
+    // 로그인만 하고 나간 비율은 로그인 이력이 모집단이라, 다른 액션만 보는 중일 땐 계산이 성립하지 않는다.
+    (kind && kind !== 'login')
+      ? `<div class="rq-kpi"><div class="k">로그인만 하고 나감</div><div class="v" style="font-size:18px;color:var(--faint);">—</div><div class="s">액션 필터를 해제하면 표시됩니다</div></div>`
+      : `<div class="rq-kpi ${s.onlyLoginPct >= 50 ? 'warn' : ''}"><div class="k">로그인만 하고 나감</div><div class="v">${s.logged ? s.onlyLoginPct + '%' : '—'}</div><div class="s">로그인한 ${s.logged || 0}명 중 ${s.onlyLogin || 0}명 — 다른 액션 없음</div></div>`,
   ].join('');
 }
 
@@ -8749,6 +8836,12 @@ function _sysRenderFails(notiFails, integFails) {
 // 않으므로 이 탭에는 추이 그래프도 사용자별 분해도 없다. 화면 하단에 그 사실을 밝힌다.
 const DL_PAGE_SIZE = 10;
 let _dlOffset = 0, _dlTotal = 0, _dlLoaded = false, _dlCatFilled = false;
+let _dlDays = 0;   // 기간(0=전체). 다운로드 이벤트 기준 — 주체 필터가 있을 때만 의미가 있다.
+function setDlDays(d, btn) {
+  _dlDays = d;
+  document.querySelectorAll('#dl-days button').forEach(b => b.classList.toggle('on', b === btn));
+  applyDlFilter();
+}
 
 function applyDlFilter() { _dlOffset = 0; loadDocStats(); }
 function changeDlPage(delta) {
@@ -8768,7 +8861,7 @@ async function loadDocStats() {
   const vis = document.getElementById('dl-visibility')?.value || '';
   const dwho = document.getElementById('dl-who')?.value || '';
   const dperson = document.getElementById('dl-person')?.value || '';
-  const params = new URLSearchParams({ limit: String(DL_PAGE_SIZE), offset: String(_dlOffset) });
+  const params = new URLSearchParams({ limit: String(DL_PAGE_SIZE), offset: String(_dlOffset), days: String(_dlDays) });
   if (cat) params.set('category', cat);
   if (prod) params.set('product', prod);
   if (vis) params.set('visibility', vis);
@@ -9602,6 +9695,12 @@ function fitLhPageSize(reload) {
 }
 const LH_ROLE_LABEL = { customer:'고객', internal:'내부', tech_support:'기술지원', sales:'영업', education:'교육', admin:'관리자' };
 
+let _lhDays = 0;   // 기간 세그 값(0=전체). 옛 lh-days 셀렉트를 대체.
+function setLhDays(d, btn) {
+  _lhDays = d;
+  document.querySelectorAll('#lh-seg button').forEach(b => b.classList.toggle('on', b === btn));
+  applyLhFilter();
+}
 function applyLhFilter() { _lhOffset = 0; loadLoginHistory(); }
 function changeLhPage(delta) {
   const next = _lhOffset + delta * LH_PAGE_SIZE;
@@ -9626,7 +9725,7 @@ async function loadLoginHistory() {
   tbody.innerHTML = '<tr><td colspan="4" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr>';
   const q    = (document.getElementById('lh-search')?.value || '').trim();
   const role = document.getElementById('lh-role')?.value || '';
-  const days = document.getElementById('lh-days')?.value || '0';
+  const days = String(_lhDays);
   const params = new URLSearchParams({ limit: String(LH_PAGE_SIZE), offset: String(_lhOffset) });
   if (q) params.set('q', q);
   if (role) params.set('role', role);
@@ -9862,7 +9961,7 @@ function regDetailHtml(n) {
 async function loadNotifyLog() {
   const tbody = document.getElementById('notify-tbody');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>';
 
   const typeFilter    = document.getElementById('notify-filter-type')?.value    || '';
   const eventFilter   = document.getElementById('notify-filter-event')?.value   || '';
@@ -9871,7 +9970,7 @@ async function loadNotifyLog() {
   const statusFilter  = document.getElementById('notify-filter-status')?.value  || '';
 
   if (!sb) {
-    tbody.innerHTML = '<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">DB 연결 없음</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">DB 연결 없음</td></tr>';
     return;
   }
 
@@ -9897,13 +9996,13 @@ async function loadNotifyLog() {
   if (error) {
     _notifyRowsHtml = [];
     if (pager) pager.style.display = 'none';
-    tbody.innerHTML = `<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--red);font-size:13px;">오류: ${escHtml(error.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--red);font-size:13px;">오류: ${escHtml(error.message)}</td></tr>`;
     return;
   }
   if (!data || !data.length) {
     _notifyRowsHtml = [];
     if (pager) pager.style.display = 'none';
-    tbody.innerHTML = '<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">알림 로그가 없습니다.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">알림 로그가 없습니다.</td></tr>';
     document.getElementById('notify-count').textContent = '총 0건';
     return;
   }
@@ -9940,13 +10039,23 @@ async function loadNotifyLog() {
     data.map(n => (n.recipient || '').trim().toLowerCase()).filter(e => e.includes('@'))
   )];
   const roleByEmail = {};
+  const nameByEmail = {};   // 수신자 이름 열 — 같은 조회에서 함께 받아 추가 쿼리를 만들지 않는다
   for (let i = 0; i < recipientEmails.length; i += 50) {
     const { data: us } = await sb.from('users')
-      .select('email, role')
+      .select('email, name, role')
       .in('email', recipientEmails.slice(i, i + 50))
       .limit(1000);
-    (us || []).forEach(u => { if (u.email) roleByEmail[u.email.trim().toLowerCase()] = u.role; });
+    (us || []).forEach(u => {
+      if (!u.email) return;
+      const key = u.email.trim().toLowerCase();
+      roleByEmail[key] = u.role;
+      if (u.name) nameByEmail[key] = u.name;
+    });
   }
+  // 이름은 포탈 계정이 있을 때만 채운다 — 슬랙 채널 수신·삭제된 계정·포탈 외부 주소는 '—'로 남긴다.
+  const recipientName = (n) => (n.channel === 'email')
+    ? (nameByEmail[(n.recipient || '').trim().toLowerCase()] || '')
+    : '';
   // Slack은 내부 채널로만 발송되므로 항상 내부직원. 이메일 수신자는 role로 판정하되,
   // 계정을 찾지 못하면(삭제된 계정·포탈 외부 수신자) 기존 도메인 추정으로 폴백한다.
   const isInternalRecipient = (n) => {
@@ -10054,6 +10163,7 @@ async function loadNotifyLog() {
       }</td>
       <td style="font-size:12px;">${escHtml(EVENT_TYPE_KO[n.event_type] || n.event_type || '—')}</td>
       <td>${accountTypeBadge}</td>
+      <td style="font-size:12px;white-space:nowrap;">${recipientName(n) ? escHtml(recipientName(n)) : '<span style="color:var(--faint);">—</span>'}</td>
       <td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(n.recipient || '—')}</td>
       <td style="font-size:12px;">${t?.company_name ? escHtml(t.company_name) : '<span style="color:var(--faint);">—</span>'}</td>
       <td>${statusBadge}</td>
@@ -10062,7 +10172,7 @@ async function loadNotifyLog() {
       <td style="text-align:center;">${retryBtn}</td>
     </tr>
     <tr class="notify-detail-row" style="display:none;">
-      <td colspan="11" style="padding:0;">
+      <td colspan="12" style="padding:0;">
         <div style="padding:14px 20px 14px 32px;background:var(--surface2);border-top:1px solid var(--border);">
           ${detailRows}
         </div>
@@ -12847,8 +12957,12 @@ function setupSearchBoxClearButtons() {
     } else {
       wrap = document.createElement('div');
       wrap.style.position = 'relative';
-      wrap.style.flex = '1';
-      wrap.style.minWidth = '200px';
+      // 래퍼가 입력의 자리를 대신하므로 flex 배치를 그대로 물려받아야 한다. 예전엔 flex:1을
+      // 박아서, 통일 필터 바처럼 검색 폭을 고정(flex:0 0 260px)해 둔 곳에서도 래퍼가 남은
+      // 폭을 다 먹어 탭마다 검색창 크기가 달라졌다.
+      const inCS = getComputedStyle(input);
+      wrap.style.flex = inCS.flex && inCS.flex !== '0 1 auto' ? inCS.flex : '1';
+      wrap.style.minWidth = inCS.minWidth && inCS.minWidth !== '0px' ? inCS.minWidth : '200px';
       input.parentNode.insertBefore(wrap, input);
       wrap.appendChild(input);
       input.style.width = '100%';

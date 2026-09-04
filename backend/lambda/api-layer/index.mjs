@@ -1122,6 +1122,9 @@ async function statsDocuments(event) {
   if (qs.visibility === 'public') where.push('is_public');
   else if (qs.visibility === 'private') where.push('not is_public');
   const w = where.length ? 'where ' + where.join(' and ') : '';
+  // 기간은 다운로드 이벤트에만 적용한다 — 누적 카운터(download_count)에는 시각이 없어
+  // 자료 등록일로 거르면 "언제 받았나"와 무관한 숫자가 나온다.
+  const dlDays = [0, 7, 30, 90].includes(parseInt(qs.days, 10)) ? parseInt(qs.days, 10) : 0;
 
   // ── 다운로드 주체 필터 (who=customer|internal, person=user uuid) ──
   // 이 필터는 document_downloads 이벤트 기준이라 기록 시작(2026-08-31) 이후만 집계된다.
@@ -1135,6 +1138,7 @@ async function statsDocuments(event) {
     else if (who === 'internal') ew.push(`d.role <> 'customer'`);
     if (person) { ep.push(person); ew.push(`d.user_id = $${ep.length}`); }
     if (qs.category) { ep.push(qs.category); ew.push(`cd.category = $${ep.length}`); }
+    if (dlDays > 0) ew.push(`d.created_at >= now() - interval '${dlDays} days'`);
     const eWhere = ew.length ? 'where ' + ew.join(' and ') : '';
     const joined = `from document_downloads d left join content_documents cd on cd.id = d.doc_id`;
 
@@ -1346,12 +1350,18 @@ async function statsActivity(event) {
   const [{ n: total }] = await query(
     `with act as (${CTE}) select count(*)::int n from act ${feedWhere}`, pw);
 
-  // 구성·요약(종류 칩과 무관 — 구성을 보여주는 게 목적이므로 기간·검색만 적용)
-  const sw = [], sc = [period];
-  if (q) { sw.push('%' + q + '%'); sc.push(`(uname ilike $${sw.length} or comp ilike $${sw.length})`); }
-  const sumWhere = 'where ' + sc.join(' and ');
+  // 요약도 피드와 같은 조건(기간·검색·종류)으로 계산한다. 예전엔 종류 칩을 빼고 집계해서
+  // "요청 등록"만 보는 중인데 KPI에는 로그인까지 포함된 전체 수가 찍혔다 — 한 화면에 17과 97이
+  // 동시에 나와 모순으로 읽혔다. 액션 구성비는 아래 kindAll(전체 기준)로 따로 내려준다.
+  const sw = pw.slice();
+  const sumWhere = feedWhere;
   const byKind = await query(
     `with act as (${CTE}) select kind, count(*)::int n from act ${sumWhere} group by 1`, sw);
+  // 종류 칩을 빼고 센 값 — 액션 칩에 전체 건수를 곁들이고, 필터 시 "전체 N건 중"을 보여주는 데 쓴다.
+  const kw = [], kc = [period];
+  if (q) { kw.push('%' + q + '%'); kc.push(`(uname ilike $${kw.length} or comp ilike $${kw.length})`); }
+  const kindAll = await query(
+    `with act as (${CTE}) select kind, count(*)::int n from act where ${kc.join(' and ')} group by 1`, kw);
   const [who] = await query(
     `with act as (${CTE})
      select count(distinct uname)::int users, count(distinct nullif(comp, ''))::int companies
@@ -1378,7 +1388,7 @@ async function statsActivity(event) {
        from act ${sumWhere} group by 1 order by total desc limit 8`, sw);
 
   return json(200, {
-    total, rows, byKind, byUser,
+    total, rows, byKind, byUser, kindAll,
     summary: {
       users: who.users, companies: who.companies,
       onlyLogin: lonly.only_login, logged: lonly.logged,
