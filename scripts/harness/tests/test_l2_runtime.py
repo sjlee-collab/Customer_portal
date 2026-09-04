@@ -27,6 +27,22 @@ def playwright_ready():
     return r.returncode == 0
 
 
+def pin_browsers_path(env):
+    """playwright 브라우저 경로를 절대경로로 명시 고정한다.
+
+    기본값은 %LOCALAPPDATA%\\ms-playwright인데, 작업 스케줄러(비대화형 로그온)에서는
+    %LOCALAPPDATA% 해석이 어긋나 설치된 브라우저를 못 찾는 사례가 있었다(2026-09-04 새벽
+    회귀 REALFAIL). 사용자 프로필에서 절대경로를 계산해 PLAYWRIGHT_BROWSERS_PATH로 넘겨
+    대화형/스케줄러가 동일 경로를 보게 한다. 이미 설정돼 있으면 존중한다.
+    """
+    if not env.get('PLAYWRIGHT_BROWSERS_PATH'):
+        base = env.get('LOCALAPPDATA') or os.path.join(os.path.expanduser('~'), 'AppData', 'Local')
+        cand = os.path.join(base, 'ms-playwright')
+        if os.path.isdir(cand):
+            env['PLAYWRIGHT_BROWSERS_PATH'] = cand
+    return env
+
+
 def run():
     t = Checker('L2 런타임(헤드리스 브라우저)')
     if not playwright_ready():
@@ -44,7 +60,8 @@ def run():
         r = api('PATCH', '/auth/change-password', {'newPassword': PW}, role='customer', userId=uid)
         t.check('픽스처: 계정+비번', r.get('status') == 200, 'status=%s' % r.get('status'))
 
-        env = dict(os.environ, L2R_EMAIL=temail('l2rt'), L2R_PW=PW, PYTHONIOENCODING='utf-8')
+        env = pin_browsers_path(dict(os.environ, L2R_EMAIL=temail('l2rt'), L2R_PW=PW,
+                                     PYTHONIOENCODING='utf-8'))
         r = subprocess.run(['node', os.path.join(HDIR, 'l2-runtime.mjs')],
                            capture_output=True, text=True, encoding='utf-8', cwd=HDIR, env=env, timeout=120)
         out = (r.stdout or '').strip().splitlines()
@@ -54,6 +71,10 @@ def run():
             if ln.startswith('{'):
                 try: payload = json.loads(ln); break
                 except Exception: pass
+        # 브라우저 실행 불가(바이너리 부재 등 환경 문제)는 실패가 아니라 건너뜀 — REALFAIL 오탐 방지.
+        if payload and payload.get('skip'):
+            print('⏭ L2 런타임 건너뜀 — 브라우저 실행 불가(%s)' % payload.get('reason', ''))
+            return True
         t.check('브라우저 러너 정상 종료', payload is not None,
                 'exit=%s tail=%s' % (r.returncode, (out[-2:] if out else r.stderr[:200])))
         for c in (payload or {}).get('checks', []):

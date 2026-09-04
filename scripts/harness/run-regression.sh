@@ -75,11 +75,14 @@ for tf in "${PAR[@]+"${PAR[@]}"}"; do
 done
 
 # ── 직렬 무리: 알림 타이밍·전역 집계 민감 스위트 ──
+# 병렬 무리와 동일하게 '▶마커(소요) → 본문(…N/M PASS)' 순서로 출력한다. 순서가 어긋나면
+# 회귀 알람 탭 파서가 마커와 다음 스위트의 N/M PASS를 잘못 짝지어 오탐(빨간 막대)이 난다.
 for tf in "${SER[@]+"${SER[@]}"}"; do
   echo "────────────────────────────────────────"
   _s=$(date +%s%3N)
-  python "$HDIR/tests/$tf" || FAILED+=("$tf")
+  python "$HDIR/tests/$tf" > "$LOGDIR/$tf.log" 2>&1 || FAILED+=("$tf")
   echo "▶ $tf (직렬 — 알림/집계 민감) — $(fmt_dur $(($(date +%s%3N)-_s)))"
+  cat "$LOGDIR/$tf.log"
 done
 
 # ── 재시도 단계 — 1차 실패 스위트를 단독·직렬로 1회 더 돌린다 ──
