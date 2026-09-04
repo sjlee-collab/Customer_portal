@@ -2099,6 +2099,7 @@ textarea{resize:vertical;min-height:100px;}
                 <option value="internal">내부직원</option>
                 <option value="customer">고객</option>
               </select></th>
+              <th>이름</th>
               <th>수신자</th>
               <th><select id="notify-filter-company" onchange="loadNotifyLog()" class="th-filter">
                 <option value="">고객사</option>
@@ -2113,7 +2114,7 @@ textarea{resize:vertical;min-height:100px;}
               <th><button onclick="document.querySelectorAll('[id^=notify-filter-]').forEach(s=>s.value='');loadNotifyLog();" style="font-size:11px;padding:2px 8px;border:1px solid var(--border-md);border-radius:4px;background:transparent;cursor:pointer;color:var(--muted);">초기화</button></th>
             </tr></thead>
             <tbody id="notify-tbody">
-              <tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
+              <tr><td colspan="12" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>
             </tbody>
           </table></div>
           <div id="notify-pager" style="padding:12px 18px;border-top:1px solid var(--border);display:none;align-items:center;justify-content:flex-end;gap:10px;background:var(--surface2);flex-shrink:0;">
@@ -9960,7 +9961,7 @@ function regDetailHtml(n) {
 async function loadNotifyLog() {
   const tbody = document.getElementById('notify-tbody');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>';
 
   const typeFilter    = document.getElementById('notify-filter-type')?.value    || '';
   const eventFilter   = document.getElementById('notify-filter-event')?.value   || '';
@@ -9969,7 +9970,7 @@ async function loadNotifyLog() {
   const statusFilter  = document.getElementById('notify-filter-status')?.value  || '';
 
   if (!sb) {
-    tbody.innerHTML = '<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">DB 연결 없음</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">DB 연결 없음</td></tr>';
     return;
   }
 
@@ -9995,13 +9996,13 @@ async function loadNotifyLog() {
   if (error) {
     _notifyRowsHtml = [];
     if (pager) pager.style.display = 'none';
-    tbody.innerHTML = `<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--red);font-size:13px;">오류: ${escHtml(error.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--red);font-size:13px;">오류: ${escHtml(error.message)}</td></tr>`;
     return;
   }
   if (!data || !data.length) {
     _notifyRowsHtml = [];
     if (pager) pager.style.display = 'none';
-    tbody.innerHTML = '<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">알림 로그가 없습니다.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">알림 로그가 없습니다.</td></tr>';
     document.getElementById('notify-count').textContent = '총 0건';
     return;
   }
@@ -10038,13 +10039,23 @@ async function loadNotifyLog() {
     data.map(n => (n.recipient || '').trim().toLowerCase()).filter(e => e.includes('@'))
   )];
   const roleByEmail = {};
+  const nameByEmail = {};   // 수신자 이름 열 — 같은 조회에서 함께 받아 추가 쿼리를 만들지 않는다
   for (let i = 0; i < recipientEmails.length; i += 50) {
     const { data: us } = await sb.from('users')
-      .select('email, role')
+      .select('email, name, role')
       .in('email', recipientEmails.slice(i, i + 50))
       .limit(1000);
-    (us || []).forEach(u => { if (u.email) roleByEmail[u.email.trim().toLowerCase()] = u.role; });
+    (us || []).forEach(u => {
+      if (!u.email) return;
+      const key = u.email.trim().toLowerCase();
+      roleByEmail[key] = u.role;
+      if (u.name) nameByEmail[key] = u.name;
+    });
   }
+  // 이름은 포탈 계정이 있을 때만 채운다 — 슬랙 채널 수신·삭제된 계정·포탈 외부 주소는 '—'로 남긴다.
+  const recipientName = (n) => (n.channel === 'email')
+    ? (nameByEmail[(n.recipient || '').trim().toLowerCase()] || '')
+    : '';
   // Slack은 내부 채널로만 발송되므로 항상 내부직원. 이메일 수신자는 role로 판정하되,
   // 계정을 찾지 못하면(삭제된 계정·포탈 외부 수신자) 기존 도메인 추정으로 폴백한다.
   const isInternalRecipient = (n) => {
@@ -10152,6 +10163,7 @@ async function loadNotifyLog() {
       }</td>
       <td style="font-size:12px;">${escHtml(EVENT_TYPE_KO[n.event_type] || n.event_type || '—')}</td>
       <td>${accountTypeBadge}</td>
+      <td style="font-size:12px;white-space:nowrap;">${recipientName(n) ? escHtml(recipientName(n)) : '<span style="color:var(--faint);">—</span>'}</td>
       <td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(n.recipient || '—')}</td>
       <td style="font-size:12px;">${t?.company_name ? escHtml(t.company_name) : '<span style="color:var(--faint);">—</span>'}</td>
       <td>${statusBadge}</td>
@@ -10160,7 +10172,7 @@ async function loadNotifyLog() {
       <td style="text-align:center;">${retryBtn}</td>
     </tr>
     <tr class="notify-detail-row" style="display:none;">
-      <td colspan="11" style="padding:0;">
+      <td colspan="12" style="padding:0;">
         <div style="padding:14px 20px 14px 32px;background:var(--surface2);border-top:1px solid var(--border);">
           ${detailRows}
         </div>
