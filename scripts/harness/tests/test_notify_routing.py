@@ -7,6 +7,8 @@
       tech_support → 공통 + #기술지원-슬랙채널
       contract     → 공통 + #영업-슬랙채널
       education    → 공통 + #교육-슬랙채널
+  - 영업(role=sales) 대리 등록: 카테고리와 무관하게 신규 등록·상태 변경이 #영업-슬랙채널에도
+    (api-layer가 등록자 role을 조회해 registrarRole로 넘기고 notify-handler가 분기)
   - 답글(TICKET_REPLY): 작성자가 customer일 때만 발송(공통 + 카테고리 채널),
     스태프 답글도 알림 (2026-09-02 14eb33f로 전 역할 확대 — 예전엔 고객만)
   - 등록 시 접수 확인 메일 1통(요청자에게)
@@ -44,7 +46,9 @@ def run():
         # 스태프 답글 검증에는 실제 스태프 계정이 필요하다.
         st = dpost('users', {'email': temail('routeStaff'), 'name': tname('라우팅직원'), 'role': 'internal',
                              'is_active': True})['body']['id']
-        created['companies'].append(co); created['users'] += [cu, st]
+        sa = dpost('users', {'email': temail('routeSales'), 'name': tname('라우팅영업'), 'role': 'sales',
+                             'is_active': True})['body']['id']
+        created['companies'].append(co); created['users'] += [cu, st, sa]
         C = dict(role='customer', userId=cu, companyId=co)
 
         # ── 신규 등록: 카테고리별 팬아웃 ──
@@ -87,6 +91,35 @@ def run():
             new_ch = {x.get('recipient') for x in slack if x.get('event_type') == 'reply'} - {COMMON, '#기술지원-슬랙채널'}
             t.check('스태프 답글도 알림(+2, 채널 동일)', len(slack) == n_before + 2 and not new_ch,
                     '이전=%d 이후=%d 예상외채널=%s' % (n_before, len(slack), sorted(new_ch)))
+        # ── 영업이 대리 등록한 건: 카테고리(기술지원)와 무관하게 영업 채널에도 ──
+        # 등록자 역할은 티켓에 저장하지 않고 발송 때마다 조회하므로, 대리등록자를 바꾸면
+        # 그 뒤 알림부터 즉시 반영된다. 여기서는 등록 시점부터 영업으로 두고 확인한다.
+        r = api('POST', '/tickets', {'title': tname('영업 대리등록'), 'category': 'tech_support',
+                                     'description': '영업 대리 등록 라우팅', 'priority': 'normal',
+                                     'on_behalf_of': cu}, role='sales', userId=sa)
+        ptid = (r.get('body') or {}).get('ticket', {}).get('id')
+        t.check('영업 대리 등록 201', r.get('status') == 201 and ptid, 'status=%s body=%s' % (r.get('status'), r.get('body')))
+        if ptid:
+            created['tickets'].append(ptid)
+            slack = wait_notif(ptid, 'slack', 3)   # 공통 + 기술 + 영업
+            got = {x.get('recipient') for x in slack if x.get('event_type') in ('new_ticket', 'urgent')}
+            t.check('영업 대리등록 신규 슬랙: 공통+기술+영업',
+                    got == {COMMON, '#기술지원-슬랙채널', '#영업-슬랙채널'}, '실제=%s' % sorted(got))
+
+            base = len(notif_rows(ptid, 'slack'))
+            r = api('PATCH', '/tickets/%s/status' % ptid, {'status': 'in_progress'}, role='admin')
+            t.check('상태 변경 200', r.get('status') == 200, 'status=%s body=%s' % (r.get('status'), r.get('body')))
+            slack = wait_notif(ptid, 'slack', base + 3)
+            st_ch = {x.get('recipient') for x in slack if x.get('event_type') == 'status_change'}
+            t.check('영업 대리등록 상태변경 슬랙: 공통+기술+영업',
+                    st_ch == {COMMON, '#기술지원-슬랙채널', '#영업-슬랙채널'}, '실제=%s' % sorted(st_ch))
+
+        # 고객 직접 등록(대리등록자 없음)은 영업 채널로 가지 않는다 — 규칙이 과하게 퍼지지 않는지 확인
+        base_tid = tids.get('tech_support')
+        if base_tid:
+            ch = {x.get('recipient') for x in notif_rows(base_tid, 'slack')}
+            t.check('고객 직접 등록 건은 영업 채널 없음', '#영업-슬랙채널' not in ch, '실제=%s' % sorted(ch))
+
     finally:
         for x in created['tickets']:
             if len(dget('tickets', {'select': 'id', 'id': 'eq.' + x}, role='admin').get('body') or []):
