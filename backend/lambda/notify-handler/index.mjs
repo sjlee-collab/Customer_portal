@@ -7,6 +7,7 @@
 //
 // 입력 payload 형태:
 // {
+//   registrarRole: 'sales' | ... | null,   // 대리 등록자의 역할(api-layer가 조회해서 넣어줌)
 //   type: 'TICKET_INSERT' | 'TICKET_ASSIGNED' | 'TICKET_STATUS' | 'TICKET_OVERDUE'
 //       | 'TICKET_REPLY' | 'OVERDUE_BATCH' | 'LICENSE_EXPIRY' | 'CONNECTION_TEST',
 //   ticket: { id, ticket_number, title, category, priority, created_at, due_date, status },
@@ -199,6 +200,13 @@ async function handleLicenseExpiry(payload, results) {
   );
 }
 
+// 영업 채널 대상 여부 — 계약·라이선스 카테고리이거나, 영업(role=sales)이 대리 등록한 건.
+// registrarRole은 DB를 못 보는 이 Lambda 대신 api-layer가 조회해 payload로 넘겨준다.
+// 두 조건을 한 곳에서 판정해 카테고리와 등록자가 겹칠 때 중복 발송되지 않게 한다.
+function needsSalesChannel(ticket, payload) {
+  return ['contract', 'license'].includes(ticket.category) || payload?.registrarRole === 'sales';
+}
+
 async function handleTicketInsert(payload, results) {
   const { ticket, attachmentFileNames = [] } = payload;
   const isUrgent = ticket.priority === 'critical';
@@ -225,7 +233,7 @@ async function handleTicketInsert(payload, results) {
 
   await sendSlack(SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, evtType, msgHeader, msgBody, results, isTest);
 
-  if (['contract', 'license'].includes(ticket.category) && SLACK_WEBHOOK_SALES) {
+  if (needsSalesChannel(ticket, payload) && SLACK_WEBHOOK_SALES) {
     await sendSlack(SLACK_WEBHOOK_SALES, '#영업-슬랙채널', ticket.id, evtType, msgHeader, msgBody, results, isTest);
   }
   if (ticket.category === 'tech_support' && SLACK_WEBHOOK_TECH) {
@@ -261,7 +269,8 @@ async function handleTicketStatus(payload, results) {
   const isTest = isTestTicket(ticket);
   await sendSlack(SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, evtType, header, body, results, isTest);
   // 카테고리 채널 추가 발송 — 신규 등록과 동일한 팬아웃(기술지원→기술, 계약/라이선스→영업, 교육→교육).
-  if (['contract', 'license'].includes(ticket.category) && SLACK_WEBHOOK_SALES) {
+  // 영업이 대리 등록한 건은 카테고리와 무관하게 영업 채널에도 보낸다(needsSalesChannel).
+  if (needsSalesChannel(ticket, payload) && SLACK_WEBHOOK_SALES) {
     await sendSlack(SLACK_WEBHOOK_SALES, '#영업-슬랙채널', ticket.id, evtType, header, body, results, isTest);
   }
   if (ticket.category === 'tech_support' && SLACK_WEBHOOK_TECH) {

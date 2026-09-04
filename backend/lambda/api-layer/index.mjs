@@ -330,6 +330,15 @@ async function proxyCustomers(event) {
   return json(200, { customers, units });
 }
 
+// 대리 등록자의 역할 — 알림 채널 결정에 쓴다(영업이 등록한 건은 영업 채널로도 보냄).
+// 티켓에 스냅샷으로 저장하지 않고 그때그때 조회한다: 별도 컬럼·백필이 없고, 유형 교정으로
+// 대리등록자를 바꾸면 즉시 반영되며, 과거에 쌓인 대리 등록 건에도 그대로 적용된다.
+async function getRegistrarRole(ticket) {
+  if (!ticket?.registered_by) return null;
+  const reg = await getUser(ticket.registered_by);
+  return reg?.role ?? null;
+}
+
 async function notifyForCreate(ticketId, snapshot) {
   // 스냅샷 우선 — 트리거 시점 상태를 보고(라이브 재조회는 경합으로 밀린 값을 읽음). 폴백은 하위 호환.
   const ticket = snapshot ?? await getTicket(ticketId);
@@ -337,7 +346,8 @@ async function notifyForCreate(ticketId, snapshot) {
   const requester = await getUser(ticket.created_by);
   const notifyPayload = { companyName: ticket.company_name, requesterName: ticket.created_by_name, assigneeName: ticket.assigned_to_name };
 
-  await notifySlack({ type: 'TICKET_INSERT', ticket, ...notifyPayload, attachmentFileNames: [] });
+  await notifySlack({ type: 'TICKET_INSERT', ticket, ...notifyPayload, attachmentFileNames: [],
+                      registrarRole: await getRegistrarRole(ticket) });
 
   // 내부 검토 티켓 — 고객에게 존재 자체를 숨기므로 메일(접수확인 포함)은 일절 보내지 않는다.
   // 스태프 인지는 슬랙(🔒 내부 표기)으로 충분.
@@ -406,7 +416,8 @@ async function notifyForStatus(ticketId, prevStatus, snapshot) {
   const notifyBase = { companyName, requesterName: requester?.name, assigneeName: assignee?.name ?? '미배정' };
 
   if (SLACK_STATUS_CHANGE.has(nextStatus)) {
-    await notifySlack({ type: 'TICKET_STATUS', ticket, ...notifyBase, prevStatus });
+    await notifySlack({ type: 'TICKET_STATUS', ticket, ...notifyBase, prevStatus,
+                        registrarRole: await getRegistrarRole(ticket) });
   }
 
   if (!ticket.is_internal && isNotifiableRequester(requester, ticket)) {
