@@ -2974,7 +2974,7 @@ textarea{resize:vertical;min-height:100px;}
   <div class="modal-box" style="background:var(--surface);border-radius:var(--r-lg);width:720px;max-width:calc(100vw - 32px);max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
     <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
       <div style="display:flex;align-items:center;gap:10px;">
-        <div style="font-size:16px;font-weight:800;">요청</div>
+        <div style="font-size:16px;font-weight:800;" id="nw-modal-title">요청</div>
         <span id="nw-cat-chip" style="display:none;align-items:center;gap:6px;background:var(--accent-l);color:var(--accent);font-size:12px;font-weight:700;border-radius:20px;padding:4px 12px;">
           <span id="nw-cat-chip-label"></span>
           <button type="button" onclick="nrqChangeCategory()" style="background:none;border:none;color:inherit;font-size:11px;cursor:pointer;text-decoration:underline;opacity:.75;font-family:inherit;">변경</button>
@@ -5423,6 +5423,8 @@ function openModal(id) {
   if (id === 'modal-user') populateCompanySelect(document.getElementById('u-company').dataset.pending);
   if (id === 'modal-new') {
     // 카테고리 선택 상태 초기화 — 드롭다운 경유(nrqPick)가 이 뒤에 다시 숨긴다
+    const mTitle = document.getElementById('nw-modal-title');
+    if (mTitle) mTitle.textContent = '요청';
     const catGrp = document.getElementById('nw-cat-group');
     if (catGrp) catGrp.style.display = '';
     const catChip = document.getElementById('nw-cat-chip');
@@ -5520,6 +5522,8 @@ function nrqPick(cat) {
     chipLabel.textContent = CATEGORY_LABELS[cat] || cat;
     chip.style.display = 'inline-flex';
   }
+  const mTitle = document.getElementById('nw-modal-title');
+  if (mTitle) mTitle.textContent = '지원 카테고리';
 }
 function nrqChangeCategory() {
   closeModal('modal-new');
