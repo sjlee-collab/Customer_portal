@@ -11,6 +11,9 @@
 ## 2) data-api 변경 (범용 CRUD/권한/격리 로직)
 - [ ] `backend/lambda/data-api/index.mjs` 편집
 - [ ] `deploy-fn.sh data-api` (drift 진단 → 배포 → data-api 스모크)
+      ⚠ **종료코드 3 = 파괴적 drift**(배포본에만 있는 줄이 사라짐 — 운영 핫픽스를 덮는 상황).
+      `drift-check.sh data-api`로 전체 diff를 보고, 배포본이 앞서면 **레포를 먼저 역동기화**할 것.
+      의도한 삭제가 확실할 때만 `--force`. 판정만 보려면 `--dry-run`
 - [ ] `run-regression.sh` (권한/격리/삭제/고객 전 기능 재검증)
 - [ ] guard-commit(소스+필요시 index.html) → commit → promote
 

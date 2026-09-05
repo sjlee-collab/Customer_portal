@@ -18,7 +18,7 @@
 | 명령 | 설명 |
 |---|---|
 | `bash scripts/harness/run-regression.sh [스위트…]` | 회귀 실행 — 인자 없으면 전체(알림무관 스위트는 병렬), 인자 주면 그것만(예: `run-regression.sh auth stats`). L2 정적 스모크가 첫 단계 |
-| `bash scripts/harness/deploy-fn.sh <api-layer\|data-api\|public-inquiry\|send-email\|storage-api\|jwt-authorizer\|notify-handler>` | 안전 재배포(drift 진단→배포→스모크) |
+| `bash scripts/harness/deploy-fn.sh <fn> [--dry-run\|--force]` | 안전 재배포(drift 진단→**파괴적 drift면 차단**→백업→배포→스모크). fn: `api-layer\|data-api\|public-inquiry\|send-email\|storage-api\|jwt-authorizer\|notify-handler`. **배포본에만 있는 줄이 사라지면 종료코드 3으로 중단** — 운영 핫픽스를 옛 코드로 덮는 사고(R4) 차단. 순수 추가/동일이면 그냥 진행한다. `--dry-run`은 판정만, `--force`는 경고 후 강행. 배포 직전 직전본을 `~/portal-deploy-backup/`에 남기고(함수당 10개) 스모크 실패 시 되돌리는 명령을 출력 |
 | `bash scripts/harness/promote.sh` | main → dev/Design/QA/notion-migration ff 전파 + SHA 일치 검증 (ff-only — 갈라지면 보고만) |
 | `bash scripts/harness/guard-commit.sh [파일…]` | 커밋 전 clobber 점검(origin 최신·의도 파일만) |
 | `bash scripts/harness/email-safe.sh on\|off\|status` | 운영 상태 리셋(잔여 리다이렉트/태그 env 제거). 테스트 격리는 자동 — **메일=temail() 싱크 수신자**, **슬랙=`[테스트]` 제목/기업명 자동 라우팅**(SLACK_WEBHOOK_TEST). status로 현재 env 확인 |
@@ -68,6 +68,7 @@
 ## 테스트
 - `tests/test_harness_lint.py` — **하네스 자기 점검(래칫)**: 거짓통과·정리누락을 만드는 4개 패턴(`['body']['id']` 직접접근 · raw `all()` 단언 · `role_permissions` 직접 토글 · `is not False/True`)을 세어 **기준선보다 늘면 실패**. AWS 불필요(순수 정적 검사). 기존 부채는 `tests/lint-baseline.json`에 파일별로 고정해두고 점진 감소시킨다. 줄인 뒤 `--update-baseline`으로 기준선을 낮출 것
 - `tests/test_itest_helpers.py` — **헬퍼 자체 검증**: `must_id`·`all_of`·`report(min_checks)`·`Fixtures`·`permission`·`batch(only_test)`가 실제로 막는지 모의 객체로 확인. AWS 불필요. "고쳤다고 적어놨지만 안 막던" 전례(T2 양성대조가 항상 참이었음)를 되풀이하지 않기 위한 장치
+- `tests/test_deploy_gate.py` — **배포 게이트 검증**: `deploy-fn.sh`가 파괴적 drift(배포본에만 있는 줄이 사라지는 경우)를 실제로 차단하는지 5가지 상황으로 확인 + 배포 직전 롤백 백업 생성 확인. `aws.exe`/`curl`을 스텁으로 갈아끼우고 `LAMBDA_DIR`로 가짜 소스를 물려 **운영에 닿지 않는다**
 - `tests/test_permissions.py` — 역할별 권한/테넌트 격리/직접쓰기 차단/스태프 교차조회
 - `tests/test_ticket_delete.py` — 요청 삭제 권한(ticket_delete) + cascade + 권한관리 동적 토글
 - `tests/test_ticket_status.py` — **요청 상태 변경(접수 제외 6개 상태)**: 두 경로(`/status`·`/manage`) 전이 저장 · 6개 상태 전부 슬랙 발송 + event_type 분포(`completed`/`pending_customer` 고유, 나머지 4개 `status_change`) · 메일도 전 상태 발송(manage는 `send_email` 플래그) · 이력(`status_changed`)은 manage 경로만 기록 · 완료예정일 초과(기한 지남=추가 1건·당일=미발송·완료 전환=미발송) · content 원문 저장 · 고객 403 · 동일 상태 재저장 · 잘못된 상태값 거부. 알림은 `log_notification` 행으로 판정(비동기라 최대 30초 대기)
