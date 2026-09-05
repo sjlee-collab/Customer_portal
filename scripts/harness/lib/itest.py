@@ -7,7 +7,7 @@ Lambda(data-api / api-layer / public-inquiry / send-email / storage-api)를 직�
 사용 전제: AWS CLI(aws.exe) + 프로파일 customer_portal, 리전 ap-northeast-2.
 Windows/Git Bash 환경 기준(임시파일은 스레드 안전하게 고유 이름 사용).
 """
-import os, json, subprocess, threading, time
+import os, json, subprocess, threading, time, contextlib
 
 REGION = 'ap-northeast-2'
 # 한 실행(프로세스)을 식별하는 토큰 — temail()에 섞어 테스트 계정 이메일을 실행마다 고유하게
@@ -47,6 +47,24 @@ def temail(tag):
     sjlee+custA_<run>@bigxdata.io. 실행마다 고유해 잔재 계정과 충돌하지 않고, 전부 sjlee로 배달."""
     local, _, dom = TEST_EMAIL_BASE.partition('@')
     return '%s+%s_%s@%s' % (local, tag, _RUN, dom)
+
+
+class HarnessError(RuntimeError):
+    """하네스 자체의 실패(픽스처 생성 불가 등) — 제품 결함이 아니라 실행 환경 문제.
+
+    예전엔 `dpost(...)['body']['id']` 가 실패 시 KeyError/TypeError로 죽어서, run()이
+    report()에 닿지 못해 **결과 줄이 하나도 안 나오고** 이미 만든 운영 행도 남았다.
+    응답 전문을 담은 이 예외로 바꿔 원인이 로그에 남게 한다."""
+
+
+def must_id(resp, what='행'):
+    """생성 응답에서 id를 꺼낸다 — 실패하면 응답 전문을 담아 HarnessError.
+    `resp['body']['id']` 직접 접근을 대체한다(실패 시 중단이 아니라 진단 가능한 예외)."""
+    body = resp.get('body') if isinstance(resp, dict) else None
+    if isinstance(body, dict) and body.get('id'):
+        return body['id']
+    raise HarnessError('%s 생성 실패: status=%s invoke_err=%s body=%r' % (
+        what, (resp or {}).get('status'), (resp or {}).get('_invoke_error'), body))
 
 
 _TMPDIR = os.environ.get('HARNESS_TMP', os.path.dirname(os.path.abspath(__file__)))
@@ -183,11 +201,42 @@ def api(method, path, body=None, role='customer', qs=None, **c):
     return invoke('api', e)
 
 
-def batch(task, **extra):
+def batch(task, only_test=True, **extra):
     """EventBridge 배치를 직접 invoke 한다 — {task, ...}. api-layer는 event.task로 분기하며
-    HTTP(requestContext) 없이 이 경로에 든다. ⚠️ 반드시 only_test=True를 줘서 '[테스트]' 라벨
-    행만 스캔하게 한다(안 주면 운영 전체를 스캔·발송·변경한다)."""
-    return invoke('api', dict(task=task, **extra))
+    HTTP(requestContext) 없이 이 경로에 든다.
+
+    only_test는 **기본이 True**다. 예전엔 기본값이 없어서 호출자가 빠뜨리면 운영 전체를
+    스캔·발송·변경했고(만료 계약 일괄 UPDATE + 실 채널 팬아웃), 그걸 막는 장치가 독스트링
+    경고뿐이었다. 잊었을 때의 기본값이 안전해야 한다는 설계 원칙(DESIGN §2-1)에 맞춰
+    시그니처가 막게 바꿨다. 운영 전체 스캔이 정말 필요하면 only_test=False를 명시할 것."""
+    return invoke('api', dict(task=task, only_test=only_test, **extra))
+
+
+@contextlib.contextmanager
+def permission(role, feature_key, enabled):
+    """role_permissions 토글을 **진입 시점의 실제 값**으로 되돌리는 컨텍스트 매니저.
+
+    ⚠️ 이 백엔드는 운영과 공유된다. 예전엔 각 테스트가 finally에서 하드코딩된 값으로
+    되돌렸다 — test_stats_view는 조회해둔 값을 버리고 늘 False로, test_ticket_delete는
+    원래 값을 조회조차 않고 늘 True로. 그래서 관리자가 권한 관리 화면에서 바꿔둔 설정을
+    회귀가 돌 때마다 조용히 덮어쓰고 '✅ 전체 PASS'를 찍었다.
+    여기서는 진입 값을 캡처해 그 값으로만 복원하고, 바꿀 필요가 없으면 아예 쓰지 않는다.
+
+    사용: with permission('sales', 'stats_view', False): ...  # 블록 끝나면 원래대로"""
+    rows = dget('role_permissions',
+                {'select': 'id,enabled', 'role': 'eq.' + role, 'feature_key': 'eq.' + feature_key},
+                role='admin').get('body') or []
+    if not rows:
+        raise HarnessError('role_permissions 시드행 없음: %s/%s' % (role, feature_key))
+    rid, orig = rows[0]['id'], rows[0].get('enabled')
+    changed = bool(orig) != bool(enabled)
+    if changed:
+        dpatch('role_permissions', rid, {'enabled': bool(enabled)}, role='admin')
+    try:
+        yield rid
+    finally:
+        if changed:   # 캡처한 원래 값으로만 복원 — 기본값 추정 금지
+            dpatch('role_permissions', rid, {'enabled': orig}, role='admin')
 
 
 def notif_rows(ticket_id, channel=None):
@@ -275,6 +324,94 @@ def sweep_test_data(dry_run=True):
     return found
 
 
+# 픽스처 종류 ↔ 실제 테이블. 정리는 ORDER 순서(자식→부모)로 돈다.
+_FIX_TABLE = {
+    'tickets': 'tickets', 'documents': 'content_documents', 'licenses': 'company_licenses',
+    'users': 'users', 'contracts': 'company_contracts', 'companies': 'companies',
+}
+
+
+class Fixtures:
+    """픽스처 **생성과 정리 등록을 원자적으로** 묶는 팩토리.
+
+    왜: 기존 패턴은 여러 행을 만든 뒤 한꺼번에 등록했다 —
+        co = dpost('companies', ...)['body']['id']
+        cu = dpost('users', ...)['body']['id']
+        created['companies'].append(co); created['users'].append(cu)   # ← 여기서야 등록
+    중간 dpost가 실패하면 KeyError로 죽고, finally는 빈 created를 보고 아무것도 안 지운다.
+    이미 만들어진 회사·유저는 운영 DB에 그대로 남는다. 이 클래스는 만든 즉시 등록하므로
+    어느 시점에 죽어도 cleanup()이 전부 회수한다.
+
+    사용:
+        fx = Fixtures()
+        try:
+            co = fx.company('회사A')
+            cu = fx.user('고객A', 'custA', 'customer', company_id=co)
+        finally:
+            for kind, rid, why in fx.cleanup():
+                print('정리 실패:', kind, rid, why)
+    """
+    ORDER = ['tickets', 'documents', 'licenses', 'users', 'contracts', 'companies']
+
+    def __init__(self):
+        self.reg = {k: [] for k in self.ORDER}
+
+    def track(self, kind, rid):
+        """다른 경로(실 api-layer 등)로 만든 행을 정리 대상에 편입 — 점진 이행용."""
+        if kind not in self.reg:
+            raise HarnessError('알 수 없는 픽스처 종류: %s' % kind)
+        if rid:
+            self.reg[kind].append(rid)
+        return rid
+
+    def _mk(self, kind, obj, what):
+        return self.track(kind, must_id(dpost(_FIX_TABLE[kind], obj, role='admin'), what))
+
+    def company(self, suffix='회사', **extra):
+        return self._mk('companies', dict({'name': tname(suffix)}, **extra), '회사')
+
+    def user(self, suffix, tag, role, company_id=None, **extra):
+        obj = {'name': tname(suffix), 'email': temail(tag), 'role': role}
+        if company_id:
+            obj['company_id'] = company_id
+        return self._mk('users', dict(obj, **extra), '사용자')
+
+    def ticket(self, suffix='요청', **extra):
+        return self._mk('tickets', dict({'title': tname(suffix)}, **extra), '요청')
+
+    def document(self, suffix='자료', **extra):
+        return self._mk('documents', dict({'title': tname(suffix)}, **extra), '자료')
+
+    def contract(self, suffix='계약', **extra):
+        return self._mk('contracts', dict({'contract_name': tname(suffix)}, **extra), '계약')
+
+    def license(self, **extra):
+        return self._mk('licenses', dict(extra), '라이선스')
+
+    def cleanup(self):
+        """등록 역순으로 정리하고 **실패 목록을 반환**한다.
+
+        ddel은 예외를 던지지 않고 오류를 dict로 돌려주므로, 예전엔 반환값을 버리는 바람에
+        403/FK 위반으로 정리가 실패해도 아무도 몰랐다(스위트는 그대로 PASS).
+        호출부가 이 반환값을 확인하면 정리 실패가 보인다."""
+        failed = []
+        for kind in self.ORDER:
+            for rid in reversed(self.reg[kind]):
+                try:
+                    if kind == 'tickets':
+                        wipe_ticket(rid)
+                        continue
+                    if kind in ('companies', 'contracts'):   # 참조 자식 먼저(FK)
+                        _purge_children_by('company_id' if kind == 'companies' else 'contract_id', rid)
+                    r = ddel(_FIX_TABLE[kind], rid, role='admin')
+                    if r.get('status') not in (200, 204, 404):
+                        failed.append((kind, rid, 'status=%s' % r.get('status')))
+                except Exception as e:                        # noqa: BLE001 — 정리는 끝까지 돈다
+                    failed.append((kind, rid, str(e)))
+            self.reg[kind] = []
+        return failed
+
+
 class Checker:
     """미니 테스트 러너 — check()로 단언, report()로 요약."""
     def __init__(self, title=''):
@@ -285,7 +422,23 @@ class Checker:
         self.results.append((name, bool(cond), detail))
         return bool(cond)
 
-    def report(self):
+    def all_of(self, name, rows, pred, min_n=1, detail=None):
+        """**비어 있으면 실패하는** all(). 파이썬 all()은 빈 리스트에서 공허하게 참이라,
+        조회가 오류(=invoke가 빈 목록 반환)로 비면 격리·권한 단언이 통과해 버렸다.
+        '기능을 통째로 지워도 PASS'가 되던 거짓통과의 주범 — min_n건 이상 있고 전부
+        pred를 만족해야 통과한다."""
+        rows = list(rows or [])
+        if len(rows) < min_n:
+            return self.check(name, False, detail or
+                              ('대상 %d건 — 최소 %d건 필요(빈 목록에 공허한 단언 방지)' % (len(rows), min_n)))
+        bad = [x for x in rows if not pred(x)]
+        return self.check(name, not bad, detail or
+                          ('%d/%d건 위반%s' % (len(bad), len(rows), (': %r' % (bad[:3],)) if bad else '')))
+
+    def report(self, min_checks=1):
+        """min_checks: 이 스위트가 최소 몇 건을 실행해야 하는지. 예전엔 검사 0건이면
+        `0 == 0`으로 **통과**여서, 러너가 조용히 skip되거나 픽스처가 죽어 아무 검사도
+        못 돈 스위트가 초록으로 보고됐다. 기본값 1이라 0/0은 이제 항상 실패한다."""
         import sys
         try: sys.stdout.reconfigure(encoding='utf-8')
         except Exception: pass
@@ -295,5 +448,9 @@ class Checker:
             print('\n=== %s ===' % self.title)
         for name, c, d in self.results:
             print('%-4s %s%s' % ('PASS' if c else 'FAIL', name, ('  (%s)' % d) if d else ''))
+        short = n < min_checks
+        if short:
+            print('FAIL 검사 수 부족 — %d건 실행(최소 %d건). 스위트가 실제로 돌지 않았다.' % (n, min_checks))
+        # 이 줄의 형식('N/M PASS')은 regression-nightly.sh 요약 파서가 읽는다 — 바꾸지 말 것.
         print('%d/%d PASS' % (p, n))
-        return p == n
+        return (p == n) and not short

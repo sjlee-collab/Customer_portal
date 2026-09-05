@@ -35,6 +35,15 @@
 - [ ] api-layer/data-api에서 `hasPermission(role,'키')`로 서버 강제
 - [ ] `run-regression.sh`
 
+## 6) 하네스 자체 수정 (테스트·헬퍼 추가/변경)
+- [ ] 설계 원칙 확인 — [DESIGN.md](DESIGN.md) §4.1(결함 클래스 봉쇄) · §5(확장 규칙)
+- [ ] 픽스처는 `Fixtures`, 목록 단언은 `t.all_of`, 권한 토글은 `with permission(...)`,
+      id 추출은 `must_id()` — 옛 패턴은 `test_harness_lint`가 막는다
+- [ ] `python scripts/harness/tests/test_harness_lint.py` (AWS 불필요, 1초)
+- [ ] `python scripts/harness/tests/test_itest_helpers.py` (헬퍼를 고쳤다면 필수)
+- [ ] 부채를 줄였으면 `test_harness_lint.py --update-baseline`으로 기준선 낮추기
+- [ ] 새 스위트면 `run-regression.sh`의 `ALL`(+알림 무관하면 `PAR_SAFE`)와 README 목록에 등록
+
 ## 알림 안전 (슬랙·메일이 트리거되는 테스트) — 필수 규칙
 원칙: **운영 메일은 항상 정상 발송(실수신자), 테스트성 메일만 sjlee로.**
 1. **메일 — 수신자 주소로 구분(전역 리다이렉트 없음)**: send-email은 on/off 무관하게 **항상 운영**(TEST_EMAIL_OVERRIDE/TEST_TAG 비움). 테스트가 만드는 메일은 `lib/itest.py`의 `temail()`이 수신자를 sjlee 싱크(`sjlee+태그@bigxdata.io`)로 지정하므로 **그 메일만 sjlee로** 간다. ⚠️ **알림-트리거 테스트는 반드시 `temail()` 싱크 수신자를 쓸 것**(실주소를 쓰면 실발송됨). 예전의 전역 sink 리다이렉트는 운영 메일까지 막아서 제거함.

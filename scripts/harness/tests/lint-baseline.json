@@ -1,0 +1,35 @@
+{
+  "body_id": {
+    "test_batch.py": 6,
+    "test_customer_e2e.py": 8,
+    "test_internal_review.py": 3,
+    "test_jwt.py": 5,
+    "test_notify_routing.py": 4,
+    "test_permissions.py": 7,
+    "test_schema_contract.py": 2,
+    "test_stats_view.py": 3,
+    "test_ticket_assign.py": 5,
+    "test_ticket_delete.py": 3,
+    "test_ticket_rate.py": 4,
+    "test_ticket_status.py": 3
+  },
+  "loose_bool": {
+    "test_customer_e2e.py": 1,
+    "test_email_backstop.py": 1,
+    "test_permissions.py": 2
+  },
+  "perm_patch": {
+    "test_proxy_register.py": 2,
+    "test_stats_view.py": 3,
+    "test_ticket_delete.py": 3
+  },
+  "raw_all": {
+    "test_batch.py": 1,
+    "test_customer_e2e.py": 2,
+    "test_email_backstop.py": 1,
+    "test_permissions.py": 4,
+    "test_stats_view.py": 1,
+    "test_ticket_assign.py": 1,
+    "test_ticket_status.py": 1
+  }
+}

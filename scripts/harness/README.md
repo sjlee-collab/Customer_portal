@@ -66,6 +66,8 @@
   라벨로만 지우므로 라벨 없는 운영 데이터는 절대 건드리지 않는다.
 
 ## 테스트
+- `tests/test_harness_lint.py` — **하네스 자기 점검(래칫)**: 거짓통과·정리누락을 만드는 4개 패턴(`['body']['id']` 직접접근 · raw `all()` 단언 · `role_permissions` 직접 토글 · `is not False/True`)을 세어 **기준선보다 늘면 실패**. AWS 불필요(순수 정적 검사). 기존 부채는 `tests/lint-baseline.json`에 파일별로 고정해두고 점진 감소시킨다. 줄인 뒤 `--update-baseline`으로 기준선을 낮출 것
+- `tests/test_itest_helpers.py` — **헬퍼 자체 검증**: `must_id`·`all_of`·`report(min_checks)`·`Fixtures`·`permission`·`batch(only_test)`가 실제로 막는지 모의 객체로 확인. AWS 불필요. "고쳤다고 적어놨지만 안 막던" 전례(T2 양성대조가 항상 참이었음)를 되풀이하지 않기 위한 장치
 - `tests/test_permissions.py` — 역할별 권한/테넌트 격리/직접쓰기 차단/스태프 교차조회
 - `tests/test_ticket_delete.py` — 요청 삭제 권한(ticket_delete) + cascade + 권한관리 동적 토글
 - `tests/test_ticket_status.py` — **요청 상태 변경(접수 제외 6개 상태)**: 두 경로(`/status`·`/manage`) 전이 저장 · 6개 상태 전부 슬랙 발송 + event_type 분포(`completed`/`pending_customer` 고유, 나머지 4개 `status_change`) · 메일도 전 상태 발송(manage는 `send_email` 플래그) · 이력(`status_changed`)은 manage 경로만 기록 · 완료예정일 초과(기한 지남=추가 1건·당일=미발송·완료 전환=미발송) · content 원문 저장 · 고객 403 · 동일 상태 재저장 · 잘못된 상태값 거부. 알림은 `log_notification` 행으로 판정(비동기라 최대 30초 대기)
