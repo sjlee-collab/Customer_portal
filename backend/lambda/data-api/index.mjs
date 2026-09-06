@@ -33,7 +33,7 @@ const ALLOWED_TABLES = new Set([
   'companies', 'company_contracts', 'company_licenses', 'users', 'tickets',
   'log_notification', 'content_documents', 'ticket_history', 'log_integration',
   'ticket_replies', 'ticket_memos', 'ticket_attachments', 'content_notices', 'role_permissions',
-  'org_units', 'user_org_units',
+  'org_units', 'user_org_units', 'forms',
 ]);
 
 // 이 컬럼들은 select=* 나 명시적 요청과 무관하게 응답에서 절대 내려주지 않는다.
@@ -70,6 +70,10 @@ const STAFF_ONLY_TABLES = {
   // (고객 화면에 필요한 조직 정보는 tickets.unit_name 스냅샷과 로그인 응답으로 충분).
   org_units: new Set(['tech_support', 'sales', 'education', 'admin']),
   user_org_units: new Set(['tech_support', 'sales', 'education', 'admin']),
+  // forms(설문 정의)는 지금은 폼 빌더(관리 화면)에서만 쓴다. 고객이 설문에 응답하는 화면을
+  // 만들 때(Phase 2) 발송된 active 설문만 읽도록 별도 정책을 열어야 하며, 그전까지는
+  // 초안·마감 설문까지 통째로 노출되지 않게 스태프 전용으로 막는다.
+  forms: new Set(['tech_support', 'sales', 'education', 'admin']),
 };
 
 function assertTableAccess(table, event) {
@@ -102,7 +106,24 @@ const WRITE_PERMISSION_BY_TABLE = {
   log_integration: 'integration',
   role_permissions: 'permission',
   content_documents: 'library_manage',
+  forms: 'form_builder',
 };
+
+// jsonb 컬럼에 배열을 넣으면 node-postgres가 JSON이 아니라 PostgreSQL 배열 리터럴('{...}')로
+// 직렬화해서 "invalid input syntax for type json"으로 실패한다(객체는 JSON으로 잘 나감).
+// companies.products / notification_emails, tickets.cc_emails 같은 진짜 text[] 컬럼이 있어서
+// 배열을 일괄 변환할 수는 없으므로, jsonb 컬럼만 여기 명시해 JSON 문자열로 바인딩한다.
+const JSONB_COLUMNS = {
+  forms: new Set(['fields']),
+  form_responses: new Set(['answers']),
+};
+
+function bindWriteValue(table, col, value) {
+  if (value === undefined || value === null) return null;
+  const jsonCols = JSONB_COLUMNS[table];
+  if (jsonCols && jsonCols.has(col) && typeof value === 'object') return JSON.stringify(value);
+  return value;
+}
 
 // content_notices(공지사항)는 화면에서도 role_permissions와 무관하게 순수 role==='admin'
 // 하드코딩(isNoticeAdmin())으로만 노출된다 — library_manage 등 커스터마이징 가능한
@@ -566,7 +587,7 @@ async function handlePost(table, body, onConflict, event) {
 
   const results = [];
   for (const rec of records) {
-    const params = cols.map(c => rec[c] ?? null);
+    const params = cols.map(c => bindWriteValue(table, c, rec[c]));
     const placeholders = cols.map((_, i) => `$${i + 1}`).join(',');
     const inserted = await query(
       `insert into "${table}" (${colsSql}) values (${placeholders})${conflictSql} returning *`,
@@ -591,7 +612,7 @@ async function handlePatch(table, id, body, event) {
   assertNoBlockedWrite(table, cols);
   await assertWriteAllowed(table, 'PATCH', getAuthz(event), id, cols, body);
   const setSql = cols.map((c, i) => `"${c}" = $${i + 1}`).join(',');
-  const params = cols.map(c => body[c] ?? null);
+  const params = cols.map(c => bindWriteValue(table, c, body[c]));
   params.push(id);
   const updated = await query(
     `update "${table}" set ${setSql} where id = $${params.length} returning *`,

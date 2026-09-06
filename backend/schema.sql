@@ -273,7 +273,7 @@ create table public.role_permissions (
                  'company_view','company_manage',
                  'user_view','user_manage',
                  'integration','notify_log','permission',
-                 'stats_view'
+                 'stats_view','form_builder'
                ])),
   enabled      boolean not null default false,
   updated_at   timestamptz not null default now(),
@@ -548,3 +548,43 @@ create table if not exists public.document_downloads (
 create index if not exists idx_document_downloads_doc     on public.document_downloads (doc_id);
 create index if not exists idx_document_downloads_created on public.document_downloads (created_at desc);
 create index if not exists idx_document_downloads_user    on public.document_downloads (user_id);
+
+-- ── forms / form_responses (폼 빌더 설문, 2026-09-06) ──
+-- 설문 정의 1행 = forms, 응답 1건 = form_responses 1행.
+-- 문항은 forms.fields(jsonb 배열)에 통째로 담는다 — 편집기가 문항 배열을 통으로 저장/교체하는
+-- 구조라 문항을 별도 테이블로 정규화해도 이득이 없다.
+-- 응답은 포탈에 로그인한 사용자만 제출한다(공개 토큰 링크 방식은 채택하지 않음) —
+-- 그래서 발송 토큰·대상자 테이블이 없다.
+create table if not exists public.forms (
+  id          uuid primary key default gen_random_uuid(),
+  title       text not null,
+  intro       text,
+  open_until  date,
+  status      text not null default 'draft' check (status in ('draft','active','closed')),
+  fields      jsonb not null default '[]'::jsonb,
+  created_by  uuid,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+create index if not exists idx_forms_updated on public.forms (updated_at desc);
+create trigger trg_forms_updated_at before update on public.forms
+  for each row execute function public.update_updated_at();
+
+-- 사용자·고객사가 삭제돼도 응답 이력은 보존돼야 해서 login_events/document_downloads와 같은
+-- 스냅샷 패턴(제출 시점 이름을 남기고 user_id/company_id에는 FK를 걸지 않는다).
+-- 설문이 삭제되면 그 응답은 의미가 없으므로 form_id만 FK + cascade.
+-- 같은 설문에 같은 사용자가 두 번 제출하지 못하도록 (form_id, user_id) 유니크.
+create table if not exists public.form_responses (
+  id           uuid primary key default gen_random_uuid(),
+  form_id      uuid not null references public.forms(id) on delete cascade,
+  user_id      uuid,
+  user_name    text,
+  role         text,
+  company_id   uuid,
+  company_name text,
+  answers      jsonb not null default '{}'::jsonb,
+  created_at   timestamptz not null default now(),
+  unique (form_id, user_id)
+);
+create index if not exists idx_form_responses_form    on public.form_responses (form_id);
+create index if not exists idx_form_responses_created on public.form_responses (created_at desc);
