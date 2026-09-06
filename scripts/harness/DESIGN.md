@@ -5,7 +5,7 @@
 > 하네스를 고치거나 확장할 때는 이 문서의 원칙과 충돌하지 않는지 먼저 확인한다.
 
 작성 2026-08-31 (기준 커밋 93066ab, 회귀 10종 231건). 갱신 2026-09-04 — 회귀 17종 337건.
-**갱신 2026-09-06 — 21종(회귀 17 + 자기점검 4).** 그간 추가: 스키마 계약·배치 only_test·
+**갱신 2026-09-06 — 22종(회귀 17 + 자기점검 5).** 그간 추가: 스키마 계약·배치 only_test·
 JWT 실경유·L2 런타임(헤드리스)·이메일 백스톱·flaky 허용목록·알림 스냅샷·테스트 요청 은닉,
 그리고 **결함 클래스 봉쇄 장치 5종 + 래칫 린트**(§4.1 — 감사가 수렴하지 않던 원인). 상세는 §3~§7.
 
@@ -63,11 +63,12 @@ JWT 실경유·L2 런타임(헤드리스)·이메일 백스톱·flaky 허용목�
 
 ```
 ┌─ 테스트 계층 ──────────────────────────────────────────────┐
-│ tests/ (21종 = 회귀 17 + 자기점검 4, 2026-09-06)            │
+│ tests/ (22종 = 회귀 17 + 자기점검 5, 2026-09-06)            │
 │   ├── test_harness_lint ─ 결함 패턴 래칫 (AWS 불필요)      │
 │   ├── test_itest_helpers ─ 헬퍼 자체 검증 (AWS 불필요)     │
 │   ├── test_deploy_gate ─ 배포 차단 검증 (AWS 불필요)       │
 │   ├── test_fn_smoke ─ 함수별 스모크 프로브 (AWS 불필요)    │
+│   ├── test_promote ─ 브랜치 ff 전파 검증 (AWS 불필요)      │
 │   ├── lib/itest.py                                         │
 │        invoke(fn, event) ─ aws lambda invoke + authorizer  │
 │        ctx/api/dget/dpost/dpatch/ddel ─ 역할 주입 헬퍼      │
@@ -80,13 +81,14 @@ JWT 실경유·L2 런타임(헤드리스)·이메일 백스톱·flaky 허용목�
 │   └── lib/fnsmoke.py ─ 배포 직후 함수별 프로브 7종 (§6.5b) │
 ├─ 운영 스크립트 계층 ────────────────────────────────────────┤
 │ run-regression.sh  병렬/직렬·재시도(flaky 허용목록)·sweep    │
-│ regression-nightly.sh  새벽 자동: ff→drift→스모크→회귀→기록  │
+│ regression-nightly.sh  새벽: ff→drift→브랜치→스모크→회귀→기록│
 │ drift-check.sh     레포↔배포본 대조 (R4, 읽기 전용)          │
 │ l2-smoke.mjs / l2-runtime.mjs  프론트 정적/헤드리스 런타임   │
 │ smoke.sh           HTTP 생존 확인(비파괴)                    │
 │ deploy-fn.sh       drift 진단 → 전체 소스 zip → 배포 → 스모크│
 │ guard-commit.sh    origin 대비 + 의도 파일 검증 (R2)        │
 │ promote.sh         main → 형제 브랜치 ff-only 전파 (R3)     │
+│                    원격 ref 직접 push — 워크트리 불필요      │
 │ email-safe.sh      잔여 env 리셋 + 상태 확인                │
 │ sweep.sh           라벨 잔여물 미리보기/삭제                 │
 │ apigw-route.sh     라우트 조회/추가                          │
@@ -148,7 +150,16 @@ JWT 실경유·L2 런타임(헤드리스)·이메일 백스톱·flaky 허용목�
   둔다. **추적되는 파일을 필터에 넣으면 안 된다**(clobber 감지가 무뎌짐 — package-lock을 추적으로
   바꾸며 필터에서 뺀 이유).
 - `promote.sh`: 커밋 **후** — ff-only라 형제 브랜치의 고유 커밋을 절대 덮지 않는다.
-  워크트리가 없는 브랜치는 건너뛰고 보고한다(브랜치 목록은 형제 세션이 늘리고 줄일 수 있음).
+  **워크트리를 쓰지 않는다**(2026-09-06). 예전엔 `$ROOT` 아래 `Customer_portal`/`-dev`/
+  `-design`/`-QA`/`-notion` 형제 워크트리를 전제하고 각 폴더에서 merge 했는데, 이 레포엔
+  그런 레이아웃이 없다(워크트리는 `.claude/worktrees/` 아래에 생긴다). 그래서 **전 브랜치가
+  "워크트리 없음"으로 빠져 아무것도 전파하지 않으면서 성공처럼 끝났다** — 하는 일이 없는 줄
+  아무도 몰랐다. 지금은 원격 ref를 직접 민다: `git push origin <main SHA>:refs/heads/<대상>`.
+  서버가 non-fast-forward를 거부하므로 ff-only가 구조적으로 보장된다(`--force` 안 씀).
+  판정 4가지 — 일치=무동작 / 대상이 앞섬(개발 중인 dev)=건드리지 않음 / 갈라짐=보고만(rc 1) /
+  뒤처짐=ff 전파. 대상은 `PROMOTE_TARGETS`(기본 `dev Design notion-migration stats`).
+  ⚠ 문서와 옛 스크립트가 대상으로 적어온 **QA는 원격에 존재한 적이 없어** 뺐다. 없는 브랜치는
+  조용히 넘기지 않고 실패로 보고한다. 검증은 `tests/test_promote.py`(임시 로컬 git 레포).
 
 ---
 

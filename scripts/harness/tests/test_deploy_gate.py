@@ -18,7 +18,7 @@
 import os, sys, shutil, subprocess, tempfile, zipfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
-from itest import Checker  # noqa: E402
+from itest import Checker, find_bash  # noqa: E402
 
 HDIR = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 SCRIPT = os.path.join(HDIR, 'deploy-fn.sh')
@@ -33,23 +33,6 @@ CURL_STUB = """#!/usr/bin/env bash
 out=""; while [ $# -gt 0 ]; do [ "$1" = "-o" ] && { out="$2"; shift; }; shift; done
 cp "$STUB_DEPLOYED_ZIP" "$out"
 """
-
-
-def find_bash():
-    """PATH → SHELL → git.exe 설치 위치에서 유도. 회귀는 bash에서 실행돼 PATH에 있지만,
-    PowerShell·IDE에서 단독 실행할 땐 없다. Git 설치 경로는 장비마다 다르므로
-    (이 장비는 D:\\installed_program\\Git) 하드코딩하지 않고 git.exe 위치에서 찾는다."""
-    p = shutil.which('bash') or os.environ.get('SHELL', '')
-    if p and os.path.isfile(p):
-        return p
-    git = shutil.which('git')
-    if git:
-        root = os.path.dirname(os.path.dirname(git))          # …/Git/cmd/git.exe → …/Git
-        for rel in (('bin', 'bash.exe'), ('usr', 'bin', 'bash.exe')):
-            c = os.path.join(root, *rel)
-            if os.path.isfile(c):
-                return c
-    return None
 
 
 def _sh(path, body):

@@ -69,6 +69,26 @@ def must_id(resp, what='행'):
         what, (resp or {}).get('status'), (resp or {}).get('_invoke_error'), body))
 
 
+def find_bash():
+    """bash 실행 파일 경로 — PATH → SHELL → git.exe 설치 위치에서 유도.
+
+    회귀는 bash에서 실행돼 PATH에 있지만, PowerShell·IDE에서 스위트를 단독 실행하면 없다.
+    Git 설치 경로는 장비마다 다르므로(이 장비는 D:/installed_program/Git) 하드코딩하지 않고
+    git.exe 위치에서 찾는다. bash를 쓰는 스위트(test_deploy_gate·test_promote) 공용."""
+    import shutil
+    p = shutil.which('bash') or os.environ.get('SHELL', '')
+    if p and os.path.isfile(p):
+        return p
+    git = shutil.which('git')
+    if git:
+        root = os.path.dirname(os.path.dirname(git))          # …/Git/cmd/git.exe → …/Git
+        for rel in (('bin', 'bash.exe'), ('usr', 'bin', 'bash.exe')):
+            c = os.path.join(root, *rel)
+            if os.path.isfile(c):
+                return c
+    return None
+
+
 _TMPDIR = os.environ.get('HARNESS_TMP', os.path.dirname(os.path.abspath(__file__)))
 _ctr = [0]
 

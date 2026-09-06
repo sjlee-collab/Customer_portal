@@ -1,6 +1,8 @@
 # 변경 체크리스트 (유형별)
 
-모든 변경 공통 마무리: `guard-commit.sh` → commit → `promote.sh`(4브랜치) → `run-regression.sh`.
+모든 변경 공통 마무리: `guard-commit.sh` → commit → `promote.sh` → `run-regression.sh`.
+`promote.sh`는 main을 dev/Design/notion-migration/stats에 **ff-only**로 전파한다 — 대상이 앞서 있거나
+갈라져 있으면 건드리지 않고 보고만 한다(rc 1). 밀기 전에 확인하려면 `--dry-run`.
 
 ## 1) 프론트만 (index.html)
 - [ ] 편집

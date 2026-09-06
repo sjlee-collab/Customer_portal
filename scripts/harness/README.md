@@ -19,31 +19,41 @@
 |---|---|
 | `bash scripts/harness/run-regression.sh [스위트…]` | 회귀 실행 — 인자 없으면 전체(알림무관 스위트는 병렬), 인자 주면 그것만(예: `run-regression.sh auth stats`). L2 정적 스모크가 첫 단계 |
 | `bash scripts/harness/deploy-fn.sh <fn> [--dry-run\|--force]` | 안전 재배포(drift 진단→**파괴적 drift면 차단**→백업→배포→스모크). fn: `api-layer\|data-api\|public-inquiry\|send-email\|storage-api\|jwt-authorizer\|notify-handler`. **배포본에만 있는 줄이 사라지면 종료코드 3으로 중단** — 운영 핫픽스를 옛 코드로 덮는 사고(R4) 차단. 순수 추가/동일이면 그냥 진행한다. `--dry-run`은 판정만, `--force`는 경고 후 강행. 배포 직전 직전본을 `~/portal-deploy-backup/`에 남기고(함수당 10개) 스모크 실패 시 되돌리는 명령을 출력. 스모크는 **방금 배포한 그 함수**를 때린다(`lib/fnsmoke.py` — 예전엔 api-layer 외 전부 data-api만 봐서 5개 함수에서 무의미했다) |
-| `bash scripts/harness/promote.sh` | main → dev/Design/QA/notion-migration ff 전파 + SHA 일치 검증 (ff-only — 갈라지면 보고만) |
+| `bash scripts/harness/promote.sh [--dry-run]` | main → dev/Design/notion-migration/stats **ff-only 전파** + SHA 검증. **워크트리 불필요** — 원격 ref를 직접 밀어(`git push origin <main SHA>:refs/heads/<대상>`) 서버가 non-fast-forward를 거부한다. 판정 4가지: 일치=무동작 / 대상이 앞섬(개발 중인 dev 등)=건드리지 않음 / 갈라짐=보고만(rc 1) / 뒤처짐=ff 전파. 대상은 `PROMOTE_TARGETS`로 변경. ⚠ 예전 문서의 **QA는 원격에 존재한 적이 없어 목록에서 뺐다** |
 | `bash scripts/harness/guard-commit.sh [파일…]` | 커밋 전 clobber 점검(origin 최신·의도 파일만) |
 | `bash scripts/harness/email-safe.sh on\|off\|status` | 운영 상태 리셋(잔여 리다이렉트/태그 env 제거). 테스트 격리는 자동 — **메일=temail() 싱크 수신자**, **슬랙=`[테스트]` 제목/기업명 자동 라우팅**(SLACK_WEBHOOK_TEST). status로 현재 env 확인 |
 | `bash scripts/harness/apigw-route.sh list\|add "METHOD /path"` | API GW 라우트 조회/추가 |
 | `bash scripts/harness/sweep.sh [--delete]` | `[테스트]` 라벨 잔여 데이터 미리보기/삭제(중단 뒷정리) |
 | `node scripts/harness/l2-smoke.mjs [html]` | **index.html 정적 검사(1초)** — `<script>` 문법 컴파일 · 인라인 핸들러 함수 존재 · JS가 참조하는 DOM id 존재 · 수동 스모크 체크리스트 대조. run-regression이 첫 단계로 자동 실행 |
 | `bash scripts/harness/drift-check.sh [fn]` | 레포↔배포본 대조(읽기 전용). 재배포·리뷰 전에 drift 확인 — 배포본이 앞서 있으면 역동기화 먼저 |
-| `bash scripts/harness/regression-nightly.sh` | 새벽 자동 회귀(작업 스케줄러용). ff→drift-check→회귀→슬랙 통지. **hades 워크트리 전용** |
+| `bash scripts/harness/regression-nightly.sh` | 새벽 자동 회귀(작업 스케줄러용). ff→drift-check→브랜치 전파 점검→스모크→회귀→슬랙 통지. **전용 워크트리에서만** 실행 |
 
 ## 새벽 자동 회귀 (regression-nightly.sh)
 매일 새벽 회귀를 자동으로 돌려 야간/주말 사이 들어온 변경의 회귀를 아침에 확인한다.
 클로드 세션과 무관한 **순수 배치**다 — 스케줄러가 스크립트를 실행할 뿐, AI가 개입하지 않는다.
 
-- **반드시 hades 워크트리 전용.** 스크립트가 자기 위치에서 `git merge --ff-only origin/main`을
-  하는데, 사람이 작업하는 main 워크트리는 형제 세션의 미커밋 변경으로 ff가 자주 막힌다.
-  hades는 이 배치 외엔 아무도 안 건드려 항상 clean → 매번 "정확히 origin/main"을 검증한다.
-  hades에서 ff가 막히면 스크립트는 중단하고 "⚠️ 확인 필요"를 슬랙으로 알린다(낡은 코드로
-  조용히 검증하지 않도록).
-- **결과 통지**: `SLACK_WEBHOOK_TEST`(테스트 채널)로 PASS/FAIL 요약 + 검증한 커밋 SHA + drift 여부.
-  웹훅은 레포에 없고 Lambda env에서 런타임 조회한다. 로그는 `~/portal-nightly/날짜.log`(30일 보관).
-- **Windows 작업 스케줄러 등록** (직접 실행 — 시스템 설정 변경):
+- **전용 워크트리에서만 돌려야 한다.** 스크립트는 자기 위치에서 `git merge --ff-only origin/main`을
+  하는데, 사람이 작업하는 워크트리는 미커밋 변경 때문에 ff가 자주 막힌다. 아무도 손대지 않는
+  워크트리를 하나 만들어 두면 항상 clean → 매번 "정확히 origin/main"을 검증한다. ff가 막히면
+  스크립트는 중단하고 "⚠️ 확인 필요"를 슬랙으로 알린다(낡은 코드로 조용히 검증하지 않도록).
+  ```bash
+  # 레포 루트에서 — 경로는 아무 데나, 이 배치 외엔 건드리지 않는 곳으로
+  git worktree add /d/portal-nightly-wt main
+  ```
+  ⚠️ **현재 이 배치는 이 장비에 설정돼 있지 않다**(예약 작업 미등록·전용 워크트리 없음·
+  `~/portal-nightly` 로그 없음). 즉 **자동 회귀는 아직 한 번도 돈 적이 없다.** 아래 등록이 필요하다.
+  (예전 문서는 `C:\Installed_program\고객포탈\Customer_portal-Harness`를 지정했는데 그 경로는
+  존재하지 않는다 — 하드코딩 대신 위처럼 워크트리를 만들고 그 경로를 쓸 것.)
+- **결과 통지**: `SLACK_WEBHOOK_TEST`(테스트 채널)로 PASS/FAIL 요약 + 검증한 커밋 SHA + drift 여부
+  + 브랜치 전파 상태. 웹훅은 레포에 없고 Lambda env에서 런타임 조회한다.
+  로그는 `~/portal-nightly/날짜.log`(30일 보관).
+- **Windows 작업 스케줄러 등록** (직접 실행 — 시스템 설정 변경). `<워크트리경로>`는 위에서 만든 곳:
   ```
   schtasks /create /tn "portal-nightly-regression" /sc daily /st 04:00 ^
-    /tr "\"C:\Program Files\Git\bin\bash.exe\" -lc /c/Installed_program/고객포탈/Customer_portal-Harness/scripts/harness/regression-nightly.sh"
+    /tr "\"D:\installed_program\Gitinash.exe\" -lc /d/portal-nightly-wt/scripts/harness/regression-nightly.sh"
   ```
+  (bash.exe 경로는 장비마다 다르다 — `(Get-Command git).Source`로 Git 설치 위치를 확인할 것.
+  이 장비의 Git은 `D:\installed_program\Git`이다.)
   등록 후 노트북 절전·배터리 대응(PowerShell, 안 하면 절전 중 안 돎):
   ```powershell
   $t=Get-ScheduledTask -TaskName "portal-nightly-regression"; $s=$t.Settings
@@ -70,6 +80,7 @@
 - `tests/test_itest_helpers.py` — **헬퍼 자체 검증**: `must_id`·`all_of`·`report(min_checks)`·`Fixtures`·`permission`·`batch(only_test)`가 실제로 막는지 모의 객체로 확인. AWS 불필요. "고쳤다고 적어놨지만 안 막던" 전례(T2 양성대조가 항상 참이었음)를 되풀이하지 않기 위한 장치
 - `tests/test_deploy_gate.py` — **배포 게이트 검증**: `deploy-fn.sh`가 파괴적 drift(배포본에만 있는 줄이 사라지는 경우)를 실제로 차단하는지 5가지 상황으로 확인 + 배포 직전 롤백 백업 생성 확인. `aws.exe`/`curl`을 스텁으로 갈아끼우고 `LAMBDA_DIR`로 가짜 소스를 물려 **운영에 닿지 않는다**
 - `tests/test_fn_smoke.py` — **배포 스모크 프로브 검증**: `lib/fnsmoke.py`의 함수별 프로브가 ① 자기 함수를 invoke 하는지(예전처럼 data-api로 새지 않는지) ② 모듈 로드 실패·핸들러 예외·invoke 실패·5xx·빈 응답에 전부 FAIL 하는지 ③ 페이로드가 발송 분기에 못 들어가는 모양인지 확인. AWS 불필요(invoke 모의)
+- `tests/test_promote.py` — **브랜치 전파 검증**: `promote.sh`가 뒤처진 브랜치를 ff 전파하고, 앞선 브랜치(개발 중인 dev)·갈라진 브랜치를 **건드리지 않는지**, 원격에 없는 브랜치를 실패로 보고하는지 확인. 임시 git 레포(로컬 bare 원격)에서 돌아 네트워크·운영 원격에 닿지 않는다
 - `tests/test_permissions.py` — 역할별 권한/테넌트 격리/직접쓰기 차단/스태프 교차조회
 - `tests/test_ticket_delete.py` — 요청 삭제 권한(ticket_delete) + cascade + 권한관리 동적 토글
 - `tests/test_ticket_status.py` — **요청 상태 변경(접수 제외 6개 상태)**: 두 경로(`/status`·`/manage`) 전이 저장 · 6개 상태 전부 슬랙 발송 + event_type 분포(`completed`/`pending_customer` 고유, 나머지 4개 `status_change`) · 메일도 전 상태 발송(manage는 `send_email` 플래그) · 이력(`status_changed`)은 manage 경로만 기록 · 완료예정일 초과(기한 지남=추가 1건·당일=미발송·완료 전환=미발송) · content 원문 저장 · 고객 403 · 동일 상태 재저장 · 잘못된 상태값 거부. 알림은 `log_notification` 행으로 판정(비동기라 최대 30초 대기)

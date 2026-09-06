@@ -68,6 +68,15 @@ else
   DRIFT=""
 fi
 
+# ── 2.2) 브랜치 전파 점검(읽기 전용) — R3. main이 형제 브랜치에 퍼졌는지, 갈라진 게 없는지.
+# --dry-run이라 아무것도 밀지 않는다. 갈라짐·원격 부재만 통지에 태그로 표시한다.
+if ! bash "$HDIR/promote.sh" --dry-run >>"$LOG" 2>&1; then
+  log "⚠ 브랜치 전파 확인 필요 — 갈라졌거나 원격에 없는 대상 있음(로그 참고)."
+  BRANCHTAG=" · ⚠브랜치"
+else
+  BRANCHTAG=""
+fi
+
 # ── 2.5) 사이트 스모크 — 실제 API가 HTTP로 살아있나(비파괴). 회귀(Lambda 직접 invoke)는
 # 백엔드 계약만 봐서, Amplify 배포·API Gateway가 밤사이 죽어도 못 잡는다. smoke.sh가 그 빈 곳을
 # 메운다(로그인 엔드포인트·공개 계정문의 생존). 실패해도 회귀는 계속하되, 통지엔 크게 표시한다.
@@ -125,7 +134,7 @@ SHA="$(git rev-parse --short HEAD)"
   fi
   HEAD="$([ "$RC" -ne 0 ] && echo "❌ FAIL(${FAILS}건)" || { [ "${FLAKYN:-0}" -gt 0 ] && echo "⚠ PASS(불안정 ${FLAKYN}종)" || echo '✅ PASS'; })"
   [ "$SMOKE_RC" -ne 0 ] && HEAD="🚑 스모크실패 · $HEAD"
-  CONTENT="🌙 새벽 회귀 ${HEAD} — $SHA${DRIFT}
+  CONTENT="🌙 새벽 회귀 ${HEAD} — $SHA${DRIFT}${BRANCHTAG}
 
 [사이트 스모크] $([ "$SMOKE_RC" -eq 0 ] && echo '✅' || echo '❌') ${SMOKE_SUM}
 
@@ -147,13 +156,13 @@ PY
 
 # ── 5) 결과 통지 ── 회귀실패 / 사이트다운 / 불안정 / 통과
 if [ "$RC" -ne 0 ]; then
-  notify_slack "🌙 새벽 회귀 ❌ FAIL($FAILS건)${SMOKETAG} — ${SHA}${DRIFT} · 로그: ${LOG//\\//}"
+  notify_slack "🌙 새벽 회귀 ❌ FAIL($FAILS건)${SMOKETAG} — ${SHA}${DRIFT}${BRANCHTAG} · 로그: ${LOG//\\//}"
 elif [ "$SMOKE_RC" -ne 0 ]; then
-  notify_slack "🌙 새벽 회귀 🚑 사이트 스모크 실패(${SMOKE_SUM}) — ${SHA}${DRIFT} · 회귀는 통과했으나 실제 API 경로 이상 · 로그: ${LOG//\\//}"
+  notify_slack "🌙 새벽 회귀 🚑 사이트 스모크 실패(${SMOKE_SUM}) — ${SHA}${DRIFT}${BRANCHTAG} · 회귀는 통과했으나 실제 API 경로 이상 · 로그: ${LOG//\\//}"
 elif [ "${FLAKYN:-0}" -gt 0 ]; then
-  notify_slack "🌙 새벽 회귀 ⚠ PASS(불안정 ${FLAKYN}종: ${FLAKY_LIST}) — ${SHA}${DRIFT} · 재시도 통과, 경합 의심"
+  notify_slack "🌙 새벽 회귀 ⚠ PASS(불안정 ${FLAKYN}종: ${FLAKY_LIST}) — ${SHA}${DRIFT}${BRANCHTAG} · 재시도 통과, 경합 의심"
 else
-  notify_slack "🌙 새벽 회귀 ✅ PASS — ${SHA}${DRIFT} · $SUMMARY"
+  notify_slack "🌙 새벽 회귀 ✅ PASS — ${SHA}${DRIFT}${BRANCHTAG} · $SUMMARY"
 fi
 
 # 오래된 로그 정리(30일 초과)
