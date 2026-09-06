@@ -384,12 +384,8 @@ button,input,select,textarea{font-family:inherit;}
 .rd-hist-sum .h-tail{flex:none;white-space:nowrap;margin-left:4px;}
 .rd-hist-sum .h-who{color:var(--text);font-weight:700;}
 /* 새 요청 카테고리 드롭다운 — 등록 버튼 아래에서 카테고리를 먼저 고르고 폼을 연다 (고객 전용) */
-/* 카테고리 메뉴는 2열 그리드 — 항목이 세로로 늘어서면 메뉴가 계속 길어져서, 같은 개수를
-   절반 높이에 담고 전체 선택지가 한눈에 들어오게 한다. */
-.nrq-dd{position:absolute;z-index:520;width:290px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 32px rgba(20,20,50,.16);padding:6px;display:grid;grid-template-columns:1fr 1fr;gap:4px;}
-.nrq-dd-item{padding:9px 11px;font-size:12.5px;font-weight:600;border-radius:7px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-/* 항목이 홀수면 마지막 하나가 왼쪽 칸에 덩그러니 남아서, 그때만 한 줄을 다 쓰게 한다. */
-.nrq-dd-item:last-child:nth-child(odd){grid-column:1/-1;}
+.nrq-dd{position:absolute;z-index:520;width:150px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 32px rgba(20,20,50,.16);padding:5px;}
+.nrq-dd-item{padding:8px 12px;font-size:12.5px;font-weight:600;border-radius:7px;cursor:pointer;}
 .nrq-dd-item:hover{background:var(--accent-l);color:var(--accent);}
 /* 폼 빌더 — 설문 문항 편집기 */
 #p-forms.active{flex:1;min-height:0;overflow-y:auto;} /* .body가 overflow:hidden이라 페이지 자체 스크롤(사용 통계와 동일 패턴) */
