@@ -25,6 +25,8 @@ FN = {
     'inquiry':  'customer_portal_public-inquiry',
     'email':    'customer_portal_send-email',
     'storage':  'customer_portal_storage-api',
+    'jwt':      'customer_portal_jwt-authorizer',        # 배포 스모크용(직접 invoke)
+    'notify':   'customer_portal_notify-handler',        # 〃
 }
 
 # ── 테스트 데이터 식별 규칙 ───────────────────────────────────────────────

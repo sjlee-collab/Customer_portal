@@ -5,7 +5,7 @@
 > 하네스를 고치거나 확장할 때는 이 문서의 원칙과 충돌하지 않는지 먼저 확인한다.
 
 작성 2026-08-31 (기준 커밋 93066ab, 회귀 10종 231건). 갱신 2026-09-04 — 회귀 17종 337건.
-**갱신 2026-09-06 — 19종(회귀 17 + 자기점검 2).** 그간 추가: 스키마 계약·배치 only_test·
+**갱신 2026-09-06 — 21종(회귀 17 + 자기점검 4).** 그간 추가: 스키마 계약·배치 only_test·
 JWT 실경유·L2 런타임(헤드리스)·이메일 백스톱·flaky 허용목록·알림 스냅샷·테스트 요청 은닉,
 그리고 **결함 클래스 봉쇄 장치 5종 + 래칫 린트**(§4.1 — 감사가 수렴하지 않던 원인). 상세는 §3~§7.
 
@@ -63,10 +63,12 @@ JWT 실경유·L2 런타임(헤드리스)·이메일 백스톱·flaky 허용목�
 
 ```
 ┌─ 테스트 계층 ──────────────────────────────────────────────┐
-│ tests/ (19종 = 회귀 17 + 자기점검 2, 2026-09-06)            │
+│ tests/ (21종 = 회귀 17 + 자기점검 4, 2026-09-06)            │
 │   ├── test_harness_lint ─ 결함 패턴 래칫 (AWS 불필요)      │
 │   ├── test_itest_helpers ─ 헬퍼 자체 검증 (AWS 불필요)     │
-│   └── lib/itest.py                                         │
+│   ├── test_deploy_gate ─ 배포 차단 검증 (AWS 불필요)       │
+│   ├── test_fn_smoke ─ 함수별 스모크 프로브 (AWS 불필요)    │
+│   ├── lib/itest.py                                         │
 │        invoke(fn, event) ─ aws lambda invoke + authorizer  │
 │        ctx/api/dget/dpost/dpatch/ddel ─ 역할 주입 헬퍼      │
 │        tname/temail ─ [테스트] 라벨·sink 메일 (격리의 축)   │
@@ -75,6 +77,7 @@ JWT 실경유·L2 런타임(헤드리스)·이메일 백스톱·flaky 허용목�
 │        Checker.all_of / report(min_checks) ─ 공허참 차단   │
 │        notif_rows/wait_notif ─ 알림 판정(log_notification) │
 │        wipe_ticket/sweep_test_data ─ 정리                  │
+│   └── lib/fnsmoke.py ─ 배포 직후 함수별 프로브 7종 (§6.5b) │
 ├─ 운영 스크립트 계층 ────────────────────────────────────────┤
 │ run-regression.sh  병렬/직렬·재시도(flaky 허용목록)·sweep    │
 │ regression-nightly.sh  새벽 자동: ff→drift→스모크→회귀→기록  │
@@ -289,9 +292,29 @@ API GW 실경유로 문지기를 검증한다: 발급·클레임 스코프 흐�
 검증은 `tests/test_deploy_gate.py`가 맡는다 — 안전장치는 막는지 확인하지 않으면 막는다고
 믿을 뿐이므로(§4.1), 5가지 drift 상황을 실제 스크립트로 돌린다.
 
-**남은 것**: 배포 스모크가 `api-layer` 외 6개 함수에서 전부 `dget('companies')`(=data-api)라
-정작 방금 배포한 함수를 안 건드린다 — send-email·storage-api 등을 깨뜨려도 "✅ 배포 성공"이
-나온다. 함수별 스모크 분리가 다음 과제.
+### 6.5b 배포 스모크가 방금 배포한 함수를 안 봤다 (2026-09-06 해소)
+스모크는 `api-layer`가 아니면 전부 `dget('companies')`였다 — 그건 data-api만 때린다.
+즉 **7개 중 5개**(send-email·storage-api·notify-handler·public-inquiry·jwt-authorizer)는
+어떻게 망가뜨려 배포해도 "✅ 배포 성공"이 나왔다. 구조적으로 실패할 수 없는 스모크였다.
+
+`lib/fnsmoke.py`가 함수별 프로브를 갖는다. 가장 중요한 신호는 **모듈이 로드됐는가** —
+R6(api-layer 부분 zip → 로그인 순단)는 Lambda가 `Runtime.ImportModuleError`를 뱉는 형태로
+나타나므로, 모든 프로브는 런타임 오류를 무조건 실패로 본다. 전부 비파괴다:
+
+| 함수 | 프로브 | 왜 안전한가 |
+|---|---|---|
+| api-layer | 없는 계정 로그인 | 401/404 — 생성·발송 없음 |
+| data-api | companies 1건 조회 | 읽기 |
+| public-inquiry | 허니팟 페이로드 | insert·Slack 이전에 200 반환 |
+| send-email | 미지 type | ticket/requesterEmail 없어 400 — 발송 분기 진입 전 |
+| storage-api | 없는 경로 | 404 — S3 미접촉 |
+| jwt-authorizer | 토큰 없음 | `isAuthorized:false` — 검증 로직만 |
+| notify-handler | 미지 type | switch default → `results:[]` (발송 시도 자체가 없음) |
+
+`tests/test_fn_smoke.py`가 ① 각 프로브가 **자기 함수를** invoke 하는지(다시 data-api로
+새지 않는지) ② 모듈 로드 실패·핸들러 예외·invoke 실패·5xx·빈 응답 **5종에 전부 FAIL** 하는지
+③ 프로브 페이로드가 발송 분기에 못 들어가는 모양인지를 확인한다(29건). 실제 7개 Lambda에
+돌려 기대 응답도 실측 확인했다(2026-09-06).
 
 ### 6.6 수동 실행 의존 (CI 부재)
 회귀는 사람이 돌려야 한다. 레포에 CI가 없고(빌드 자체가 없음), AWS 자격증명이 필요해

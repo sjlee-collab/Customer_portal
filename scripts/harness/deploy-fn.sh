@@ -135,23 +135,9 @@ aws.exe lambda wait function-updated --function-name "$FN" --region "$REGION"
 echo "▶ 배포 완료. 스모크:"
 HDIR="$(cd "$(dirname "$0")" && pwd)"
 SMOKE_RC=0
-HARNESS_TMP="$HDIR/lib" KEY="$KEY" python - <<'PY' || SMOKE_RC=$?
-import sys, os, json
-sys.path.insert(0, os.path.join(os.environ['HARNESS_TMP']))
-from itest import invoke, dget
-key = os.environ['KEY']
-if key == 'api-layer':
-    r = invoke('api', {'requestContext': {'http': {'method': 'POST'}}, 'rawPath': '/auth/login',
-                       'body': json.dumps({'email': 'zz-smoke@example.com', 'password': 'x'})})
-    ok = r.get('status') in (400, 401, 404)
-    print('  로그인 엔드포인트:', r.get('status'), 'OK' if ok else 'FAIL(재확인 필요)')
-    sys.exit(0 if ok else 1)
-else:
-    r = dget('companies', {'select': 'id', 'limit': '1'}, role='admin')
-    ok = r.get('status') == 200
-    print('  data-api 조회:', r.get('status'), 'OK' if ok else 'FAIL')
-    sys.exit(0 if ok else 1)
-PY
+# 함수별 프로브(lib/fnsmoke.py) — 예전엔 api-layer 외 전부 dget('companies')라 정작
+# 방금 배포한 함수를 안 건드렸다(7개 중 5개에서 스모크가 무의미했다).
+HARNESS_TMP="$HDIR/lib" KEY="$KEY" python "$HDIR/lib/fnsmoke.py" || SMOKE_RC=$?
 
 if [ "$SMOKE_RC" -ne 0 ]; then
   # 예전엔 여기서 set -e로 그냥 죽었고, EXIT 트랩이 롤백용 zip까지 지웠다.

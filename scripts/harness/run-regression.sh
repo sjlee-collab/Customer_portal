@@ -16,12 +16,13 @@ export PYTHONIOENCODING=utf-8
 HDIR="$(cd "$(dirname "$0")" && pwd)"
 export HARNESS_TMP="$HDIR/lib"
 
-ALL=(test_harness_lint.py test_itest_helpers.py test_deploy_gate.py test_permissions.py test_ticket_delete.py test_ticket_status.py test_ticket_assign.py test_notify_routing.py test_internal_review.py test_ticket_rate.py test_customer_e2e.py test_stats_view.py test_proxy_register.py test_storage_rules.py test_auth.py test_schema_contract.py test_batch.py test_jwt.py test_l2_runtime.py test_email_backstop.py)
+ALL=(test_harness_lint.py test_itest_helpers.py test_deploy_gate.py test_fn_smoke.py test_permissions.py test_ticket_delete.py test_ticket_status.py test_ticket_assign.py test_notify_routing.py test_internal_review.py test_ticket_rate.py test_customer_e2e.py test_stats_view.py test_proxy_register.py test_storage_rules.py test_auth.py test_schema_contract.py test_batch.py test_jwt.py test_l2_runtime.py test_email_backstop.py)
 # 병렬 안전 = 알림 발송 건수/타입을 단언하지 않는 스위트(응답 코드·권한·구조만 검사).
 # 나머지(알림 타이밍 민감 + 전역 집계)는 직렬. 지정 실행 시엔 이 분류를 그대로 따른다.
-# harness_lint·itest_helpers·deploy_gate는 AWS를 아예 안 쓰는 순수 정적/모의 검사라 항상 병렬 안전
-# (deploy_gate는 aws.exe·curl을 스텁으로 갈아끼우고 --dry-run으로 판정만 본다).
-PAR_SAFE=(test_harness_lint.py test_itest_helpers.py test_deploy_gate.py test_permissions.py test_ticket_delete.py test_storage_rules.py test_ticket_rate.py test_proxy_register.py test_auth.py test_schema_contract.py test_jwt.py test_l2_runtime.py)
+# 자기점검 4종(harness_lint·itest_helpers·deploy_gate·fn_smoke)은 AWS를 아예 안 쓰는
+# 순수 정적/모의 검사라 항상 병렬 안전 — deploy_gate는 aws.exe·curl을 스텁으로 갈아끼우고
+# --dry-run으로 판정만 보고, fn_smoke는 invoke를 모의로 대체해 프로브 로직만 본다.
+PAR_SAFE=(test_harness_lint.py test_itest_helpers.py test_deploy_gate.py test_fn_smoke.py test_permissions.py test_ticket_delete.py test_storage_rules.py test_ticket_rate.py test_proxy_register.py test_auth.py test_schema_contract.py test_jwt.py test_l2_runtime.py)
 
 # flaky 허용목록 = 비동기 알림(wait_notif/notif_rows)에 의존해 병렬 부하에서 정당하게
 # 간헐 실패할 수 있는 스위트만. 이 목록 밖(권한·스키마·jwt·삭제 등 결정적 스위트)은
