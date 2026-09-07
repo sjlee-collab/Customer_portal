@@ -389,6 +389,8 @@ button,input,select,textarea{font-family:inherit;}
 .nrq-dd-item:hover{background:var(--accent-l);color:var(--accent);}
 /* 폼 빌더 — 단계 흐름(폼 종류 → VOC 요청 폼/설문 폼) */
 #p-forms.active{flex:1;min-height:0;overflow-y:auto;} /* .body가 overflow:hidden이라 페이지 자체 스크롤 */
+/* 폼 빌더만 가운데 정렬 — 1280px 초과 화면에서 콘텐츠를 중앙으로 (좁은 화면은 기존과 동일) */
+#p-forms > .section-header, #p-forms > .fb-steps, #p-forms > .fb-panel{max-width:1280px;margin-left:auto;margin-right:auto;}
 .fb-doc{display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--border-md);border-radius:999px;padding:6px 8px 6px 14px;box-shadow:var(--shadow-sm);}
 .fb-doc .nm{font-size:12.5px;font-weight:700;}
 .fb-pill{display:inline-flex;align-items:center;font-size:10.5px;font-weight:700;border-radius:999px;padding:3px 10px;}
