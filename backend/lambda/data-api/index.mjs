@@ -276,12 +276,18 @@ async function tenantRowFilterSql(table, authz, paramOffset, qs) {
 // 스태프가 아닌 역할(고객/internal)이 users를 조회할 때, 본인 행이 아니면 이름/역할
 // 정도만(사내 조직도 수준) 남기고 이메일·전화번호·소속회사 등 나머지 컬럼은 지운다.
 const PUBLIC_USER_COLUMNS = new Set(['id', 'name', 'role']);
+// internal(내부직원)은 전체 요청을 열람하고 그 요청자에게 직접 회신해야 하므로 연락처까지
+// 열어준다. STAFF_ROLES에 넣으면 tenantRowFilterSql 면제까지 딸려와 전 고객사 계약·라이선스가
+// 열리므로, 이렇게 컬럼 허용 목록만 넓히는 방식으로 좁게 준다. 명단 전체 조회는 여전히 막힌다
+// (users의 tenantRowFilterSql이 id 필터 없으면 본인 행으로 좁힘).
+const CONTACT_USER_COLUMNS = new Set(['id', 'name', 'role', 'email', 'phone']);
 function restrictUserColumnsForNonStaff(table, rows, authz) {
   if (table !== 'users' || STAFF_ROLES.has(authz.role)) return;
+  const allow = authz.role === 'internal' ? CONTACT_USER_COLUMNS : PUBLIC_USER_COLUMNS;
   for (const row of rows) {
     if (row.id === authz.userId) continue;
     for (const col of Object.keys(row)) {
-      if (!PUBLIC_USER_COLUMNS.has(col)) delete row[col];
+      if (!allow.has(col)) delete row[col];
     }
   }
 }
