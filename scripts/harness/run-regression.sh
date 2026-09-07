@@ -101,7 +101,10 @@ if [ "${#FAILED[@]}" -gt 0 ]; then
   for tf in "${FAILED[@]}"; do
     echo "────────────────────────────────────────"
     echo "▶ 재시도 $tf"
-    if python "$HDIR/tests/$tf"; then
+    # 재시도도 파일로 받아 출력 — 스위트별 "최종" 카운트를 아래 SUMMARY가 이 파일에서 집계한다.
+    rc_retry=0; python "$HDIR/tests/$tf" > "$LOGDIR/$tf.retry.log" 2>&1 || rc_retry=1
+    cat "$LOGDIR/$tf.retry.log"
+    if [ "$rc_retry" -eq 0 ]; then
       # 재시도 통과 — 단, 알림 의존 스위트만 flaky로 봐준다. 결정적 스위트가 깜빡였다면
       # 재시도 통과라도 진짜 실패로 처리(조사 필요 — 경합 아닌 실제 불안정/부분결함 신호).
       ok=0; for s in "${FLAKY_OK[@]}"; do [ "$tf" = "$s" ] && ok=1; done
@@ -128,6 +131,17 @@ echo "════════════════════════�
 # ── 판정 ── 치명 = L2 실패 또는 재시도도 실패한 스위트. flaky만이면 통과(경고).
 strip(){ printf '%s' "$*" | sed 's/\.py//g;s/test_//g'; }
 echo "TOTAL $(fmt_dur $(($(date +%s%3N)-REG_T0)))"
+# 스위트별 "최종" 카운트(재시도가 있으면 재시도 결과)를 합산한 한 줄 요약 — nightly는 이 줄만
+# 파싱한다. 예전엔 nightly가 로그 전체를 grep해서 재시도 스위트를 이중 계수했다(감사 T3).
+CP=0; CT=0
+for tf in "${TESTS[@]}"; do
+  f="$LOGDIR/$tf.retry.log"; [ -f "$f" ] || f="$LOGDIR/$tf.log"
+  nm="$(grep -oE '[0-9]+/[0-9]+ PASS' "$f" 2>/dev/null | tail -1)"
+  if [ -n "$nm" ]; then
+    CP=$((CP + ${nm%%/*})); d="${nm#*/}"; CT=$((CT + ${d%% *}))
+  fi
+done
+echo "SUMMARY suites=${#TESTS[@]} checks=${CP}/${CT} flaky=${#FLAKY[@]} realfail=${#REALFAIL[@]}"
 if [ "$l2_fail" -ne 0 ] || [ "${#REALFAIL[@]}" -gt 0 ]; then
   MARK="❌ 회귀 실패"
   [ "$l2_fail" -ne 0 ] && MARK="$MARK · L2"

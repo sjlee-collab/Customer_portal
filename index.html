@@ -687,6 +687,22 @@ tr.co-org-sub>td{background:var(--surface2);padding:0 10px;}
 .b-blue{background:#EFF6FF;color:#2563EB;border-color:#BFDBFE;}
 /* 대리 등록 배지 — 내부직원이 고객 대신 남긴 요청. 상태/역할 배지와 겹치지 않는 인디고 아웃라인. */
 .proxy-badge{display:inline-flex;align-items:center;font-size:10px;font-weight:600;line-height:1.5;padding:0 6px;border-radius:99px;background:var(--accent-l);color:var(--accent);border:1px solid #C7D2FE;vertical-align:middle;}
+/* 요청자 연락처 호버 카드 — 스태프·내부직원이 요청자 이름에 마우스를 올리면 뜬다.
+   표가 overflow-x:auto 컨테이너 안이라 position:fixed로 띄우고 스크롤 시 닫는다. */
+.rq-who{border-bottom:1px dashed var(--border-md);padding-bottom:1px;cursor:default;}
+.rq-who:hover{color:var(--accent);border-bottom-color:var(--accent);}
+#rq-card{position:fixed;z-index:2000;width:224px;padding:10px 11px;background:var(--surface);border:1px solid var(--border-md);border-radius:9px;box-shadow:0 8px 22px rgba(0,0,0,.14),0 2px 5px rgba(0,0,0,.07);opacity:0;visibility:hidden;transform:translateY(-4px);transition:opacity .12s ease,transform .12s ease,visibility .12s;}
+#rq-card.on{opacity:1;visibility:visible;transform:translateY(0);}
+#rq-card .rq-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;}
+#rq-card .rq-nm{font-size:13.5px;font-weight:700;color:var(--text);}
+#rq-card .rq-badge{font-size:10.5px;color:var(--muted);background:var(--surface2);padding:1px 7px;border-radius:9px;}
+#rq-card .rq-row{display:flex;align-items:center;gap:7px;padding:4px 0;border-top:1px solid var(--border);}
+#rq-card .rq-lb{font-size:10px;color:var(--faint);width:30px;flex:none;}
+#rq-card .rq-vl{font-size:11px;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums;}
+#rq-card .rq-cp{border:1px solid var(--border-md);background:var(--surface2);color:var(--muted);border-radius:5px;font-size:10px;padding:2px 6px;flex:none;cursor:pointer;font-family:inherit;line-height:1.6;}
+#rq-card .rq-cp:hover{background:var(--accent-l);color:var(--accent);border-color:var(--accent);}
+#rq-card .rq-cp.done{background:var(--green-l);color:var(--green-d);border-color:var(--green);}
+@media (prefers-reduced-motion:reduce){#rq-card{transition:none;}}
 /* 요청 상세 '+ 추가' hover 툴팁 — 업로드 가능 확장자 안내 */
 .rd-add-wrap{position:relative;display:inline-flex;}
 .rd-add-tip{position:absolute;bottom:calc(100% + 9px);right:0;width:248px;background:var(--surface);color:var(--text);border:1px solid var(--border-md,var(--border));border-radius:8px;padding:9px 11px;box-shadow:0 10px 26px rgba(20,20,50,.22);opacity:0;visibility:hidden;transform:translateY(4px);transition:.13s;z-index:20;font-weight:400;text-align:left;}
@@ -6667,7 +6683,7 @@ async function loadTickets() {
 
   let query = sb
     .from('tickets')
-    .select('id, ticket_number, title, description, category, product, priority, status, created_at, updated_at, due_date, unit_name, assigned_to_name, company_name, created_by_name, registered_by, registered_by_name, is_internal, assignee:assigned_to(name), company:company_id(name), requester:created_by(name)')
+    .select('id, ticket_number, title, description, category, product, priority, status, created_at, updated_at, due_date, unit_name, assigned_to_name, company_name, created_by_name, registered_by, registered_by_name, is_internal, assignee:assigned_to(name), company:company_id(name), requester:created_by(name,email,phone)')
     .order('created_at', { ascending: false });
 
   if (DEMO_COMPANY_ID) query = query.eq('company_id', DEMO_COMPANY_ID);
@@ -6753,6 +6769,16 @@ function detachSharedRequestDetail(tbody) {
 // ── 티켓 목록 공용 셀 빌더 ──
 // 요청 탭·요청 관리 두 아코디언 테이블이 똑같이 쓰는 9개 셀을 한 곳에 정의(중복 제거).
 // 화면별로 다른 셀은 각 렌더러에 그대로 둔다: num(폴백 차이)·due(지연뱃지 유무)·action(요청관리 전용).
+// 요청자 이름 — 응답에 연락처가 실려 있으면(스태프·내부직원) 호버 카드 대상으로 감싼다.
+// 고객에게는 data-api가 email/phone을 지워 보내므로 자동으로 평문 이름만 남는다(서버가 1차 차단).
+function requesterNameHtml(t) {
+  const name = t.requester?.name || t.created_by_name || '';
+  if (!name) return '<span style="color:var(--faint);">—</span>';
+  const em = t.requester?.email || '', ph = t.requester?.phone || '';
+  if (!em && !ph) return escHtml(name);
+  return `<span class="rq-who" data-nm="${escHtml(name)}" data-em="${escHtml(em)}" data-ph="${escHtml(ph)}">${escHtml(name)}</span>`;
+}
+
 const TICKET_CELL = {
   title:     t => `<td style="font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.is_internal?'<span title="내부 검토 — 고객에게 보이지 않는 요청" style="margin-right:4px;">🔒</span>':''}${escHtml(t.title||'')}<span class="row-arrow">▾</span></td>`,
   category:  t => `<td><span class="badge ${CATEGORY_BADGE[t.category]||'b-gray'}">${CATEGORY_LABELS[t.category]||t.category||'—'}</span></td>`,
@@ -6760,7 +6786,7 @@ const TICKET_CELL = {
   status:    t => `<td><span class="badge ${STATUS_BADGE[t.status]||'b-gray'}">${STATUS_LABELS[t.status]||t.status||'—'}</span></td>`,
   company:   t => `<td style="font-size:12px;">${t.company?.name?escHtml(t.company.name):(t.company_name?escHtml(t.company_name):'<span style="color:var(--faint);">—</span>')}</td>`,
   org:       t => `<td style="font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(t.unit_name||'')}">${t.unit_name?escHtml(t.unit_name):'<span style="color:var(--faint);">—</span>'}</td>`,
-  requester: t => `<td style="font-size:12px;">${t.requester?.name?escHtml(t.requester.name):(t.created_by_name?escHtml(t.created_by_name):'<span style="color:var(--faint);">—</span>')}${t.registered_by?` <span class="proxy-badge" title="빅스데이터 ${escHtml(t.registered_by_name||'')} 대리 등록">대리</span>`:''}</td>`,
+  requester: t => `<td style="font-size:12px;">${requesterNameHtml(t)}${t.registered_by?` <span class="proxy-badge" title="빅스데이터 ${escHtml(t.registered_by_name||'')} 대리 등록">대리</span>`:''}</td>`,
   assignee:  t => `<td style="font-size:12px;">${t.assignee?.name?escHtml(t.assignee.name):(t.assigned_to_name?escHtml(t.assigned_to_name)+' <span style="color:var(--faint);font-size:10px;">(탈퇴)</span>':'<span style="color:var(--faint);">미배정</span>')}</td>`,
   created:   t => `<td style="color:var(--faint);font-size:12px;">${t.created_at?t.created_at.slice(0,10):'—'}</td>`,
   // 접수일과 달리 시각까지 보여주므로 UTC 문자열을 그대로 자르면 안 되고 KST로 변환한다.
@@ -6794,7 +6820,7 @@ function renderTickets(tickets) {
     // 내부일반: 대리등록자를 별도 컬럼으로 보여주므로 요청자 셀엔 [대리] 배지 없이 이름만.
     // 고객: 컬럼이 없으니 기존 배지 방식(TICKET_CELL.requester) 유지.
     const requesterCell = isCustomerRole ? TICKET_CELL.requester(t)
-      : `<td style="font-size:12px;">${t.requester?.name?escHtml(t.requester.name):(t.created_by_name?escHtml(t.created_by_name):'<span style="color:var(--faint);">—</span>')}</td>`;
+      : `<td style="font-size:12px;">${requesterNameHtml(t)}</td>`;
     const registrarCell = isCustomerRole ? ''
       : `<td style="font-size:12px;">${t.registered_by_name?escHtml(t.registered_by_name):'<span style="color:var(--faint);">—</span>'}</td>`;
     const cells = [
@@ -12421,7 +12447,7 @@ function clearTkFilter(key) { filterPopClear('tk', key); }
 function updateTkFilterButtonStates() { filterUpdateButtons('tk'); }
 
 // 요청 관리 티켓 조회 — 전체 로드와 델타 폴링이 같은 select·역할필터를 쓰도록 공용화.
-const AR_TICKET_SELECT = 'id, ticket_number, title, category, priority, status, created_at, updated_at, due_date, cc_emails, unit_name, assigned_to_name, company_name, created_by_name, registered_by, registered_by_name, is_internal, company_id, created_by, unit_id, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name,email)';
+const AR_TICKET_SELECT = 'id, ticket_number, title, category, priority, status, created_at, updated_at, due_date, cc_emails, unit_name, assigned_to_name, company_name, created_by_name, registered_by, registered_by_name, is_internal, company_id, created_by, unit_id, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name,email,phone)';
 const AR_ROLE_ALLOWED_CATS = {}; // 스태프(영업/기술/교육/관리자) 전 카테고리 조회 — 카테고리 제한 없음
 function _arBaseQuery() {
   const allowedCats = AR_ROLE_ALLOWED_CATS[currentUser?.role] || null;
@@ -12590,7 +12616,7 @@ function renderAllTickets() {
     const actionCell = `<td style="white-space:nowrap;"><button class="btn btn-primary btn-sm" style="font-size:11px;" onclick="event.stopPropagation();openManage(${idx})">처리</button>${correctBtn}${delBtn}</td>`;
     // 요청 관리 전용: 대리등록자를 별도 컬럼으로 보여주므로 요청자 셀엔 [대리] 배지를 붙이지 않는다
     // (요청 탭은 이 컬럼이 없어 기존 배지 유지 — TICKET_CELL.requester 그대로 사용).
-    const requesterCell = `<td style="font-size:12px;">${t.requester?.name?escHtml(t.requester.name):(t.created_by_name?escHtml(t.created_by_name):'<span style="color:var(--faint);">—</span>')}</td>`;
+    const requesterCell = `<td style="font-size:12px;">${requesterNameHtml(t)}</td>`;
     const registrarCell = `<td style="font-size:12px;">${t.registered_by_name?escHtml(t.registered_by_name):'<span style="color:var(--faint);">—</span>'}</td>`;
     const cells = [
       numCell, TICKET_CELL.company(t), TICKET_CELL.org(t), TICKET_CELL.title(t), TICKET_CELL.category(t), TICKET_CELL.priority(t), TICKET_CELL.status(t),
@@ -12850,7 +12876,7 @@ async function selectRdTicket(idx, directTicket) {
   // ── 백그라운드: description·created_by 등 전체 필드 재조회 ──
   if (sb) {
     const { data } = await sb.from('tickets')
-      .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, created_by, company_id, contract_id, unit_id, unit_name, assigned_to, assigned_to_name, company_name, created_by_name, satisfaction_rating, satisfaction_comment, rated_at, is_internal, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
+      .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, created_by, company_id, contract_id, unit_id, unit_name, assigned_to, assigned_to_name, company_name, created_by_name, satisfaction_rating, satisfaction_comment, rated_at, is_internal, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name,email,phone)')
       .eq('id', selectedId).single();
     if (data && rdTicket.id === selectedId) {
       rdTicket = data;
@@ -14403,6 +14429,79 @@ if (_resetTokenFromUrl) {
 })();
 
 }
+
+/* ── 요청자 연락처 호버 카드 ────────────────────────────────────────────
+   목록은 innerHTML로 통째로 다시 그려지므로 개별 요소에 리스너를 붙이지 않고 document
+   위임으로 처리한다(mouseenter는 버블링하지 않아 mouseover/mouseout을 쓴다).
+   카드는 문서에 하나만 두고 위치만 옮긴다 — 행마다 만들지 않는다. */
+(function () {
+  var card = null, hideT = null;
+
+  function build() {
+    var d = document.createElement('div');
+    d.id = 'rq-card';
+    d.innerHTML =
+      '<div class="rq-hd"><span class="rq-nm"></span><span class="rq-badge">고객</span></div>' +
+      '<div class="rq-row"><span class="rq-lb">메일</span><span class="rq-vl" data-f="em">—</span>' +
+        '<button type="button" class="rq-cp" data-f="em">복사</button></div>' +
+      '<div class="rq-row"><span class="rq-lb">연락처</span><span class="rq-vl" data-f="ph">—</span>' +
+        '<button type="button" class="rq-cp" data-f="ph">복사</button></div>';
+    document.body.appendChild(d);
+    d.addEventListener('mouseover', function () { clearTimeout(hideT); });
+    d.addEventListener('mouseout', function (e) { if (!d.contains(e.relatedTarget)) scheduleHide(); });
+    d.addEventListener('click', function (e) {
+      var btn = e.target.closest && e.target.closest('.rq-cp');
+      if (!btn) return;
+      var v = d.querySelector('.rq-vl[data-f="' + btn.dataset.f + '"]').textContent;
+      if (!v || v === '—') return;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(v);
+        else {
+          var ta = document.createElement('textarea');
+          ta.value = v; document.body.appendChild(ta); ta.select();
+          document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      } catch (_) { /* 복사 실패해도 화면 흐름은 막지 않는다 */ }
+      btn.textContent = '완료'; btn.classList.add('done');
+      setTimeout(function () { btn.textContent = '복사'; btn.classList.remove('done'); }, 1400);
+    });
+    return d;
+  }
+
+  function scheduleHide() {
+    clearTimeout(hideT);
+    hideT = setTimeout(function () { if (card) card.classList.remove('on'); }, 260);
+  }
+  function hideNow() { clearTimeout(hideT); if (card) card.classList.remove('on'); }
+
+  function show(el) {
+    clearTimeout(hideT);
+    if (!card) card = build();
+    card.querySelector('.rq-nm').textContent = el.dataset.nm || '';
+    card.querySelector('.rq-vl[data-f="em"]').textContent = el.dataset.em || '—';
+    card.querySelector('.rq-vl[data-f="ph"]').textContent = el.dataset.ph || '—';
+    card.querySelectorAll('.rq-cp').forEach(function (b) { b.textContent = '복사'; b.classList.remove('done'); });
+    card.classList.add('on');
+    var r = el.getBoundingClientRect();
+    var left = Math.min(r.left - 12, window.innerWidth - card.offsetWidth - 8);
+    card.style.left = Math.max(8, left) + 'px';
+    // 화면 아래쪽에서는 위로 뒤집어 잘리지 않게 한다.
+    var top = r.bottom + 8;
+    if (top + card.offsetHeight > window.innerHeight - 8) top = r.top - card.offsetHeight - 8;
+    card.style.top = Math.max(8, top) + 'px';
+  }
+
+  document.addEventListener('mouseover', function (e) {
+    var el = e.target.closest && e.target.closest('.rq-who');
+    if (el) show(el);
+  });
+  document.addEventListener('mouseout', function (e) {
+    var el = e.target.closest && e.target.closest('.rq-who');
+    if (el && !(card && card.contains(e.relatedTarget))) scheduleHide();
+  });
+  window.addEventListener('scroll', hideNow, true);
+  window.addEventListener('resize', hideNow);
+})();
 </script>
 </body>
 </html>
