@@ -8565,9 +8565,25 @@ function fbRenderRail() {
   }).join('');
 }
 function fbRailGo(id) {
-  // 앞 단계로는 자유 이동, 뒤 단계는 각 화면의 진행 버튼(검증 포함)으로만
+  // 레일 카드 클릭 이동 — 뒤로는 자유, 앞으로는 진행 버튼과 같은 검증을 통과해야 이동.
   const flow = FB_FLOWS[fbKind];
-  if (flow.findIndex(x => x.id === id) <= flow.findIndex(x => x.id === fbStep)) fbShow(id);
+  const to = flow.findIndex(x => x.id === id);
+  const at = flow.findIndex(x => x.id === fbStep);
+  if (to === at || to < 0) return;
+  if (to < at) {
+    fbShow(id);
+    if (id === 'sur-preview') renderFbPreview();
+    else if (id === 'sur-target') fbRenderTarget();
+    else if (id === 'req-apply') fbRenderReqPreview();
+    return;
+  }
+  if (!fbCur) return;
+  if (fbKind === 'req') { if (id === 'req-apply') fbGoApply(); return; }
+  if (fbKind !== 'sur') return;
+  if (fbStep === 'sur-edit' && !fbReadSurEdit()) return; // 작성 화면에서 전진: 입력 반영+검증
+  if (id === 'sur-preview') { fbShow('sur-preview'); renderFbPreview(); fbRenderDoc(); }
+  else if (id === 'sur-target') fbGoTarget();
+  else if (id === 'sur-send') { fbShow('sur-send'); fbRenderSend(); }
 }
 function fbRenderDoc() {
   const doc = document.getElementById('fb-doc');
@@ -8781,12 +8797,15 @@ async function fbApplyVoc() {
 }
 
 // ── 설문: 미리보기 (3단계) ──
-function fbGoPreview() {
+function fbReadSurEdit() {
   fbCur.title = document.getElementById('fb-name').value.trim();
   fbCur.intro = document.getElementById('fb-intro').value.trim();
   fbCur.open_until = document.getElementById('fb-until').value || null;
-  if (!fbCur.title) { showToast('설문 이름을 입력해 주세요.', true); return; }
-  if (!fbValidateFields()) return;
+  if (!fbCur.title) { showToast('설문 이름을 입력해 주세요.', true); return false; }
+  return fbValidateFields();
+}
+function fbGoPreview() {
+  if (!fbReadSurEdit()) return;
   fbShow('sur-preview');
   renderFbPreview(); fbRenderDoc();
 }
