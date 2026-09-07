@@ -387,21 +387,100 @@ button,input,select,textarea{font-family:inherit;}
 .nrq-dd{position:absolute;z-index:520;width:150px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 32px rgba(20,20,50,.16);padding:5px;}
 .nrq-dd-item{padding:8px 12px;font-size:12.5px;font-weight:600;border-radius:7px;cursor:pointer;}
 .nrq-dd-item:hover{background:var(--accent-l);color:var(--accent);}
-/* 폼 빌더 — 설문 문항 편집기 */
-#p-forms.active{flex:1;min-height:0;overflow-y:auto;} /* .body가 overflow:hidden이라 페이지 자체 스크롤(사용 통계와 동일 패턴) */
-
-.fb-pal-btn{display:flex;align-items:center;gap:8px;width:100%;border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:9px 12px;margin-bottom:6px;font-size:12.5px;cursor:pointer;font-family:inherit;color:var(--text);text-align:left;}
-.fb-pal-btn:hover{border-color:var(--accent);background:var(--accent-l);}
+/* 폼 빌더 — 단계 흐름(폼 종류 → VOC 요청 폼/설문 폼) */
+#p-forms.active{flex:1;min-height:0;overflow-y:auto;} /* .body가 overflow:hidden이라 페이지 자체 스크롤 */
+.fb-doc{display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--border-md);border-radius:999px;padding:6px 8px 6px 14px;box-shadow:var(--shadow-sm);}
+.fb-doc .nm{font-size:12.5px;font-weight:700;}
+.fb-pill{display:inline-flex;align-items:center;font-size:10.5px;font-weight:700;border-radius:999px;padding:3px 10px;}
+.fb-pill.draft{background:var(--amber-l);color:var(--amber-d);}
+.fb-pill.active{background:var(--green-l);color:var(--green-d);}
+.fb-steps{display:flex;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:16px;}
+.fb-step{flex:1;display:flex;gap:10px;align-items:flex-start;padding:13px 15px;border:none;background:transparent;border-right:1px solid var(--border);text-align:left;font-family:inherit;color:inherit;cursor:pointer;position:relative;}
+.fb-step:last-child{border-right:none;}
+.fb-step .dot{flex-shrink:0;width:25px;height:25px;border-radius:50%;display:grid;place-items:center;font-size:11.5px;font-weight:700;background:var(--surface2);color:var(--faint);border:1px solid var(--border-md);}
+.fb-step .t{display:block;font-size:12.5px;font-weight:700;line-height:1.3;}
+.fb-step .d{display:block;font-size:10.5px;color:var(--faint);margin-top:3px;line-height:1.45;}
+.fb-step.done .dot{background:var(--green-l);color:var(--green-d);border-color:transparent;}
+.fb-step.done .t{color:var(--muted);}
+.fb-step.current{background:var(--accent-l);}
+.fb-step.current::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--accent);}
+.fb-step.current .dot{background:var(--accent);color:#fff;border-color:transparent;}
+.fb-step.current .t{color:var(--accent);}
+.fb-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:20px 22px;}
+.fb-phd{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-bottom:13px;margin-bottom:16px;border-bottom:1px solid var(--border);}
+.fb-phd h2{font-size:15px;font-weight:800;margin:0;}
+.fb-phd .hint{font-size:11.5px;color:var(--muted);}
+.fb-picks{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.fb-pick{border:1.5px solid var(--border-md);border-radius:var(--r-lg);padding:18px 20px;text-align:left;background:var(--surface);font-family:inherit;color:inherit;cursor:pointer;display:flex;flex-direction:column;gap:9px;}
+.fb-pick:hover{border-color:var(--accent);background:var(--accent-l);}
+.fb-pick .kind{font-size:15px;font-weight:800;}
+.fb-pick .why{font-size:12.5px;color:var(--muted);line-height:1.65;}
+.fb-pick .flow{font-size:11px;color:var(--faint);border-top:1px dashed var(--border-md);padding-top:9px;line-height:1.6;}
+.fb-pick .state{display:flex;gap:7px;flex-wrap:wrap;}
+.fb-tag{font-size:11px;font-weight:700;border-radius:999px;padding:3px 10px;background:var(--surface2);color:var(--muted);border:1px solid var(--border-md);}
+.fb-tag.on{background:var(--green-l);color:var(--green-d);border-color:transparent;}
+.fb-editor{display:grid;grid-template-columns:196px 1fr;gap:14px;align-items:start;}
+.fb-pal{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);padding:12px;position:sticky;top:8px;}
+.fb-pal .cap{font-size:11.5px;font-weight:700;margin-bottom:8px;}
+.fb-pal button{display:flex;align-items:center;gap:8px;width:100%;border:1px solid var(--border);background:var(--surface);border-radius:var(--r-md);padding:8px 11px;margin-bottom:6px;font-size:12.5px;font-family:inherit;color:var(--text);cursor:pointer;text-align:left;}
+.fb-pal button:last-child{margin-bottom:0;}
+.fb-pal button:hover{border-color:var(--accent);background:var(--accent-l);}
+.fb-pal .k{color:var(--faint);font-size:11px;}
+.fb-fixed{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:11px;}
+.fb-fixed .cap{font-size:11.5px;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:7px;margin-bottom:9px;}
+.fb-fixed .lock{font-size:10px;font-weight:700;color:var(--faint);background:var(--surface);border:1px solid var(--border-md);border-radius:999px;padding:2px 8px;}
+.fb-fixed .items{display:flex;gap:6px;flex-wrap:wrap;}
+.fb-fx{font-size:11.5px;color:var(--muted);background:var(--surface);border:1px solid var(--border-md);border-radius:var(--r-sm);padding:4px 10px;}
+.fb-fx.off{color:var(--faint);border-style:dashed;text-decoration:line-through;text-decoration-color:var(--border-strong);}
 .fb-field{border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:9px;background:var(--surface);}
 .fb-field-hd{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:11.5px;}
-.fb-no{font-weight:700;color:var(--accent);background:var(--accent-l);border-radius:6px;padding:2px 7px;font-size:11px;}
+.fb-no{font-weight:700;color:var(--accent);background:var(--accent-l);border-radius:var(--r-sm);padding:2px 7px;font-size:11px;}
 .fb-type{color:var(--muted);border:1px solid var(--border);border-radius:5px;padding:2px 7px;font-size:10.5px;}
 .fb-act{width:24px;height:24px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:12px;cursor:pointer;line-height:1;}
 .fb-act:disabled{opacity:.4;cursor:default;}
-.fb-label-inp{width:100%;border:1px solid var(--border-md);border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;background:var(--surface);}
-.fb-opts{width:100%;border:1px solid var(--border-md);border-radius:8px;padding:8px 11px;font-size:12.5px;font-family:inherit;margin-top:7px;resize:vertical;background:var(--surface);}
-.fb-inp{width:100%;border:1px solid var(--border-md);border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;background:var(--surface);}
+.fb-label-inp{width:100%;border:1px solid var(--border-md);border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;background:var(--surface);color:var(--text);}
+.fb-opts{width:100%;border:1px solid var(--border-md);border-radius:8px;padding:8px 11px;font-size:12.5px;font-family:inherit;margin-top:7px;resize:vertical;background:var(--surface);color:var(--text);}
+.fb-inp{width:100%;border:1px solid var(--border-md);border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;background:var(--surface);color:var(--text);}
 .fb-lbl{display:block;font-size:12px;font-weight:600;margin-bottom:5px;}
+.fb-grid3{display:grid;grid-template-columns:1.2fr 1.6fr 150px;gap:12px;margin-bottom:16px;}
+.fb-empty{border:1.5px dashed var(--border-md);border-radius:10px;padding:30px;text-align:center;color:var(--faint);font-size:12.5px;}
+.fb-preview{display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start;}
+.fb-phone{border:1px solid var(--border-md);border-radius:var(--r-md);overflow:hidden;}
+.fb-phone .bar{background:var(--surface2);border-bottom:1px solid var(--border);padding:8px 13px;font-size:11px;color:var(--muted);}
+.fb-phone .bd{padding:15px 16px;display:flex;flex-direction:column;gap:11px;}
+.fb-pf{display:flex;flex-direction:column;gap:5px;}
+.fb-pf label{font-size:12px;font-weight:600;}
+.fb-pf .req{color:var(--red);}
+.fb-pf .box{border:1px solid var(--border-md);border-radius:var(--r-md);padding:8px 11px;font-size:12.5px;color:var(--faint);background:var(--surface);}
+.fb-pf .box.tall{min-height:56px;}
+.fb-pf.added label::after{content:"추가 문항";font-size:9.5px;font-weight:700;color:var(--accent);background:var(--accent-l);border-radius:999px;padding:2px 7px;margin-left:6px;}
+.fb-rev{border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden;}
+.fb-rev-row{display:flex;justify-content:space-between;gap:12px;padding:11px 15px;font-size:12.5px;border-bottom:1px solid var(--border);}
+.fb-rev-row:last-child{border-bottom:none;}
+.fb-rev-row .k{color:var(--muted);}
+.fb-rev-row .v{font-weight:600;text-align:right;}
+.fb-warn{margin-top:12px;background:var(--amber-l);border:1px solid var(--amber);border-radius:var(--r-md);padding:9px 12px;font-size:11.5px;color:var(--amber-d);line-height:1.6;}
+.fb-two{display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start;}
+.fb-fset{border:1px solid var(--border);border-radius:var(--r-md);padding:13px 15px;margin-bottom:14px;}
+.fb-fset .cap{font-size:12px;font-weight:700;margin-bottom:9px;}
+.fb-chips{display:flex;gap:7px;flex-wrap:wrap;}
+.fb-chip{font-size:12px;border:1px solid var(--border-md);background:var(--surface);border-radius:999px;padding:5px 13px;cursor:pointer;font-family:inherit;color:var(--muted);}
+.fb-chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
+.fb-tally{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);padding:16px 18px;}
+.fb-tally .cap{font-size:11.5px;color:var(--muted);margin-bottom:4px;}
+.fb-tally .big{font-size:30px;font-weight:800;line-height:1.1;}
+.fb-mail{border:1px solid var(--border-md);border-radius:var(--r-md);overflow:hidden;}
+.fb-mail .bar{background:var(--surface2);border-bottom:1px solid var(--border);padding:8px 13px;font-size:11px;color:var(--muted);}
+.fb-mail .body{padding:15px 16px;font-size:12.5px;line-height:1.65;color:var(--muted);}
+.fb-mail .body h4{font-size:13.5px;color:var(--text);margin:0 0 7px;}
+.fb-mail .cta{display:inline-block;margin-top:11px;background:var(--accent);color:#fff;font-size:12px;font-weight:600;border-radius:var(--r-md);padding:7px 15px;}
+.fb-actions{display:flex;align-items:center;gap:10px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);}
+.fb-actions .spacer{margin-left:auto;}
+@media (max-width:880px){
+  .fb-steps{flex-wrap:wrap;}
+  .fb-step{flex:1 1 45%;border-bottom:1px solid var(--border);}
+  .fb-picks,.fb-editor,.fb-two,.fb-preview,.fb-grid3{grid-template-columns:1fr;}
+}
 /* 만족도 팝업 (고객 홈) — 상세의 평가 카드와 같은 별점 UI를 모달로 */
 #modal-survey-box .sv-hd{padding:18px 22px 0;text-align:center;}
 #modal-survey-box .sv-done-badge{display:inline-block;font-size:10.5px;font-weight:700;color:var(--green);background:var(--green-l);border:1px solid #A7F3D0;border-radius:999px;padding:2px 10px;}
@@ -2196,59 +2275,175 @@ textarea{resize:vertical;min-height:100px;}
         <div style="margin-top:10px;font-size:11px;color:var(--muted);">* 관리자 권한은 고정값으로 변경할 수 없습니다.</div>
       </div>
 
-      <!-- ══ 폼 빌더 (설문) ══ -->
+      <!-- ══ 폼 빌더 (단계 흐름: 폼 종류 → VOC 요청 폼 / 설문 폼) ══ -->
       <div id="p-forms" class="page u-page">
         <div class="section-header">
-          <div><div class="section-title">폼 빌더</div><div class="section-sub" id="fb-sub">설문을 만들어 고객에게 발송하고 응답을 확인합니다</div></div>
-          <div style="display:flex;gap:8px;">
-            <button class="btn btn-outline btn-sm" id="fb-btn-back" style="display:none;" onclick="loadForms()">← 목록으로</button>
-            <button class="btn btn-primary btn-sm" id="fb-btn-new" onclick="fbNew()">+ 새 설문 만들기</button>
-            <button class="btn btn-primary btn-sm" id="fb-btn-save" style="display:none;" onclick="fbSave()">저장</button>
+          <div><div class="section-title">폼 빌더</div><div class="section-sub">요청 폼과 설문을 만들고 관리합니다</div></div>
+          <div class="fb-doc" id="fb-doc" style="display:none;">
+            <span class="nm" id="fb-doc-name">—</span>
+            <span class="fb-pill draft" id="fb-doc-status">작성 중</span>
           </div>
         </div>
 
-        <!-- 목록 -->
-        <div id="fb-view-list">
-          <div class="card" style="padding:0;overflow:hidden;">
-            <div style="overflow-x:auto;">
-              <table class="tbl" style="min-width:720px;">
-                <thead><tr>
-                  <th>설문 이름</th><th style="width:90px;">상태</th><th style="width:70px;">문항</th>
-                  <th style="width:110px;">응답 마감</th><th style="width:150px;">수정일</th><th style="width:130px;"></th>
-                </tr></thead>
-                <tbody id="fb-list-tbody"></tbody>
-              </table>
-            </div>
-          </div>
-          <div style="margin-top:10px;font-size:11px;color:var(--muted);">* 발송 대상 설정(계약만료 D-n)·응답 리포트는 다음 업데이트에서 활성화됩니다. 발송 중 설문은 문항이 잠깁니다.</div>
-        </div>
+        <nav class="fb-steps" id="fb-steps" aria-label="폼 만들기 단계"></nav>
 
-        <!-- 편집기 -->
-        <div id="fb-view-editor" style="display:none;">
-          <div class="card" style="margin-bottom:12px;">
-            <div style="display:grid;grid-template-columns:1.2fr 1.6fr 150px;gap:12px;">
-              <div><label class="fb-lbl">설문 이름 <span style="color:var(--red,#EF4444);">*</span></label><input type="text" class="fb-inp" id="fb-name" placeholder="예: 2026 하반기 갱신 만족도 설문"></div>
-              <div><label class="fb-lbl">안내 문구 <span style="font-size:10.5px;color:var(--faint);font-weight:400;">(선택 — 설문 상단 표시)</span></label><input type="text" class="fb-inp" id="fb-intro" placeholder="계약 갱신을 앞두고 의견을 여쭙습니다."></div>
-              <div><label class="fb-lbl">응답 마감일</label><input type="date" class="fb-inp" id="fb-until"></div>
-            </div>
+        <!-- 1. 폼 종류 -->
+        <section class="fb-panel" data-fbpanel="type">
+          <div class="fb-phd"><h2>어떤 폼을 만드나요?</h2><span class="hint">고른 종류에 따라 다음 단계가 달라집니다</span></div>
+          <div class="fb-picks">
+            <button class="fb-pick" onclick="fbPick('req')">
+              <span class="kind">VOC 요청 폼</span>
+              <span class="why">고객이 <b>VOC로 요청을 남길 때 더 물어볼 항목</b>을 정합니다. 의견이 어떤 종류인지, 어느 영역에 대한 것인지를 받아두면 담당 배정과 집계가 쉬워집니다.</span>
+              <span class="state" id="fb-state-req"><span class="fb-tag">VOC 아직 미설정 — 기본 항목만 받는 중</span></span>
+              <span class="flow">문항 구성 → 미리보기 후 적용</span>
+            </button>
+            <button class="fb-pick" onclick="fbPick('sur')">
+              <span class="kind">설문 폼</span>
+              <span class="why">고객에게 <b>보내서 응답을 받습니다.</b> 계약 갱신을 앞둔 고객처럼 받을 대상을 정하고, 안내 메일로 발송합니다.</span>
+              <span class="state" id="fb-state-sur"><span class="fb-tag">아직 만든 설문 없음</span></span>
+              <span class="flow">설문 작성 → 발송 대상 → 발송</span>
+            </button>
           </div>
-          <div id="fb-locked-note" style="display:none;background:#FEF3C7;border:1px solid #FDE68A;border-radius:8px;padding:9px 13px;font-size:12px;color:#92400E;margin-bottom:12px;">발송 중인 설문은 응답 정합성을 위해 문항을 수정할 수 없습니다. 이름·안내 문구·마감일만 변경됩니다.</div>
-          <div style="display:grid;grid-template-columns:200px 1fr;gap:12px;align-items:start;">
-            <div class="card" style="padding:14px 14px;position:sticky;top:12px;">
-              <div style="font-size:12px;font-weight:700;margin-bottom:9px;">문항 추가</div>
-              <button class="fb-pal-btn" onclick="fbAddField('single')">◉ 객관식 (단일)</button>
-              <button class="fb-pal-btn" onclick="fbAddField('multi')">☑ 객관식 (복수)</button>
-              <button class="fb-pal-btn" onclick="fbAddField('text')">✎ 주관식</button>
-              <button class="fb-pal-btn" onclick="fbAddField('rating')">★ 별점 (1~5)</button>
-              <button class="fb-pal-btn" onclick="fbAddField('nps')">⑩ NPS (0~10)</button>
-              <button class="fb-pal-btn" onclick="fbAddField('scale')">⇄ 척도 (1~5)</button>
+          <div id="fb-exist-wrap" style="margin-top:16px;display:none;">
+            <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;">저장된 폼</div>
+            <div class="fb-rev" id="fb-exist"></div>
+          </div>
+          <div id="fb-exist-err" style="margin-top:14px;font-size:11.5px;color:var(--faint);display:none;"></div>
+        </section>
+
+        <!-- VOC: 2. 문항 구성 -->
+        <section class="fb-panel" data-fbpanel="req-fields" hidden>
+          <div class="fb-phd"><h2>문항 구성 · VOC</h2><span class="hint">기본 항목 위에 VOC에서만 물어볼 문항을 더합니다</span></div>
+          <div class="fb-editor">
+            <div class="fb-pal">
+              <div class="cap">문항 추가</div>
+              <button onclick="fbAddField('single')">◉ 객관식 <span class="k">단일</span></button>
+              <button onclick="fbAddField('multi')">☑ 객관식 <span class="k">복수</span></button>
+              <button onclick="fbAddField('line')">✎ 한 줄 입력</button>
+              <button onclick="fbAddField('para')">▤ 여러 줄 입력</button>
+              <button onclick="fbAddField('rating')">★ 별점 <span class="k">1~5</span></button>
+              <button onclick="fbAddField('date')">📅 날짜</button>
             </div>
             <div>
-              <div id="fb-fields"></div>
-              <div id="fb-empty-note" style="border:1.5px dashed var(--border-md);border-radius:10px;padding:34px;text-align:center;color:var(--faint);font-size:12.5px;">왼쪽에서 문항 유형을 눌러 추가하세요</div>
+              <div class="fb-fixed">
+                <div class="cap">기본 항목 <span class="lock">모든 카테고리 공통</span></div>
+                <div class="items">
+                  <span class="fb-fx">요청 제목 *</span><span class="fb-fx">요청 조직 *</span>
+                  <span class="fb-fx">요청 내용 *</span><span class="fb-fx">첨부 파일</span>
+                  <span class="fb-fx off">제품 — VOC에서 숨김</span><span class="fb-fx off">긴급도 — VOC에서 숨김</span>
+                </div>
+              </div>
+              <div id="fb-fields-req"></div>
+              <div class="fb-empty" id="fb-empty-req">왼쪽에서 문항 유형을 눌러 VOC 전용 문항을 추가하세요</div>
             </div>
           </div>
-        </div>
+          <div class="fb-actions">
+            <button class="btn btn-ghost btn-sm" onclick="fbShow('type')">← 폼 종류</button>
+            <span class="spacer"></span>
+            <button class="btn btn-outline btn-sm" onclick="fbSave('draft')">임시 저장</button>
+            <button class="btn btn-primary btn-sm" onclick="fbGoApply()">미리보기 →</button>
+          </div>
+        </section>
+
+        <!-- VOC: 3. 미리보기·적용 -->
+        <section class="fb-panel" data-fbpanel="req-apply" hidden>
+          <div class="fb-phd"><h2>미리보기 후 적용</h2><span class="hint">적용하면 다음 VOC 요청부터 고객 화면에 바로 반영됩니다</span></div>
+          <div class="fb-preview">
+            <div class="fb-phone">
+              <div class="bar">고객이 'VOC'로 요청을 남길 때 보는 화면</div>
+              <div class="bd" id="fb-phone-bd"></div>
+            </div>
+            <div>
+              <div class="fb-rev" id="fb-req-rev"></div>
+              <div class="fb-warn">이미 등록된 요청은 그대로 두고, <b>적용 이후 새로 등록되는 VOC부터</b> 이 문항을 받습니다. 문항을 지워도 예전 답변은 요청 상세에서 계속 보입니다.</div>
+            </div>
+          </div>
+          <div class="fb-actions">
+            <button class="btn btn-ghost btn-sm" onclick="fbShow('req-fields')">← 문항 구성</button>
+            <span class="spacer"></span>
+            <button class="btn btn-outline btn-sm" onclick="fbSave('draft')">초안으로 저장</button>
+            <button class="btn btn-primary btn-sm" onclick="fbApplyVoc()">VOC에 적용</button>
+          </div>
+        </section>
+
+        <!-- 설문: 2. 작성 -->
+        <section class="fb-panel" data-fbpanel="sur-edit" hidden>
+          <div class="fb-phd"><h2>설문 작성</h2><span class="hint">문항 6개 유형 · 저장하면 초안으로 보관됩니다</span></div>
+          <div class="fb-grid3">
+            <div><label class="fb-lbl">설문 이름 <span style="color:var(--red);">*</span></label><input type="text" class="fb-inp" id="fb-name" placeholder="예: 2026 하반기 갱신 만족도 조사"></div>
+            <div><label class="fb-lbl">안내 문구</label><input type="text" class="fb-inp" id="fb-intro" placeholder="계약 갱신을 앞두고 의견을 여쭙습니다."></div>
+            <div><label class="fb-lbl">응답 마감일</label><input type="date" class="fb-inp" id="fb-until"></div>
+          </div>
+          <div id="fb-locked-note" style="display:none;" class="fb-warn">발송 중인 설문은 응답 정합성을 위해 문항을 수정할 수 없습니다. 이름·안내 문구·마감일만 변경됩니다.</div>
+          <div class="fb-editor" style="margin-top:8px;">
+            <div class="fb-pal">
+              <div class="cap">문항 추가</div>
+              <button onclick="fbAddField('single')">◉ 객관식 <span class="k">단일</span></button>
+              <button onclick="fbAddField('multi')">☑ 객관식 <span class="k">복수</span></button>
+              <button onclick="fbAddField('text')">✎ 주관식</button>
+              <button onclick="fbAddField('rating')">★ 별점 <span class="k">1~5</span></button>
+              <button onclick="fbAddField('nps')">⑩ NPS <span class="k">0~10</span></button>
+              <button onclick="fbAddField('scale')">⇄ 척도 <span class="k">1~5</span></button>
+            </div>
+            <div>
+              <div id="fb-fields-sur"></div>
+              <div class="fb-empty" id="fb-empty-sur">왼쪽에서 문항 유형을 눌러 추가하세요</div>
+            </div>
+          </div>
+          <div class="fb-actions">
+            <button class="btn btn-ghost btn-sm" onclick="fbShow('type')">← 폼 종류</button>
+            <span class="spacer"></span>
+            <button class="btn btn-outline btn-sm" onclick="fbSave('draft')">임시 저장</button>
+            <button class="btn btn-primary btn-sm" onclick="fbGoTarget()">발송 대상 선택 →</button>
+          </div>
+        </section>
+
+        <!-- 설문: 3. 발송 대상 -->
+        <section class="fb-panel" data-fbpanel="sur-target" hidden>
+          <div class="fb-phd"><h2>발송 대상</h2><span class="hint">포탈 계정이 있는 고객만 대상 — 응답은 로그인 후 포탈에서 받습니다</span></div>
+          <div class="fb-two">
+            <div>
+              <div class="fb-fset"><div class="cap">계약 만료 시점</div>
+                <div class="fb-chips" id="fb-t-expiry"></div></div>
+              <div class="fb-fset"><div class="cap">사용 제품</div>
+                <div class="fb-chips" id="fb-t-products"></div></div>
+              <div class="fb-fset" style="margin-bottom:0;"><div class="cap">받는 사람</div>
+                <div class="fb-chips" id="fb-t-recipients"></div></div>
+            </div>
+            <div class="fb-tally">
+              <div class="cap">발송 대상</div>
+              <div class="big">—</div>
+              <div style="margin-top:10px;font-size:11.5px;color:var(--faint);line-height:1.6;">대상 인원 집계는 발송 백엔드 연동 후 표시됩니다. 조건은 지금 저장됩니다.</div>
+            </div>
+          </div>
+          <div class="fb-actions">
+            <button class="btn btn-ghost btn-sm" onclick="fbShow('sur-edit')">← 설문 작성</button>
+            <span class="spacer"></span>
+            <button class="btn btn-primary btn-sm" onclick="fbShow('sur-send');fbRenderSend()">발송 내용 확인 →</button>
+          </div>
+        </section>
+
+        <!-- 설문: 4. 발송 -->
+        <section class="fb-panel" data-fbpanel="sur-send" hidden>
+          <div class="fb-phd"><h2>발송</h2><span class="hint">보내고 나면 문항은 잠깁니다 — 이름·안내 문구·마감일만 바꿀 수 있어요</span></div>
+          <div class="fb-preview">
+            <div class="fb-rev" id="fb-send-rev"></div>
+            <div class="fb-mail">
+              <div class="bar">고객에게 가는 안내 메일 미리보기</div>
+              <div class="body">
+                <h4 id="fb-mail-subj">[빅스데이터] 설문에 참여해 주세요</h4>
+                <span id="fb-mail-body">아래 버튼을 누르면 포탈에 로그인한 뒤 설문으로 이동합니다.</span>
+                <br><span class="cta">포탈에서 설문 참여하기</span>
+              </div>
+            </div>
+          </div>
+          <div class="fb-actions">
+            <button class="btn btn-ghost btn-sm" onclick="fbShow('sur-target')">← 발송 대상</button>
+            <span class="spacer"></span>
+            <button class="btn btn-outline btn-sm" onclick="fbSendSurvey(true)">테스트 발송</button>
+            <button class="btn btn-primary btn-sm" onclick="fbSendSurvey(false)" id="fb-send-btn">발송</button>
+          </div>
+        </section>
       </div>
 
       <!-- ══ 사용 통계 (접속·계정 중심) ══ -->
@@ -8263,134 +8458,193 @@ async function deleteLicenseGroup(ids, filePaths) {
   loadCompanyLicenses();
 }
 
-// ── 폼 빌더 (설문) ──────────────────────────────────
-// 1차 범위: 설문 목록 + 문항 편집기(작성/수정/삭제). 저장은 data-api /data/forms.
-// forms 테이블 DDL·data-api 등록 전에는 목록/저장이 실패하며 화면에 그대로 안내된다.
-// 발송(타겟팅·메일)·응답 리포트는 api-layer 연동 후 다음 단계에서 추가.
-const FB_TYPES = { single:'객관식 · 단일', multi:'객관식 · 복수', text:'주관식', rating:'별점 (1~5)', nps:'NPS (0~10)', scale:'척도 (1~5)' };
-const FB_STATUS = { draft:['작성 중','#FEF3C7','#92400E'], active:['발송 중','#D1FAE5','#047857'], closed:['마감','#f3f4f6','#6b7280'] };
+// ── 폼 빌더 (단계 흐름) ──────────────────────────────────
+// 폼 종류(type) → [VOC 요청 폼] req-fields → req-apply / [설문 폼] sur-edit → sur-target → sur-send.
+// 저장은 data-api /data/forms — DDL·data-api 등록 전에는 목록/저장이 실패하며 화면에 안내된다.
+// 실제 발송(메일)·대상 집계·고객 화면 렌더는 백엔드(api-layer) 연동 후 활성화 — 버튼은 초안 저장으로 대체.
+const FB_TYPES = { single:'객관식 · 단일', multi:'객관식 · 복수', text:'주관식', line:'한 줄 입력', para:'여러 줄 입력', rating:'별점 (1~5)', nps:'NPS (0~10)', scale:'척도 (1~5)', date:'날짜' };
+const FB_STATUS = { draft:['작성 중','draft'], active:['발송 중','active'], applied:['적용 중','active'], closed:['마감','draft'] };
+const FB_FLOWS = {
+  req:  [ {id:'type', t:'폼 종류', d:'VOC 요청 폼'}, {id:'req-fields', t:'문항 구성', d:'VOC 추가 문항'}, {id:'req-apply', t:'미리보기 · 적용', d:'고객 화면 확인'} ],
+  sur:  [ {id:'type', t:'폼 종류', d:'설문 폼'}, {id:'sur-edit', t:'설문 작성', d:'문항 구성'}, {id:'sur-target', t:'발송 대상', d:'고객사·조건'}, {id:'sur-send', t:'발송', d:'확인 후 전송'} ],
+  none: [ {id:'type', t:'폼 종류', d:'요청 폼 · 설문 폼'} ],
+};
+const FB_EXPIRY_OPTS = [ ['all','전체'], ['d90','D-90 이내'], ['d60','D-60 이내'], ['d30','D-30 이내'] ];
+const FB_RECIP_OPTS = [ ['primary','대표 담당자만'], ['org','조직별 대표'], ['all','계정 있는 전원'] ];
 let fbForms = [];
-let fbCur = null; // 편집 중인 설문(작업 사본) — 저장 전까지 로컬
+let fbKind = 'none';   // none | req | sur
+let fbStep = 'type';
+let fbCur = null;      // 작업 사본 {id?, form_type, title, intro, open_until, status, fields[], target{}}
 
 function _fbAttr(v) { return String(v ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 
-function fbShowList() {
-  document.getElementById('fb-view-list').style.display = '';
-  document.getElementById('fb-view-editor').style.display = 'none';
-  document.getElementById('fb-btn-new').style.display = '';
-  document.getElementById('fb-btn-back').style.display = 'none';
-  document.getElementById('fb-btn-save').style.display = 'none';
-  document.getElementById('fb-sub').textContent = '설문을 만들어 고객에게 발송하고 응답을 확인합니다';
-  fbCur = null;
-}
-function fbShowEditor() {
-  document.getElementById('fb-view-list').style.display = 'none';
-  document.getElementById('fb-view-editor').style.display = '';
-  document.getElementById('fb-btn-new').style.display = 'none';
-  document.getElementById('fb-btn-back').style.display = '';
-  document.getElementById('fb-btn-save').style.display = '';
-  document.getElementById('fb-sub').textContent = fbCur?.id ? '설문 편집' : '새 설문 작성';
-}
-
-async function loadForms() {
-  fbShowList();
-  const tbody = document.getElementById('fb-list-tbody');
-  if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:26px;">불러오는 중…</td></tr>';
-  const { data, error } = await sb.from('forms').select('*').order('updated_at', { ascending: false });
-  if (error) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:26px;color:var(--muted);">설문 목록을 불러오지 못했습니다 — 설문 저장소(forms) 연동 전이거나 일시적인 오류입니다.<br><span style="font-size:11px;color:var(--faint);">' + escHtml(error.message || '') + '</span></td></tr>';
-    return;
-  }
-  fbForms = data || [];
-  renderFbList();
-}
-
-function renderFbList() {
-  const tbody = document.getElementById('fb-list-tbody');
-  if (!fbForms.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px;">아직 만든 설문이 없습니다. <b>+ 새 설문 만들기</b>로 시작하세요.</td></tr>';
-    return;
-  }
-  tbody.innerHTML = fbForms.map(f => {
-    const st = FB_STATUS[f.status] || FB_STATUS.draft;
-    const fields = Array.isArray(f.fields) ? f.fields : [];
-    const upd = (f.updated_at || '').slice(0, 16).replace('T', ' ');
-    return `<tr>
-      <td><b>${escHtml(f.title || '(제목 없음)')}</b>${f.intro ? `<div style="font-size:11px;color:var(--faint);margin-top:2px;">${escHtml(f.intro)}</div>` : ''}</td>
-      <td><span style="display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:${st[1]};color:${st[2]};">${st[0]}</span></td>
-      <td>${fields.length}개</td>
-      <td style="font-size:12px;">${f.open_until ? escHtml(String(f.open_until).slice(0,10)) : '—'}</td>
-      <td style="font-size:12px;color:var(--muted);">${escHtml(upd)}</td>
-      <td style="white-space:nowrap;">
-        <button class="btn btn-outline btn-sm" onclick="fbEdit('${f.id}')">편집</button>
-        <button class="btn btn-outline btn-sm" onclick="fbDelete('${f.id}')" ${f.status === 'active' ? 'disabled title="발송 중 설문은 삭제할 수 없습니다"' : ''}>삭제</button>
-      </td>
-    </tr>`;
+// ── 단계 레일 / 문서 칩 ──
+function fbRenderRail() {
+  const rail = document.getElementById('fb-steps');
+  const flow = FB_FLOWS[fbKind];
+  const at = flow.findIndex(x => x.id === fbStep);
+  rail.innerHTML = flow.map((st, i) => {
+    const cls = i === at ? 'fb-step current' : (i < at ? 'fb-step done' : 'fb-step');
+    const mark = i < at ? '✓' : String(i + 1);
+    return `<button class="${cls}" onclick="fbRailGo('${st.id}')"${i === at ? ' aria-current="step"' : ''}>` +
+      `<span class="dot">${mark}</span><span><span class="t">${st.t}</span><span class="d">${st.d}</span></span></button>`;
   }).join('');
 }
-
-function fbNew() {
-  fbCur = { title: '', intro: '', open_until: '', status: 'draft', fields: [] };
-  document.getElementById('fb-name').value = '';
-  document.getElementById('fb-intro').value = '';
-  document.getElementById('fb-until').value = '';
-  fbShowEditor();
-  renderFbFields();
+function fbRailGo(id) {
+  // 앞 단계로는 자유 이동, 뒤 단계는 각 화면의 진행 버튼(검증 포함)으로만
+  const flow = FB_FLOWS[fbKind];
+  if (flow.findIndex(x => x.id === id) <= flow.findIndex(x => x.id === fbStep)) fbShow(id);
+}
+function fbRenderDoc() {
+  const doc = document.getElementById('fb-doc');
+  if (fbKind === 'none' || !fbCur) { doc.style.display = 'none'; return; }
+  doc.style.display = 'flex';
+  document.getElementById('fb-doc-name').textContent =
+    fbKind === 'req' ? 'VOC 요청 폼' : ('설문 · ' + (fbCur.title || '(이름 없음)'));
+  const st = FB_STATUS[fbCur.status] || FB_STATUS.draft;
+  const pill = document.getElementById('fb-doc-status');
+  pill.textContent = st[0];
+  pill.className = 'fb-pill ' + st[1];
+}
+function fbShow(id) {
+  fbStep = id;
+  if (id === 'type') { fbKind = 'none'; fbCur = null; fbRefreshTypePanel(); }
+  document.querySelectorAll('[data-fbpanel]').forEach(p => { p.hidden = p.dataset.fbpanel !== id; });
+  fbRenderRail(); fbRenderDoc();
+  const pg = document.getElementById('p-forms'); if (pg) pg.scrollTop = 0;
 }
 
+// ── 진입/목록 ──
+async function loadForms() {
+  fbShow('type');
+  const err = document.getElementById('fb-exist-err');
+  err.style.display = 'none';
+  const { data, error } = await sb.from('forms').select('*').order('updated_at', { ascending: false });
+  if (error) {
+    fbForms = [];
+    err.style.display = '';
+    err.textContent = '저장된 폼을 불러오지 못했습니다 — 폼 저장소(forms) 백엔드 연동 전이거나 일시적인 오류입니다. (' + (error.message || '') + ')';
+  } else {
+    fbForms = data || [];
+  }
+  fbRefreshTypePanel();
+}
+function fbRefreshTypePanel() {
+  // 종류 카드의 상태 태그
+  const reqForm = fbForms.find(f => f.form_type === 'request');
+  const surAll = fbForms.filter(f => f.form_type !== 'request');
+  const surActive = surAll.filter(f => f.status === 'active').length;
+  const surDraft = surAll.filter(f => f.status !== 'active').length;
+  document.getElementById('fb-state-req').innerHTML = reqForm && reqForm.status === 'active'
+    ? '<span class="fb-tag on">VOC에 적용 중</span>'
+    : (reqForm ? '<span class="fb-tag">초안 있음 — 아직 미적용</span>' : '<span class="fb-tag">VOC 아직 미설정 — 기본 항목만 받는 중</span>');
+  document.getElementById('fb-state-sur').innerHTML =
+    (surActive ? `<span class="fb-tag on">${surActive}건 발송 중</span>` : '') +
+    (surDraft ? `<span class="fb-tag">초안 ${surDraft}건</span>` : '') +
+    (!surAll.length ? '<span class="fb-tag">아직 만든 설문 없음</span>' : '');
+  // 저장된 폼 리스트
+  const wrap = document.getElementById('fb-exist-wrap');
+  const list = document.getElementById('fb-exist');
+  if (!fbForms.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  list.innerHTML = fbForms.map(f => {
+    const isReq = f.form_type === 'request';
+    const st = FB_STATUS[f.status] || FB_STATUS.draft;
+    const n = Array.isArray(f.fields) ? f.fields.length : 0;
+    const upd = (f.updated_at || '').slice(0, 10);
+    return `<div class="fb-rev-row"><span class="k">${isReq ? 'VOC 요청 폼' : '설문 · ' + escHtml(f.title || '(이름 없음)')}` +
+      ` <span class="fb-pill ${st[1]}" style="margin-left:6px;">${st[0]}</span></span>` +
+      `<span class="v" style="display:flex;gap:8px;align-items:center;font-weight:400;color:var(--muted);font-size:11.5px;">문항 ${n} · ${escHtml(upd)}` +
+      ` <button class="btn btn-outline btn-sm" onclick="fbEdit('${f.id}')">편집</button>` +
+      (f.status === 'active' ? '' : ` <button class="btn btn-ghost btn-sm" onclick="fbDelete('${f.id}')">삭제</button>`) +
+      `</span></div>`;
+  }).join('');
+}
+function fbPick(kind) {
+  fbKind = kind;
+  if (kind === 'req') {
+    const exist = fbForms.find(f => f.form_type === 'request');
+    fbCur = exist
+      ? { id: exist.id, form_type: 'request', title: 'VOC 요청 폼', intro: null, open_until: null, status: exist.status || 'draft', fields: JSON.parse(JSON.stringify(exist.fields || [])), target: exist.target || { category: 'voc', hide: ['product', 'priority'] } }
+      : { form_type: 'request', title: 'VOC 요청 폼', intro: null, open_until: null, status: 'draft', fields: [], target: { category: 'voc', hide: ['product', 'priority'] } };
+    fbShow('req-fields'); fbStep = 'req-fields'; fbRenderRail(); fbRenderDoc();
+    renderFbFields();
+  } else {
+    fbCur = { form_type: 'survey', title: '', intro: '', open_until: '', status: 'draft', fields: [], target: { expiry: 'all', products: [], recipients: 'primary' } };
+    document.getElementById('fb-name').value = '';
+    document.getElementById('fb-intro').value = '';
+    document.getElementById('fb-until').value = '';
+    fbShow('sur-edit'); fbStep = 'sur-edit'; fbRenderRail(); fbRenderDoc();
+    renderFbFields(); fbRenderTarget();
+  }
+}
 function fbEdit(id) {
   const f = fbForms.find(x => x.id === id);
   if (!f) return;
-  fbCur = { id: f.id, title: f.title || '', intro: f.intro || '', open_until: f.open_until || '', status: f.status || 'draft', fields: JSON.parse(JSON.stringify(Array.isArray(f.fields) ? f.fields : [])) };
-  document.getElementById('fb-name').value = fbCur.title;
-  document.getElementById('fb-intro').value = fbCur.intro;
-  document.getElementById('fb-until').value = fbCur.open_until ? String(fbCur.open_until).slice(0, 10) : '';
-  fbShowEditor();
+  const isReq = f.form_type === 'request';
+  fbKind = isReq ? 'req' : 'sur';
+  fbCur = { id: f.id, form_type: f.form_type || 'survey', title: f.title || '', intro: f.intro || '', open_until: f.open_until || '', status: f.status || 'draft',
+    fields: JSON.parse(JSON.stringify(Array.isArray(f.fields) ? f.fields : [])),
+    target: f.target || (isReq ? { category: 'voc', hide: ['product', 'priority'] } : { expiry: 'all', products: [], recipients: 'primary' }) };
+  if (isReq) { fbShow('req-fields'); }
+  else {
+    document.getElementById('fb-name').value = fbCur.title;
+    document.getElementById('fb-intro').value = fbCur.intro || '';
+    document.getElementById('fb-until').value = fbCur.open_until ? String(fbCur.open_until).slice(0, 10) : '';
+    fbShow('sur-edit'); fbRenderTarget();
+  }
+  fbStep = isReq ? 'req-fields' : 'sur-edit';
+  fbRenderRail(); fbRenderDoc();
   renderFbFields();
 }
+async function fbDelete(id) {
+  const f = fbForms.find(x => x.id === id);
+  if (!f || f.status === 'active') return;
+  const nm = f.form_type === 'request' ? 'VOC 요청 폼' : ('설문 "' + (f.title || '(이름 없음)') + '"');
+  if (!confirm(nm + ' 초안을 삭제할까요?')) return;
+  const { error } = await sb.from('forms').delete().eq('id', id);
+  if (error) { showToast('삭제 실패: ' + (error.message || ''), true); return; }
+  showToast('삭제됐습니다.');
+  loadForms();
+}
 
+// ── 문항 편집 (두 갈래 공용) ──
+function _fbFieldsBox() { return document.getElementById(fbKind === 'req' ? 'fb-fields-req' : 'fb-fields-sur'); }
+function _fbEmptyBox() { return document.getElementById(fbKind === 'req' ? 'fb-empty-req' : 'fb-empty-sur'); }
 function fbAddField(type) {
   if (!fbCur) return;
-  if (fbCur.status === 'active') { showToast('발송 중인 설문은 문항을 수정할 수 없습니다.', true); return; }
+  if (fbCur.status === 'active' && fbKind === 'sur') { showToast('발송 중인 설문은 문항을 수정할 수 없습니다.', true); return; }
   const f = { id: 'f' + Date.now().toString(36) + Math.floor(Math.random() * 100), type, label: '', required: true };
   if (type === 'single' || type === 'multi') f.options = [];
   fbCur.fields.push(f);
   renderFbFields();
-  // 새 문항의 라벨 입력으로 포커스
-  setTimeout(() => { const inps = document.querySelectorAll('#fb-fields .fb-label-inp'); inps[inps.length - 1]?.focus(); }, 30);
+  setTimeout(() => { const inps = _fbFieldsBox().querySelectorAll('.fb-label-inp'); inps[inps.length - 1]?.focus(); }, 30);
 }
-
-function fbOptsInput(i, el) {
-  // 인라인 핸들러 속성 문자열에는 개행 리터럴을 안전하게 넣을 수 없어 전용 함수로 분리
-  fbCur.fields[i].options = el.value.split(String.fromCharCode(10));
-}
-
 function fbMove(i, dir) {
   const j = i + dir;
   if (j < 0 || j >= fbCur.fields.length) return;
   [fbCur.fields[i], fbCur.fields[j]] = [fbCur.fields[j], fbCur.fields[i]];
   renderFbFields();
 }
-
-function fbDelField(i) {
-  fbCur.fields.splice(i, 1);
-  renderFbFields();
+function fbDelField(i) { fbCur.fields.splice(i, 1); renderFbFields(); }
+function fbOptsInput(i, el) {
+  // 인라인 핸들러 속성 문자열에는 개행 리터럴을 안전하게 넣을 수 없어 전용 함수로 분리
+  fbCur.fields[i].options = el.value.split(String.fromCharCode(10));
 }
-
 function renderFbFields() {
-  const box = document.getElementById('fb-fields');
-  const empty = document.getElementById('fb-empty-note');
+  const box = _fbFieldsBox(); const empty = _fbEmptyBox();
+  if (!box) return;
+  const locked = fbKind === 'sur' && fbCur?.status === 'active';
   const lockNote = document.getElementById('fb-locked-note');
-  const locked = fbCur?.status === 'active';
   if (lockNote) lockNote.style.display = locked ? '' : 'none';
-  if (!fbCur || !fbCur.fields.length) { box.innerHTML = ''; empty.style.display = ''; return; }
-  empty.style.display = 'none';
+  if (!fbCur || !fbCur.fields.length) { box.innerHTML = ''; if (empty) empty.style.display = ''; return; }
+  if (empty) empty.style.display = 'none';
   const dis = locked ? 'disabled' : '';
+  const noLabel = fbKind === 'req' ? '추가 ' : 'Q';
   box.innerHTML = fbCur.fields.map((f, i) => `
     <div class="fb-field">
       <div class="fb-field-hd">
-        <span class="fb-no">Q${i + 1}</span>
+        <span class="fb-no">${noLabel}${i + 1}</span>
         <span class="fb-type">${FB_TYPES[f.type] || escHtml(f.type)}</span>
         <label style="display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--muted);cursor:pointer;"><input type="checkbox" ${f.required ? 'checked' : ''} ${dis} onchange="fbCur.fields[${i}].required=this.checked"> 필수</label>
         <span style="margin-left:auto;display:flex;gap:4px;">
@@ -8401,44 +8655,131 @@ function renderFbFields() {
       </div>
       <input type="text" class="fb-label-inp" placeholder="문항을 입력하세요" value="${_fbAttr(f.label)}" ${dis} oninput="fbCur.fields[${i}].label=this.value">
       ${(f.type === 'single' || f.type === 'multi')
-        ? `<textarea class="fb-opts" rows="3" placeholder="보기를 한 줄에 하나씩 입력하세요" ${dis} oninput="fbOptsInput(${i}, this)">${escHtml((f.options || []).join('\n'))}</textarea>`
+        ? `<textarea class="fb-opts" rows="3" placeholder="보기를 한 줄에 하나씩 입력하세요" ${dis} oninput="fbOptsInput(${i}, this)">${escHtml((f.options || []).join(String.fromCharCode(10)))}</textarea>`
         : ''}
     </div>`).join('');
 }
-
-async function fbSave() {
-  if (!fbCur) return;
-  const title = document.getElementById('fb-name').value.trim();
-  const intro = document.getElementById('fb-intro').value.trim();
-  const until = document.getElementById('fb-until').value;
-  if (!title) { showToast('설문 이름을 입력해 주세요.', true); return; }
-  if (!fbCur.fields.length) { showToast('문항을 1개 이상 추가해 주세요.', true); return; }
+function fbValidateFields() {
+  if (!fbCur.fields.length) { showToast('문항을 1개 이상 추가해 주세요.', true); return false; }
   for (let i = 0; i < fbCur.fields.length; i++) {
     const f = fbCur.fields[i];
-    if (!String(f.label || '').trim()) { showToast(`Q${i + 1} 문항 내용을 입력해 주세요.`, true); return; }
-    if ((f.type === 'single' || f.type === 'multi')) {
+    if (!String(f.label || '').trim()) { showToast((fbKind === 'req' ? '추가 ' : 'Q') + (i + 1) + ' 문항 내용을 입력해 주세요.', true); return false; }
+    if (f.type === 'single' || f.type === 'multi') {
       f.options = (f.options || []).map(o => String(o).trim()).filter(Boolean);
-      if (f.options.length < 2) { showToast(`Q${i + 1} 보기를 2개 이상 입력해 주세요.`, true); return; }
+      if (f.options.length < 2) { showToast((fbKind === 'req' ? '추가 ' : 'Q') + (i + 1) + ' 보기를 2개 이상 입력해 주세요.', true); return false; }
     }
     f.label = String(f.label).trim();
   }
-  const payload = { title, intro: intro || null, open_until: until || null, status: fbCur.status || 'draft', fields: fbCur.fields };
+  return true;
+}
+
+// ── VOC: 미리보기·적용 ──
+function fbGoApply() {
+  if (!fbValidateFields()) return;
+  fbShow('req-apply');
+  fbRenderReqPreview();
+}
+function fbRenderReqPreview() {
+  const bd = document.getElementById('fb-phone-bd');
+  const added = fbCur.fields.map(f => {
+    const hint = (f.type === 'single' || f.type === 'multi') ? escHtml((f.options || [])[0] || '보기 선택') :
+      f.type === 'rating' ? '★★★★☆' : f.type === 'date' ? '2026-09-07' : '입력';
+    return `<div class="fb-pf added"><label>${escHtml(f.label)} ${f.required ? '<span class="req">*</span>' : ''}</label><div class="box">${hint}</div></div>`;
+  }).join('');
+  bd.innerHTML =
+    `<div class="fb-pf"><label>요청 제목 <span class="req">*</span></label><div class="box">제안하시거나 불편하셨던 내용을 한 줄로</div></div>` +
+    added +
+    `<div class="fb-pf"><label>요청 조직 <span class="req">*</span></label><div class="box">사업부 · 팀 선택</div></div>` +
+    `<div class="fb-pf"><label>요청 내용 <span class="req">*</span></label><div class="box tall">상세 내용을 알려주세요.</div></div>` +
+    `<div class="fb-pf"><label>첨부 파일</label><div class="box">📎 드래그하거나 클릭하여 업로드</div></div>`;
+  const req = fbCur.fields.filter(f => f.required).length;
+  document.getElementById('fb-req-rev').innerHTML =
+    `<div class="fb-rev-row"><span class="k">적용 카테고리</span><span class="v">VOC</span></div>` +
+    `<div class="fb-rev-row"><span class="k">추가 문항</span><span class="v">${fbCur.fields.length}개 (필수 ${req})</span></div>` +
+    `<div class="fb-rev-row"><span class="k">숨기는 기본 항목</span><span class="v">제품 · 긴급도</span></div>` +
+    `<div class="fb-rev-row"><span class="k">Slack 알림</span><span class="v">공통 · 영업</span></div>` +
+    `<div class="fb-rev-row"><span class="k">기존 요청</span><span class="v">영향 없음</span></div>`;
+}
+async function fbApplyVoc() {
+  if (!fbValidateFields()) return;
+  // 적용 = active로 저장. 고객 화면(새 요청 등록) 반영·voc 카테고리는 백엔드 연동 단계에서 활성화.
+  await fbSave('active');
+}
+
+// ── 설문: 대상/발송 ──
+function fbGoTarget() {
+  fbCur.title = document.getElementById('fb-name').value.trim();
+  fbCur.intro = document.getElementById('fb-intro').value.trim();
+  fbCur.open_until = document.getElementById('fb-until').value || null;
+  if (!fbCur.title) { showToast('설문 이름을 입력해 주세요.', true); return; }
+  if (!fbValidateFields()) return;
+  fbShow('sur-target');
+  fbRenderTarget(); fbRenderDoc();
+}
+function fbRenderTarget() {
+  const t = fbCur?.target || {};
+  const chip = (on, label, onclick) => `<button class="fb-chip${on ? ' on' : ''}" onclick="${onclick}">${label}</button>`;
+  document.getElementById('fb-t-expiry').innerHTML = FB_EXPIRY_OPTS.map(([k, l]) =>
+    chip(t.expiry === k, l, `fbSetTarget('expiry','${k}')`)).join('');
+  document.getElementById('fb-t-products').innerHTML = PRODUCT_OPTIONS.filter(p => p !== '기타').map(pd =>
+    chip((t.products || []).includes(pd), escHtml(pd), `fbToggleProduct('${_fbAttr(pd)}')`)).join('');
+  document.getElementById('fb-t-recipients').innerHTML = FB_RECIP_OPTS.map(([k, l]) =>
+    chip(t.recipients === k, l, `fbSetTarget('recipients','${k}')`)).join('');
+}
+function fbSetTarget(key, val) { fbCur.target[key] = val; fbRenderTarget(); }
+function fbToggleProduct(pd) {
+  const arr = fbCur.target.products || (fbCur.target.products = []);
+  const i = arr.indexOf(pd);
+  if (i >= 0) arr.splice(i, 1); else arr.push(pd);
+  fbRenderTarget();
+}
+function fbTargetSummary() {
+  const t = fbCur.target || {};
+  const ex = (FB_EXPIRY_OPTS.find(o => o[0] === t.expiry) || [])[1] || '전체';
+  const rc = (FB_RECIP_OPTS.find(o => o[0] === t.recipients) || [])[1] || '대표 담당자만';
+  const pd = (t.products || []).length ? t.products.join(', ') : '전 제품';
+  return `계약 만료 ${ex} · ${pd} · ${rc}`;
+}
+function fbRenderSend() {
+  const req = fbCur.fields.filter(f => f.required).length;
+  document.getElementById('fb-send-rev').innerHTML =
+    `<div class="fb-rev-row"><span class="k">설문 이름</span><span class="v">${escHtml(fbCur.title)}</span></div>` +
+    `<div class="fb-rev-row"><span class="k">문항</span><span class="v">${fbCur.fields.length}개 (필수 ${req})</span></div>` +
+    `<div class="fb-rev-row"><span class="k">발송 대상</span><span class="v">${escHtml(fbTargetSummary())}</span></div>` +
+    `<div class="fb-rev-row"><span class="k">응답 마감</span><span class="v">${fbCur.open_until ? escHtml(String(fbCur.open_until).slice(0, 10)) : '—'}</span></div>` +
+    `<div class="fb-rev-row"><span class="k">알림 방법</span><span class="v">안내 메일 + 포탈 알림</span></div>`;
+  document.getElementById('fb-mail-subj').textContent = '[빅스데이터] ' + fbCur.title + '에 참여해 주세요';
+  document.getElementById('fb-mail-body').textContent = (fbCur.intro ? fbCur.intro + ' ' : '') + '아래 버튼을 누르면 포탈에 로그인한 뒤 설문으로 이동합니다.';
+}
+async function fbSendSurvey(isTest) {
+  // 실제 발송(초대 생성·메일)은 api-layer 연동 후 활성화 — 지금은 조건까지 포함해 초안으로 저장만 한다.
+  await fbSave('draft', true);
+  showToast((isTest ? '테스트 발송' : '발송') + ' 기능은 발송 백엔드 연동 후 활성화됩니다. 설문은 초안으로 저장했습니다.', true);
+}
+
+// ── 저장 ──
+async function fbSave(status, silent) {
+  if (!fbCur) return;
+  if (fbKind === 'sur' && fbStep === 'sur-edit') {
+    fbCur.title = document.getElementById('fb-name').value.trim();
+    fbCur.intro = document.getElementById('fb-intro').value.trim();
+    fbCur.open_until = document.getElementById('fb-until').value || null;
+  }
+  if (fbKind === 'sur' && !fbCur.title) { showToast('설문 이름을 입력해 주세요.', true); return; }
+  if (!fbValidateFields()) return;
+  const payload = { form_type: fbCur.form_type, title: fbCur.title, intro: fbCur.intro || null,
+    open_until: fbCur.open_until || null, status: status || fbCur.status || 'draft',
+    fields: fbCur.fields, target: fbCur.target || {} };
   let error;
   if (fbCur.id) ({ error } = await sb.from('forms').update(payload).eq('id', fbCur.id));
   else ({ error } = await sb.from('forms').insert(payload));
-  if (error) { showToast('저장 실패: ' + (error.message || '알 수 없는 오류'), true); return; }
-  showToast('설문이 저장됐습니다.');
-  loadForms();
-}
-
-async function fbDelete(id) {
-  const f = fbForms.find(x => x.id === id);
-  if (!f || f.status === 'active') return;
-  if (!confirm(`"${f.title || '(제목 없음)'}" 설문을 삭제할까요?`)) return;
-  const { error } = await sb.from('forms').delete().eq('id', id);
-  if (error) { showToast('삭제 실패: ' + (error.message || ''), true); return; }
-  showToast('삭제됐습니다.');
-  loadForms();
+  if (error) { if (!silent) showToast('저장 실패: ' + (error.message || '알 수 없는 오류'), true); return; }
+  fbCur.status = payload.status;
+  fbRenderDoc();
+  if (!silent) showToast(payload.status === 'active' ? 'VOC 요청 폼을 적용했습니다.' : '저장됐습니다.');
+  // 목록 데이터 갱신(화면 이동 없이)
+  const { data } = await sb.from('forms').select('*').order('updated_at', { ascending: false });
+  if (data) { fbForms = data; if (!fbCur.id) { const mine = data.find(x => x.title === payload.title && x.form_type === payload.form_type); if (mine) fbCur.id = mine.id; } }
 }
 
 // ── 권한 관리 ──────────────────────────────────────────────────
