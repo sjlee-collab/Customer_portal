@@ -536,6 +536,10 @@ button,input,select,textarea{font-family:inherit;}
 .fb-fsum b{color:var(--accent);margin:0 3px;}
 .fb-rcpt.hit{background:var(--accent-l);border-color:#d6d0f7;}
 .fb-rcpt.hit b{color:var(--accent);}
+.fb-uchip{display:inline-flex;align-items:center;font-size:10.5px;font-weight:700;border-radius:6px;padding:2px 7px;background:#EAF3FF;color:#1D6FD6;max-width:130px;overflow:hidden;text-overflow:ellipsis;}
+.fb-uchip.none{background:#f1f1f5;color:var(--faint);}
+.fb-diff{background:#F0FDF4;border:1px solid #BBF7D0;color:#166534;border-radius:999px;font-size:10px;font-weight:700;padding:2px 8px;margin-left:6px;vertical-align:3px;}
+.fb-tgt-table td.cogrp{background:var(--surface);}
 /* 발송 고객사 직접 선택 */
 .fb-modebar{display:flex;gap:8px;flex-wrap:wrap;}
 .fb-mode{display:flex;gap:9px;align-items:flex-start;border:1.5px solid var(--border-md);border-radius:11px;padding:10px 14px;cursor:pointer;background:var(--surface);max-width:330px;}
@@ -2520,7 +2524,7 @@ textarea{resize:vertical;min-height:100px;}
 
         <!-- 설문: 4. 발송 대상 -->
         <section class="fb-panel" data-fbpanel="sur-target" hidden>
-          <div class="fb-phd"><h2>발송 대상</h2><span class="hint">조건에 걸린 고객사의 <b>활성 고객 계정 전원</b>에게 발송 — 같은 사람에겐 1통만</span></div>
+          <div class="fb-phd"><h2>발송 대상</h2><span class="hint">조건에 걸린 계약의 <b>조직(사업부·팀)에 배정된 활성 고객 계정</b>에게 발송 — 같은 사람에겐 1통만</span></div>
           <div class="fb-two">
             <div>
               <div class="fb-fset"><div class="cap">계약 만료 시점</div>
@@ -2530,10 +2534,10 @@ textarea{resize:vertical;min-height:100px;}
               <div class="fb-fset" style="margin-bottom:0;"><div class="cap">대상 선택 방식</div>
                 <div class="fb-modebar">
                   <div class="fb-mode on" id="fb-mode-all" onclick="fbSetTargetMode('all')">
-                    <span class="rd"></span><span><span class="mt">조건에 걸린 전체 고객사</span><span class="md">위 조건을 충족하는 모든 고객사에게 발송</span></span>
+                    <span class="rd"></span><span><span class="mt">조건에 걸린 전체 조직</span><span class="md">위 조건을 충족하는 모든 계약 조직에 발송</span></span>
                   </div>
                   <div class="fb-mode" id="fb-mode-pick" onclick="fbSetTargetMode('pick')">
-                    <span class="rd"></span><span><span class="mt">발송할 고객사 직접 선택</span><span class="md">아래 리스트에서 체크한 고객사에게만 발송</span></span>
+                    <span class="rd"></span><span><span class="mt">발송할 조직 직접 선택</span><span class="md">아래 리스트에서 체크한 조직에만 발송</span></span>
                   </div>
                 </div></div>
             </div>
@@ -2544,13 +2548,13 @@ textarea{resize:vertical;min-height:100px;}
             </div>
           </div>
           <div class="fb-tgt-list">
-            <div class="hd">대상 고객사 · 수신자 <span class="sub" id="fb-tgt-sub">계약 만료 임박 순 · 수신: 해당 고객사 활성 계정 전원</span></div>
+            <div class="hd">대상 조직 · 수신자 <span class="sub" id="fb-tgt-sub">계약 만료 임박 순 · 수신: 그 계약 조직에 배정된 활성 계정만</span></div>
             <div class="fb-tgt-selbar" id="fb-tgt-selbar" style="display:none;">
               <span class="fb-ckb" id="fb-tgt-ckall" onclick="fbTgtPickMaster()"></span>
               <span>전체 선택</span>
               <span class="selcnt" id="fb-tgt-selcnt"></span>
               <button onclick="fbTgtPickSet(false)">모두 해제</button><span class="sep">|</span><button onclick="fbTgtPickSet(true)">모두 선택</button>
-              <span class="note">체크한 고객사에게만 발송됩니다 — 해제된 행은 흐리게 표시</span>
+              <span class="note">체크한 조직에만 발송됩니다 — 해제된 행은 흐리게 표시</span>
             </div>
             <div class="fb-tgt-fbar" id="fb-tgt-fbar" style="display:none;">
               <div><span class="lbl">고객사</span><div class="fb-fctl" id="fb-fctl-co"></div></div>
@@ -2563,8 +2567,8 @@ textarea{resize:vertical;min-height:100px;}
               <table class="fb-tgt-table">
                 <thead><tr>
                   <th class="fb-ckcol" style="width:34px;display:none;"></th>
-                  <th style="width:170px;">고객사</th>
-                  <th style="width:140px;">조직</th>
+                  <th style="width:150px;">고객사</th>
+                  <th style="width:150px;">발송 조직</th>
                   <th style="width:230px;">계약</th>
                   <th style="width:190px;">계약기간</th>
                   <th style="width:150px;">사용 제품</th><th>수신자</th>
@@ -2574,6 +2578,7 @@ textarea{resize:vertical;min-height:100px;}
             </div>
             <div class="fb-tgt-more" id="fb-tgt-more" style="display:none;"></div>
           </div>
+          <div class="fb-warn" id="fb-tgt-warn" style="display:none;"></div>
           <div class="fb-actions">
             <button class="btn btn-ghost btn-sm" onclick="fbShow('sur-preview');renderFbPreview()">← 미리보기</button>
             <span class="spacer"></span>
@@ -8959,8 +8964,10 @@ function fbTargetSummary() {
   const ex = (FB_EXPIRY_OPTS.find(o => o[0] === t.expiry) || [])[1] || '전체';
   const pd = (t.products || []).length ? t.products.join(', ') : '전 제품';
   const n = fbTargetResult ? ` ${fbTargetResult.userCount}명` : '';
-  const md = t.mode === 'pick' ? `직접 선택 ${fbTargetResult ? fbTargetResult.companyCount + '개사' : ''} 활성 계정` : '활성 계정 전원';
-  return `계약 만료 ${ex} · ${pd} · ${md}${n}`;
+  const md = t.mode === 'pick'
+    ? `직접 선택 ${fbTargetResult ? fbTargetResult.unitCount + '개 조직' : ''}`
+    : '계약 조직 전체';
+  return `계약 만료 ${ex} · ${pd} · ${md} 배정 계정${n}`;
 }
 
 // ── 발송 대상 실계산 (admin 화면 — 진행중 계약·고객사·활성 고객 계정을 받아 클라이언트에서 집계) ──
@@ -8969,14 +8976,16 @@ let fbTargetResult = null;  // {companyCount, userCount, exclCount, rows}
 async function fbLoadTargetRaw() {
   if (fbTargetRaw) return fbTargetRaw;
   const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
-  const [ct, co, us, ou] = await Promise.all([
-    sb.from('company_contracts').select('id,company_id,contract_name,start_date,end_date,status').eq('status', '진행중').gte('end_date', today).order('end_date').limit(1000),
+  const [ct, co, us, ou, uo] = await Promise.all([
+    sb.from('company_contracts').select('id,company_id,unit_id,contract_name,start_date,end_date,status').eq('status', '진행중').gte('end_date', today).order('end_date').limit(1000),
     sb.from('companies').select('id,name,products').limit(1000),
     sb.from('users').select('id,name,company_id,department,unit_id').eq('role', 'customer').eq('is_active', 'true').limit(2000),
     sb.from('org_units').select('id,unit_name').limit(2000),
+    sb.from('user_org_units').select('user_id,unit_id').limit(5000),
   ]);
-  if (ct.error || co.error || us.error || ou.error) throw new Error((ct.error || co.error || us.error || ou.error).message || '조회 실패');
-  fbTargetRaw = { contracts: ct.data || [], companies: co.data || [], users: us.data || [], units: ou.data || [] };
+  const err = ct.error || co.error || us.error || ou.error || uo.error;
+  if (err) throw new Error(err.message || '조회 실패');
+  fbTargetRaw = { contracts: ct.data || [], companies: co.data || [], users: us.data || [], units: ou.data || [], memberships: uo.data || [] };
   return fbTargetRaw;
 }
 async function fbComputeTarget() {
@@ -8999,11 +9008,23 @@ async function fbComputeTarget() {
   const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
   const limitDate = off == null ? null : new Date(Date.now() + 9 * 3600 * 1000 + off * 86400000).toISOString().slice(0, 10);
   const coById = Object.fromEntries(raw.companies.map(c => [c.id, c]));
+  const unitName = Object.fromEntries((raw.units || []).map(u => [u.id, u.unit_name]));
+  const usersById = Object.fromEntries(raw.users.map(u => [u.id, u]));
   const usersByCo = {};
   raw.users.forEach(u => { (usersByCo[u.company_id] = usersByCo[u.company_id] || []).push(u); });
+  // 조직 → 배정 계정. user_org_units(정식 N:M)와 users.unit_id(대표 조직 비정규화)의 합집합 —
+  // 어느 쪽 데이터가 어긋나도 받아야 할 사람이 빠지지 않게 한다.
+  const usersByUnit = {};
+  const addToUnit = (unitId, u) => {
+    if (!unitId || !u) return;
+    const arr = (usersByUnit[unitId] = usersByUnit[unitId] || []);
+    if (!arr.some(x => x.id === u.id)) arr.push(u);
+  };
+  (raw.memberships || []).forEach(m => addToUnit(m.unit_id, usersById[m.user_id]));
+  raw.users.forEach(u => addToUnit(u.unit_id, u));
   const selProducts = t.products || [];
-  // 계약을 회사 단위로 묶는다 — 같은 회사에 조건 계약이 여러 개면 만료 임박한 것을 대표로.
-  const byCompany = {};
+  // 계약을 (고객사, 계약 조직) 단위로 묶는다 — 같은 조직에 조건 계약이 여러 개면 만료 임박한 것을 대표로.
+  const byUnit = {};
   for (const c of raw.contracts) {
     const end = String(c.end_date).slice(0, 10);
     if (limitDate && end > limitDate) continue;
@@ -9013,23 +9034,41 @@ async function fbComputeTarget() {
       const prods = co.products || [];
       if (!selProducts.some(p => prods.some(cp => String(cp).includes(p) || p.includes(String(cp))))) continue;
     }
-    const cur = byCompany[c.company_id];
-    if (!cur || end < cur.end) byCompany[c.company_id] = { co, contract: c, end, extra: cur ? cur.extra + 1 : 0 };
-    else cur.extra++;
+    const key = c.company_id + '|' + (c.unit_id || '');
+    const cur = byUnit[key];
+    if (!cur || end < cur.end) {
+      byUnit[key] = { key, co, unit: { id: c.unit_id || null, name: c.unit_id ? (unitName[c.unit_id] || '(삭제된 조직)') : '' },
+                      contract: c, end, extra: cur ? cur.extra + 1 : 0 };
+    } else cur.extra++;
   }
-  const entries = Object.values(byCompany).sort((a, b) => a.end.localeCompare(b.end));
+  const entries = Object.values(byUnit);
+  entries.forEach(e => { e.users = e.unit.id ? (usersByUnit[e.unit.id] || []) : []; });
+  // 정렬: 고객사의 가장 임박한 만료일 순 → 같은 고객사의 조직들은 인접(리스트에서 고객사 셀 병합)
+  const coFirstEnd = {};
+  entries.forEach(e => { const prev = coFirstEnd[e.co.id]; if (!prev || e.end < prev) coFirstEnd[e.co.id] = e.end; });
+  entries.sort((a, b) =>
+    coFirstEnd[a.co.id].localeCompare(coFirstEnd[b.co.id]) ||
+    String(a.co.name).localeCompare(String(b.co.name), 'ko') ||
+    a.end.localeCompare(b.end) ||
+    String(a.unit.name).localeCompare(String(b.unit.name), 'ko'));
   const userSet = new Set();
   let exclCount = 0;
   entries.forEach(e => {
-    const us = usersByCo[e.co.id] || [];
-    if (!us.length) exclCount++;
-    us.forEach(u => userSet.add(u.id));
+    if (!e.users.length) exclCount++;
+    e.users.forEach(u => userSet.add(u.id));
   });
+  // 참고용: 같은 조건을 회사 단위로 발송했다면 몇 명인지 (비교 배지)
+  const coUserSet = new Set();
+  [...new Set(entries.map(e => e.co.id))].forEach(cid => (usersByCo[cid] || []).forEach(u => coUserSet.add(u.id)));
+  // 조직 미배정 활성 계정 — 어떤 설문도 받을 수 없으므로 경고로 노출
+  const assigned = new Set();
+  (raw.memberships || []).forEach(m => assigned.add(m.user_id));
+  raw.users.forEach(u => { if (u.unit_id) assigned.add(u.id); });
+  const unassigned = raw.users.filter(u => !assigned.has(u.id)).length;
   // 집계·리스트 렌더 — 뷰 필터는 확인용, 직접 선택(mode:'pick')만 발송 대상을 좁힌다.
   fbTgtData = {
-    entries, usersByCo, today,
-    unitName: Object.fromEntries((raw.units || []).map(u => [u.id, u.unit_name])),
-    totalUsers: userSet.size, totalExcl: exclCount,
+    entries, usersByCo, usersByUnit, today, unitName,
+    totalUsers: userSet.size, totalExcl: exclCount, coUserCount: coUserSet.size, unassigned,
   };
   fbTgtBuildOpts();
   fbTgtSyncPick();
@@ -9038,16 +9077,16 @@ async function fbComputeTarget() {
   fbRenderTgtList();
 }
 
-// ── 발송 고객사 직접 선택 (target.mode: 'all'|'pick', target.include: 회사 id 배열) ──
+// ── 발송 조직 직접 선택 (target.mode: 'all'|'pick', target.include: "회사id|조직id" 배열) ──
 function _fbTgtEligible() {
-  return fbTgtData ? fbTgtData.entries.filter(e => (fbTgtData.usersByCo[e.co.id] || []).length) : [];
+  return fbTgtData ? fbTgtData.entries.filter(e => e.users.length) : [];
 }
 function fbTgtSyncPick() {
   const t = fbCur?.target; if (!t || !fbTgtData) return;
   if (t.mode !== 'pick') return;
-  const ids = new Set(_fbTgtEligible().map(e => e.co.id));
-  if (!Array.isArray(t.include)) t.include = [...ids];         // 직접 선택 첫 진입: 전부 체크에서 빼는 방식
-  else t.include = t.include.filter(id => ids.has(id));        // 조건 변경으로 후보에서 빠진 선택 정리
+  const keys = new Set(_fbTgtEligible().map(e => e.key));
+  if (!Array.isArray(t.include)) t.include = [...keys];        // 직접 선택 첫 진입: 전부 체크에서 빼는 방식
+  else t.include = t.include.filter(k => keys.has(k));         // 조건 변경으로 후보에서 빠진 선택 정리
 }
 function fbSetTargetMode(m) {
   if (!fbCur) return;
@@ -9055,16 +9094,16 @@ function fbSetTargetMode(m) {
   fbTgtSyncPick();
   fbRenderTargetMeta(); fbRenderTgtList();
 }
-function fbTgtPickToggle(coId) {
+function fbTgtPickToggle(key) {
   const t = fbCur?.target; if (!t || t.mode !== 'pick') return;
   const arr = (t.include = t.include || []);
-  const i = arr.indexOf(coId);
-  if (i >= 0) arr.splice(i, 1); else arr.push(coId);
+  const i = arr.indexOf(key);
+  if (i >= 0) arr.splice(i, 1); else arr.push(key);
   fbRenderTargetMeta(); fbRenderTgtList();
 }
 function fbTgtPickSet(all) {
   const t = fbCur?.target; if (!t) return;
-  t.include = all ? _fbTgtEligible().map(e => e.co.id) : [];
+  t.include = all ? _fbTgtEligible().map(e => e.key) : [];
   fbRenderTargetMeta(); fbRenderTgtList();
 }
 function fbTgtPickMaster() {
@@ -9077,31 +9116,41 @@ function fbRenderTargetMeta() {
   const t = fbCur?.target || {};
   const pick = t.mode === 'pick';
   const eligible = _fbTgtEligible();
-  const chosen = pick ? eligible.filter(e => (t.include || []).includes(e.co.id)) : eligible;
+  const chosen = pick ? eligible.filter(e => (t.include || []).includes(e.key)) : eligible;
   const users = new Set();
-  chosen.forEach(e => (d.usersByCo[e.co.id] || []).forEach(u => users.add(u.id)));
-  fbTargetResult = { companyCount: chosen.length, userCount: users.size, exclCount: d.totalExcl, mode: pick ? 'pick' : 'all' };
+  chosen.forEach(e => e.users.forEach(u => users.add(u.id)));
+  const coCount = new Set(chosen.map(e => e.co.id)).size;
+  fbTargetResult = { unitCount: chosen.length, companyCount: coCount, userCount: users.size, exclCount: d.totalExcl, mode: pick ? 'pick' : 'all' };
   document.getElementById('fb-mode-all')?.classList.toggle('on', !pick);
   document.getElementById('fb-mode-pick')?.classList.toggle('on', pick);
   const cap = document.getElementById('fb-t-cap');
   if (cap) cap.textContent = pick ? '발송 대상 (직접 선택)' : '발송 대상';
   const big = document.getElementById('fb-t-big');
   const brk = document.getElementById('fb-t-brk');
-  if (big) big.innerHTML = `${users.size}<span style="font-size:14px;font-weight:600;color:var(--muted);"> 명</span>`;
+  const cmp = (!pick && d.coUserCount && d.coUserCount !== users.size)
+    ? `<span class="fb-diff">회사 단위였다면 ${d.coUserCount}명</span>` : '';
+  if (big) big.innerHTML = `${users.size}<span style="font-size:14px;font-weight:600;color:var(--muted);"> 명</span>${cmp}`;
   if (brk) brk.innerHTML = (pick
-    ? `<div style="display:flex;justify-content:space-between;"><span>선택한 고객사</span><b>${chosen.length}개사 / 후보 ${eligible.length}개사</b></div>`
-    : `<div style="display:flex;justify-content:space-between;"><span>해당 고객사</span><b>${eligible.length}개사</b></div>`) +
-    `<div style="display:flex;justify-content:space-between;"><span>수신자 (활성 계정 전원)</span><b>${users.size}명</b></div>` +
-    `<div style="display:flex;justify-content:space-between;color:#B45309;"><span>계정 없어 제외</span><b>${d.totalExcl}개사</b></div>`;
+    ? `<div style="display:flex;justify-content:space-between;"><span>선택한 조직</span><b>${chosen.length}개 / 후보 ${eligible.length}개</b></div>`
+    : `<div style="display:flex;justify-content:space-between;"><span>대상 조직</span><b>${eligible.length}개 (${coCount}개사)</b></div>`) +
+    `<div style="display:flex;justify-content:space-between;"><span>수신자 (조직 배정 계정)</span><b>${users.size}명</b></div>` +
+    `<div style="display:flex;justify-content:space-between;color:#B45309;"><span>계정 없는 조직 제외</span><b>${d.totalExcl}개</b></div>`;
   const bar = document.getElementById('fb-tgt-selbar');
   if (bar) {
     bar.style.display = pick && d.entries.length ? 'flex' : 'none';
     const cnt = document.getElementById('fb-tgt-selcnt');
-    if (cnt) cnt.textContent = `${chosen.length}개사 · ${users.size}명 선택`;
+    if (cnt) cnt.textContent = `${chosen.length}개 조직 · ${users.size}명 선택`;
     const mk = document.getElementById('fb-tgt-ckall');
     if (mk) mk.className = 'fb-ckb' + (eligible.length && chosen.length === eligible.length ? ' on' : (chosen.length ? ' half' : ''));
   }
   document.querySelectorAll('.fb-ckcol').forEach(c => { c.style.display = pick ? '' : 'none'; });
+  const warn = document.getElementById('fb-tgt-warn');
+  if (warn) {
+    warn.style.display = d.unassigned ? '' : 'none';
+    warn.innerHTML = d.unassigned
+      ? `조직 미배정 활성 계정 <b>${d.unassigned}명</b>은 조직 단위 발송에서 어떤 설문도 받지 못합니다 — 사용자 관리에서 조직을 배정해 주세요.`
+      : '';
+  }
 }
 
 // ── 발송 대상 리스트 뷰 필터 (선택+검색 콤보) ──
@@ -9114,11 +9163,11 @@ const FB_TGT_META = { co: { ph: '전체 고객사', srch: '고객사 검색…' 
 
 function fbTgtBuildOpts() {
   const d = fbTgtData;
-  const co = [], org = [], rc = [], seenOrg = new Set(), seenRc = new Set();
+  const co = [], org = [], rc = [], seenCo = new Set(), seenOrg = new Set(), seenRc = new Set();
   d.entries.forEach(e => {
-    co.push({ id: e.co.id, label: e.co.name });
-    (d.usersByCo[e.co.id] || []).forEach(u => {
-      if (u.unit_id && d.unitName[u.unit_id] && !seenOrg.has(u.unit_id)) { seenOrg.add(u.unit_id); org.push({ id: u.unit_id, label: d.unitName[u.unit_id], sub: e.co.name }); }
+    if (!seenCo.has(e.co.id)) { seenCo.add(e.co.id); co.push({ id: e.co.id, label: e.co.name }); }
+    if (e.unit.id && !seenOrg.has(e.unit.id)) { seenOrg.add(e.unit.id); org.push({ id: e.unit.id, label: e.unit.name, sub: e.co.name }); }
+    e.users.forEach(u => {
       if (!seenRc.has(u.id)) { seenRc.add(u.id); rc.push({ id: u.id, label: u.name, sub: e.co.name }); }
     });
   });
@@ -9171,8 +9220,8 @@ function fbTgtRenderFilters() {
     if (anyFilter && fbTgtData) {
       const rows = fbTgtData.entries.filter(fbTgtMatch);
       const users = new Set(); let excl = 0;
-      rows.forEach(e => { const us = fbTgtData.usersByCo[e.co.id] || []; if (!us.length) excl++; us.forEach(u => users.add(u.id)); });
-      sum.innerHTML = `필터 결과 <b>${rows.length - excl}</b>개사 · <b>${users.size}</b>명`;
+      rows.forEach(e => { if (!e.users.length) excl++; e.users.forEach(u => users.add(u.id)); });
+      sum.innerHTML = `필터 결과 <b>${rows.length - excl}</b>개 조직 · <b>${users.size}</b>명`;
     } else sum.innerHTML = '';
   }
 }
@@ -9199,10 +9248,9 @@ function fbTgtResetFilters() {
 }
 document.addEventListener('click', () => { if (fbTgtOpenKey) { fbTgtOpenKey = null; fbTgtRenderFilters(); } });
 function fbTgtMatch(e) {
-  const us = fbTgtData.usersByCo[e.co.id] || [];
   if (fbTgtSel.co.size && !fbTgtSel.co.has(e.co.id)) return false;
-  if (fbTgtSel.org.size && !us.some(u => fbTgtSel.org.has(u.unit_id))) return false;
-  if (fbTgtSel.rc.size && !us.some(u => fbTgtSel.rc.has(u.id))) return false;
+  if (fbTgtSel.org.size && !fbTgtSel.org.has(e.unit.id)) return false;
+  if (fbTgtSel.rc.size && !e.users.some(u => fbTgtSel.rc.has(u.id))) return false;
   return true;
 }
 function fbRenderTgtList() {
@@ -9211,7 +9259,7 @@ function fbRenderTgtList() {
   if (!tbody || !fbTgtData) return;
   const d = fbTgtData;
   if (!d.entries.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--faint);padding:18px;">조건에 맞는 고객사가 없습니다</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--faint);padding:18px;">조건에 맞는 계약이 없습니다</td></tr>';
     more.style.display = 'none';
     return;
   }
@@ -9222,24 +9270,38 @@ function fbRenderTgtList() {
   const dday = (end) => Math.max(0, Math.round((new Date(end + 'T00:00:00') - new Date(d.today + 'T00:00:00')) / 86400000));
   const CAP = 30;
   if (!entries.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--faint);padding:18px;">필터 조건에 맞는 고객사가 없습니다</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--faint);padding:18px;">필터 조건에 맞는 조직이 없습니다</td></tr>';
     more.style.display = 'none';
     return;
   }
-  tbody.innerHTML = entries.slice(0, CAP).map(e => {
-    const us = d.usersByCo[e.co.id] || [];
-    const orgs = [...new Set(us.map(u => d.unitName[u.unit_id]).filter(Boolean))];
-    const orgTxt = orgs.length ? orgs.join(', ') : '—';
+  const shownRows = entries.slice(0, CAP);
+  // 같은 고객사의 연속 행은 고객사 셀을 병합(rowspan) — 조직별로 나뉘어도 회사가 한 덩어리로 읽힌다.
+  const span = shownRows.map((e, i) => {
+    if (i && shownRows[i - 1].co.id === e.co.id) return 0;      // 그룹 후속 행 → 셀 생략
+    let n = 1;
+    while (i + n < shownRows.length && shownRows[i + n].co.id === e.co.id) n++;
+    return n;
+  });
+  tbody.innerHTML = shownRows.map((e, i) => {
+    const us = e.users;
     const shown = us.slice(0, 6);
     const rcpt = us.length
       ? shown.map(u => `<span class="fb-rcpt${fbTgtSel.rc.has(u.id) ? ' hit' : ''}"><b>${escHtml(u.name)}</b>${u.department ? ' ' + escHtml(u.department) : ''}</span>`).join('') +
         (us.length > 6 ? `<span class="fb-rcpt">+${us.length - 6}명</span>` : '')
-      : '<span class="why" style="font-size:10px;color:#92400E;background:#FEF3C7;border-radius:999px;padding:2px 8px;font-weight:700;">포탈 계정 없음 — 발송 제외</span>';
-    const off = pick && us.length && !inc.has(e.co.id);
+      : (e.unit.id
+        ? '<span class="why" style="font-size:10px;color:#92400E;background:#FEF3C7;border-radius:999px;padding:2px 8px;font-weight:700;">이 조직에 포탈 계정 없음 — 발송 제외</span>'
+        : '<span class="why" style="font-size:10px;color:#92400E;background:#FEF3C7;border-radius:999px;padding:2px 8px;font-weight:700;">계약에 조직 미지정 — 발송 제외</span>');
+    const off = pick && us.length && !inc.has(e.key);
+    // 고객사 셀: 그룹 첫 행에만. 조직이 여러 개면 몇 개인지 함께 표기.
+    const grpUnits = span[i] || 0;
+    const coCell = span[i]
+      ? `<td class="cogrp"${span[i] > 1 ? ` rowspan="${span[i]}"` : ''}><b>${escHtml(e.co.name)}</b>` +
+        (grpUnits > 1 ? `<div style="font-size:10px;color:var(--faint);margin-top:2px;">조직 ${grpUnits}개</div>` : '') + `</td>`
+      : '';
     return `<tr class="${us.length ? '' : 'fb-tgt-excl'}${off ? ' fb-tgt-off' : ''}">
-      ${pick ? `<td class="fb-ckcol">${us.length ? `<span class="fb-ckb${inc.has(e.co.id) ? ' on' : ''}" onclick="fbTgtPickToggle('${e.co.id}')"></span>` : ''}</td>` : ''}
-      <td><b>${escHtml(e.co.name)}</b>${e.extra ? `<div style="font-size:10px;color:var(--faint);margin-top:2px;">조건 계약 ${e.extra + 1}건</div>` : ''}</td>
-      <td style="font-size:11px;color:var(--muted);"><span class="clip-sm" style="max-width:130px;" title="${_fbAttr(orgs.join(', '))}">${escHtml(orgTxt)}</span></td>
+      ${pick ? `<td class="fb-ckcol">${us.length ? `<span class="fb-ckb${inc.has(e.key) ? ' on' : ''}" onclick="fbTgtPickToggle('${_fbAttr(e.key)}')"></span>` : ''}</td>` : ''}
+      ${coCell}
+      <td><span class="fb-uchip${e.unit.id ? '' : ' none'}" title="${_fbAttr(e.unit.name || '조직 미지정')}">${escHtml(e.unit.name || '조직 미지정')}</span>${e.extra ? `<div style="font-size:10px;color:var(--faint);margin-top:2px;">조건 계약 ${e.extra + 1}건</div>` : ''}</td>
       <td><span class="clip" title="${_fbAttr(e.contract.contract_name || '')}">${escHtml(e.contract.contract_name || '')}</span></td>
       <td><span style="color:var(--muted);font-size:11px;">${e.contract.start_date ? escHtml(String(e.contract.start_date).slice(0, 10)) : '—'} ~ ${escHtml(e.end)}</span> <span class="fb-dchip">D-${dday(e.end)}</span></td>
       <td style="font-size:11px;color:var(--muted);"><span class="clip-sm" title="${_fbAttr((e.co.products || []).join(', '))}">${escHtml((e.co.products || []).join(', '))}</span></td>
@@ -9247,17 +9309,18 @@ function fbRenderTgtList() {
     </tr>`;
   }).join('');
   more.style.display = '';
+  const coShown = new Set(entries.map(e => e.co.id)).size;
   if (pick) {
     const elig = _fbTgtEligible();
-    const chosen = elig.filter(x => inc.has(x.co.id));
-    const uu = new Set(); chosen.forEach(x => (d.usersByCo[x.co.id] || []).forEach(u => uu.add(u.id)));
-    more.textContent = `후보 ${elig.length}개사 중 ${chosen.length}개사 선택 · 수신자 ${uu.size}명 — 체크한 고객사에게만 발송됩니다`;
+    const chosen = elig.filter(x => inc.has(x.key));
+    const uu = new Set(); chosen.forEach(x => x.users.forEach(u => uu.add(u.id)));
+    more.textContent = `후보 ${elig.length}개 조직 중 ${chosen.length}개 선택 · 수신자 ${uu.size}명 — 체크한 조직에만 발송됩니다`;
   } else if (anyFilter) {
-    more.textContent = `표시 ${Math.min(entries.length, CAP)}개사 / 조건 전체 ${d.entries.length}개사 — 필터는 확인용이며 발송 대상은 상단 조건(만료 시점·제품) 기준입니다`;
+    more.textContent = `표시 ${Math.min(entries.length, CAP)}개 조직 / 조건 전체 ${d.entries.length}개 — 필터는 확인용이며 발송 대상은 상단 조건(만료 시점·제품) 기준입니다`;
   } else if (entries.length > CAP) {
-    more.textContent = `… ${entries.length - CAP}개사 더 (전체 ${entries.length}개사 · 수신자 ${d.totalUsers}명 · 제외 ${d.totalExcl}개사) — 발송 전 이 명단이 드라이런 확인 대상입니다`;
+    more.textContent = `… ${entries.length - CAP}개 조직 더 (전체 ${entries.length}개 조직 · ${coShown}개사 · 수신자 ${d.totalUsers}명 · 계정 없는 조직 ${d.totalExcl}개 제외) — 발송 전 이 명단이 드라이런 확인 대상입니다`;
   } else {
-    more.textContent = `전체 ${entries.length}개사 · 수신자 ${d.totalUsers}명 · 제외 ${d.totalExcl}개사 — 발송 전 이 명단이 드라이런 확인 대상입니다`;
+    more.textContent = `전체 ${entries.length}개 조직 · ${coShown}개사 · 수신자 ${d.totalUsers}명 · 계정 없는 조직 ${d.totalExcl}개 제외 — 발송 전 이 명단이 드라이런 확인 대상입니다`;
   }
 }
 function fbRenderSend() {
