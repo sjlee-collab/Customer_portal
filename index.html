@@ -571,7 +571,11 @@ tr.fb-tgt-off td.fb-ckcol{opacity:1;}
 .fb-dchip{display:inline-flex;font-size:10px;font-weight:700;border-radius:999px;padding:2px 8px;background:var(--accent-l);color:var(--accent);}
 .fb-rcpt{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:2px 9px;margin:2px 3px 2px 0;}
 .fb-rcpt b{color:var(--text);font-weight:600;}
-.fb-tgt-more{padding:9px 14px;text-align:center;font-size:11px;color:var(--faint);background:var(--surface2);border-radius:0 0 var(--r-md) var(--r-md);}
+.fb-tgt-pager{display:flex;align-items:center;gap:10px;padding:9px 14px;background:var(--surface2);border-top:1px solid var(--border);border-radius:0 0 var(--r-md) var(--r-md);flex-wrap:wrap;}
+.fb-tgt-more{font-size:11px;color:var(--faint);margin-right:auto;line-height:1.5;}
+.fb-tgt-more b{color:var(--muted);font-weight:700;}
+.fb-tgt-pager .pgno{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);}
+.fb-tgt-pager .pgno input{width:38px;text-align:center;border:1px solid var(--accent);border-radius:7px;padding:4px 2px;font-size:12px;font-family:inherit;font-variant-numeric:tabular-nums;outline:none;box-shadow:0 0 0 3px var(--accent-l);color:var(--text);background:var(--surface);}
 .fb-tgt-excl td{opacity:.5;}
 .fb-tgt-excl .why{font-size:10px;color:#92400E;background:#FEF3C7;border-radius:999px;padding:2px 8px;font-weight:700;}
 .fb-actions{display:flex;align-items:center;gap:10px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);}
@@ -2576,7 +2580,15 @@ textarea{resize:vertical;min-height:100px;}
                 <tbody id="fb-tgt-tbody"><tr><td colspan="7" style="text-align:center;color:var(--faint);padding:18px;">조건을 선택하면 대상이 계산됩니다</td></tr></tbody>
               </table>
             </div>
-            <div class="fb-tgt-more" id="fb-tgt-more" style="display:none;"></div>
+            <div class="fb-tgt-pager" id="fb-tgt-pager" style="display:none;">
+              <span class="fb-tgt-more" id="fb-tgt-more"></span>
+              <button class="btn btn-outline btn-sm" onclick="fbTgtPage(-1)">← 이전</button>
+              <div class="pgno">
+                <input type="text" id="fb-tgt-page-input" value="1" inputmode="numeric" onkeydown="if(event.key==='Enter')fbTgtPageJump(this.value)">
+                <span>/ <span id="fb-tgt-page-count">1</span> 페이지</span>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="fbTgtPage(1)">다음 →</button>
+            </div>
           </div>
           <div class="fb-warn" id="fb-tgt-warn" style="display:none;"></div>
           <div class="fb-actions">
@@ -9071,6 +9083,7 @@ async function fbComputeTarget() {
     totalUsers: userSet.size, totalExcl: exclCount, coUserCount: coUserSet.size, unassigned,
   };
   fbTgtBuildOpts();
+  fbTgtPageNo = 1;          // 조건이 바뀌면 목록이 달라지므로 첫 페이지로
   fbTgtSyncPick();
   fbRenderTargetMeta();
   fbTgtRenderFilters();
@@ -9159,6 +9172,8 @@ let fbTgtOpts = { co: [], org: [], rc: [] };          // [{id, label, sub}]
 const fbTgtSel = { co: new Set(), org: new Set(), rc: new Set() };
 const fbTgtQ = { co: '', org: '', rc: '' };
 let fbTgtOpenKey = null;
+let fbTgtPageNo = 1;                  // 조직 리스트 페이지 (필터·조건 변경 시 1로, 체크 토글 시 유지)
+const FB_TGT_PAGE_SIZE = 20;
 const FB_TGT_META = { co: { ph: '전체 고객사', srch: '고객사 검색…' }, org: { ph: '전체 조직', srch: '조직 검색…' }, rc: { ph: '전체 수신자', srch: '이름 검색…' } };
 
 function fbTgtBuildOpts() {
@@ -9238,13 +9253,20 @@ function fbTgtSearch(key, el) {
 }
 function fbTgtToggle(key, id) {
   fbTgtSel[key].has(id) ? fbTgtSel[key].delete(id) : fbTgtSel[key].add(id);
+  fbTgtPageNo = 1;
   fbTgtRenderFilters(); fbRenderTgtList();
 }
-function fbTgtClear(key) { fbTgtSel[key].clear(); fbTgtRenderFilters(); fbRenderTgtList(); }
+function fbTgtClear(key) { fbTgtSel[key].clear(); fbTgtPageNo = 1; fbTgtRenderFilters(); fbRenderTgtList(); }
 function fbTgtResetFilters() {
   fbTgtSel.co.clear(); fbTgtSel.org.clear(); fbTgtSel.rc.clear();
-  fbTgtQ.co = fbTgtQ.org = fbTgtQ.rc = ''; fbTgtOpenKey = null;
+  fbTgtQ.co = fbTgtQ.org = fbTgtQ.rc = ''; fbTgtOpenKey = null; fbTgtPageNo = 1;
   fbTgtRenderFilters(); fbRenderTgtList();
+}
+function fbTgtPage(delta) { fbTgtPageNo += delta; fbRenderTgtList(); }
+function fbTgtPageJump(val) {
+  const n = parseInt(val, 10);
+  if (!isNaN(n)) fbTgtPageNo = n;
+  fbRenderTgtList();
 }
 document.addEventListener('click', () => { if (fbTgtOpenKey) { fbTgtOpenKey = null; fbTgtRenderFilters(); } });
 function fbTgtMatch(e) {
@@ -9256,11 +9278,12 @@ function fbTgtMatch(e) {
 function fbRenderTgtList() {
   const tbody = document.getElementById('fb-tgt-tbody');
   const more = document.getElementById('fb-tgt-more');
+  const pager = document.getElementById('fb-tgt-pager');
   if (!tbody || !fbTgtData) return;
   const d = fbTgtData;
   if (!d.entries.length) {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--faint);padding:18px;">조건에 맞는 계약이 없습니다</td></tr>';
-    more.style.display = 'none';
+    if (pager) pager.style.display = 'none';
     return;
   }
   const entries = d.entries.filter(fbTgtMatch);
@@ -9268,13 +9291,16 @@ function fbRenderTgtList() {
   const pick = fbCur?.target?.mode === 'pick';
   const inc = new Set(fbCur?.target?.include || []);
   const dday = (end) => Math.max(0, Math.round((new Date(end + 'T00:00:00') - new Date(d.today + 'T00:00:00')) / 86400000));
-  const CAP = 30;
   if (!entries.length) {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--faint);padding:18px;">필터 조건에 맞는 조직이 없습니다</td></tr>';
-    more.style.display = 'none';
+    if (pager) pager.style.display = 'none';
     return;
   }
-  const shownRows = entries.slice(0, CAP);
+  // 페이지 슬라이스 — 체크(직접 선택)는 페이지를 넘겨도 유지된다(전체 목록 기준으로 저장).
+  const totalPages = Math.max(1, Math.ceil(entries.length / FB_TGT_PAGE_SIZE));
+  fbTgtPageNo = Math.min(Math.max(1, fbTgtPageNo), totalPages);
+  const from = (fbTgtPageNo - 1) * FB_TGT_PAGE_SIZE;
+  const shownRows = entries.slice(from, from + FB_TGT_PAGE_SIZE);
   // 같은 고객사의 연속 행은 고객사 셀을 병합(rowspan) — 조직별로 나뉘어도 회사가 한 덩어리로 읽힌다.
   const span = shownRows.map((e, i) => {
     if (i && shownRows[i - 1].co.id === e.co.id) return 0;      // 그룹 후속 행 → 셀 생략
@@ -9308,19 +9334,22 @@ function fbRenderTgtList() {
       <td>${rcpt}</td>
     </tr>`;
   }).join('');
-  more.style.display = '';
+  if (pager) pager.style.display = 'flex';
+  const pgInput = document.getElementById('fb-tgt-page-input');
+  if (pgInput) pgInput.value = fbTgtPageNo;
+  const pgCount = document.getElementById('fb-tgt-page-count');
+  if (pgCount) pgCount.textContent = totalPages;
   const coShown = new Set(entries.map(e => e.co.id)).size;
+  const range = `<b>${from + 1}–${from + shownRows.length}</b> / `;
   if (pick) {
     const elig = _fbTgtEligible();
     const chosen = elig.filter(x => inc.has(x.key));
     const uu = new Set(); chosen.forEach(x => x.users.forEach(u => uu.add(u.id)));
-    more.textContent = `후보 ${elig.length}개 조직 중 ${chosen.length}개 선택 · 수신자 ${uu.size}명 — 체크한 조직에만 발송됩니다`;
+    more.innerHTML = `${range}후보 ${elig.length}개 조직 중 <b>${chosen.length}개 선택 · 수신자 ${uu.size}명</b> — 체크한 조직에만 발송됩니다 (선택은 페이지를 넘겨도 유지)`;
   } else if (anyFilter) {
-    more.textContent = `표시 ${Math.min(entries.length, CAP)}개 조직 / 조건 전체 ${d.entries.length}개 — 필터는 확인용이며 발송 대상은 상단 조건(만료 시점·제품) 기준입니다`;
-  } else if (entries.length > CAP) {
-    more.textContent = `… ${entries.length - CAP}개 조직 더 (전체 ${entries.length}개 조직 · ${coShown}개사 · 수신자 ${d.totalUsers}명 · 계정 없는 조직 ${d.totalExcl}개 제외) — 발송 전 이 명단이 드라이런 확인 대상입니다`;
+    more.innerHTML = `${range}필터 결과 ${entries.length}개 조직 / 조건 전체 ${d.entries.length}개 — 필터는 확인용이며 발송 대상은 상단 조건(만료 시점·제품) 기준입니다`;
   } else {
-    more.textContent = `전체 ${entries.length}개 조직 · ${coShown}개사 · 수신자 ${d.totalUsers}명 · 계정 없는 조직 ${d.totalExcl}개 제외 — 발송 전 이 명단이 드라이런 확인 대상입니다`;
+    more.innerHTML = `${range}전체 ${entries.length}개 조직 · ${coShown}개사 · 수신자 ${d.totalUsers}명 · 계정 없는 조직 ${d.totalExcl}개 제외 — 발송 전 이 명단이 드라이런 확인 대상입니다`;
   }
 }
 function fbRenderSend() {
