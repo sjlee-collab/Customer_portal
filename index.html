@@ -2479,10 +2479,11 @@ textarea{resize:vertical;min-height:100px;}
             <div style="overflow-x:auto;">
               <table class="fb-tgt-table">
                 <thead><tr>
-                  <th style="width:170px;">고객사</th><th style="width:230px;">계약</th>
+                  <th style="width:170px;">고객사</th>
+                  <th style="width:140px;">조직</th>
+                  <th style="width:230px;">계약</th>
                   <th style="width:190px;">계약기간</th>
-                  <th style="width:150px;">사용 제품</th>
-                  <th style="width:140px;">조직</th><th>수신자</th>
+                  <th style="width:150px;">사용 제품</th><th>수신자</th>
                 </tr></thead>
                 <tbody id="fb-tgt-tbody"><tr><td colspan="6" style="text-align:center;color:var(--faint);padding:18px;">조건을 선택하면 대상이 계산됩니다</td></tr></tbody>
               </table>
@@ -8965,10 +8966,10 @@ async function fbComputeTarget() {
       : '<span class="why" style="font-size:10px;color:#92400E;background:#FEF3C7;border-radius:999px;padding:2px 8px;font-weight:700;">포탈 계정 없음 — 발송 제외</span>';
     return `<tr${us.length ? '' : ' class="fb-tgt-excl"'}>
       <td><b>${escHtml(e.co.name)}</b>${e.extra ? `<div style="font-size:10px;color:var(--faint);margin-top:2px;">조건 계약 ${e.extra + 1}건</div>` : ''}</td>
+      <td style="font-size:11px;color:var(--muted);"><span class="clip-sm" style="max-width:130px;" title="${_fbAttr(orgs.join(', '))}">${escHtml(orgTxt)}</span></td>
       <td><span class="clip" title="${_fbAttr(e.contract.contract_name || '')}">${escHtml(e.contract.contract_name || '')}</span></td>
       <td><span style="color:var(--muted);font-size:11px;">${e.contract.start_date ? escHtml(String(e.contract.start_date).slice(0, 10)) : '—'} ~ ${escHtml(e.end)}</span> <span class="fb-dchip">D-${dday(e.end)}</span></td>
       <td style="font-size:11px;color:var(--muted);"><span class="clip-sm" title="${_fbAttr((e.co.products || []).join(', '))}">${escHtml((e.co.products || []).join(', '))}</span></td>
-      <td style="font-size:11px;color:var(--muted);"><span class="clip-sm" style="max-width:130px;" title="${_fbAttr(orgs.join(', '))}">${escHtml(orgTxt)}</span></td>
       <td>${rcpt}</td>
     </tr>`;
   }).join('');
