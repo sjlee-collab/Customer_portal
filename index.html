@@ -2373,6 +2373,7 @@ textarea{resize:vertical;min-height:100px;}
                   <th colspan="2" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">자료실</th>
                   <th colspan="1" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">고객사</th>
                   <th colspan="1" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">사용자</th>
+                  <th colspan="1" title="폼 빌더 — 설문·VOC 폼 생성과 발송" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">폼</th>
                   <th colspan="4" style="border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">시스템</th>
                 </tr>
                 <tr>
@@ -2385,6 +2386,7 @@ textarea{resize:vertical;min-height:100px;}
                   <th style="border-right:1.5px solid var(--border-strong);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">관리</th>
                   <th style="border-right:1.5px solid var(--border-strong);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">관리</th>
                   <th style="border-right:1.5px solid var(--border-strong);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">관리</th>
+                  <th style="border-right:1.5px solid var(--border-strong);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">빌더</th>
                   <th style="border-right:1px solid var(--border);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">연동</th>
                   <th style="border-right:1px solid var(--border);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">알림로그</th>
                   <th style="border-right:1px solid var(--border);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">통계</th>
@@ -9434,6 +9436,7 @@ const PERM_COLS = [
   'library_view','library_manage',
   'company_manage',
   'user_manage',
+  'form_builder',
   'integration','notify_log','stats_view','permission'
 ];
 // "기본권한" 버튼이 되돌리는 기준값이자 DB 조회 실패 시 폴백.
@@ -9471,7 +9474,7 @@ function resetPermissionsToDefault() {
 function renderPermissions() {
   const tbody = document.getElementById('perm-tbody');
   if (!tbody) return;
-  const sepCols = [4,6,7,8]; // border-right after these indices (0-based) — ticket_correct(유형) 추가로 시프트
+  const sepCols = [4,6,7,8,9]; // border-right after these indices (0-based) — 9는 폼 그룹(form_builder) 끝
   tbody.innerHTML = PERM_ROLES.map(role => {
     const cells = PERM_COLS.map((col, i) => {
       const on = permState[role.key][col];
