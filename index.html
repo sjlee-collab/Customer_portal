@@ -500,7 +500,9 @@ button,input,select,textarea{font-family:inherit;}
 .fb-tgt-list .hd .sub{font-weight:400;color:var(--muted);font-size:11px;}
 .fb-tgt-table{width:100%;border-collapse:collapse;font-size:12px;}
 .fb-tgt-table th{text-align:left;font-size:10.5px;font-weight:600;color:var(--muted);padding:7px 14px;border-bottom:1px solid var(--border);}
-.fb-tgt-table td{padding:9px 14px;border-bottom:1px solid var(--border);vertical-align:top;}
+.fb-tgt-table td{padding:9px 14px;border-bottom:1px solid var(--border);vertical-align:top;white-space:nowrap;}
+.fb-tgt-table .clip{display:block;max-width:260px;overflow:hidden;text-overflow:ellipsis;}
+.fb-tgt-table .clip-sm{display:block;max-width:170px;overflow:hidden;text-overflow:ellipsis;}
 .fb-tgt-table tr:last-child td{border-bottom:none;}
 .fb-dchip{display:inline-flex;font-size:10px;font-weight:700;border-radius:999px;padding:2px 8px;background:var(--accent-l);color:var(--accent);}
 .fb-rcpt{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:2px 9px;margin:2px 3px 2px 0;}
@@ -8938,8 +8940,8 @@ async function fbComputeTarget() {
       : '<span class="why" style="font-size:10px;color:#92400E;background:#FEF3C7;border-radius:999px;padding:2px 8px;font-weight:700;">포탈 계정 없음 — 발송 제외</span>';
     return `<tr${us.length ? '' : ' class="fb-tgt-excl"'}>
       <td><b>${escHtml(e.co.name)}</b>${e.extra ? `<div style="font-size:10px;color:var(--faint);margin-top:2px;">조건 계약 ${e.extra + 1}건</div>` : ''}</td>
-      <td>${escHtml(e.contract.contract_name || '')}<br><span style="color:var(--muted);font-size:11px;">${escHtml(e.end)}</span> <span class="fb-dchip">D-${dday(e.end)}</span></td>
-      <td style="font-size:11px;color:var(--muted);">${escHtml((e.co.products || []).join(', '))}</td>
+      <td><span class="clip" title="${_fbAttr(e.contract.contract_name || '')}">${escHtml(e.contract.contract_name || '')}</span><span style="color:var(--muted);font-size:11px;">${escHtml(e.end)}</span> <span class="fb-dchip">D-${dday(e.end)}</span></td>
+      <td style="font-size:11px;color:var(--muted);"><span class="clip-sm" title="${_fbAttr((e.co.products || []).join(', '))}">${escHtml((e.co.products || []).join(', '))}</span></td>
       <td>${rcpt}</td>
     </tr>`;
   }).join('');
