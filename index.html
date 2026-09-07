@@ -2479,10 +2479,11 @@ textarea{resize:vertical;min-height:100px;}
             <div style="overflow-x:auto;">
               <table class="fb-tgt-table">
                 <thead><tr>
-                  <th style="width:170px;">고객사</th><th style="width:230px;">계약 · 만료일</th>
+                  <th style="width:170px;">고객사</th><th style="width:230px;">계약</th>
+                  <th style="width:190px;">계약기간</th>
                   <th style="width:150px;">사용 제품</th><th>수신자</th>
                 </tr></thead>
-                <tbody id="fb-tgt-tbody"><tr><td colspan="4" style="text-align:center;color:var(--faint);padding:18px;">조건을 선택하면 대상이 계산됩니다</td></tr></tbody>
+                <tbody id="fb-tgt-tbody"><tr><td colspan="5" style="text-align:center;color:var(--faint);padding:18px;">조건을 선택하면 대상이 계산됩니다</td></tr></tbody>
               </table>
             </div>
             <div class="fb-tgt-more" id="fb-tgt-more" style="display:none;"></div>
@@ -8863,7 +8864,7 @@ async function fbLoadTargetRaw() {
   if (fbTargetRaw) return fbTargetRaw;
   const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
   const [ct, co, us] = await Promise.all([
-    sb.from('company_contracts').select('id,company_id,contract_name,end_date,status').eq('status', '진행중').gte('end_date', today).order('end_date').limit(1000),
+    sb.from('company_contracts').select('id,company_id,contract_name,start_date,end_date,status').eq('status', '진행중').gte('end_date', today).order('end_date').limit(1000),
     sb.from('companies').select('id,name,products').limit(1000),
     sb.from('users').select('id,name,company_id,department').eq('role', 'customer').eq('is_active', 'true').limit(2000),
   ]);
@@ -8927,7 +8928,7 @@ async function fbComputeTarget() {
   const dday = (end) => Math.max(0, Math.round((new Date(end + 'T00:00:00') - new Date(today + 'T00:00:00')) / 86400000));
   const CAP = 30;
   if (!entries.length) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--faint);padding:18px;">조건에 맞는 고객사가 없습니다</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--faint);padding:18px;">조건에 맞는 고객사가 없습니다</td></tr>';
     more.style.display = 'none';
     return;
   }
@@ -8940,7 +8941,8 @@ async function fbComputeTarget() {
       : '<span class="why" style="font-size:10px;color:#92400E;background:#FEF3C7;border-radius:999px;padding:2px 8px;font-weight:700;">포탈 계정 없음 — 발송 제외</span>';
     return `<tr${us.length ? '' : ' class="fb-tgt-excl"'}>
       <td><b>${escHtml(e.co.name)}</b>${e.extra ? `<div style="font-size:10px;color:var(--faint);margin-top:2px;">조건 계약 ${e.extra + 1}건</div>` : ''}</td>
-      <td><span class="clip" title="${_fbAttr(e.contract.contract_name || '')}">${escHtml(e.contract.contract_name || '')}</span><span style="color:var(--muted);font-size:11px;">${escHtml(e.end)}</span> <span class="fb-dchip">D-${dday(e.end)}</span></td>
+      <td><span class="clip" title="${_fbAttr(e.contract.contract_name || '')}">${escHtml(e.contract.contract_name || '')}</span></td>
+      <td><span style="color:var(--muted);font-size:11px;">${e.contract.start_date ? escHtml(String(e.contract.start_date).slice(0, 10)) : '—'} ~ ${escHtml(e.end)}</span> <span class="fb-dchip">D-${dday(e.end)}</span></td>
       <td style="font-size:11px;color:var(--muted);"><span class="clip-sm" title="${_fbAttr((e.co.products || []).join(', '))}">${escHtml((e.co.products || []).join(', '))}</span></td>
       <td>${rcpt}</td>
     </tr>`;
