@@ -2481,9 +2481,10 @@ textarea{resize:vertical;min-height:100px;}
                 <thead><tr>
                   <th style="width:170px;">고객사</th><th style="width:230px;">계약</th>
                   <th style="width:190px;">계약기간</th>
-                  <th style="width:150px;">사용 제품</th><th>수신자</th>
+                  <th style="width:150px;">사용 제품</th>
+                  <th style="width:140px;">조직</th><th>수신자</th>
                 </tr></thead>
-                <tbody id="fb-tgt-tbody"><tr><td colspan="5" style="text-align:center;color:var(--faint);padding:18px;">조건을 선택하면 대상이 계산됩니다</td></tr></tbody>
+                <tbody id="fb-tgt-tbody"><tr><td colspan="6" style="text-align:center;color:var(--faint);padding:18px;">조건을 선택하면 대상이 계산됩니다</td></tr></tbody>
               </table>
             </div>
             <div class="fb-tgt-more" id="fb-tgt-more" style="display:none;"></div>
@@ -8863,13 +8864,14 @@ let fbTargetResult = null;  // {companyCount, userCount, exclCount, rows}
 async function fbLoadTargetRaw() {
   if (fbTargetRaw) return fbTargetRaw;
   const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
-  const [ct, co, us] = await Promise.all([
+  const [ct, co, us, ou] = await Promise.all([
     sb.from('company_contracts').select('id,company_id,contract_name,start_date,end_date,status').eq('status', '진행중').gte('end_date', today).order('end_date').limit(1000),
     sb.from('companies').select('id,name,products').limit(1000),
-    sb.from('users').select('id,name,company_id,department').eq('role', 'customer').eq('is_active', 'true').limit(2000),
+    sb.from('users').select('id,name,company_id,department,unit_id').eq('role', 'customer').eq('is_active', 'true').limit(2000),
+    sb.from('org_units').select('id,unit_name').limit(2000),
   ]);
-  if (ct.error || co.error || us.error) throw new Error((ct.error || co.error || us.error).message || '조회 실패');
-  fbTargetRaw = { contracts: ct.data || [], companies: co.data || [], users: us.data || [] };
+  if (ct.error || co.error || us.error || ou.error) throw new Error((ct.error || co.error || us.error || ou.error).message || '조회 실패');
+  fbTargetRaw = { contracts: ct.data || [], companies: co.data || [], users: us.data || [], units: ou.data || [] };
   return fbTargetRaw;
 }
 async function fbComputeTarget() {
@@ -8928,12 +8930,15 @@ async function fbComputeTarget() {
   const dday = (end) => Math.max(0, Math.round((new Date(end + 'T00:00:00') - new Date(today + 'T00:00:00')) / 86400000));
   const CAP = 30;
   if (!entries.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--faint);padding:18px;">조건에 맞는 고객사가 없습니다</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--faint);padding:18px;">조건에 맞는 고객사가 없습니다</td></tr>';
     more.style.display = 'none';
     return;
   }
+  const unitName = Object.fromEntries((raw.units || []).map(u => [u.id, u.unit_name]));
   tbody.innerHTML = entries.slice(0, CAP).map(e => {
     const us = usersByCo[e.co.id] || [];
+    const orgs = [...new Set(us.map(u => unitName[u.unit_id]).filter(Boolean))];
+    const orgTxt = orgs.length ? orgs.join(', ') : '—';
     const shown = us.slice(0, 6);
     const rcpt = us.length
       ? shown.map(u => `<span class="fb-rcpt"><b>${escHtml(u.name)}</b>${u.department ? ' ' + escHtml(u.department) : ''}</span>`).join('') +
@@ -8944,6 +8949,7 @@ async function fbComputeTarget() {
       <td><span class="clip" title="${_fbAttr(e.contract.contract_name || '')}">${escHtml(e.contract.contract_name || '')}</span></td>
       <td><span style="color:var(--muted);font-size:11px;">${e.contract.start_date ? escHtml(String(e.contract.start_date).slice(0, 10)) : '—'} ~ ${escHtml(e.end)}</span> <span class="fb-dchip">D-${dday(e.end)}</span></td>
       <td style="font-size:11px;color:var(--muted);"><span class="clip-sm" title="${_fbAttr((e.co.products || []).join(', '))}">${escHtml((e.co.products || []).join(', '))}</span></td>
+      <td style="font-size:11px;color:var(--muted);"><span class="clip-sm" style="max-width:130px;" title="${_fbAttr(orgs.join(', '))}">${escHtml(orgTxt)}</span></td>
       <td>${rcpt}</td>
     </tr>`;
   }).join('');
