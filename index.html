@@ -383,7 +383,7 @@ button,input,select,textarea{font-family:inherit;}
 .rd-hist-sum .h-pre{flex:none;margin-right:4px;}
 .rd-hist-sum .h-tail{flex:none;white-space:nowrap;margin-left:4px;}
 .rd-hist-sum .h-who{color:var(--text);font-weight:700;}
-/* 새 요청 카테고리 드롭다운 — 등록 버튼 아래에서 카테고리를 먼저 고르고 폼을 연다 (고객 전용) */
+/* 새 요청 카테고리 드롭다운 — 등록 버튼 아래에서 카테고리를 먼저 고르고 폼을 연다 (전 역할 공통) */
 .nrq-dd{position:absolute;z-index:520;width:150px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 32px rgba(20,20,50,.16);padding:5px;}
 .nrq-dd-item{padding:8px 12px;font-size:12.5px;font-weight:600;border-radius:7px;cursor:pointer;}
 .nrq-dd-item:hover{background:var(--accent-l);color:var(--accent);}
@@ -1375,7 +1375,7 @@ textarea{resize:vertical;min-height:100px;}
               <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;padding-bottom:10px;">
                 <div class="card-title" style="margin-bottom:0;">요청</div>
                 <div style="display:flex;gap:8px;align-items:center;">
-                  <button class="btn btn-primary btn-sm" data-show-roles="tech_support,sales,education,admin" data-perm="ticket_create" style="display:none;" onclick="openModal('modal-new')">+ 새 요청 등록</button>
+                  <button class="btn btn-primary btn-sm" data-show-roles="tech_support,sales,education,admin" data-perm="ticket_create" style="display:none;" data-nrq onclick="openNewRequestMenu(this)">+ 새 요청 등록 <span style="font-size:9px;">▼</span></button>
                   <button id="dash-refresh-btn" class="btn btn-outline btn-sm" data-show-roles="admin" style="display:none;font-size:12px;padding:6px 12px;" onclick="refreshDashboard(this)"><svg id="dash-refresh-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>새로고침</button>
                 </div>
               </div>
@@ -1690,7 +1690,7 @@ textarea{resize:vertical;min-height:100px;}
       <div id="p-all-requests" class="page u-page">
         <div class="section-header">
           <div><div class="section-title">요청 관리</div><div class="section-sub">접수된 요청에 담당자를 지정하고 상태를 변경합니다. <span id="ar-count" style="color:var(--muted);font-weight:600;"></span></div></div>
-          <button class="btn btn-primary" id="ar-proxy-btn" data-show-roles="admin,sales,tech_support,education" data-perm="ticket_create" style="margin-left:auto;display:none;" onclick="openModal('modal-new')">+ 새 요청 등록</button>
+          <button class="btn btn-primary" id="ar-proxy-btn" data-show-roles="admin,sales,tech_support,education" data-perm="ticket_create" style="margin-left:auto;display:none;" data-nrq onclick="openNewRequestMenu(this)">+ 새 요청 등록 <span style="font-size:9px;">▼</span></button>
         </div>
         <div class="filter-bar">
           <input class="search-box" id="ar-search" placeholder="요청 번호, 제목 검색..." oninput="renderAllTickets()">
@@ -5754,10 +5754,10 @@ function closeModal(id) {
 // ── 새 요청 카테고리 드롭다운 (고객 전용) ──────────────────
 // "+ 새 요청 등록" 클릭 시 폼을 바로 열지 않고 카테고리 메뉴를 먼저 펼친다.
 // 항목을 고르면 폼이 열리고(카테고리 확정), 폼의 카테고리 셀렉트는 숨긴 채
-// 헤더 칩으로 표시한다("변경"으로 재선택). 스태프/내부는 기존 대리 등록 폼 그대로.
+// 헤더 칩으로 표시한다("변경"으로 재선택). 모든 역할 공통 — 스태프의 대리 등록
+// 모달도 같은 흐름으로 열리며, 대리 등록 필드(고객사/요청자)는 그대로 유지된다.
 let _nrqAnchor = null;
 function openNewRequestMenu(btn) {
-  if (!currentUser || currentUser.role !== 'customer') { openModal('modal-new'); return; }
   const existing = document.getElementById('nrq-dd');
   if (existing) {
     existing.remove();
