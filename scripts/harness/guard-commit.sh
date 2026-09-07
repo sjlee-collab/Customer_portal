@@ -11,7 +11,11 @@ echo "로컬 HEAD=$LOCAL / origin/main=$ORIGIN"
 [ "$LOCAL" != "$ORIGIN" ] && echo "  ⚠ 로컬과 origin/main이 다름 — 형제 세션 커밋 가능. push 시 ff 여부 확인 필요."
 
 echo "── 워킹트리 변경 파일(노이즈 제외) ──"
-CHANGED=$(git status --porcelain | grep -v 'node_modules\|__pycache__\|\.claude/launch.json\|scratchpad' | awk '{print $2}')
+# porcelain은 'XY 경로' 또는 rename 시 'R  옛 -> 새' 형식(공백 경로는 따옴표) — awk '{print $2}'는
+# rename의 옛 경로만 잡고 공백 경로를 쪼갰다(backend 개명 때 실제 오탐, 감사 T3). 상태 2자+공백을
+# 벗기고, ' -> ' 뒤(새 경로)를 취하고, 둘러싼 따옴표를 푼다.
+CHANGED=$(git status --porcelain | grep -v 'node_modules\|__pycache__\|\.claude/launch.json\|scratchpad' \
+  | sed -E 's/^.{3}//; s/^.* -> //; s/^"(.*)"$/\1/')
 echo "$CHANGED" | sed 's/^/  /'
 
 if [ "$#" -gt 0 ]; then
