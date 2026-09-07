@@ -474,6 +474,40 @@ button,input,select,textarea{font-family:inherit;}
 .fb-mail .body{padding:15px 16px;font-size:12.5px;line-height:1.65;color:var(--muted);}
 .fb-mail .body h4{font-size:13.5px;color:var(--text);margin:0 0 7px;}
 .fb-mail .cta{display:inline-block;margin-top:11px;background:var(--accent);color:#fff;font-size:12px;font-weight:600;border-radius:var(--r-md);padding:7px 15px;}
+/* 설문 미리보기 — 고객 응답 화면 위젯 */
+.fb-pv-hd{background:linear-gradient(135deg,var(--accent),#6D67E4);padding:20px 22px 16px;color:#fff;text-align:center;}
+.fb-pv-badge{display:inline-block;background:rgba(255,255,255,.22);font-size:10.5px;font-weight:700;padding:3px 12px;border-radius:999px;margin-bottom:8px;}
+.fb-pv-title{font-size:15.5px;font-weight:800;margin-bottom:4px;}
+.fb-pv-sub{font-size:11.5px;color:#DDDAF8;line-height:1.5;}
+.fb-pv-bd{padding:17px 20px 8px;display:flex;flex-direction:column;gap:15px;}
+.fb-pv-q{font-size:12.5px;font-weight:700;margin-bottom:8px;}
+.fb-pv-q .req{color:var(--red);}
+.fb-pv-nps{display:flex;gap:4px;flex-wrap:wrap;}
+.fb-pv-nps span{min-width:27px;height:27px;border:1px solid var(--border-md);border-radius:7px;display:grid;place-items:center;font-size:11.5px;color:var(--muted);padding:0 4px;}
+.fb-pv-npscap{display:flex;justify-content:space-between;font-size:10px;color:var(--faint);margin-top:4px;}
+.fb-pv-opt{display:flex;align-items:center;gap:9px;border:1.5px solid var(--border);border-radius:9px;padding:8px 12px;font-size:12.5px;color:var(--muted);margin-bottom:6px;}
+.fb-pv-opt:last-child{margin-bottom:0;}
+.fb-pv-opt .bx{width:14px;height:14px;flex-shrink:0;border:1.5px solid var(--border-strong);}
+.fb-pv-opt .bx.sq{border-radius:4px;}
+.fb-pv-opt .bx.ci{border-radius:50%;}
+.fb-pv-stars{font-size:26px;color:#e2e2e8;letter-spacing:4px;}
+.fb-pv-ta{border:1px solid var(--border-md);border-radius:9px;padding:8px 12px;font-size:12px;color:var(--faint);min-height:56px;}
+.fb-pv-submit{margin:8px 20px 0;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:11px;font-size:13px;font-weight:700;font-family:inherit;display:block;width:calc(100% - 40px);}
+.fb-pv-ft{display:flex;justify-content:space-between;align-items:center;padding:10px 20px 15px;font-size:11px;color:var(--faint);}
+/* 발송 대상 — 고객사·수신자 리스트 */
+.fb-tgt-list{margin-top:14px;border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden;}
+.fb-tgt-list .hd{display:flex;justify-content:space-between;align-items:center;background:var(--surface2);border-bottom:1px solid var(--border);padding:9px 14px;font-size:12px;font-weight:700;}
+.fb-tgt-list .hd .sub{font-weight:400;color:var(--muted);font-size:11px;}
+.fb-tgt-table{width:100%;border-collapse:collapse;font-size:12px;}
+.fb-tgt-table th{text-align:left;font-size:10.5px;font-weight:600;color:var(--muted);padding:7px 14px;border-bottom:1px solid var(--border);}
+.fb-tgt-table td{padding:9px 14px;border-bottom:1px solid var(--border);vertical-align:top;}
+.fb-tgt-table tr:last-child td{border-bottom:none;}
+.fb-dchip{display:inline-flex;font-size:10px;font-weight:700;border-radius:999px;padding:2px 8px;background:var(--accent-l);color:var(--accent);}
+.fb-rcpt{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:2px 9px;margin:2px 3px 2px 0;}
+.fb-rcpt b{color:var(--text);font-weight:600;}
+.fb-tgt-more{padding:9px 14px;text-align:center;font-size:11px;color:var(--faint);background:var(--surface2);}
+.fb-tgt-excl td{opacity:.5;}
+.fb-tgt-excl .why{font-size:10px;color:#92400E;background:#FEF3C7;border-radius:999px;padding:2px 8px;font-weight:700;}
 .fb-actions{display:flex;align-items:center;gap:10px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);}
 .fb-actions .spacer{margin-left:auto;}
 @media (max-width:880px){
@@ -2165,6 +2199,7 @@ textarea{resize:vertical;min-height:100px;}
         </div>
         <div class="co-tabs" style="margin:0 0 12px;">
           <button class="co-tab on" id="nl-tab-real" onclick="switchNotifyTab('real')">운영 알림 <span class="cnt" id="nl-cnt-real"></span></button>
+          <button class="co-tab" id="nl-tab-survey" onclick="switchNotifyTab('survey')">📊 설문 <span class="cnt" id="nl-cnt-survey"></span></button>
           <button class="co-tab" id="nl-tab-test" onclick="switchNotifyTab('test')">🧪 테스트 알림 <span class="cnt" id="nl-cnt-test"></span></button>
           <button class="co-tab" id="nl-tab-reg" onclick="switchNotifyTab('reg')">🌙 회귀 알람 <span class="cnt" id="nl-cnt-reg"></span></button>
         </div>
@@ -2396,31 +2431,64 @@ textarea{resize:vertical;min-height:100px;}
             <button class="btn btn-ghost btn-sm" onclick="fbShow('type')">← 폼 종류</button>
             <span class="spacer"></span>
             <button class="btn btn-outline btn-sm" onclick="fbSave('draft')">임시 저장</button>
-            <button class="btn btn-primary btn-sm" onclick="fbGoTarget()">발송 대상 선택 →</button>
+            <button class="btn btn-primary btn-sm" onclick="fbGoPreview()">미리보기 →</button>
           </div>
         </section>
 
-        <!-- 설문: 3. 발송 대상 -->
-        <section class="fb-panel" data-fbpanel="sur-target" hidden>
-          <div class="fb-phd"><h2>발송 대상</h2><span class="hint">포탈 계정이 있는 고객만 대상 — 응답은 로그인 후 포탈에서 받습니다</span></div>
-          <div class="fb-two">
-            <div>
-              <div class="fb-fset"><div class="cap">계약 만료 시점</div>
-                <div class="fb-chips" id="fb-t-expiry"></div></div>
-              <div class="fb-fset"><div class="cap">사용 제품</div>
-                <div class="fb-chips" id="fb-t-products"></div></div>
-              <div class="fb-fset" style="margin-bottom:0;"><div class="cap">받는 사람</div>
-                <div class="fb-chips" id="fb-t-recipients"></div></div>
+        <!-- 설문: 3. 미리보기 -->
+        <section class="fb-panel" data-fbpanel="sur-preview" hidden>
+          <div class="fb-phd"><h2>미리보기</h2><span class="hint">고객이 포탈에서 보게 될 응답 화면 그대로 — 문항을 고치려면 이전 단계로</span></div>
+          <div class="fb-preview">
+            <div class="fb-phone">
+              <div class="bar">고객이 포탈에서 보는 응답 화면</div>
+              <div id="fb-pv-body"></div>
             </div>
-            <div class="fb-tally">
-              <div class="cap">발송 대상</div>
-              <div class="big">—</div>
-              <div style="margin-top:10px;font-size:11.5px;color:var(--faint);line-height:1.6;">대상 인원 집계는 발송 백엔드 연동 후 표시됩니다. 조건은 지금 저장됩니다.</div>
+            <div>
+              <div class="fb-rev" id="fb-pv-rev"></div>
+              <div class="fb-warn">문항을 수정하면 이 미리보기에 바로 반영됩니다. 발송 후에는 문항이 잠기므로, 여기서 오탈자·보기 순서를 최종 확인하세요.</div>
             </div>
           </div>
           <div class="fb-actions">
             <button class="btn btn-ghost btn-sm" onclick="fbShow('sur-edit')">← 설문 작성</button>
             <span class="spacer"></span>
+            <button class="btn btn-outline btn-sm" onclick="fbSave('draft')">임시 저장</button>
+            <button class="btn btn-primary btn-sm" onclick="fbGoTarget()">발송 대상 선택 →</button>
+          </div>
+        </section>
+
+        <!-- 설문: 4. 발송 대상 -->
+        <section class="fb-panel" data-fbpanel="sur-target" hidden>
+          <div class="fb-phd"><h2>발송 대상</h2><span class="hint">조건에 걸린 고객사의 <b>활성 고객 계정 전원</b>에게 발송 — 같은 사람에겐 1통만</span></div>
+          <div class="fb-two">
+            <div>
+              <div class="fb-fset"><div class="cap">계약 만료 시점</div>
+                <div class="fb-chips" id="fb-t-expiry"></div></div>
+              <div class="fb-fset" style="margin-bottom:0;"><div class="cap">사용 제품 <span style="font-weight:400;color:var(--faint);">(미선택 = 전 제품)</span></div>
+                <div class="fb-chips" id="fb-t-products"></div></div>
+            </div>
+            <div class="fb-tally">
+              <div class="cap">발송 대상</div>
+              <div class="big" id="fb-t-big">—</div>
+              <div id="fb-t-brk" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:7px;font-size:12px;"></div>
+            </div>
+          </div>
+          <div class="fb-tgt-list">
+            <div class="hd">대상 고객사 · 수신자 <span class="sub" id="fb-tgt-sub">계약 만료 임박 순 · 수신: 해당 고객사 활성 계정 전원</span></div>
+            <div style="overflow-x:auto;">
+              <table class="fb-tgt-table">
+                <thead><tr>
+                  <th style="width:170px;">고객사</th><th style="width:230px;">계약 · 만료일</th>
+                  <th style="width:150px;">사용 제품</th><th>수신자</th>
+                </tr></thead>
+                <tbody id="fb-tgt-tbody"><tr><td colspan="4" style="text-align:center;color:var(--faint);padding:18px;">조건을 선택하면 대상이 계산됩니다</td></tr></tbody>
+              </table>
+            </div>
+            <div class="fb-tgt-more" id="fb-tgt-more" style="display:none;"></div>
+          </div>
+          <div class="fb-actions">
+            <button class="btn btn-ghost btn-sm" onclick="fbShow('sur-preview');renderFbPreview()">← 미리보기</button>
+            <span class="spacer"></span>
+            <button class="btn btn-outline btn-sm" onclick="fbSave('draft')">임시 저장</button>
             <button class="btn btn-primary btn-sm" onclick="fbShow('sur-send');fbRenderSend()">발송 내용 확인 →</button>
           </div>
         </section>
@@ -8468,11 +8536,11 @@ const FB_TYPES = { single:'객관식 · 단일', multi:'객관식 · 복수', te
 const FB_STATUS = { draft:['작성 중','draft'], active:['발송 중','active'], applied:['적용 중','active'], closed:['마감','draft'] };
 const FB_FLOWS = {
   req:  [ {id:'type', t:'폼 종류', d:'VOC 요청 폼'}, {id:'req-fields', t:'문항 구성', d:'VOC 추가 문항'}, {id:'req-apply', t:'미리보기 · 적용', d:'고객 화면 확인'} ],
-  sur:  [ {id:'type', t:'폼 종류', d:'설문 폼'}, {id:'sur-edit', t:'설문 작성', d:'문항 구성'}, {id:'sur-target', t:'발송 대상', d:'고객사·조건'}, {id:'sur-send', t:'발송', d:'확인 후 전송'} ],
+  sur:  [ {id:'type', t:'폼 종류', d:'설문 폼'}, {id:'sur-edit', t:'설문 작성', d:'문항 구성'}, {id:'sur-preview', t:'미리보기', d:'고객 응답 화면'}, {id:'sur-target', t:'발송 대상', d:'고객사·조건'}, {id:'sur-send', t:'발송', d:'확인 후 전송'} ],
   none: [ {id:'type', t:'폼 종류', d:'요청 폼 · 설문 폼'} ],
 };
 const FB_EXPIRY_OPTS = [ ['all','전체'], ['d90','D-90 이내'], ['d60','D-60 이내'], ['d30','D-30 이내'] ];
-const FB_RECIP_OPTS = [ ['primary','대표 담당자만'], ['org','조직별 대표'], ['all','계정 있는 전원'] ];
+// 수신 규칙(고정): 조건 충족 고객사의 활성 고객 계정 전원, 같은 사람에겐 1통만.
 let fbForms = [];
 let fbKind = 'none';   // none | req | sur
 let fbStep = 'type';
@@ -8572,7 +8640,7 @@ function fbPick(kind) {
     fbShow('req-fields'); fbStep = 'req-fields'; fbRenderRail(); fbRenderDoc();
     renderFbFields();
   } else {
-    fbCur = { form_type: 'survey', title: '', intro: '', open_until: '', status: 'draft', fields: [], target: { expiry: 'all', products: [], recipients: 'primary' } };
+    fbCur = { form_type: 'survey', title: '', intro: '', open_until: '', status: 'draft', fields: [], target: { expiry: 'all', products: [] } };
     document.getElementById('fb-name').value = '';
     document.getElementById('fb-intro').value = '';
     document.getElementById('fb-until').value = '';
@@ -8587,7 +8655,7 @@ function fbEdit(id) {
   fbKind = isReq ? 'req' : 'sur';
   fbCur = { id: f.id, form_type: f.form_type || 'survey', title: f.title || '', intro: f.intro || '', open_until: f.open_until || '', status: f.status || 'draft',
     fields: JSON.parse(JSON.stringify(Array.isArray(f.fields) ? f.fields : [])),
-    target: f.target || (isReq ? { category: 'voc', hide: ['product', 'priority'] } : { expiry: 'all', products: [], recipients: 'primary' }) };
+    target: f.target || (isReq ? { category: 'voc', hide: ['product', 'priority'] } : { expiry: 'all', products: [] }) };
   if (isReq) { fbShow('req-fields'); }
   else {
     document.getElementById('fb-name').value = fbCur.title;
@@ -8708,13 +8776,57 @@ async function fbApplyVoc() {
   await fbSave('active');
 }
 
-// ── 설문: 대상/발송 ──
-function fbGoTarget() {
+// ── 설문: 미리보기 (3단계) ──
+function fbGoPreview() {
   fbCur.title = document.getElementById('fb-name').value.trim();
   fbCur.intro = document.getElementById('fb-intro').value.trim();
   fbCur.open_until = document.getElementById('fb-until').value || null;
   if (!fbCur.title) { showToast('설문 이름을 입력해 주세요.', true); return; }
   if (!fbValidateFields()) return;
+  fbShow('sur-preview');
+  renderFbPreview(); fbRenderDoc();
+}
+// 편집 중인 문항(fbCur.fields)을 고객 응답 화면 그대로 렌더
+function renderFbPreview() {
+  if (!fbCur) return;
+  const mins = Math.max(1, Math.ceil(fbCur.fields.length / 3));
+  const until = fbCur.open_until ? new Date(fbCur.open_until + 'T00:00:00') : null;
+  const untilTxt = until ? `${until.getMonth() + 1}월 ${until.getDate()}일까지` : '';
+  const widget = (f) => {
+    if (f.type === 'nps') return `<div class="fb-pv-nps">${Array.from({length:11},(_,n)=>`<span>${n}</span>`).join('')}</div>` +
+      `<div class="fb-pv-npscap"><span>전혀 추천 안 함</span><span>매우 추천</span></div>`;
+    if (f.type === 'scale') return `<div class="fb-pv-nps">${[1,2,3,4,5].map(n=>`<span>${n}</span>`).join('')}</div>` +
+      `<div class="fb-pv-npscap"><span>전혀 아니다</span><span>매우 그렇다</span></div>`;
+    if (f.type === 'rating') return `<div class="fb-pv-stars">★★★★★</div>`;
+    if (f.type === 'single' || f.type === 'multi') {
+      const shape = f.type === 'single' ? 'ci' : 'sq';
+      return (f.options || []).map(o => `<div class="fb-pv-opt"><span class="bx ${shape}"></span> ${escHtml(o)}</div>`).join('');
+    }
+    return `<div class="fb-pv-ta">자유롭게 입력해 주세요${f.required ? '' : ' (선택)'}</div>`;
+  };
+  document.getElementById('fb-pv-body').innerHTML =
+    `<div class="fb-pv-hd">
+       <span class="fb-pv-badge">📊 설문 · 약 ${mins}분${untilTxt ? ' · ' + untilTxt : ''}</span>
+       <div class="fb-pv-title">${escHtml(fbCur.title)}</div>
+       ${fbCur.intro ? `<div class="fb-pv-sub">${escHtml(fbCur.intro)}</div>` : ''}
+     </div>
+     <div class="fb-pv-bd">` +
+    fbCur.fields.map((f, i) =>
+      `<div><div class="fb-pv-q">Q${i + 1}. ${escHtml(f.label)} ${f.required ? '<span class="req">*</span>' : ''}</div>${widget(f)}</div>`).join('') +
+    `</div>
+     <button class="fb-pv-submit" disabled>제출하기</button>
+     <div class="fb-pv-ft"><span style="text-decoration:underline;">나중에 하기</span><span>문항 ${fbCur.fields.length}개 · 제출 후 수정 불가</span></div>`;
+  const req = fbCur.fields.filter(f => f.required).length;
+  document.getElementById('fb-pv-rev').innerHTML =
+    `<div class="fb-rev-row"><span class="k">문항</span><span class="v">${fbCur.fields.length}개 (필수 ${req})</span></div>` +
+    `<div class="fb-rev-row"><span class="k">예상 소요</span><span class="v">약 ${mins}분</span></div>` +
+    `<div class="fb-rev-row"><span class="k">응답 마감</span><span class="v">${fbCur.open_until ? escHtml(String(fbCur.open_until).slice(0, 10)) : '—'}</span></div>` +
+    `<div class="fb-rev-row"><span class="k">노출 방식</span><span class="v">안내 메일 링크 + 포탈 알림</span></div>` +
+    `<div class="fb-rev-row"><span class="k">제출 규칙</span><span class="v">1회 제출 · 수정 불가</span></div>`;
+}
+
+// ── 설문: 대상/발송 ──
+function fbGoTarget() {
   fbShow('sur-target');
   fbRenderTarget(); fbRenderDoc();
 }
@@ -8725,8 +8837,7 @@ function fbRenderTarget() {
     chip(t.expiry === k, l, `fbSetTarget('expiry','${k}')`)).join('');
   document.getElementById('fb-t-products').innerHTML = PRODUCT_OPTIONS.filter(p => p !== '기타').map(pd =>
     chip((t.products || []).includes(pd), escHtml(pd), `fbToggleProduct('${_fbAttr(pd)}')`)).join('');
-  document.getElementById('fb-t-recipients').innerHTML = FB_RECIP_OPTS.map(([k, l]) =>
-    chip(t.recipients === k, l, `fbSetTarget('recipients','${k}')`)).join('');
+  fbComputeTarget();
 }
 function fbSetTarget(key, val) { fbCur.target[key] = val; fbRenderTarget(); }
 function fbToggleProduct(pd) {
@@ -8738,16 +8849,114 @@ function fbToggleProduct(pd) {
 function fbTargetSummary() {
   const t = fbCur.target || {};
   const ex = (FB_EXPIRY_OPTS.find(o => o[0] === t.expiry) || [])[1] || '전체';
-  const rc = (FB_RECIP_OPTS.find(o => o[0] === t.recipients) || [])[1] || '대표 담당자만';
   const pd = (t.products || []).length ? t.products.join(', ') : '전 제품';
-  return `계약 만료 ${ex} · ${pd} · ${rc}`;
+  const n = fbTargetResult ? ` ${fbTargetResult.userCount}명` : '';
+  return `계약 만료 ${ex} · ${pd} · 활성 계정 전원${n}`;
+}
+
+// ── 발송 대상 실계산 (admin 화면 — 진행중 계약·고객사·활성 고객 계정을 받아 클라이언트에서 집계) ──
+let fbTargetRaw = null;     // {contracts, companies, users} 1회 로드 캐시
+let fbTargetResult = null;  // {companyCount, userCount, exclCount, rows}
+async function fbLoadTargetRaw() {
+  if (fbTargetRaw) return fbTargetRaw;
+  const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+  const [ct, co, us] = await Promise.all([
+    sb.from('company_contracts').select('id,company_id,contract_name,end_date,status').eq('status', '진행중').gte('end_date', today).order('end_date').limit(1000),
+    sb.from('companies').select('id,name,products').limit(1000),
+    sb.from('users').select('id,name,company_id,department').eq('role', 'customer').eq('is_active', 'true').limit(2000),
+  ]);
+  if (ct.error || co.error || us.error) throw new Error((ct.error || co.error || us.error).message || '조회 실패');
+  fbTargetRaw = { contracts: ct.data || [], companies: co.data || [], users: us.data || [] };
+  return fbTargetRaw;
+}
+async function fbComputeTarget() {
+  const big = document.getElementById('fb-t-big');
+  const brk = document.getElementById('fb-t-brk');
+  const tbody = document.getElementById('fb-tgt-tbody');
+  const more = document.getElementById('fb-tgt-more');
+  if (!big) return;
+  big.textContent = '…';
+  let raw;
+  try { raw = await fbLoadTargetRaw(); }
+  catch (e) {
+    big.textContent = '—';
+    brk.innerHTML = `<span style="color:var(--faint);">대상 집계 실패: ${escHtml(e.message || '')}</span>`;
+    return;
+  }
+  const t = fbCur?.target || {};
+  const OFFSET = { all: null, d90: 90, d60: 60, d30: 30 };
+  const off = OFFSET[t.expiry] ?? null;
+  const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+  const limitDate = off == null ? null : new Date(Date.now() + 9 * 3600 * 1000 + off * 86400000).toISOString().slice(0, 10);
+  const coById = Object.fromEntries(raw.companies.map(c => [c.id, c]));
+  const usersByCo = {};
+  raw.users.forEach(u => { (usersByCo[u.company_id] = usersByCo[u.company_id] || []).push(u); });
+  const selProducts = t.products || [];
+  // 계약을 회사 단위로 묶는다 — 같은 회사에 조건 계약이 여러 개면 만료 임박한 것을 대표로.
+  const byCompany = {};
+  for (const c of raw.contracts) {
+    const end = String(c.end_date).slice(0, 10);
+    if (limitDate && end > limitDate) continue;
+    const co = coById[c.company_id];
+    if (!co) continue;
+    if (selProducts.length) {
+      const prods = co.products || [];
+      if (!selProducts.some(p => prods.some(cp => String(cp).includes(p) || p.includes(String(cp))))) continue;
+    }
+    const cur = byCompany[c.company_id];
+    if (!cur || end < cur.end) byCompany[c.company_id] = { co, contract: c, end, extra: cur ? cur.extra + 1 : 0 };
+    else cur.extra++;
+  }
+  const entries = Object.values(byCompany).sort((a, b) => a.end.localeCompare(b.end));
+  const userSet = new Set();
+  let exclCount = 0;
+  entries.forEach(e => {
+    const us = usersByCo[e.co.id] || [];
+    if (!us.length) exclCount++;
+    us.forEach(u => userSet.add(u.id));
+  });
+  fbTargetResult = { companyCount: entries.length - exclCount, userCount: userSet.size, exclCount };
+  big.innerHTML = `${userSet.size}<span style="font-size:14px;font-weight:600;color:var(--muted);"> 명</span>`;
+  brk.innerHTML =
+    `<div style="display:flex;justify-content:space-between;"><span>해당 고객사</span><b>${entries.length - exclCount}개사</b></div>` +
+    `<div style="display:flex;justify-content:space-between;"><span>수신자 (활성 계정 전원)</span><b>${userSet.size}명</b></div>` +
+    `<div style="display:flex;justify-content:space-between;color:#B45309;"><span>계정 없어 제외</span><b>${exclCount}개사</b></div>`;
+  // 리스트 (상위 30개사)
+  const dday = (end) => Math.max(0, Math.round((new Date(end + 'T00:00:00') - new Date(today + 'T00:00:00')) / 86400000));
+  const CAP = 30;
+  if (!entries.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--faint);padding:18px;">조건에 맞는 고객사가 없습니다</td></tr>';
+    more.style.display = 'none';
+    return;
+  }
+  tbody.innerHTML = entries.slice(0, CAP).map(e => {
+    const us = usersByCo[e.co.id] || [];
+    const shown = us.slice(0, 6);
+    const rcpt = us.length
+      ? shown.map(u => `<span class="fb-rcpt"><b>${escHtml(u.name)}</b>${u.department ? ' ' + escHtml(u.department) : ''}</span>`).join('') +
+        (us.length > 6 ? `<span class="fb-rcpt">+${us.length - 6}명</span>` : '')
+      : '<span class="why" style="font-size:10px;color:#92400E;background:#FEF3C7;border-radius:999px;padding:2px 8px;font-weight:700;">포탈 계정 없음 — 발송 제외</span>';
+    return `<tr${us.length ? '' : ' class="fb-tgt-excl"'}>
+      <td><b>${escHtml(e.co.name)}</b>${e.extra ? `<div style="font-size:10px;color:var(--faint);margin-top:2px;">조건 계약 ${e.extra + 1}건</div>` : ''}</td>
+      <td>${escHtml(e.contract.contract_name || '')}<br><span style="color:var(--muted);font-size:11px;">${escHtml(e.end)}</span> <span class="fb-dchip">D-${dday(e.end)}</span></td>
+      <td style="font-size:11px;color:var(--muted);">${escHtml((e.co.products || []).join(', '))}</td>
+      <td>${rcpt}</td>
+    </tr>`;
+  }).join('');
+  if (entries.length > CAP) {
+    more.style.display = '';
+    more.textContent = `… ${entries.length - CAP}개사 더 (전체 ${entries.length}개사 · 수신자 ${userSet.size}명 · 제외 ${exclCount}개사) — 발송 전 이 명단이 드라이런 확인 대상입니다`;
+  } else {
+    more.style.display = '';
+    more.textContent = `전체 ${entries.length}개사 · 수신자 ${userSet.size}명 · 제외 ${exclCount}개사 — 발송 전 이 명단이 드라이런 확인 대상입니다`;
+  }
 }
 function fbRenderSend() {
   const req = fbCur.fields.filter(f => f.required).length;
   document.getElementById('fb-send-rev').innerHTML =
     `<div class="fb-rev-row"><span class="k">설문 이름</span><span class="v">${escHtml(fbCur.title)}</span></div>` +
     `<div class="fb-rev-row"><span class="k">문항</span><span class="v">${fbCur.fields.length}개 (필수 ${req})</span></div>` +
-    `<div class="fb-rev-row"><span class="k">발송 대상</span><span class="v">${escHtml(fbTargetSummary())}</span></div>` +
+    `<div class="fb-rev-row"><span class="k">발송 대상</span><span class="v">${escHtml(fbTargetSummary())}${fbTargetResult ? ' (' + fbTargetResult.companyCount + '개사)' : ''}</span></div>` +
     `<div class="fb-rev-row"><span class="k">응답 마감</span><span class="v">${fbCur.open_until ? escHtml(String(fbCur.open_until).slice(0, 10)) : '—'}</span></div>` +
     `<div class="fb-rev-row"><span class="k">알림 방법</span><span class="v">안내 메일 + 포탈 알림</span></div>`;
   document.getElementById('fb-mail-subj').textContent = '[빅스데이터] ' + fbCur.title + '에 참여해 주세요';
@@ -10449,6 +10658,7 @@ let notifyTab = 'real';
 function switchNotifyTab(tab) {
   notifyTab = tab;
   document.getElementById('nl-tab-real')?.classList.toggle('on', tab === 'real');
+  document.getElementById('nl-tab-survey')?.classList.toggle('on', tab === 'survey');
   document.getElementById('nl-tab-test')?.classList.toggle('on', tab === 'test');
   document.getElementById('nl-tab-reg')?.classList.toggle('on', tab === 'reg');
   const tbar = document.getElementById('nl-testbar'); if (tbar) tbar.style.display = tab === 'test' ? '' : 'none';
@@ -10458,12 +10668,14 @@ function switchNotifyTab(tab) {
 async function updateNotifyTabCounts() {
   if (!sb) return;
   // 테스트 탭은 회귀 알람(channel='regression')을 제외한다 — 회귀는 전용 탭에서만 보이게.
-  const [r, t, g] = await Promise.all([
+  const [r, sv, t, g] = await Promise.all([
     sb.from('log_notification').select('id', { count: 'exact', head: true }).eq('is_test', false),
+    sb.from('log_notification').select('id', { count: 'exact', head: true }).eq('is_test', false).in('event_type', ['survey_invite', 'survey_resend']),
     sb.from('log_notification').select('id', { count: 'exact', head: true }).eq('is_test', true).neq('channel', 'regression'),
     sb.from('log_notification').select('id', { count: 'exact', head: true }).eq('channel', 'regression'),
   ]);
   const er = document.getElementById('nl-cnt-real'); if (er) er.textContent = r.count ?? '';
+  const es = document.getElementById('nl-cnt-survey'); if (es) es.textContent = sv.count ?? '';
   const et = document.getElementById('nl-cnt-test'); if (et) et.textContent = t.count ?? '';
   const eg = document.getElementById('nl-cnt-reg');  if (eg) eg.textContent = g.count ?? '';
 }
@@ -10668,9 +10880,10 @@ async function loadNotifyLog() {
     .limit(200);
 
   // 탭 분리 — 운영(is_test=false) / 테스트(is_test=true, 회귀 제외) / 회귀(channel=regression)
-  if (notifyTab === 'reg')       q = q.eq('channel', 'regression');
-  else if (notifyTab === 'test') q = q.eq('is_test', true).neq('channel', 'regression');
-  else                           q = q.eq('is_test', false);
+  if (notifyTab === 'reg')         q = q.eq('channel', 'regression');
+  else if (notifyTab === 'test')   q = q.eq('is_test', true).neq('channel', 'regression');
+  else if (notifyTab === 'survey') q = q.eq('is_test', false).in('event_type', ['survey_invite', 'survey_resend']); // 설문 발송 메일만 (운영 탭의 부분집합 뷰)
+  else                             q = q.eq('is_test', false);
   updateNotifyTabCounts();                      // 탭 라벨 건수 갱신(비파괴 head count)
 
   if (typeFilter)   q = q.eq('channel', typeFilter);
