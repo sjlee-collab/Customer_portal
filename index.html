@@ -4588,6 +4588,18 @@ const CATEGORY_BADGE = {
 const PRODUCT_OPTIONS = ['Tableau Server', 'Tableau Cloud', 'DataWorks', 'AgentWorks', '기타'];
 // 요청 폼에서 사용자가 고를 수 있는 카테고리(시스템 전용 'customer' 제외). 라벨은 CATEGORY_LABELS 사용.
 const TICKET_CATEGORY_FORM_KEYS = ['tech_support', 'contract', 'license', 'education', 'voc', 'other'];
+// VOC(서비스 제안/불만)는 폼 빌더에서 "적용"(status=active)한 요청 폼이 있을 때만 접수 입구를
+// 연다 — 폼 없이 열어두면 추가 문항·제품/긴급도 숨김이 빠진 기본 폼으로 접수돼 의도와 달라진다.
+// 초안(draft)만 있으면 아직 미적용이므로 숨긴다. 실패 시 기본값은 숨김(안전한 쪽).
+// 주의: 요청 목록 필터·통계의 VOC 항목은 건드리지 않는다 — 이미 접수된 VOC 티켓을 조회해야 한다.
+let vocFormReady = false;
+async function loadVocFormState() {
+  try {
+    const { data, error } = await sb.from('forms')
+      .select('id').eq('form_type', 'request').eq('status', 'active').limit(1);
+    if (!error) vocFormReady = !!(data && data.length);
+  } catch (e) { console.error('[VOC 폼 상태 조회]', e); }
+}
 
 function _optsHtml(itemsHtml, placeholder) {
   return (placeholder !== undefined ? `<option value="">${placeholder}</option>` : '') + itemsHtml;
@@ -4867,6 +4879,8 @@ async function enterApp(email, acct, isRestore) {
   // 통합 셸로 이동 후 역할별 권한 로드 + UI 적용
   goScreen('screen-main');
   await loadPermissions();
+  loadVocFormState();          // VOC 입구 노출 여부 — 드롭다운 클릭을 기다리게 하지 않도록 await 없이
+
   applyRoleUI(acct.role);
 
   // 새로고침 복원: showPage가 남긴 URL 해시(#p-xxx)가 있으면 그 페이지로 돌아간다.
@@ -6132,14 +6146,17 @@ function openNewRequestMenu(btn) {
   const menu = document.createElement('div');
   menu.id = 'nrq-dd';
   menu.className = 'nrq-dd';
-  menu.innerHTML = TICKET_CATEGORY_FORM_KEYS.map(k =>
-    `<div class="nrq-dd-item" onclick="nrqPick('${k}')">${CATEGORY_LABELS[k] || k}</div>`).join('');
+  menu.innerHTML = TICKET_CATEGORY_FORM_KEYS
+    .filter(k => k !== 'voc' || vocFormReady)      // 적용된 VOC 요청 폼이 없으면 항목 자체를 숨긴다
+    .map(k => `<div class="nrq-dd-item" onclick="nrqPick('${k}')">${CATEGORY_LABELS[k] || k}</div>`).join('');
   document.body.appendChild(menu);
   const r = btn.getBoundingClientRect();
   menu.style.top = (r.bottom + 6 + window.scrollY) + 'px';
   menu.style.left = Math.max(12, r.right - menu.offsetWidth + window.scrollX) + 'px';
 }
 function nrqPick(cat) {
+  // 메뉴를 열어둔 사이 폼이 내려갔을 수도 있어 선택 시점에 한 번 더 막는다.
+  if (cat === 'voc' && !vocFormReady) { closeNrqMenu(); return; }
   closeNrqMenu();
   openModal('modal-new'); // 안에서 칩/그룹 상태가 초기화된 뒤 아래에서 다시 세팅
   const sel = document.getElementById('f-category');
@@ -8996,6 +9013,7 @@ async function fbDelete(id) {
   const { error } = await sb.from('forms').delete().eq('id', id);
   if (error) { showToast('삭제 실패: ' + (error.message || ''), true); return; }
   showToast('삭제됐습니다.');
+  if (f.form_type === 'request') loadVocFormState();   // 요청 폼이 사라졌으면 VOC 입구도 닫는다
   loadForms();
 }
 
@@ -9093,8 +9111,10 @@ function fbRenderReqPreview() {
 }
 async function fbApplyVoc() {
   if (!fbValidateFields()) return;
-  // 적용 = active로 저장. 고객 화면(새 요청 등록) 반영·voc 카테고리는 백엔드 연동 단계에서 활성화.
+  // 적용 = active로 저장. 저장이 끝나면 새 요청 등록 드롭다운의 VOC 항목이 곧바로 열린다
+  // (재로그인 없이 반영 — 문항대로 렌더하는 것은 고객 폼 렌더 단계에서 이어진다).
   await fbSave('active');
+  if (fbCur?.status === 'active') vocFormReady = true;
 }
 
 // ── 설문: 미리보기 (3단계) ──
