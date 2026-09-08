@@ -576,6 +576,27 @@ button,input,select,textarea{font-family:inherit;}
 .fb-fsum b{color:var(--accent);margin:0 3px;}
 .fb-rcpt.hit{background:var(--accent-l);border-color:#d6d0f7;}
 .fb-rcpt.hit b{color:var(--accent);}
+/* 발송 최종 확인 모달 — 드라이런으로 받아온 실제 명단을 보여주고 한 번 더 확인받는다 */
+#modal-fb-send .fs-box{background:var(--surface);border-radius:14px;width:640px;max-width:calc(100vw - 40px);box-shadow:0 20px 60px rgba(20,20,50,.28);overflow:hidden;display:flex;flex-direction:column;max-height:calc(100vh - 80px);}
+#modal-fb-send .fs-hd{padding:16px 22px;border-bottom:1px solid var(--border);}
+#modal-fb-send .fs-hd h3{margin:0;font-size:15px;font-weight:800;}
+#modal-fb-send .fs-hd .sub{font-size:11.5px;color:var(--muted);margin-top:3px;}
+#modal-fb-send .fs-bd{padding:16px 22px;overflow-y:auto;}
+#modal-fb-send .fs-big{display:flex;align-items:baseline;gap:8px;}
+#modal-fb-send .fs-big b{font-size:28px;font-weight:800;}
+#modal-fb-send .fs-big span{font-size:12.5px;color:var(--muted);}
+#modal-fb-send .fs-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+#modal-fb-send .fs-meta span{font-size:11px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:3px 10px;}
+#modal-fb-send .fs-warn{margin-top:12px;background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:9px 13px;font-size:12px;color:#B91C1C;line-height:1.6;}
+#modal-fb-send .fs-list{margin-top:12px;border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+#modal-fb-send .fs-list .h{background:var(--surface2);border-bottom:1px solid var(--border);padding:7px 12px;font-size:11px;font-weight:700;color:var(--muted);}
+#modal-fb-send .fs-row{display:flex;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px;align-items:flex-start;}
+#modal-fb-send .fs-row:last-child{border-bottom:none;}
+#modal-fb-send .fs-row .co{width:150px;flex-shrink:0;font-weight:700;}
+#modal-fb-send .fs-row .un{width:130px;flex-shrink:0;color:var(--accent);font-size:11px;}
+#modal-fb-send .fs-row .rc{flex:1;color:var(--muted);font-size:11px;line-height:1.6;}
+#modal-fb-send .fs-more{padding:7px 12px;text-align:center;font-size:11px;color:var(--faint);background:var(--surface2);}
+#modal-fb-send .fs-ft{display:flex;gap:8px;align-items:center;padding:13px 22px;border-top:1px solid var(--border);background:var(--surface2);}
 .fb-uchip{display:inline-flex;align-items:center;font-size:10.5px;font-weight:700;border-radius:6px;padding:2px 7px;background:#EAF3FF;color:#1D6FD6;max-width:130px;overflow:hidden;text-overflow:ellipsis;}
 .fb-uchip.none{background:#f1f1f5;color:var(--faint);}
 .fb-diff{background:#F0FDF4;border:1px solid #BBF7D0;color:#166534;border-radius:999px;font-size:10px;font-weight:700;padding:2px 8px;margin-left:6px;vertical-align:3px;}
@@ -4154,6 +4175,22 @@ textarea{resize:vertical;min-height:100px;}
 </div>
 
 <!-- 접수 완료 toast -->
+<!-- 설문 발송 최종 확인 — 발송 버튼은 곧바로 보내지 않고 서버 드라이런 명단을 먼저 보여준다 -->
+<div id="modal-fb-send" style="display:none;position:fixed;inset:0;z-index:520;background:rgba(0,0,0,.35);align-items:center;justify-content:center;" onclick="if(event.target===this)closeFbSendModal()">
+  <div class="fs-box">
+    <div class="fs-hd">
+      <h3>발송 전 최종 확인</h3>
+      <div class="sub" id="fb-send-sub">아래 명단으로 안내 메일이 발송됩니다</div>
+    </div>
+    <div class="fs-bd" id="fb-send-body"></div>
+    <div class="fs-ft">
+      <button class="btn btn-ghost btn-sm" onclick="closeFbSendModal()">취소</button>
+      <span style="flex:1;"></span>
+      <button class="btn btn-primary btn-sm" id="fb-send-go" onclick="fbConfirmSend()">발송</button>
+    </div>
+  </div>
+</div>
+
 <!-- 완료 건 만족도 팝업 — 고객 홈 진입 시 미평가 완료 건이 있으면 1회 노출 -->
 <div id="modal-survey" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.35);align-items:center;justify-content:center;" onclick="if(event.target===this)svPopupLater()">
   <div id="modal-survey-box" style="background:var(--surface);border-radius:14px;width:360px;max-width:calc(100vw - 40px);box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden;"></div>
@@ -9525,10 +9562,115 @@ function fbRenderSend() {
   document.getElementById('fb-mail-subj').textContent = '[빅스데이터] ' + fbCur.title + '에 참여해 주세요';
   document.getElementById('fb-mail-body').textContent = (fbCur.intro ? fbCur.intro + ' ' : '') + '아래 버튼을 누르면 포탈에 로그인한 뒤 설문으로 이동합니다.';
 }
+// ── 발송 (2단계) ──
+// 발송 버튼은 곧바로 메일을 보내지 않는다: 먼저 서버 드라이런(DB·메일 미변경)으로 실제
+// 명단을 받아 확인 모달에 띄우고, 거기서 한 번 더 확인해야 실제로 나간다. 오발송은 회수가
+// 불가능하므로 버튼 한 번으로 수백 명에게 나가는 구조를 만들지 않는다.
+let fbSendPlan = null;      // 드라이런 결과 {formId, units, companies, recipients, excluded_units, rows}
+let fbSending = false;      // 중복 제출 방지
+
+async function fbSurveyApi(payload) {
+  try {
+    const res = await fetch(`${API_BASE}/survey/send`, {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    let data = null;
+    try { data = await res.json(); } catch (_) { /* 본문 없음 */ }
+    return { ok: res.ok, status: res.status, data };
+  } catch (e) {
+    return { ok: false, status: 0, data: { error: e?.message || '네트워크 오류' } };
+  }
+}
+// 발송 백엔드가 아직 개통되지 않은 상태(API GW 라우트 미등록)를 사용자에게 구분해 알린다.
+function fbSendNotReady(status) { return status === 404 || status === 0; }
+
 async function fbSendSurvey(isTest) {
-  // 실제 발송(초대 생성·메일)은 api-layer 연동 후 활성화 — 지금은 조건까지 포함해 초안으로 저장만 한다.
-  await fbSave('draft', true);
-  showToast((isTest ? '테스트 발송' : '발송') + ' 기능은 발송 백엔드 연동 후 활성화됩니다. 설문은 초안으로 저장했습니다.', true);
+  if (!fbCur || fbSending) return;
+  await fbSave('draft', true);                 // 조건·문항까지 저장하고 form_id 확보
+  if (!fbCur.id) { showToast('설문을 먼저 저장해야 발송할 수 있습니다.', true); return; }
+
+  if (isTest) {
+    // 테스트 발송: 관리자 본인에게 1통. survey_history에 남지 않아 응답률에 영향 없음.
+    const r = await fbSurveyApi({ form_id: fbCur.id, test_only: true });
+    if (r.ok) { showToast(`테스트 메일을 ${r.data?.recipient || '본인 계정'}으로 1통 보냈습니다.`); return; }
+    showToast(fbSendNotReady(r.status)
+      ? '테스트 발송은 발송 백엔드 개통 후 활성화됩니다. 설문은 초안으로 저장했습니다.'
+      : `테스트 발송 실패: ${r.data?.error || 'HTTP ' + r.status}`, true);
+    return;
+  }
+
+  showToast('발송 대상을 확인하고 있습니다…');
+  const r = await fbSurveyApi({ form_id: fbCur.id, dry_run: true });
+  if (!r.ok) {
+    showToast(fbSendNotReady(r.status)
+      ? '발송은 발송 백엔드 개통 후 활성화됩니다. 설문은 초안으로 저장했습니다.'
+      : `발송 대상 확인 실패: ${r.data?.error || 'HTTP ' + r.status}`, true);
+    return;
+  }
+  fbSendPlan = { formId: fbCur.id, ...(r.data || {}) };
+  fbRenderSendConfirm();
+}
+
+function fbRenderSendConfirm() {
+  const p = fbSendPlan;
+  if (!p) return;
+  const rows = Array.isArray(p.rows) ? p.rows : [];
+  const CAP = 12;
+  const sub = document.getElementById('fb-send-sub');
+  if (sub) sub.textContent = `${escHtml(fbCur?.title || '')} — 서버가 방금 다시 계산한 실제 명단입니다`;
+  document.getElementById('fb-send-body').innerHTML =
+    `<div class="fs-big"><b>${p.recipients ?? 0}</b><span>명에게 발송</span></div>` +
+    `<div class="fs-meta">` +
+      `<span>대상 조직 ${p.units ?? 0}개</span>` +
+      `<span>고객사 ${p.companies ?? 0}개사</span>` +
+      (p.excluded_units ? `<span>계정 없는 조직 ${p.excluded_units}개 제외</span>` : '') +
+      `<span>문항 ${(fbCur?.fields || []).length}개</span>` +
+      (fbCur?.open_until ? `<span>마감 ${escHtml(String(fbCur.open_until).slice(0, 10))}</span>` : '') +
+    `</div>` +
+    `<div class="fs-warn">발송하면 즉시 안내 메일이 나가며 <b>회수할 수 없습니다.</b> 명단을 확인한 뒤 진행해 주세요. 이미 받은 사람에게는 다시 가지 않습니다.</div>` +
+    (rows.length ? `<div class="fs-list"><div class="h">발송 명단 (고객사 · 발송 조직 · 수신자)</div>` +
+      rows.slice(0, CAP).map(row => `<div class="fs-row">` +
+        `<span class="co">${escHtml(row.company || '')}</span>` +
+        `<span class="un">${escHtml(row.unit || '—')}</span>` +
+        `<span class="rc">${(row.recipients || []).map(u => escHtml(u.name || u.email || '')).join(', ')}</span>` +
+      `</div>`).join('') +
+      (rows.length > CAP ? `<div class="fs-more">… ${rows.length - CAP}개 조직 더</div>` : '') +
+      `</div>` : `<div class="fs-warn" style="background:var(--surface2);border-color:var(--border);color:var(--muted);">조건에 맞는 수신자가 없습니다 — 발송 대상 단계에서 조건을 다시 확인해 주세요.</div>`);
+  const go = document.getElementById('fb-send-go');
+  if (go) {
+    go.disabled = !p.recipients;
+    go.textContent = p.recipients ? `${p.recipients}명에게 발송` : '발송 대상 없음';
+  }
+  document.getElementById('modal-fb-send').style.display = 'flex';
+}
+
+function closeFbSendModal() {
+  const m = document.getElementById('modal-fb-send');
+  if (m) m.style.display = 'none';
+  fbSendPlan = null;
+}
+
+async function fbConfirmSend() {
+  if (!fbSendPlan || fbSending) return;
+  fbSending = true;
+  const go = document.getElementById('fb-send-go');
+  const label = go?.textContent;
+  if (go) { go.disabled = true; go.textContent = '발송 중…'; }
+  const r = await fbSurveyApi({ form_id: fbSendPlan.formId });
+  fbSending = false;
+  if (go) { go.disabled = false; go.textContent = label || '발송'; }
+  if (!r.ok) {
+    showToast(`발송 실패: ${r.data?.error || 'HTTP ' + r.status}`, true);
+    return;
+  }
+  const d = r.data || {};
+  closeFbSendModal();
+  showToast(`발송 완료 — ${d.sent ?? 0}명에게 안내 메일을 보냈습니다.` +
+    (d.already_sent ? ` (이미 받은 ${d.already_sent}명 제외)` : ''));
+  if (fbCur) { fbCur.status = 'active'; fbRenderDoc(); }
+  loadForms();
 }
 
 // ── 저장 ──
