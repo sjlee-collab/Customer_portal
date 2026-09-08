@@ -195,6 +195,47 @@ button,input,select,textarea{font-family:inherit;}
 
 /* ── body area ── */
 .body{flex:1;overflow:hidden;padding:24px;display:flex;flex-direction:column;}
+/* ── 갱신 설문: 상단 배너 + 응답 팝업 ──
+   팝업에서 "나중에 하기"를 누르면 배너로 강등해 응답할 때까지 유지한다(밀어내기식 —
+   목록 높이는 fitListHeight()가 다시 계산해 흡수). */
+.svq-banner{flex-shrink:0;display:flex;align-items:center;gap:11px;background:var(--accent-l);border:1px solid #d6d0f7;border-radius:var(--r-md);padding:10px 14px;margin-bottom:14px;}
+.svq-banner .ic{font-size:15px;}
+.svq-banner .msg{flex:1;font-size:12.5px;color:var(--text);line-height:1.5;}
+.svq-banner .msg b{color:var(--accent);}
+.svq-banner .x{all:unset;cursor:pointer;font-size:12px;color:var(--faint);padding:0 4px;}
+#modal-svq .svq-box{background:var(--surface);border-radius:14px;width:460px;max-width:calc(100vw - 40px);max-height:calc(100vh - 60px);box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden;display:flex;flex-direction:column;}
+#modal-svq .svq-hd{background:linear-gradient(135deg,var(--accent),#6D67E4);padding:18px 22px 15px;color:#fff;text-align:center;flex-shrink:0;}
+#modal-svq .svq-badge{display:inline-block;background:rgba(255,255,255,.22);font-size:10.5px;font-weight:700;padding:3px 12px;border-radius:999px;margin-bottom:8px;}
+#modal-svq .svq-title{font-size:15.5px;font-weight:800;}
+#modal-svq .svq-sub{font-size:11.5px;color:#DDDAF8;line-height:1.55;margin-top:4px;}
+#modal-svq .svq-bd{padding:16px 22px 6px;overflow-y:auto;display:flex;flex-direction:column;gap:16px;}
+#modal-svq .svq-q{font-size:12.5px;font-weight:700;margin-bottom:9px;}
+#modal-svq .svq-q .req{color:var(--red);}
+#modal-svq .svq-scale{display:flex;gap:4px;flex-wrap:wrap;}
+#modal-svq .svq-scale button{all:unset;cursor:pointer;min-width:28px;height:28px;border:1px solid var(--border-md);border-radius:7px;display:grid;place-items:center;font-size:11.5px;color:var(--muted);padding:0 4px;}
+#modal-svq .svq-scale button.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;}
+#modal-svq .svq-cap{display:flex;justify-content:space-between;font-size:10px;color:var(--faint);margin-top:4px;}
+#modal-svq .svq-opt{display:flex;align-items:center;gap:9px;border:1.5px solid var(--border);border-radius:9px;padding:9px 12px;font-size:12.5px;color:var(--muted);margin-bottom:6px;cursor:pointer;}
+#modal-svq .svq-opt:last-child{margin-bottom:0;}
+#modal-svq .svq-opt.on{border-color:var(--accent);background:var(--accent-l);color:var(--text);font-weight:600;}
+#modal-svq .svq-opt .bx{width:14px;height:14px;flex-shrink:0;border:1.5px solid var(--border-strong);display:grid;place-items:center;font-size:9px;color:#fff;}
+#modal-svq .svq-opt .bx.sq{border-radius:4px;}
+#modal-svq .svq-opt .bx.ci{border-radius:50%;}
+#modal-svq .svq-opt.on .bx{background:var(--accent);border-color:var(--accent);}
+#modal-svq .svq-stars{display:flex;gap:6px;}
+#modal-svq .svq-stars button{all:unset;cursor:pointer;font-size:27px;line-height:1;color:#D1D5DB;}
+#modal-svq .svq-stars button.on{color:#F59E0B;}
+#modal-svq textarea.svq-ta{width:100%;box-sizing:border-box;border:1px solid var(--border-md);border-radius:9px;padding:9px 12px;font-size:12.5px;font-family:inherit;min-height:70px;resize:vertical;color:var(--text);background:var(--surface);outline:none;}
+#modal-svq .svq-ft{flex-shrink:0;padding:12px 22px 16px;}
+#modal-svq .svq-submit{width:100%;padding:11px 0;border:none;border-radius:10px;background:var(--accent);color:#fff;font-size:13px;font-weight:750;font-family:inherit;cursor:pointer;}
+#modal-svq .svq-submit:disabled{opacity:.45;cursor:default;}
+#modal-svq .svq-ftrow{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:10px;}
+#modal-svq .svq-later{all:unset;cursor:pointer;font-size:11.5px;color:var(--faint);text-decoration:underline;}
+#modal-svq .svq-step{font-size:10.5px;color:var(--faint);}
+#modal-svq .svq-done{padding:26px 22px 24px;text-align:center;}
+#modal-svq .svq-done .em{font-size:34px;}
+#modal-svq .svq-done .h{font-size:15px;font-weight:800;margin-top:8px;}
+#modal-svq .svq-done .d{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.6;}
 .body>#p-request-detail.active{flex:1;min-height:0;}
 /* 요청/요청 관리/고객사 관리 목록: JS로 높이를 계산하지 않고 flex로 남는 세로 공간을 채움 (해상도 무관하게 항상 정확) */
 .body>#p-my-requests.active,
@@ -1459,6 +1500,12 @@ textarea{resize:vertical;min-height:100px;}
   <div class="nav-backdrop" id="nav-backdrop" onclick="toggleDrawer()"></div>
   <!-- ── 콘텐츠 영역 ── -->
   <div class="body" id="main-body">
+    <!-- 갱신 설문 배너 — 팝업을 "나중에 하기"로 닫으면 응답할 때까지 여기 남는다 -->
+    <div class="svq-banner" id="svq-banner" style="display:none;">
+      <span class="ic">📊</span>
+      <span class="msg" id="svq-banner-msg"></span>
+      <button class="btn btn-primary btn-sm" onclick="svqOpen()">응답하기</button>
+    </div>
 
       <!-- ══ 대시보드 ══ -->
       <div id="p-dashboard" class="page u-page active">
@@ -4192,6 +4239,10 @@ textarea{resize:vertical;min-height:100px;}
 </div>
 
 <!-- 완료 건 만족도 팝업 — 고객 홈 진입 시 미평가 완료 건이 있으면 1회 노출 -->
+<!-- 갱신 설문 응답 — 발송된 설문(survey_history)의 내 미응답 건. 만족도 팝업과 한 큐로 동작(설문 우선) -->
+<div id="modal-svq" style="display:none;position:fixed;inset:0;z-index:505;background:rgba(0,0,0,.38);align-items:center;justify-content:center;" onclick="if(event.target===this)svqLater()">
+  <div class="svq-box" id="svq-box"></div>
+</div>
 <div id="modal-survey" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.35);align-items:center;justify-content:center;" onclick="if(event.target===this)svPopupLater()">
   <div id="modal-survey-box" style="background:var(--surface);border-radius:14px;width:360px;max-width:calc(100vw - 40px);box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden;"></div>
 </div>
@@ -4912,7 +4963,10 @@ async function enterApp(email, acct, isRestore) {
   const rateParam = parseInt(new URLSearchParams(window.location.search).get('rate'), 10);
   if (rateParam >= 1 && rateParam <= 5) window._rdPendingRate = rateParam;
   // survey=1: 완료 메일의 '별점 남기기' 버튼 — 별점 미선택 상태로 홈 팝업을 연다
-  window._rdSurveyEntry = new URLSearchParams(window.location.search).get('survey') === '1';
+  // survey 파라미터는 두 가지다: '1'=완료 건 별점 링크(기존), 그 외=설문 초대 토큰(?survey=토큰).
+  const _svParam = new URLSearchParams(window.location.search).get('survey');
+  window._rdSurveyEntry = _svParam === '1';
+  window._svqToken = (_svParam && _svParam !== '1') ? _svParam : null;
   if (ticketParam && sb) {
     sb.from('tickets').select('*').eq('ticket_number', ticketParam).single().then(({ data }) => {
       const pre = window._rdPendingRate; window._rdPendingRate = 0;
@@ -6661,7 +6715,7 @@ async function loadDashboard() {
     window._dashRecentFilter = window._dashRecentFilter || 'all';
     updateDashRecentCardStyles();
     renderDashRecentTable(window._dashRecentFilter);
-    maybeShowSurveyPopup();
+    maybeShowSurveyQueue();      // 갱신 설문(우선) → 없으면 만족도 팝업
 
   } else if (ADMIN_ROLES.has(role)) {
     const todayStart = new Date(); todayStart.setHours(0,0,0,0);
@@ -13573,6 +13627,182 @@ function _svPromptCount(id) {
 }
 function _svBumpPrompt(id) {
   try { localStorage.setItem('svPromptCount:' + id, String(_svPromptCount(id) + 1)); } catch (_) {}
+}
+
+// ══ 갱신 설문 응답 (고객) ═══════════════════════════════════════════════════
+// 발송된 설문 중 "내 미응답 건"을 GET /survey/my로 받아 첫 로그인 시 중앙 팝업으로 띄운다.
+// "나중에 하기"를 누르면 상단 배너로 강등하고, 응답을 마칠 때까지 배너를 유지한다.
+// 만족도 팝업과 한 번에 하나만 보이게 조율한다 — 갱신 설문이 우선(계약 갱신 판단에 쓰인다).
+// 답변 키 규약은 서버와 동일: { q1: 값, q2: 값, ... } (fields 순서, 1부터)
+let svqList = [];        // [{id, token, form_id, title, intro, fields, open_until, unit_name}]
+let svqIdx = 0;
+let svqAnswers = {};
+
+async function loadMySurveys() {
+  try {
+    const r = await fetch(`${API_BASE}/survey/my`, { headers: { ...authHeaders() } });
+    if (!r.ok) { svqList = []; renderSvqBanner(); return; }
+    const d = await r.json();
+    svqList = Array.isArray(d.surveys) ? d.surveys : [];
+  } catch (e) {
+    console.error('[내 설문 조회]', e);
+    svqList = [];
+  }
+  renderSvqBanner();
+}
+
+// 대시보드 로드 끝에서 호출 — 설문이 있으면 설문을, 없으면 기존 만족도 팝업을 띄운다.
+async function maybeShowSurveyQueue() {
+  await loadMySurveys();
+  const token = window._svqToken; window._svqToken = null;
+  if (token) {
+    const i = svqList.findIndex(x => x.token === token);
+    if (i >= 0) { svqOpen(i); return; }
+    showToast('이미 응답하셨거나 마감된 설문입니다.', true);
+  }
+  let deferred = false;
+  try { deferred = sessionStorage.getItem('svqDeferred') === '1'; } catch (_) {}
+  if (svqList.length && !deferred) { svqOpen(0); return; }   // 설문 우선(한 번에 하나)
+  maybeShowSurveyPopup();
+}
+
+function renderSvqBanner() {
+  const el = document.getElementById('svq-banner');
+  if (!el) return;
+  if (!svqList.length) { el.style.display = 'none'; fitListHeight(); return; }
+  const first = svqList[0];
+  const until = first.open_until ? ` · ${escHtml(String(first.open_until).slice(0, 10))}까지` : '';
+  document.getElementById('svq-banner-msg').innerHTML =
+    `응답 대기 중인 설문이 <b>${svqList.length}건</b> 있습니다 — ${escHtml(first.title || '')}${until}`;
+  el.style.display = 'flex';
+  fitListHeight();          // 배너가 목록 높이를 밀어내므로 다시 맞춘다
+}
+
+function svqOpen(idx) {
+  if (!svqList.length) return;
+  svqIdx = Math.min(Math.max(0, idx ?? 0), svqList.length - 1);
+  svqAnswers = {};
+  document.getElementById('modal-svq').style.display = 'flex';
+  renderSvqModal();
+}
+function svqClose() {
+  const m = document.getElementById('modal-svq');
+  if (m) m.style.display = 'none';
+}
+function svqLater() {
+  // 세션 동안은 팝업을 다시 띄우지 않되, 배너는 응답 전까지 남긴다.
+  try { sessionStorage.setItem('svqDeferred', '1'); } catch (_) {}
+  svqClose();
+  renderSvqBanner();
+}
+
+function _svqWidget(f, i) {
+  const key = `q${i + 1}`;
+  const cur = svqAnswers[key];
+  if (f.type === 'nps' || f.type === 'scale') {
+    const nums = f.type === 'nps' ? Array.from({ length: 11 }, (_, n) => n) : [1, 2, 3, 4, 5];
+    const caps = f.type === 'nps' ? ['전혀 추천 안 함', '매우 추천'] : ['전혀 아니다', '매우 그렇다'];
+    return `<div class="svq-scale">` +
+      nums.map(n => `<button type="button" class="${cur === n ? 'on' : ''}" onclick="svqSet('${key}',${n})">${n}</button>`).join('') +
+      `</div><div class="svq-cap"><span>${caps[0]}</span><span>${caps[1]}</span></div>`;
+  }
+  if (f.type === 'rating') {
+    return `<div class="svq-stars">` +
+      [1, 2, 3, 4, 5].map(n => `<button type="button" class="${cur >= n ? 'on' : ''}" onclick="svqSet('${key}',${n})" aria-label="${n}점">★</button>`).join('') +
+      `</div>`;
+  }
+  if (f.type === 'single' || f.type === 'multi') {
+    const multi = f.type === 'multi';
+    const shape = multi ? 'sq' : 'ci';
+    const sel = multi ? (Array.isArray(cur) ? cur : []) : cur;
+    return (f.options || []).map((o, oi) => {
+      const on = multi ? sel.includes(o) : sel === o;
+      return `<div class="svq-opt${on ? ' on' : ''}" onclick="svqSet('${key}',${JSON.stringify(String(o)).replace(/"/g, '&quot;')},${multi})">` +
+        `<span class="bx ${shape}">${on ? '✓' : ''}</span> ${escHtml(o)}</div>`;
+    }).join('');
+  }
+  return `<textarea class="svq-ta" placeholder="자유롭게 입력해 주세요${f.required ? '' : ' (선택)'}" ` +
+    `oninput="svqSetText('${key}', this.value)">${escHtml(cur || '')}</textarea>`;
+}
+
+function renderSvqModal() {
+  const sv = svqList[svqIdx];
+  if (!sv) { svqClose(); return; }
+  const fields = Array.isArray(sv.fields) ? sv.fields : [];
+  const mins = Math.max(1, Math.ceil(fields.length / 3));
+  const until = sv.open_until ? ` · ${escHtml(String(sv.open_until).slice(0, 10))}까지` : '';
+  document.getElementById('svq-box').innerHTML =
+    `<div class="svq-hd">
+       <span class="svq-badge">📊 설문 · 약 ${mins}분${until}</span>
+       <div class="svq-title">${escHtml(sv.title || '')}</div>
+       ${sv.intro ? `<div class="svq-sub">${escHtml(sv.intro)}</div>` : ''}
+     </div>
+     <div class="svq-bd">` +
+    fields.map((f, i) =>
+      `<div><div class="svq-q">Q${i + 1}. ${escHtml(f.label)} ${f.required ? '<span class="req">*</span>' : ''}</div>${_svqWidget(f, i)}</div>`).join('') +
+    `</div>
+     <div class="svq-ft">
+       <button class="svq-submit" id="svq-submit" onclick="svqSubmit()">제출하기</button>
+       <div class="svq-ftrow">
+         <button class="svq-later" onclick="svqLater()">나중에 하기</button>
+         <span class="svq-step">${svqIdx + 1} / ${svqList.length} · 제출 후 수정 불가</span>
+       </div>
+     </div>`;
+}
+
+// 선택형(척도·별점·단일·복수) — 값 저장 후 항상 다시 그려 선택 표시를 즉시 반영한다.
+function svqSet(key, val, multi) {
+  if (multi) {
+    const arr = Array.isArray(svqAnswers[key]) ? svqAnswers[key] : [];
+    const i = arr.indexOf(val);
+    if (i >= 0) arr.splice(i, 1); else arr.push(val);
+    svqAnswers[key] = arr;
+  } else {
+    svqAnswers[key] = val;
+  }
+  renderSvqModal();
+}
+// 서술형 — 입력 중 재렌더하면 포커스·커서가 날아가므로 값만 저장한다.
+function svqSetText(key, val) { svqAnswers[key] = val; }
+
+async function svqSubmit() {
+  const sv = svqList[svqIdx];
+  if (!sv) return;
+  const fields = Array.isArray(sv.fields) ? sv.fields : [];
+  for (let i = 0; i < fields.length; i++) {
+    const f = fields[i], v = svqAnswers[`q${i + 1}`];
+    const empty = v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length);
+    if (f.required && empty) { showToast(`Q${i + 1} 문항에 응답해 주세요.`, true); return; }
+  }
+  const btn = document.getElementById('svq-submit');
+  if (btn) { btn.disabled = true; btn.textContent = '제출 중…'; }
+  let ok = false, err = '';
+  try {
+    const r = await fetch(`${API_BASE}/survey/answer`, {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ invite_id: sv.id, answers: svqAnswers }),
+    });
+    ok = r.ok;
+    if (!ok) { try { err = (await r.json())?.error || `HTTP ${r.status}`; } catch (_) { err = `HTTP ${r.status}`; } }
+  } catch (e) { err = e?.message || '네트워크 오류'; }
+  if (!ok) {
+    if (btn) { btn.disabled = false; btn.textContent = '제출하기'; }
+    showToast('제출 실패: ' + err, true);
+    return;
+  }
+  svqList.splice(svqIdx, 1);          // 제출한 건은 큐에서 제거
+  svqAnswers = {};
+  renderSvqBanner();
+  const remain = svqList.length;
+  document.getElementById('svq-box').innerHTML =
+    `<div class="svq-done"><div class="em">🙏</div>
+       <div class="h">응답이 제출됐습니다</div>
+       <div class="d">소중한 의견 감사합니다. 서비스 개선에 반영하겠습니다.${remain ? `<br>남은 설문이 ${remain}건 있습니다.` : ''}</div>
+       <div style="margin-top:16px;display:flex;gap:8px;justify-content:center;">` +
+        (remain ? `<button class="btn btn-primary btn-sm" onclick="svqOpen(0)">다음 설문 응답</button>` : '') +
+        `<button class="btn btn-outline btn-sm" onclick="svqClose()">닫기</button>
+       </div></div>`;
 }
 
 function maybeShowSurveyPopup() {
