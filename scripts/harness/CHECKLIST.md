@@ -46,3 +46,23 @@
 ## 알림 Lambda(notify-handler/send-email) 변경 시
 - `TEST_TAG` env가 있으면 슬랙 헤더·메일 제목에 그 값을 접두하도록 유지(테스트 표기 규칙 2의 근거).
 - 배포는 `deploy-fn.sh notify-handler` / `deploy-fn.sh send-email`(drift 진단 → 배포). notify-handler도 매핑에 포함됨.
+
+## 6) 설문 발송 개통 (폼 빌더 D 단계) — 코드는 dev에 있음, 배포·개통 미완
+코드는 커밋돼 있고 **배포·라우트·배치 등록이 남았다**(운영 영향이 큰 순서대로 밟는다).
+오발송은 회수 불가 — 아래 순서를 절대 건너뛰지 말 것.
+
+- [ ] **업무시간 밖**에 시작(로그인 순단 위험: api-layer)
+- [ ] `bash scripts/harness/deploy-fn.sh data-api` → 스모크 (forms를 고객에게 active만 개방, survey_history 조회 허용·직접쓰기 차단)
+- [ ] `bash scripts/harness/deploy-fn.sh send-email` (SURVEY_INVITE 타입)
+- [ ] `bash scripts/harness/deploy-fn.sh notify-handler` (voc → 영업 채널)
+- [ ] `bash scripts/harness/deploy-fn.sh api-layer` ⚠️ **소스 4개 동봉 필수 — 스크립트가 처리**, 배포 직후 로그인 스모크
+- [ ] API GW 라우트 5개: `POST /survey/send`, `POST /survey/remind`, `GET /survey/my`, `POST /survey/answer`, `GET /survey/report`
+      (`bash scripts/harness/apigw-route.sh …`, 인가자는 기존 jwt-authorizer)
+- [ ] **드라이런**: `POST /survey/send {form_id, dry_run:true}` → 반환 명단이 폼 빌더 발송 대상 화면과 **일치(diff 0)** 확인
+- [ ] **[테스트] 경로 왕복**: `{form_id, only_test:true}` (=`[테스트]` 고객사만) → survey_history 행·메일(temail 싱크)·알림 로그 "설문" 탭 확인 → `sweep.sh --delete`
+- [ ] **본인 테스트 발송**: `{form_id, test_only:true}` → 관리자 본인 메일 1통(제목 `[테스트]`), survey_history 행 **없음** 확인
+- [ ] 시범 고객사 1곳만 직접 선택(target.mode='pick')해 실발송 → 수신·응답 제출까지 확인
+- [ ] 전체 실발송
+- [ ] 마지막에 자동 배치: EventBridge 4번째 잡 `survey_dispatch`(매일 09:00 KST, `{"task":"survey_dispatch"}`)
+      — 자동 발송은 `forms.target.auto='on'`인 설문만 대상이라, 등록만 하면 "마감 지난 설문 closed 정리"만 동작(안전한 기본값)
+- [ ] `run-regression.sh`

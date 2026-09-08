@@ -2185,6 +2185,410 @@ async function runLicenseExpiryNotice(event) {
   return json(200, { targetDate, expiring: endRows.length, renewing: renewRows.length });
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// 설문 발송 (폼 빌더 D 단계)
+//
+// 발송 대상은 화면이 계산한 명단을 그대로 믿지 않고 **서버에서 다시 계산한다** — 관리자가
+// 발송 대상 화면을 열어둔 사이 계약이 만료되거나 계정이 비활성화될 수 있기 때문이다.
+// 규칙(프론트 fbComputeTarget과 동일):
+//   ① 진행중 계약 중 만료일이 오늘 ~ D-offset 안에 드는 것 (+ 사용 제품 필터)
+//   ② (고객사, 계약 조직) 단위로 묶고 같은 조직의 계약이 여러 건이면 만료 임박한 것을 대표로
+//   ③ 수신자 = 그 조직에 배정된 활성 고객 계정 (user_org_units ∪ users.unit_id 합집합)
+//   ④ 사람 기준 dedup — 여러 조직에 걸려도 1통. DB의 unique(form_id,user_id)가 최종 방어선
+//   ⑤ 계정 없는 조직은 발송 제외(회사 전체로 확대하지 않는다 — 오발송 방지)
+// target.mode='pick'이면 화면에서 고른 조직("회사id|조직id" 키)만 대상으로 좁힌다.
+//
+// 응답 답변 키 규약: answers = { q1: 값, q2: 값, ... } (fields 배열 순서 기준, 1부터)
+const SURVEY_OFFSET_DAYS = { all: null, d90: 90, d60: 60, d30: 30 };
+
+function kstDatePlusDays(days) {
+  return new Date(Date.now() + 9 * 60 * 60 * 1000 + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+async function getForm(formId) {
+  const rows = await query('select * from forms where id=$1', [formId]);
+  return rows[0] ?? null;
+}
+
+// 조직 → 배정된 활성 고객 계정. 정식 배정표(user_org_units)와 대표 조직 비정규화 컬럼
+// (users.unit_id)의 합집합으로 본다 — 한쪽이 어긋나도 받아야 할 사람이 빠지지 않게.
+async function loadUnitMembers() {
+  const rows = await query(
+    `select u.id, u.name, u.email, u.company_id, uo.unit_id
+       from users u join user_org_units uo on uo.user_id = u.id
+      where u.role = 'customer' and u.is_active = true and u.email is not null
+     union
+     select u.id, u.name, u.email, u.company_id, u.unit_id
+       from users u
+      where u.role = 'customer' and u.is_active = true and u.email is not null
+        and u.unit_id is not null`
+  );
+  const byUnit = new Map();
+  for (const r of rows) {
+    if (!r.unit_id) continue;
+    const arr = byUnit.get(r.unit_id) || [];
+    if (!arr.some(x => x.id === r.id)) arr.push(r);
+    byUnit.set(r.unit_id, arr);
+  }
+  return byUnit;
+}
+
+// forms.target 조건 → 발송 행 목록(만료 임박 순). onlyTest면 '[테스트]' 고객사만,
+// 아니면 '[테스트]' 고객사를 제외한다(하네스가 운영 데이터를 건드리지 않게 하는 안전장치).
+async function resolveSurveyTargets(form, opts = {}) {
+  const t = form.target || {};
+  const off = SURVEY_OFFSET_DAYS[t.expiry] ?? null;
+  const today = kstToday();
+  const limitDate = off == null ? null : kstDatePlusDays(off);
+  const onlyTest = opts.onlyTest === true;
+  const contracts = await query(
+    `select ct.id, ct.company_id, ct.unit_id, ct.contract_name,
+            to_char(ct.end_date, 'YYYY-MM-DD') as end_date,
+            c.name as company_name, c.products, ou.unit_name
+       from company_contracts ct
+       join companies c on c.id = ct.company_id
+       left join org_units ou on ou.id = ct.unit_id
+      where ct.status = '진행중' and ct.end_date is not null
+        and ct.end_date >= $1::date
+        and ($2::date is null or ct.end_date <= $2::date)
+        and c.name ${onlyTest ? '' : 'not '}like '[테스트]%'
+      order by ct.end_date`,
+    [today, limitDate]
+  );
+
+  const selProducts = Array.isArray(t.products) ? t.products : [];
+  const matchesProduct = (products) => {
+    if (!selProducts.length) return true;
+    const list = Array.isArray(products) ? products : [];
+    return selProducts.some(p => list.some(cp => String(cp).includes(p) || p.includes(String(cp))));
+  };
+
+  const byKey = new Map();
+  for (const c of contracts) {
+    if (!matchesProduct(c.products)) continue;
+    const key = `${c.company_id}|${c.unit_id || ''}`;   // 프론트 fbTgtData.entries[].key와 동일한 형식
+    const prev = byKey.get(key);
+    if (!prev || c.end_date < prev.endDate) {
+      byKey.set(key, {
+        key, companyId: c.company_id, companyName: c.company_name,
+        unitId: c.unit_id || null, unitName: c.unit_name || null,
+        contractId: c.id, contractName: c.contract_name, endDate: c.end_date,
+        contractCount: prev ? prev.contractCount + 1 : 1,
+      });
+    } else {
+      prev.contractCount++;
+    }
+  }
+
+  let entries = [...byKey.values()].sort((a, b) => a.endDate.localeCompare(b.endDate));
+  if (t.mode === 'pick') {
+    const include = new Set(Array.isArray(t.include) ? t.include : []);
+    entries = entries.filter(e => include.has(e.key));
+  }
+
+  const byUnit = await loadUnitMembers();
+  const seen = new Set();
+  for (const e of entries) {
+    e.members = e.unitId ? (byUnit.get(e.unitId) || []) : [];   // 그 조직 전체(집계용)
+    e.users = e.members.filter(u => !seen.has(u.id));           // 실제 발송(사람 dedup)
+    e.users.forEach(u => seen.add(u.id));
+    e.triggerOffset = off;
+  }
+  return { entries, today, limitDate, offset: off };
+}
+
+function surveySummary(entries) {
+  const targets = entries.filter(e => e.users.length);
+  return {
+    units: entries.length,
+    companies: new Set(entries.map(e => e.companyId)).size,
+    recipients: targets.reduce((n, e) => n + e.users.length, 0),
+    excluded_units: entries.filter(e => !e.members.length).length,
+  };
+}
+
+// 발송 이력 삽입 — unique(form_id,user_id) + on conflict do nothing 으로 멱등.
+// 같은 설문을 두 번 발송해도 이미 보낸 사람에게는 다시 가지 않는다(반환된 행만 메일 대상).
+async function insertSurveyInvites(form, entries) {
+  const targets = entries.filter(e => e.users.length);
+  if (!targets.length) return [];
+  return withTransaction(async (q) => {
+    const inserted = [];
+    for (const e of targets) {
+      for (const u of e.users) {
+        const rows = await q(
+          `insert into survey_history
+             (form_id, user_id, token, company_id, company_name, unit_id, unit_name, contract_id, trigger_offset)
+           values ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+           on conflict (form_id, user_id) do nothing
+           returning id`,
+          [form.id, u.id, randomBytes(24).toString('hex'), e.companyId, e.companyName,
+           e.unitId, e.unitName, e.contractId, e.triggerOffset]
+        );
+        if (rows[0]) inserted.push(rows[0].id);
+      }
+    }
+    // 발송된 설문은 active로 잠근다 — 문항이 바뀌면 이미 받은 사람과 다른 설문이 된다.
+    await q(`update forms set status='active', updated_at=now() where id=$1 and status <> 'active'`, [form.id]);
+    return inserted;
+  });
+}
+
+// 안내 메일 — 초대 행마다 1통. 메일 실패가 이력을 롤백하지 않도록 커밋 뒤 비동기로 처리한다
+// (deferNotify('survey_mail')). 건별 실패는 로그만 남기고 나머지를 계속 보낸다.
+async function sendSurveyMails(formId, inviteIds, eventType = 'survey_invite') {
+  if (!Array.isArray(inviteIds) || !inviteIds.length) return;
+  const form = await getForm(formId);
+  if (!form) return;
+  const rows = await query(
+    `select sh.id, sh.token, sh.company_name, u.name, u.email
+       from survey_history sh join users u on u.id = sh.user_id
+      where sh.id = any($1::uuid[]) and u.is_active = true and u.email is not null`,
+    [inviteIds]
+  );
+  for (const r of rows) {
+    try {
+      await notifyEmail({
+        type: 'SURVEY_INVITE',
+        eventType,
+        toEmail: r.email,
+        userName: r.name,
+        companyName: r.company_name,
+        formTitle: form.title,
+        intro: form.intro,
+        openUntil: form.open_until ? String(form.open_until).slice(0, 10) : null,
+        questionCount: Array.isArray(form.fields) ? form.fields.length : 0,
+        token: r.token,
+      });
+    } catch (err) {
+      console.error(`[survey 메일 발송 실패] to=${r.email} invite=${r.id}`, err);
+    }
+  }
+}
+
+// ── POST /survey/send ── 설문 발송 (dry_run / test_only / only_test 지원)
+async function sendSurvey(body, event) {
+  const authz = getAuthz(event);
+  if (!(await hasPermission(authz.role, 'form_builder'))) {
+    return json(403, { error: '설문을 발송할 권한이 없습니다' });
+  }
+  const formId = body?.form_id;
+  if (!formId) return json(400, { error: 'form_id가 필요합니다' });
+  const form = await getForm(formId);
+  if (!form) return json(404, { error: '설문을 찾을 수 없습니다' });
+  if (form.form_type !== 'survey') return json(400, { error: '설문 폼이 아닙니다' });
+  if (form.status === 'closed') return json(400, { error: '마감된 설문은 발송할 수 없습니다' });
+  if (!Array.isArray(form.fields) || !form.fields.length) return json(400, { error: '문항이 없는 설문입니다' });
+
+  const dryRun = body.dry_run === true;
+
+  // 테스트 발송: 요청자 본인에게만 1통. survey_history에 행을 남기지 않으므로 응답률
+  // 분모가 오염되지 않는다. companyName에 [테스트] 라벨을 넣어 send-email의 백스톱이
+  // 싱크 수신자·is_test 로그로 자동 처리하게 한다.
+  if (body.test_only === true) {
+    const me = await getUser(authz.userId);
+    if (!me?.email) return json(400, { error: '본인 이메일을 찾을 수 없습니다' });
+    if (dryRun) return json(200, { dry_run: true, test_only: true, recipient: me.email });
+    await notifyEmail({
+      type: 'SURVEY_INVITE',
+      eventType: 'survey_invite',
+      toEmail: me.email,
+      userName: me.name,
+      companyName: '[테스트] 발송 테스트',
+      formTitle: form.title,
+      intro: form.intro,
+      openUntil: form.open_until ? String(form.open_until).slice(0, 10) : null,
+      questionCount: form.fields.length,
+      token: null,
+    });
+    return json(200, { test_only: true, sent: 1, recipient: me.email });
+  }
+
+  const { entries } = await resolveSurveyTargets(form, { onlyTest: body.only_test === true });
+  const summary = surveySummary(entries);
+
+  // 드라이런: DB·메일 모두 건드리지 않고 명단만 돌려준다. 화면 명단과 대조하는 개통 검증용.
+  if (dryRun) {
+    return json(200, {
+      dry_run: true, ...summary,
+      rows: entries.filter(e => e.users.length).map(e => ({
+        company: e.companyName, unit: e.unitName, contract: e.contractName,
+        end_date: e.endDate, trigger_offset: e.triggerOffset,
+        recipients: e.users.map(u => ({ name: u.name, email: u.email })),
+      })),
+      excluded: entries.filter(e => !e.members.length).map(e => ({ company: e.companyName, unit: e.unitName })),
+    });
+  }
+
+  const inviteIds = await insertSurveyInvites(form, entries);
+  if (inviteIds.length) await deferNotify('survey_mail', { formId: form.id, inviteIds, eventType: 'survey_invite' });
+  return json(200, { ...summary, sent: inviteIds.length, already_sent: summary.recipients - inviteIds.length });
+}
+
+// ── POST /survey/remind ── 미응답자 리마인더. survey_history는 그대로 두고
+// log_notification에 event_type='survey_resend'로만 남긴다(추가 컬럼 없음).
+async function remindSurvey(body, event) {
+  const authz = getAuthz(event);
+  if (!(await hasPermission(authz.role, 'form_builder'))) {
+    return json(403, { error: '설문을 발송할 권한이 없습니다' });
+  }
+  const formId = body?.form_id;
+  if (!formId) return json(400, { error: 'form_id가 필요합니다' });
+  const form = await getForm(formId);
+  if (!form) return json(404, { error: '설문을 찾을 수 없습니다' });
+  if (form.status !== 'active') return json(400, { error: '발송 중인 설문만 리마인더를 보낼 수 있습니다' });
+  const rows = await query(
+    `select sh.id from survey_history sh join users u on u.id = sh.user_id
+      where sh.form_id = $1 and sh.responded_at is null and u.is_active = true`,
+    [formId]
+  );
+  const inviteIds = rows.map(r => r.id);
+  if (body.dry_run === true) return json(200, { dry_run: true, pending: inviteIds.length });
+  if (inviteIds.length) await deferNotify('survey_mail', { formId, inviteIds, eventType: 'survey_resend' });
+  return json(200, { reminded: inviteIds.length });
+}
+
+// ── GET /survey/my ── 내 미응답 설문(팝업·배너용). 마감된 설문은 제외.
+async function mySurveys(event) {
+  const authz = getAuthz(event);
+  if (!authz.userId) return json(401, { error: '로그인이 필요합니다' });
+  const rows = await query(
+    `select sh.id, sh.token, sh.form_id, sh.unit_name,
+            to_char(sh.sent_at, 'YYYY-MM-DD') as sent_at,
+            f.title, f.intro, f.fields,
+            to_char(f.open_until, 'YYYY-MM-DD') as open_until
+       from survey_history sh join forms f on f.id = sh.form_id
+      where sh.user_id = $1 and sh.responded_at is null and f.status = 'active'
+        and (f.open_until is null or f.open_until >= $2::date)
+      order by sh.sent_at`,
+    [authz.userId, kstToday()]
+  );
+  return json(200, { surveys: rows });
+}
+
+// ── POST /survey/answer ── 응답 제출. UPDATE 1문장 + responded_at is null 조건으로
+// 1회 제출을 DB에서 강제한다. 메일 토큰으로 진입해도 본인 초대인지 반드시 확인한다.
+async function answerSurvey(body, event) {
+  const authz = getAuthz(event);
+  if (!authz.userId) return json(401, { error: '로그인이 필요합니다' });
+  const answers = body?.answers;
+  if (!answers || typeof answers !== 'object' || Array.isArray(answers)) {
+    return json(400, { error: '응답 내용이 필요합니다' });
+  }
+  const key = body.invite_id || body.token;
+  if (!key) return json(400, { error: 'invite_id 또는 token이 필요합니다' });
+  const found = await query(
+    `select sh.id from survey_history sh join forms f on f.id = sh.form_id
+      where ${body.invite_id ? 'sh.id = $2' : 'sh.token = $2'}
+        and sh.user_id = $1 and sh.responded_at is null and f.status = 'active'`,
+    [authz.userId, key]
+  );
+  if (!found.length) return json(404, { error: '응답할 설문을 찾을 수 없습니다 (이미 제출했거나 마감되었습니다)' });
+  const updated = await query(
+    `update survey_history set answers = $1::jsonb, responded_at = now()
+      where id = $2 and user_id = $3 and responded_at is null
+      returning id`,
+    [JSON.stringify(answers), found[0].id, authz.userId]
+  );
+  if (!updated.length) return json(409, { error: '이미 제출된 설문입니다' });
+  return json(200, { ok: true, id: updated[0].id });
+}
+
+// ── GET /survey/report?form_id=… ── 응답률·문항별·조직별 집계 + 미응답 명단.
+// 문항별 집계는 서버에서 계산해 프론트는 그리기만 한다(엑셀 내보내기도 이 JSON을 쓴다).
+async function surveyReport(event) {
+  const authz = getAuthz(event);
+  if (!(await hasPermission(authz.role, 'form_builder'))) {
+    return json(403, { error: '설문 결과를 볼 권한이 없습니다' });
+  }
+  const formId = event.queryStringParameters?.form_id;
+  if (!formId) return json(400, { error: 'form_id가 필요합니다' });
+  const form = await getForm(formId);
+  if (!form) return json(404, { error: '설문을 찾을 수 없습니다' });
+
+  const [totals] = await query(
+    `select count(*)::int as sent, count(responded_at)::int as responded
+       from survey_history where form_id = $1`, [formId]);
+  const byUnit = await query(
+    `select company_name, coalesce(unit_name, '(조직 미지정)') as unit_name,
+            count(*)::int as sent, count(responded_at)::int as responded
+       from survey_history where form_id = $1
+      group by company_name, unit_name order by company_name, unit_name`, [formId]);
+  const answered = await query(
+    `select answers from survey_history where form_id = $1 and responded_at is not null`, [formId]);
+  const pending = await query(
+    `select sh.company_name, sh.unit_name, u.name, u.email
+       from survey_history sh join users u on u.id = sh.user_id
+      where sh.form_id = $1 and sh.responded_at is null
+      order by sh.company_name, u.name`, [formId]);
+
+  const fields = Array.isArray(form.fields) ? form.fields : [];
+  const questions = fields.map((f, i) => {
+    const vals = answered
+      .map(r => (r.answers || {})[`q${i + 1}`])
+      .filter(v => v !== undefined && v !== null && v !== '');
+    const base = { label: f.label, type: f.type, required: !!f.required, count: vals.length };
+    if (f.type === 'nps' || f.type === 'scale' || f.type === 'rating') {
+      const nums = vals.map(Number).filter(n => !Number.isNaN(n));
+      const distribution = {};
+      nums.forEach(n => { distribution[n] = (distribution[n] || 0) + 1; });
+      const avg = nums.length ? Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100 : null;
+      return { ...base, count: nums.length, avg, distribution };
+    }
+    if (f.type === 'single' || f.type === 'multi') {
+      const distribution = {};
+      vals.flatMap(v => (Array.isArray(v) ? v : [v])).forEach(v => { distribution[v] = (distribution[v] || 0) + 1; });
+      return { ...base, distribution };
+    }
+    return { ...base, texts: vals.map(v => String(v)).slice(0, 1000) };
+  });
+
+  const sent = totals?.sent ?? 0;
+  return json(200, {
+    form: {
+      id: form.id, title: form.title, status: form.status,
+      open_until: form.open_until ? String(form.open_until).slice(0, 10) : null,
+      target: form.target ?? null,
+    },
+    summary: {
+      sent,
+      responded: totals?.responded ?? 0,
+      rate: sent ? Math.round(((totals.responded ?? 0) / sent) * 1000) / 10 : 0,
+    },
+    by_unit: byUnit, questions, pending,
+  });
+}
+
+// ── EventBridge Scheduler가 매일 09:00 KST에 {"task":"survey_dispatch"} 페이로드로 직접 호출 ──
+// ① 마감일이 지난 설문을 closed로 정리 ② 자동 발송이 켜진(target.auto='on') 설문을 발송.
+// 자동 발송은 수동 발송이 안정화된 뒤에 켠다 — 지금은 target.auto를 켜는 화면이 없으므로
+// 이 잡을 등록해도 ①만 동작한다(안전한 기본값).
+async function runSurveyDispatch(event) {
+  const onlyTest = event?.only_test === true;
+  const today = kstToday();
+  const closed = await query(
+    `update forms set status='closed', updated_at=now()
+      where form_type='survey' and status='active'
+        and open_until is not null and open_until < $1::date
+      returning id`, [today]);
+
+  const forms = await query(
+    `select * from forms
+      where form_type='survey' and status='active' and coalesce(target->>'auto', '') = 'on'`);
+  const dispatched = [];
+  for (const form of forms) {
+    try {
+      const { entries } = await resolveSurveyTargets(form, { onlyTest });
+      const inviteIds = await insertSurveyInvites(form, entries);
+      if (inviteIds.length) await deferNotify('survey_mail', { formId: form.id, inviteIds, eventType: 'survey_invite' });
+      dispatched.push({ form_id: form.id, title: form.title, sent: inviteIds.length });
+    } catch (err) {
+      console.error(`[survey_dispatch 개별 설문 실패] form=${form.id}`, err);
+    }
+  }
+  return json(200, { closed: closed.length, dispatched });
+}
+
 // 자기 자신에게 비동기(Event)로 재호출됐을 때 처리할 알림 작업 — kind별 디스패치
 const DEFERRED_HANDLERS = {
   create: (job) => notifyForCreate(job.ticketId, job.ticket),
@@ -2192,6 +2596,7 @@ const DEFERRED_HANDLERS = {
   assign: (job) => notifyForAssign(job.ticketId, job.prevAssigneeId, job.ticket),
   manage: (job) => notifyForManage(job),
   reply: (job) => notifyForReply(job.ticketId, job.authorId),
+  survey_mail: (job) => sendSurveyMails(job.formId, job.inviteIds, job.eventType),
 };
 
 export const handler = async (event) => {
@@ -2220,6 +2625,15 @@ export const handler = async (event) => {
       return await runLicenseExpiryNotice(event);
     } catch (err) {
       console.error('[license_expiry_notice 오류]', err);
+      return json(500, { error: String(err) });
+    }
+  }
+
+  if (event.task === 'survey_dispatch') {
+    try {
+      return await runSurveyDispatch(event);
+    } catch (err) {
+      console.error('[survey_dispatch 오류]', err);
       return json(500, { error: String(err) });
     }
   }
@@ -2300,6 +2714,21 @@ export const handler = async (event) => {
     }
     if (method === 'GET' && path === '/proxy/customers') {
       return await proxyCustomers(event);
+    }
+    if (method === 'POST' && path === '/survey/send') {
+      return await sendSurvey(body, event);
+    }
+    if (method === 'POST' && path === '/survey/remind') {
+      return await remindSurvey(body, event);
+    }
+    if (method === 'GET' && path === '/survey/my') {
+      return await mySurveys(event);
+    }
+    if (method === 'POST' && path === '/survey/answer') {
+      return await answerSurvey(body, event);
+    }
+    if (method === 'GET' && path === '/survey/report') {
+      return await surveyReport(event);
     }
     if (method === 'POST' && path === '/tickets') {
       return await createTicket(body, event);

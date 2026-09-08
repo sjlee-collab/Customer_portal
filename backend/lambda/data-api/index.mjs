@@ -33,7 +33,7 @@ const ALLOWED_TABLES = new Set([
   'companies', 'company_contracts', 'company_licenses', 'users', 'tickets',
   'log_notification', 'content_documents', 'ticket_history', 'log_integration',
   'ticket_replies', 'ticket_memos', 'ticket_attachments', 'content_notices', 'role_permissions',
-  'org_units', 'user_org_units', 'forms',
+  'org_units', 'user_org_units', 'forms', 'survey_history',
 ]);
 
 // 이 컬럼들은 select=* 나 명시적 요청과 무관하게 응답에서 절대 내려주지 않는다.
@@ -70,10 +70,9 @@ const STAFF_ONLY_TABLES = {
   // (고객 화면에 필요한 조직 정보는 tickets.unit_name 스냅샷과 로그인 응답으로 충분).
   org_units: new Set(['tech_support', 'sales', 'education', 'admin']),
   user_org_units: new Set(['tech_support', 'sales', 'education', 'admin']),
-  // forms(설문 정의)는 지금은 폼 빌더(관리 화면)에서만 쓴다. 고객이 설문에 응답하는 화면을
-  // 만들 때(Phase 2) 발송된 active 설문만 읽도록 별도 정책을 열어야 하며, 그전까지는
-  // 초안·마감 설문까지 통째로 노출되지 않게 스태프 전용으로 막는다.
-  forms: new Set(['tech_support', 'sales', 'education', 'admin']),
+  // forms(폼 정의)는 스태프 전용에서 제외한다 — 고객이 설문에 응답하고 VOC 요청 폼을
+  // 렌더하려면 문항을 읽어야 한다. 대신 tenantRowFilterSql에서 비스태프에게는
+  // status='active' 행만 내려준다(초안·마감 설문은 계속 비노출). 쓰기는 form_builder 권한.
 };
 
 function assertTableAccess(table, event) {
@@ -114,8 +113,8 @@ const WRITE_PERMISSION_BY_TABLE = {
 // companies.products / notification_emails, tickets.cc_emails 같은 진짜 text[] 컬럼이 있어서
 // 배열을 일괄 변환할 수는 없으므로, jsonb 컬럼만 여기 명시해 JSON 문자열로 바인딩한다.
 const JSONB_COLUMNS = {
-  forms: new Set(['fields']),
-  form_responses: new Set(['answers']),
+  forms: new Set(['fields', 'target']),
+  survey_history: new Set(['answers']),
 };
 
 function bindWriteValue(table, col, value) {
@@ -149,7 +148,10 @@ async function hasPermission(role, featureKey) {
 // api-layer가 자체 DB 연결로만 남기고, 클라이언트는 조회만 한다. 이렇게 안 막으면 로그인한
 // 사용자가 가짜 상태변경 이력을 주입하거나(작성자 위조) 자기 티켓 이력을 DELETE로 지워
 // 감사 추적을 파괴할 수 있었다(실제 테스트로 확인). GET(조회)은 여기 걸리지 않는다.
-const NO_DIRECT_WRITE_TABLES = new Set(['tickets', 'ticket_history']);
+// survey_history(설문 발송·응답 이력)도 같은 이유로 막는다 — 발송 행 생성은 api-layer의
+// /survey/send(멱등 삽입·토큰 발급), 응답 기록은 /survey/answer(1회 제출 강제)가 전담한다.
+// 이 범용 API로 쓰게 두면 응답을 위조하거나 남의 초대를 지워 응답률을 조작할 수 있다.
+const NO_DIRECT_WRITE_TABLES = new Set(['tickets', 'ticket_history', 'survey_history']);
 
 // 이 테이블들에 쓸 때 "누가 썼는가" 컬럼은 클라이언트가 준 값을 절대 믿지 않고 항상 인증
 // 토큰의 본인 userId로 덮어쓴다 — 안 그러면 남(관리자 포함)의 명의로 답글/첨부/메모를
@@ -200,6 +202,16 @@ async function tenantRowFilterSql(table, authz, paramOffset, qs) {
 
   if (STAFF_ROLES.has(role)) return null;
 
+  // 폼 정의: 비스태프에게는 "발송 중(active)" 폼만. 초안·마감 폼은 존재 자체를 숨긴다 —
+  // 고객이 아직 검토 중인 설문 문항이나 지난 설문을 미리 볼 수 없어야 한다.
+  if (table === 'forms') {
+    return { sql: `"status" = 'active'`, params: [] };
+  }
+  // 설문 발송·응답 이력: 본인에게 온 초대만. 남의 응답 내용·수신 여부를 볼 수 없다.
+  // (응답 제출은 이 범용 API가 아니라 api-layer POST /survey/answer 전용 — 아래 쓰기 차단)
+  if (table === 'survey_history') {
+    return userId ? { sql: `"user_id" = $${paramOffset}`, params: [userId] } : { sql: '1=0', params: [] };
+  }
   if (table === 'companies') {
     return companyId ? { sql: `"id" = $${paramOffset}`, params: [companyId] } : { sql: '1=0', params: [] };
   }
