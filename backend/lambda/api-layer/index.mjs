@@ -2198,7 +2198,9 @@ async function runLicenseExpiryNotice(event) {
 //   ⑤ 계정 없는 조직은 발송 제외(회사 전체로 확대하지 않는다 — 오발송 방지)
 // target.mode='pick'이면 화면에서 고른 조직("회사id|조직id" 키)만 대상으로 좁힌다.
 //
-// 응답 답변 키 규약: answers = { q1: 값, q2: 값, ... } (fields 배열 순서 기준, 1부터)
+// 응답 답변 키 규약: answers = { <문항 id>: 값, ... } — fields[].id(폼 빌더가 부여)를 키로 쓴다.
+// 순서 기반(q1..qN)은 문항 삭제·순서 변경 시 과거 답변이 다른 문항으로 잘못 해석되므로 폐기했다.
+// id가 없던 시절 저장된 응답은 q-키로 남아 있어, 리포트 집계는 두 키를 모두 읽는다.
 const SURVEY_OFFSET_DAYS = { all: null, d90: 90, d60: 60, d30: 30 };
 
 function kstDatePlusDays(days) {
@@ -2524,8 +2526,10 @@ async function surveyReport(event) {
 
   const fields = Array.isArray(form.fields) ? form.fields : [];
   const questions = fields.map((f, i) => {
+    // 답변 키는 문항 고유 id가 기본이고, id가 없던 시절 응답은 순서 키(q1..qN)로 저장돼 있다.
+    // 둘 다 읽어 과거 응답이 집계에서 누락되지 않게 한다.
     const vals = answered
-      .map(r => (r.answers || {})[`q${i + 1}`])
+      .map(r => { const a = r.answers || {}; return f.id !== undefined && a[f.id] !== undefined ? a[f.id] : a[`q${i + 1}`]; })
       .filter(v => v !== undefined && v !== null && v !== '');
     const base = { label: f.label, type: f.type, required: !!f.required, count: vals.length };
     if (f.type === 'nps' || f.type === 'scale' || f.type === 'rating') {

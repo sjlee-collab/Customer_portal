@@ -13704,8 +13704,12 @@ function svqLater() {
   renderSvqBanner();
 }
 
+// 답변 키는 **문항 고유 id**를 쓴다(fbAddField가 부여). 순서 기반(q1..qN)이면 문항을 지우거나
+// 순서를 바꿨을 때 과거 답변이 다른 문항의 것으로 잘못 해석된다. id가 없는 옛 문항만 q-키로 폴백.
+function _svqKey(f, i) { return f?.id || `q${i + 1}`; }
+
 function _svqWidget(f, i) {
-  const key = `q${i + 1}`;
+  const key = _svqKey(f, i);
   const cur = svqAnswers[key];
   if (f.type === 'nps' || f.type === 'scale') {
     const nums = f.type === 'nps' ? Array.from({ length: 11 }, (_, n) => n) : [1, 2, 3, 4, 5];
@@ -13778,7 +13782,7 @@ async function svqSubmit() {
   if (!sv) return;
   const fields = Array.isArray(sv.fields) ? sv.fields : [];
   for (let i = 0; i < fields.length; i++) {
-    const f = fields[i], v = svqAnswers[`q${i + 1}`];
+    const f = fields[i], v = svqAnswers[_svqKey(f, i)];
     const empty = v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length);
     if (f.required && empty) { showToast(`Q${i + 1} 문항에 응답해 주세요.`, true); return; }
   }
