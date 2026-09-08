@@ -9467,6 +9467,23 @@ function fbTgtBuildOpts() {
     for (const v of [...fbTgtSel[k]]) if (!ids.has(v)) fbTgtSel[k].delete(v);
   }
 }
+// 옵션 목록 마크업 — 전체 재렌더와 "입력 중 부분 갱신"이 같은 결과를 내도록 한 곳에 둔다.
+function _fbTgtOptsHtml(key) {
+  const q = fbTgtQ[key];
+  const opts = fbTgtOpts[key].filter(o => !q || o.label.toLowerCase().includes(q.toLowerCase()));
+  const hl = (txt) => {
+    if (!q) return escHtml(txt);
+    const i = txt.toLowerCase().indexOf(q.toLowerCase());
+    if (i < 0) return escHtml(txt);
+    return escHtml(txt.slice(0, i)) + '<span class="hl">' + escHtml(txt.slice(i, i + q.length)) + '</span>' + escHtml(txt.slice(i + q.length));
+  };
+  if (!opts.length) return `<div class="fb-fempty">검색 결과 없음</div>`;
+  return opts.map(o =>
+    `<div class="fb-fopt${fbTgtSel[key].has(o.id) ? ' on' : ''}" onclick="fbTgtToggle('${key}','${o.id}')">` +
+      `<span class="cb"></span><span>${hl(o.label)}</span>` +
+      (o.sub && key !== 'co' ? `<span class="sub">${escHtml(o.sub)}</span>` : '') +
+    `</div>`).join('');
+}
 function fbTgtRenderFilters() {
   const bar = document.getElementById('fb-tgt-fbar');
   if (!bar || !fbTgtData) return;
@@ -9480,26 +9497,13 @@ function fbTgtRenderFilters() {
       `<span class="fb-fchip">${escHtml(o.label)}<span class="x" onclick="event.stopPropagation();fbTgtToggle('${key}','${o.id}')">×</span></span>`).join('') +
       (chosen.length > 2 ? `<span class="fb-fmore">+${chosen.length - 2}</span>` : '');
     const q = fbTgtQ[key];
-    const opts = fbTgtOpts[key].filter(o => !q || o.label.toLowerCase().includes(q.toLowerCase()));
-    const hl = (txt) => {
-      if (!q) return escHtml(txt);
-      const i = txt.toLowerCase().indexOf(q.toLowerCase());
-      if (i < 0) return escHtml(txt);
-      return escHtml(txt.slice(0, i)) + '<span class="hl">' + escHtml(txt.slice(i, i + q.length)) + '</span>' + escHtml(txt.slice(i + q.length));
-    };
     box.className = 'fb-fctl' + (fbTgtOpenKey === key ? ' open' : '');
     box.innerHTML =
       `<div class="fb-fbox" onclick="event.stopPropagation();fbTgtOpenPop('${key}')">${chips || `<span class="ph">${m.ph}</span>`}</div>` +
       `<div class="fb-fpop" onclick="event.stopPropagation()">` +
         `<div class="srch"><span style="color:var(--faint);font-size:12px;">🔍</span><input id="fb-fq-${key}" placeholder="${m.srch}" value="${_fbAttr(q)}" oninput="fbTgtSearch('${key}', this)"></div>` +
-        `<div class="fb-fopts">` +
-          (opts.length ? opts.map(o =>
-            `<div class="fb-fopt${fbTgtSel[key].has(o.id) ? ' on' : ''}" onclick="fbTgtToggle('${key}','${o.id}')">` +
-              `<span class="cb"></span><span>${hl(o.label)}</span>` +
-              (o.sub && key !== 'co' ? `<span class="sub">${escHtml(o.sub)}</span>` : '') +
-            `</div>`).join('') : `<div class="fb-fempty">검색 결과 없음</div>`) +
-        `</div>` +
-        `<div class="fb-fft"><button onclick="fbTgtClear('${key}')">선택 해제</button><span class="cnt">${fbTgtSel[key].size}개 선택</span></div>` +
+        `<div class="fb-fopts" id="fb-fopts-${key}">${_fbTgtOptsHtml(key)}</div>` +
+        `<div class="fb-fft"><button onclick="fbTgtClear('${key}')">선택 해제</button><span class="cnt" id="fb-fcnt-${key}">${fbTgtSel[key].size}개 선택</span></div>` +
       `</div>`;
   }
   const anyFilter = fbTgtSel.co.size || fbTgtSel.org.size || fbTgtSel.rc.size;
@@ -9518,11 +9522,15 @@ function fbTgtOpenPop(key) {
   fbTgtRenderFilters();
   if (fbTgtOpenKey) document.getElementById('fb-fq-' + fbTgtOpenKey)?.focus();
 }
+// ⚠️ 입력 중에는 컨트롤 전체를 다시 그리지 않는다. innerHTML을 갈아끼우면 <input>이 새로
+// 만들어져 **한글 IME 조합이 매 글자 끊긴다**("빅스" → "ㅂㅣㄱㅅㅡ"). 포커스를 다시 줘도
+// 조합 상태는 복구되지 않으므로, 목록과 선택 개수만 부분 갱신하고 입력 노드는 그대로 둔다.
 function fbTgtSearch(key, el) {
   fbTgtQ[key] = el.value;
-  fbTgtRenderFilters();
-  const i = document.getElementById('fb-fq-' + key);
-  if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
+  const list = document.getElementById('fb-fopts-' + key);
+  if (list) list.innerHTML = _fbTgtOptsHtml(key);
+  const cnt = document.getElementById('fb-fcnt-' + key);
+  if (cnt) cnt.textContent = `${fbTgtSel[key].size}개 선택`;
 }
 function fbTgtToggle(key, id) {
   fbTgtSel[key].has(id) ? fbTgtSel[key].delete(id) : fbTgtSel[key].add(id);
