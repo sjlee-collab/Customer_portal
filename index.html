@@ -342,6 +342,46 @@ button,input,select,textarea{font-family:inherit;}
 .sat-quote b{color:var(--text);font-weight:600;}
 .sat-quote .m{font-size:10.5px;color:var(--faint);margin-top:2px;}
 .sat-trend-up{color:var(--green-d);font-weight:700;} .sat-trend-dn{color:var(--red-d);font-weight:700;}
+/* ── 사용 통계 > 설문 현황 탭 ── */
+/* 이 탭만 2단(목록=설문 단위 / 상세=문항 단위)이다. 설문마다 문항이 달라 여러 설문의 응답을
+   한 축으로 합칠 수 없어서, 합계가 성립하는 발송·응답·응답률만 목록에 두고 문항은 상세로 내렸다. */
+/* .rq-bfill은 인라인 span이라 부모가 flex가 아니면 height/width가 적용되지 않는다.
+   설문 탭이 쓰는 막대만 블록으로 승격한다 — 기존 탭의 규칙은 건드리지 않는다. */
+.sv-rate{display:flex;align-items:center;gap:9px;min-width:118px;}
+.sv-rate .rq-btrack{flex:1;display:block;}
+.sv-rate .rq-bfill,.sv-q .rq-bfill{display:block;}
+.sv-rate b{font-size:12px;font-variant-numeric:tabular-nums;width:38px;text-align:right;}
+/* 문항 카드의 선택지 라벨은 제품명·문장이라 기본 92px로는 대부분 잘린다. */
+.sv-q .rq-brow{grid-template-columns:172px 1fr 70px;}
+@media (max-width:900px){.sv-q .rq-brow{grid-template-columns:108px 1fr 64px;}}
+.sv-pill{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:99px;white-space:nowrap;}
+.sv-pill.act{background:var(--green-l);color:var(--green-d);}
+.sv-pill.clo{background:var(--surface2);color:var(--muted);}
+.sv-pill.dra{background:var(--amber-l);color:var(--amber-d);}
+.sv-pill.tri{background:var(--accent-l);color:var(--accent-d);}
+.sv-row{cursor:pointer;}
+.sv-row:hover{background:var(--accent-l);}
+.sv-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.sv-head .dt{font-size:16px;font-weight:800;letter-spacing:-.01em;}
+.sv-head .dm{display:flex;gap:20px;margin-left:auto;flex-wrap:wrap;}
+.sv-head .dm div{font-size:11px;color:var(--muted);}
+.sv-head .dm b{display:block;font-size:19px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums;margin-top:2px;}
+.sv-q{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:15px 18px;box-shadow:var(--shadow-sm);margin-bottom:14px;}
+.sv-qh{display:flex;align-items:flex-start;gap:9px;margin-bottom:14px;}
+.sv-qn{font-size:11px;font-weight:800;color:#fff;background:#9AA1B4;border-radius:5px;padding:2px 7px;flex:none;margin-top:1px;}
+.sv-qt{font-size:13.5px;font-weight:700;flex:1;min-width:0;}
+.sv-qty{font-size:10.5px;font-weight:700;color:var(--muted);background:var(--surface2);border:1px solid var(--border-md);border-radius:99px;padding:2px 8px;flex:none;white-space:nowrap;}
+.sv-qc{font-size:11px;color:var(--faint);flex:none;white-space:nowrap;}
+.sv-big{display:flex;align-items:baseline;gap:8px;margin-bottom:12px;}
+.sv-big .bv{font-size:30px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
+.sv-big .bl{font-size:11.5px;color:var(--muted);}
+.sv-nps{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
+.sv-nps>div{flex:1;min-width:112px;border-radius:var(--r-md);padding:9px 12px;}
+.sv-nps .sn{font-size:11px;font-weight:700;margin-bottom:3px;}
+.sv-nps .snum{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;}
+.sv-nps .det{background:var(--red-l);color:var(--red-d);}
+.sv-nps .pas{background:var(--surface2);color:var(--muted);}
+.sv-nps .pro{background:var(--green-l);color:var(--green-d);}
 /* 다운로드 상위 자료 — 제목이 FAQ 한 문장이라 한 줄 그리드로는 대부분 잘린다.
    제목을 위에 두 줄까지 펼치고 막대·횟수를 아래 줄에 둔다. */
 .dl-item{padding:9px 0;border-bottom:1px solid var(--border);}
@@ -2659,6 +2699,7 @@ textarea{resize:vertical;min-height:100px;}
           <button type="button" data-stab="lib" onclick="switchStatsTab('lib')">📄 자료실 활용</button>
           <button type="button" data-stab="sys" onclick="switchStatsTab('sys')">🔔 알람 현황</button>
           <button type="button" data-stab="sat" onclick="switchStatsTab('sat')">⭐ 응답 현황</button>
+          <button type="button" data-stab="sv" onclick="switchStatsTab('sv')">📋 설문 현황</button>
           <button type="button" data-stab="feed" onclick="switchStatsTab('feed')">👣 고객 활동</button>
         </div>
 
@@ -3094,6 +3135,99 @@ textarea{resize:vertical;min-height:100px;}
             </div>
           </div>
         </div><!-- /stab-sat -->
+
+        <div class="stab-panel" id="stab-sv" style="display:none;">
+          <!-- 목록 레벨 — 설문 단위. answers를 열지 않고 발송·응답 수만 센다(스키마 무관). -->
+          <div id="sv-list">
+          <div class="rq-filters">
+            <input id="sv-q" class="search-box" placeholder="설문 제목 검색" onkeydown="if(event.key==='Enter')loadSurveyStats()">
+            <span class="rq-fspace"></span>
+            <span class="rq-seg" id="sv-days" role="group" aria-label="기간">
+              <button type="button" onclick="setSvDays(7,this)">7일</button>
+              <button type="button" onclick="setSvDays(30,this)">30일</button>
+              <button type="button" class="on" onclick="setSvDays(90,this)">90일</button>
+              <button type="button" onclick="setSvDays(0,this)">전체</button>
+            </span>
+            <select id="sv-status" onchange="setSvStatus(this.value)">
+              <option value="">전체 상태</option>
+              <option value="active">진행 중</option>
+              <option value="closed">마감</option>
+              <option value="draft">초안</option>
+            </select>
+          </div>
+          <div class="rq-filters2"><span class="rq-fnote">기간: 발송일 기준 — 아직 발송하지 않은 초안도 목록에는 표시됩니다</span></div>
+
+          <div class="rq-kpis" id="sv-kpis">
+            <div class="rq-kpi" style="grid-column:1/-1;"><div class="s" style="margin:0;">불러오는 중...</div></div>
+          </div>
+
+          <div class="card" style="padding:0;overflow:hidden;">
+            <div style="padding:15px 18px 11px;">
+              <div class="card-title" style="margin-bottom:0;">설문별 현황
+                <span style="font-size:11px;color:var(--faint);font-weight:400;">행을 클릭하면 문항별 응답이 열립니다</span></div>
+            </div>
+            <div class="tbl-scroll"><table class="tbl tbl-compact" style="min-width:960px;">
+              <thead><tr><th>설문명</th><th>상태</th><th>발송 조건</th><th>발송일</th><th>마감일</th>
+                <th style="text-align:right;">발송</th><th style="text-align:right;">응답</th><th style="width:180px;">응답률</th></tr></thead>
+              <tbody id="sv-rows"><tr><td colspan="8" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr></tbody>
+            </table></div>
+            <div style="padding:11px 18px;border-top:1px solid var(--border);background:var(--surface2);">
+              <span class="rq-note">ⓘ 응답률 = 응답 ÷ 발송. 분자·분모가 같은 발송 이력 행에서 나와 100%를 넘을 수 없습니다.</span>
+            </div>
+          </div>
+
+          <div class="rq-g2" style="margin-bottom:16px;">
+            <div class="card" style="margin-bottom:0;">
+              <div class="card-title">응답 시간 분포 <span style="font-size:11px;color:var(--faint);font-weight:400;">발송 후 경과일별 누적 응답률</span>
+                <span style="margin-left:auto;font-size:11px;color:var(--muted);font-weight:400;">재발송 시점 근거</span></div>
+              <div id="sv-curve"></div>
+            </div>
+            <div class="card" style="margin-bottom:0;">
+              <div class="card-title">발송 조건별 응답률 <span style="font-size:11px;color:var(--faint);font-weight:400;">자동·수동</span></div>
+              <div id="sv-trigger"></div>
+              <div class="rq-note" style="margin-top:12px;">ⓘ 대상을 좁게 고른 설문일수록 응답률이 높은 경향이 있습니다.</div>
+            </div>
+          </div>
+
+          <div class="card" style="padding:0;overflow:hidden;">
+            <div style="padding:15px 18px 11px;">
+              <div class="card-title" style="margin-bottom:0;">미응답 명단
+                <span id="sv-pending-sub" style="font-size:11px;color:var(--faint);font-weight:400;">경과 오래된 순</span></div>
+            </div>
+            <div class="tbl-scroll"><table class="tbl tbl-compact" style="min-width:820px;">
+              <thead><tr><th>고객사</th><th>조직</th><th>수신자</th><th>설문</th><th>발송일</th><th style="text-align:right;">경과</th></tr></thead>
+              <tbody id="sv-pending"></tbody>
+            </table></div>
+            <div style="padding:11px 18px;border-top:1px solid var(--border);background:var(--surface2);">
+              <span class="rq-note">ⓘ 재발송은 폼 빌더에서 합니다 — 사용 통계는 읽기 화면이고, 오발송은 회수할 수 없어 발송 경로를 한 곳으로 유지합니다.</span>
+            </div>
+          </div>
+          </div><!-- /sv-list -->
+
+          <!-- 상세 레벨 — 문항 단위. survey_history.answers 스키마에 의존한다. -->
+          <div id="sv-detail" style="display:none;">
+            <div class="rq-filters">
+              <button class="btn btn-outline btn-sm" onclick="backToSurveyList()">← 목록으로</button>
+              <span class="rq-fspace"></span>
+            </div>
+            <div class="card" id="sv-dhead" style="margin-bottom:16px;"></div>
+            <div id="sv-qs"></div>
+            <div class="card" style="padding:0;overflow:hidden;">
+              <div style="padding:15px 18px 11px;">
+                <div class="card-title" style="margin-bottom:0;">고객사별 응답 현황
+                  <span style="font-size:11px;color:var(--faint);font-weight:400;">응답률 낮은 순 · 조직 단위</span></div>
+              </div>
+              <div class="tbl-scroll"><table class="tbl tbl-compact" style="min-width:760px;">
+                <thead><tr><th>고객사</th><th>조직</th><th style="text-align:right;">발송</th><th style="text-align:right;">응답</th>
+                  <th style="width:180px;">응답률</th><th>계약 만료</th></tr></thead>
+                <tbody id="sv-bycompany"></tbody>
+              </table></div>
+              <div style="padding:11px 18px;border-top:1px solid var(--border);background:var(--surface2);">
+                <span class="rq-note">ⓘ 계약 만료가 가까운데 응답률이 0%인 고객사는 이탈 신호일 수 있습니다 — 고객 활용 탭의 등급과 함께 보세요.</span>
+              </div>
+            </div>
+          </div>
+        </div><!-- /stab-sv -->
 
         <div class="stab-panel" id="stab-feed" style="display:none;">
           <div class="rq-filters">
@@ -9652,6 +9786,8 @@ function switchStatsTab(tab) {
   if (sys) sys.style.display = tab === 'sys' ? '' : 'none';
   const sat = document.getElementById('stab-sat');
   if (sat) sat.style.display = tab === 'sat' ? '' : 'none';
+  const sv = document.getElementById('stab-sv');
+  if (sv) sv.style.display = tab === 'sv' ? '' : 'none';
   const feed = document.getElementById('stab-feed');
   if (feed) feed.style.display = tab === 'feed' ? '' : 'none';
   // 계정 탭에서만 페이지를 뷰포트 높이에 고정하고(acct-mode) 목록으로 남는 공간을 채운다.
@@ -9663,6 +9799,7 @@ function switchStatsTab(tab) {
   if (tab === 'lib' && !_dlLoaded) loadDocStats();
   if (tab === 'sys' && !_sysLoaded) loadSystemStats();
   if (tab === 'sat' && !_satLoaded) loadSatStats();
+  if (tab === 'sv' && !_svLoaded) loadSurveyStats();
   if (tab === 'feed' && !_fdLoaded) loadActivity();
 }
 
@@ -9716,6 +9853,7 @@ async function loadStats() {
   if (_dlLoaded) loadDocStats();
   if (_sysLoaded) loadSystemStats();
   if (_satLoaded) loadSatStats();
+  if (_svLoaded) loadSurveyStats();
   if (_fdLoaded) loadActivity();
   try {
     // 접속 활동(서버 집계)
@@ -10045,6 +10183,354 @@ function _satRenderRecent(rows) {
         ${_satStars(r.r)} <b>${escHtml(r.company || '—')}</b> · ${CAT[r.category] || escHtml(r.category)}<br>
         ${escHtml(r.comment)}<div class="m">${escHtml(r.ticket_number)} · ${escHtml(r.at)}</div></div>`).join('')
     : '<div class="rq-empty">한줄평이 아직 없습니다. 완료 요청의 고객이 평가를 남기면 여기에 표시됩니다.</div>';
+}
+
+// ── 설문 현황 (GET /stats/surveys · /stats/survey-detail, 서버 집계) ─────
+// 폼 빌더 설문(forms.form_type='survey')의 발송·응답 이력(survey_history) 집계.
+// 이 탭만 2단이다 — 설문마다 문항이 달라 여러 설문의 응답을 한 축으로 합칠 수 없기 때문.
+//   목록: 발송·응답·응답률만 센다. answers를 열지 않아 응답 스키마와 무관하게 동작한다.
+//   상세: 문항별 분포. survey_history.answers = { "<field.id>": 값 } 을 전제로 한다.
+//         값 타입 — single:문자열 / multi:문자열배열 / rating·scale:1~5 / nps:0~10 /
+//                   line·para·text:문자열 / date:'YYYY-MM-DD'
+// 응답률은 분자(responded_at 있음)와 분모(발송 행)가 같은 테이블 같은 행에서 나온다 —
+// 만족도 응답률처럼 분모를 따로 세다 100%를 넘는 일이 구조적으로 불가능하다.
+// ⚠️ 두 엔드포인트는 발송 백엔드(D단계)와 함께 배포한다. 그 전에는 404가 돌아오고 화면은
+//    "아직 배포되지 않았습니다" 안내를 띄운다 — 장애가 아니라 의도된 상태다.
+
+let _svDays = 90, _svStatus = '', _svLoaded = false;
+
+const SV_QTYPE_KO = { single: '객관식 · 단일', multi: '객관식 · 복수', text: '주관식',
+  line: '한 줄 입력', para: '여러 줄 입력', rating: '별점 1~5', nps: 'NPS 0~10',
+  scale: '척도 1~5', date: '날짜' };
+const SV_STATUS_KO = { active: ['act', '진행 중'], closed: ['clo', '마감'], draft: ['dra', '초안'] };
+const SV_EXPIRY_KO = { all: '전체', d90: 'D-90', d60: 'D-60', d30: 'D-30' };
+
+function setSvDays(d, btn) {
+  _svDays = d;
+  document.querySelectorAll('#sv-days button').forEach(b => b.classList.toggle('on', b === btn));
+  loadSurveyStats();
+}
+function setSvStatus(v) { _svStatus = v; loadSurveyStats(); }
+
+// 조회 결과를 {ok, data, status}로 정규화한다 — 호출부가 상태별로 다른 안내를 낼 수 있게
+// status를 그대로 넘긴다. 실패를 0으로 렌더링하지 않기 위한 최소 장치.
+async function _svFetch(path) {
+  try {
+    const r = await fetch(`${API_BASE}${path}`, { headers: { ...authHeaders() } });
+    if (r.ok) return { ok: true, data: await r.json() };
+    return { ok: false, status: r.status };
+  } catch (e) { console.error('설문 통계 조회 오류', e); return { ok: false, status: 0 }; }
+}
+
+// 빈 데이터·권한 없음·미배포·장애를 각각 다른 문구로 구분한다. 재시도가 의미 있는 경우에만
+// 버튼을 붙인다(403·404는 다시 눌러도 결과가 같다).
+function _svErrHtml(status, retryCall) {
+  const msg = status === 403 ? '설문 현황을 볼 권한이 없습니다. 관리자에게 문의하세요.'
+    : status === 404 ? '설문 집계 API가 아직 배포되지 않았습니다. 설문 발송 기능과 함께 열립니다.'
+    : status === 0 ? '네트워크 오류로 불러오지 못했습니다.'
+    : `불러오지 못했습니다 (HTTP ${status}).`;
+  const btn = (status === 403 || status === 404) ? ''
+    : `<div style="margin-top:10px;"><button class="btn btn-outline btn-sm" onclick="${retryCall}">다시 시도</button></div>`;
+  return `<div class="rq-empty">${msg}${btn}</div>`;
+}
+
+function _svRateHtml(pct) {
+  const bg = pct >= 60 ? 'background:var(--green);' : pct === 0 ? 'background:var(--red);' : '';
+  return `<span class="sv-rate"><span class="rq-btrack"><span class="rq-bfill" style="display:block;width:${pct}%;${bg}"></span></span>` +
+    `<b${pct === 0 ? ' style="color:var(--red-d);"' : ''}>${pct}%</b></span>`;
+}
+
+// 분모를 명시적으로 받는 막대. _rqRenderBars는 분모를 항목 합으로 잡는데, 복수 선택 문항은
+// "응답자 수" 기준이어야 해서 합으로 나누면 비율이 틀린다.
+function _svBars(id, items, denom) {
+  const box = document.getElementById(id);
+  if (!box) return;
+  const max = Math.max(...items.map(r => r.n), 1);
+  box.innerHTML = items.length
+    ? items.map(r => `<div class="rq-brow"><span class="nm">${_rqEsc(r.k)}</span>
+        <span class="rq-btrack"><span class="rq-bfill" style="display:block;width:${(r.n / max) * 100}%;${r.c ? `background:${r.c};` : ''}"></span></span>
+        <span class="v">${r.n} <em>${_rqPct(r.n, denom)}%</em></span></div>`).join('')
+    : '<div class="rq-empty">응답 없음</div>';
+}
+
+function _svDday(openUntil) {
+  if (!openUntil) return '<span style="color:var(--faint);">—</span>';
+  const d = String(openUntil).slice(0, 10);
+  const diff = Math.ceil((new Date(d + 'T00:00:00+09:00').getTime() - Date.now()) / 86400000);
+  if (diff < 0) return `<span style="color:var(--faint);">${d.slice(5)} 마감</span>`;
+  if (diff <= 3) return `<span class="rq-age-bad">${d.slice(5)} (D-${diff})</span>`;
+  return d.slice(5);
+}
+
+// 발송 조건 라벨 — 자동 배치는 trigger_offset, 수동은 forms.target(만료 조건 × 선택 방식).
+function _svTrigLabel(target, off) {
+  if (off) return `<span class="sv-pill tri">D-${off} 자동</span>`;
+  const t = target || {};
+  const ex = t.expiry && t.expiry !== 'all' ? (SV_EXPIRY_KO[t.expiry] || t.expiry) + ' ' : '';
+  return `<span style="font-size:11.5px;color:var(--muted);">수동 · ${ex}${t.mode === 'pick' ? '선택' : '전체'}</span>`;
+}
+
+async function loadSurveyStats() {
+  const kpis = document.getElementById('sv-kpis');
+  if (!kpis) return;
+  const params = new URLSearchParams({ days: String(_svDays) });
+  if (_svStatus) params.set('status', _svStatus);
+  const q = (document.getElementById('sv-q')?.value || '').trim();
+  if (q) params.set('q', q);
+
+  kpis.innerHTML = '<div class="rq-kpi" style="grid-column:1/-1;"><div class="s" style="margin:0;">불러오는 중...</div></div>';
+  const res = await _svFetch(`/stats/surveys?${params}`);
+  if (!res.ok) {
+    // 실패는 KPI 자리에 한 번만 알리고 나머지 카드는 비운다 — 이전 값이 남아 있으면
+    // 최신 수치로 오해된다. _svLoaded를 세우지 않아 탭을 다시 열면 재시도된다.
+    kpis.innerHTML = `<div style="grid-column:1/-1;">${_svErrHtml(res.status, 'loadSurveyStats()')}</div>`;
+    ['sv-curve', 'sv-trigger'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
+    const rows = document.getElementById('sv-rows'); if (rows) rows.innerHTML = '';
+    const pend = document.getElementById('sv-pending'); if (pend) pend.innerHTML = '';
+    return;
+  }
+  _svLoaded = true;
+  const d = res.data;
+  _svRenderKpis(d.summary || {});
+  _svRenderRows(d.rows || []);
+  _svRenderCurve(d.curve || []);
+  _svRenderTrigger(d.byTrigger || []);
+  _svRenderPending(d.pending || []);
+}
+
+function _svRenderKpis(s) {
+  const sent = s.sent || 0, resp = s.responded || 0;
+  document.getElementById('sv-kpis').innerHTML = [
+    `<div class="rq-kpi"><div class="k">진행 중 설문</div><div class="v">${s.active || 0}</div><div class="s">${s.closingSoon ? `마감 임박 ${s.closingSoon}건` : '마감 임박 없음'}</div></div>`,
+    `<div class="rq-kpi"><div class="k">발송</div><div class="v">${sent}<span style="font-size:14px;color:var(--faint);">통</span></div><div class="s">${s.companies || 0}개 고객사${s.units ? ` · ${s.units}개 조직` : ''}</div></div>`,
+    `<div class="rq-kpi good"><div class="k">응답</div><div class="v">${resp}</div><div class="s">${s.lastRespAt ? `최근 응답 ${_rqEsc(s.lastRespAt)}` : '아직 응답이 없습니다'}</div></div>`,
+    `<div class="rq-kpi"><div class="k">응답률</div><div class="v">${sent ? _rqPct(resp, sent) + '%' : '—'}</div><div class="s">응답 ${resp} ÷ 발송 ${sent}</div></div>`,
+    `<div class="rq-kpi ${sent - resp > 0 ? 'warn' : ''}"><div class="k">미응답</div><div class="v">${sent - resp}</div><div class="s">재발송 검토 대상</div></div>`,
+  ].join('');
+}
+
+function _svRenderRows(rows) {
+  document.getElementById('sv-rows').innerHTML = rows.length
+    ? rows.map(r => {
+        const sent = r.sent || 0, resp = r.responded || 0;
+        const st = SV_STATUS_KO[r.status] || ['clo', r.status || ''];
+        const dash = '<span style="color:var(--faint);">—</span>';
+        return `<tr class="sv-row" onclick="openSurveyDetail('${_rqEsc(r.id)}')">
+          <td><b>${_rqEsc(r.title || '(제목 없음)')}</b></td>
+          <td><span class="sv-pill ${st[0]}">${st[1]}</span></td>
+          <td>${_svTrigLabel(r.target, r.trigger_offset)}</td>
+          <td>${r.sent_at ? _rqEsc(String(r.sent_at).slice(0, 10)) : dash}</td>
+          <td>${_svDday(r.open_until)}</td>
+          <td style="text-align:right;">${sent || dash}</td>
+          <td style="text-align:right;">${sent ? resp : dash}</td>
+          <td>${sent ? _svRateHtml(_rqPct(resp, sent)) : '<span style="color:var(--faint);font-size:11.5px;">발송 전</span>'}</td>
+        </tr>`;
+      }).join('')
+    : `<tr><td colspan="8"><div class="rq-empty">아직 만들어진 설문이 없습니다.<br>
+        <span style="font-size:11.5px;">폼 빌더에서 설문을 만들어 발송하면 여기에 집계됩니다.</span></div></td></tr>`;
+}
+
+// 발송 후 경과일별 누적 응답률. "언제까지 기다렸다 재발송할지"를 감이 아니라 곡선으로 정한다.
+// SVG 프레젠테이션 속성은 var()를 해석하지 않으므로 색은 style로 준다.
+function _svRenderCurve(curve) {
+  const box = document.getElementById('sv-curve');
+  if (!box) return;
+  const total = curve.reduce((a, r) => a + (r.n || 0), 0);
+  if (!total) { box.innerHTML = '<div class="rq-empty">응답이 아직 없습니다.</div>'; return; }
+  const maxD = Math.max(7, ...curve.map(r => r.d || 0));
+  const m = {};
+  curve.forEach(r => { m[r.d] = (m[r.d] || 0) + (r.n || 0); });
+  const W = 520, H = 132, L = 30, B = 22, T = 10;
+  const pts = [];
+  let acc = 0, hit = null;
+  for (let day = 0; day <= maxD; day++) {
+    acc += m[day] || 0;
+    const x = L + ((W - L - 6) * day) / maxD;
+    const y = H - B - ((H - B - T) * acc) / total;
+    pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+    if (hit === null && acc / total >= 0.9) hit = day;
+  }
+  const hx = hit === null ? null : L + ((W - L - 6) * hit) / maxD;
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H + 16}" style="width:100%;height:auto;" role="img"
+      aria-label="발송 후 경과일별 누적 응답률">
+    <line x1="${L}" y1="${H - B}" x2="${W - 4}" y2="${H - B}" style="stroke:var(--border-md);"/>
+    <line x1="${L}" y1="${T}" x2="${L}" y2="${H - B}" style="stroke:var(--border-md);"/>
+    <text x="${L - 4}" y="${H - B + 4}" font-size="9" style="fill:var(--faint);" text-anchor="end">0%</text>
+    <text x="${L - 4}" y="${T + 8}" font-size="9" style="fill:var(--faint);" text-anchor="end">100%</text>
+    ${hx === null ? '' : `<line x1="${hx.toFixed(1)}" y1="${T}" x2="${hx.toFixed(1)}" y2="${H - B}"
+        style="stroke:var(--amber);" stroke-width="1.2" stroke-dasharray="3 3"/>
+      <text x="${(hx + 5).toFixed(1)}" y="${T + 9}" font-size="9.5" style="fill:var(--amber-d);" font-weight="700">D+${hit} 에 90% 도달</text>`}
+    <polyline fill="none" style="stroke:var(--accent);" stroke-width="2.2" stroke-linejoin="round" points="${pts.join(' ')}"/>
+    <text x="${L}" y="${H + 6}" font-size="9" style="fill:var(--faint);">D+0</text>
+    <text x="${W - 4}" y="${H + 6}" font-size="9" style="fill:var(--faint);" text-anchor="end">D+${maxD}</text>
+  </svg>
+  <div class="rq-note" style="margin-top:6px;">전체 응답 ${total}건 기준 누적 비율입니다. 곡선이 평탄해진 뒤로는 기다려도 거의 들어오지 않습니다${hit === null ? '' : ` — 재발송은 <b>D+${hit}</b> 전후가 적기입니다`}.</div>`;
+}
+
+function _svRenderTrigger(rows) {
+  const box = document.getElementById('sv-trigger');
+  if (!box) return;
+  box.innerHTML = rows.length
+    ? rows.map(r => {
+        const sent = r.sent || 0, pct = _rqPct(r.responded || 0, sent);
+        return `<div class="rq-brow"><span class="nm">${_rqEsc(r.label || '—')}</span>
+          <span class="rq-btrack"><span class="rq-bfill" style="display:block;width:${sent ? pct : 0}%;${pct >= 60 ? 'background:var(--green);' : ''}"></span></span>
+          <span class="v">${sent ? pct + '%' : '—'} <em>${r.responded || 0}/${sent}</em></span></div>`;
+      }).join('')
+    : '<div class="rq-empty">발송 이력이 없습니다.</div>';
+}
+
+function _svRenderPending(rows) {
+  const sub = document.getElementById('sv-pending-sub');
+  if (sub) sub.textContent = rows.length ? `${rows.length}건 표시 · 경과 오래된 순` : '경과 오래된 순';
+  document.getElementById('sv-pending').innerHTML = rows.length
+    ? rows.map(r => {
+        const days = r.days || 0;
+        const cls = days >= 14 ? 'rq-age-bad' : days >= 7 ? 'rq-age-warn' : '';
+        return `<tr><td>${_rqEsc(r.company_name || '—')}</td><td>${_rqEsc(r.unit_name || '—')}</td>
+          <td>${_rqEsc(r.user_name || '—')}</td><td>${_rqEsc(r.title || '')}</td>
+          <td style="font-size:12px;color:var(--muted);">${r.sent_at ? _rqEsc(String(r.sent_at).slice(0, 10)) : '—'}</td>
+          <td style="text-align:right;" class="${cls}">${days}일</td></tr>`;
+      }).join('')
+    : '<tr><td colspan="6"><div class="rq-empty">미응답이 없습니다.</div></td></tr>';
+}
+
+// ── 상세 레벨 ──
+async function openSurveyDetail(id) {
+  document.getElementById('sv-list').style.display = 'none';
+  document.getElementById('sv-detail').style.display = '';
+  document.getElementById('sv-dhead').innerHTML = '';
+  document.getElementById('sv-bycompany').innerHTML = '';
+  document.getElementById('sv-qs').innerHTML = '<div class="rq-empty">불러오는 중...</div>';
+  window.scrollTo(0, 0);
+  const res = await _svFetch(`/stats/survey-detail?id=${encodeURIComponent(id)}`);
+  if (!res.ok) {
+    document.getElementById('sv-qs').innerHTML = _svErrHtml(res.status, `openSurveyDetail('${id}')`);
+    return;
+  }
+  const d = res.data;
+  _svRenderDetailHead(d.form || {}, d.summary || {});
+  _svRenderQuestions(d.fields || [], d.dist || {});
+  _svRenderByCompany(d.byCompany || []);
+}
+
+function backToSurveyList() {
+  document.getElementById('sv-detail').style.display = 'none';
+  document.getElementById('sv-list').style.display = '';
+  window.scrollTo(0, 0);
+}
+
+function _svRenderDetailHead(f, s) {
+  const sent = s.sent || 0, resp = s.responded || 0;
+  const st = SV_STATUS_KO[f.status] || ['clo', f.status || ''];
+  const when = (s.sent_at ? _rqEsc(String(s.sent_at).slice(0, 10)) + ' 발송' : '미발송')
+    + (f.open_until ? ' · ' + _rqEsc(String(f.open_until).slice(0, 10)) + ' 마감' : '');
+  document.getElementById('sv-dhead').innerHTML = `<div class="sv-head">
+    <div><div class="dt">${_rqEsc(f.title || '(제목 없음)')}</div>
+      <div style="margin-top:5px;display:flex;gap:7px;align-items:center;flex-wrap:wrap;">
+        <span class="sv-pill ${st[0]}">${st[1]}</span>${_svTrigLabel(f.target, s.trigger_offset)}
+        <span style="font-size:11px;color:var(--faint);">${when}</span>
+      </div></div>
+    <div class="dm">
+      <div>발송<b>${sent}</b></div><div>응답<b>${resp}</b></div>
+      <div>응답률<b style="color:var(--accent);">${sent ? _rqPct(resp, sent) + '%' : '—'}</b></div>
+      <div>문항<b>${s.fieldCount || 0}</b></div>
+    </div></div>`;
+}
+
+// 별점·척도는 1~5를 모두 그린다 — 0건인 구간을 빼면 가장 나쁜 응답이 화면에서 사라진다.
+function _svScaleItems(d, type) {
+  const m = {};
+  (d.nums || []).forEach(r => { m[String(r.k)] = r.n; });
+  const out = [];
+  for (let v = 5; v >= 1; v--) {
+    out.push({ k: type === 'rating' ? '★'.repeat(v) + '☆'.repeat(5 - v) : v + '점',
+      n: m[String(v)] || 0, c: v >= 4 ? 'var(--green)' : v <= 2 ? 'var(--red)' : '' });
+  }
+  return out;
+}
+function _svNpsItems(d) {
+  const m = {};
+  (d.nums || []).forEach(r => { m[String(r.k)] = r.n; });
+  const out = [];
+  for (let v = 10; v >= 0; v--) {
+    out.push({ k: String(v), n: m[String(v)] || 0,
+      c: v >= 9 ? 'var(--green)' : v <= 6 ? 'var(--red)' : 'var(--faint)' });
+  }
+  return out;
+}
+
+function _svRenderQuestions(fields, dist) {
+  const box = document.getElementById('sv-qs');
+  if (!fields.length) { box.innerHTML = '<div class="rq-empty">문항이 없습니다.</div>'; return; }
+  box.innerHTML = fields.map((f, i) => {
+    const d = dist[f.id] || {};
+    const cnt = `응답 ${d.answered || 0}` + (f.type === 'multi' && d.sum ? ` · 선택 ${d.sum}` : '');
+    return `<div class="sv-q">
+      <div class="sv-qh"><span class="sv-qn">Q${i + 1}</span>
+        <span class="sv-qt">${_rqEsc(f.label || '(제목 없음)')}</span>
+        <span class="sv-qty">${SV_QTYPE_KO[f.type] || _rqEsc(f.type)}</span>
+        <span class="sv-qc">${cnt}</span></div>
+      ${_svQBody(f, d, i)}</div>`;
+  }).join('');
+  // 막대는 DOM에 붙은 뒤 채운다.
+  fields.forEach((f, i) => {
+    const d = dist[f.id] || {}, a = d.answered || 0, id = 'sv-qb' + i;
+    if (f.type === 'single' || f.type === 'date') _svBars(id, d.opts || d.nums || [], a);
+    else if (f.type === 'multi') _svBars(id, d.opts || [], a);          // 분모=응답자 수
+    else if (f.type === 'rating' || f.type === 'scale') _svBars(id, _svScaleItems(d, f.type), a);
+    else if (f.type === 'nps') _svBars(id, _svNpsItems(d), a);
+  });
+}
+
+function _svQBody(f, d, i) {
+  const id = 'sv-qb' + i, a = d.answered || 0;
+  if (f.type === 'nps') {
+    const n = d.nps || {};
+    const score = n.score != null ? n.score : (_rqPct(n.pro || 0, a) - _rqPct(n.det || 0, a));
+    return `<div class="sv-big">
+        <span class="bv" style="color:${score >= 0 ? 'var(--green-d)' : 'var(--red-d)'};">${score > 0 ? '+' : ''}${score}</span>
+        <span class="bl">NPS · 추천 ${_rqPct(n.pro || 0, a)}% − 비추천 ${_rqPct(n.det || 0, a)}%</span></div>
+      <div class="sv-nps">
+        <div class="det"><div class="sn">비추천 0~6</div><div class="snum">${n.det || 0}명 · ${_rqPct(n.det || 0, a)}%</div></div>
+        <div class="pas"><div class="sn">중립 7~8</div><div class="snum">${n.pas || 0}명 · ${_rqPct(n.pas || 0, a)}%</div></div>
+        <div class="pro"><div class="sn">추천 9~10</div><div class="snum">${n.pro || 0}명 · ${_rqPct(n.pro || 0, a)}%</div></div>
+      </div>
+      <div id="${id}"></div>
+      <div class="rq-note" style="margin-top:10px;">ⓘ NPS는 평균이 아니라 <b>추천% − 비추천%</b>입니다. 중립(7~8)은 계산에서 빠집니다.</div>`;
+  }
+  if (f.type === 'rating' || f.type === 'scale') {
+    return `<div class="sv-big">
+        <span class="bv" style="color:#F59E0B;">${d.avg != null ? Number(d.avg).toFixed(1) : '—'}</span>
+        <span class="bl">/ 5${d.avg != null ? ' · ' + _satStars(d.avg) : ''}</span></div>
+      <div id="${id}"></div>
+      <div class="rq-note" style="margin-top:10px;">ⓘ 1~5 전체 구간을 표시합니다 — 0건인 최저 구간을 빼면 가장 나쁜 응답이 보이지 않습니다.</div>`;
+  }
+  if (f.type === 'multi') {
+    return `<div id="${id}"></div>
+      <div class="rq-note" style="margin-top:10px;">ⓘ 복수 선택이라 합계가 100%를 넘습니다 — %는 <b>응답자 ${a}명 중 몇 명이 골랐나</b>이며 선택 건수(${d.sum || 0}) 대비가 아닙니다.</div>`;
+  }
+  if (f.type === 'single' || f.type === 'date') return `<div id="${id}"></div>`;
+  // 주관식 — 키워드 추출은 넣지 않는다. 응답 현황 탭의 키워드 카드가 "2회 이상 언급" 조건
+  // 탓에 표본 부족으로 늘 비어 있어, 같은 실수를 반복하지 않는다. 원문이 더 유용하다.
+  const t = d.texts || [];
+  if (!t.length) return '<div class="rq-empty">작성된 응답이 없습니다.</div>';
+  const more = (d.textTotal || t.length) - t.length;
+  return t.map(r => `<div class="sat-quote">${_rqEsc(r.v)}
+      <div class="m">${_rqEsc(r.company || '')}${r.unit ? ' · ' + _rqEsc(r.unit) : ''}${r.at ? ' · ' + _rqEsc(r.at) : ''}</div></div>`).join('')
+    + (more > 0 ? `<div class="rq-note" style="margin-top:8px;">외 ${more}건</div>` : '');
+}
+
+function _svRenderByCompany(rows) {
+  document.getElementById('sv-bycompany').innerHTML = rows.length
+    ? rows.map(r => {
+        const sent = r.sent || 0;
+        return `<tr><td>${_rqEsc(r.company_name || '—')}</td><td>${_rqEsc(r.unit_name || '—')}</td>
+          <td style="text-align:right;">${sent}</td><td style="text-align:right;">${r.responded || 0}</td>
+          <td>${_svRateHtml(_rqPct(r.responded || 0, sent))}</td>
+          <td style="font-size:12px;color:var(--muted);">${r.contract_end ? _rqEsc(String(r.contract_end).slice(0, 10)) : '—'}</td></tr>`;
+      }).join('')
+    : '<tr><td colspan="6"><div class="rq-empty">발송 이력이 없습니다.</div></td></tr>';
 }
 
 // ── 시스템 현황 (GET /stats/system, 서버 집계) ────────────────────
