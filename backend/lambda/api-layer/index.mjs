@@ -2563,6 +2563,204 @@ async function surveyReport(event) {
   });
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// 설문 현황 집계 (사용 통계 탭 — GET /stats/surveys, GET /stats/survey-detail)
+//
+// 프론트(사용 통계 > 설문 현황)가 기대하는 응답 계약에 맞춘다. 이 탭만 2단인 이유는
+// 설문마다 문항이 달라 여러 설문의 응답을 한 축으로 합칠 수 없기 때문 —
+//   목록: 발송·응답·응답률만 센다(answers를 열지 않아 응답 스키마와 무관).
+//   상세: 문항별 분포. answers 키는 문항 id가 기본이고 옛 응답은 q1..qN이라 둘 다 읽는다.
+// 응답률 분자·분모가 같은 행(survey_history)에서 나오므로 100%를 넘는 일이 구조적으로 없다.
+// [테스트] 라벨 설문은 관리자에게만 보인다(요청 목록과 같은 기준 — 화면 정돈).
+const SV_TEXT_TYPES = new Set(['text', 'line', 'para']);
+const SV_QUOTE_LIMIT = 30;
+
+function svKstDate(col) { return `to_char(${col} at time zone 'Asia/Seoul', 'YYYY-MM-DD')`; }
+
+// answers에서 이 문항의 값을 꺼낸다 — 문항 id 우선, 없으면 순서 키(q1..qN) 폴백.
+function svPickAnswer(answers, field, idx) {
+  const a = answers || {};
+  if (field?.id !== undefined && a[field.id] !== undefined) return a[field.id];
+  return a[`q${idx + 1}`];
+}
+
+async function getSurveyStats(event) {
+  const authz = getAuthz(event);
+  if (!(await hasPermission(authz.role, 'stats_view'))) {
+    return json(403, { error: '설문 현황을 볼 권한이 없습니다' });
+  }
+  const qs = event.queryStringParameters || {};
+  const days = Math.min(Math.max(parseInt(qs.days, 10) || 90, 1), 3650);
+  const status = qs.status || null;
+  const q = (qs.q || '').trim();
+  const hideTest = authz.role !== 'admin';
+
+  // 기간 필터: 발송된 설문은 발송일, 미발송 설문은 생성일 기준(목록에서 사라지지 않게).
+  const where = `f.form_type = 'survey'
+      and ($1::text is null or f.status = $1::text)
+      and ($2::text = '' or f.title ilike '%' || $2 || '%')
+      and (${hideTest ? `f.title not like '[테스트]%' and` : ''}
+           (f.created_at >= now() - ($3 || ' days')::interval
+            or exists (select 1 from survey_history s2
+                        where s2.form_id = f.id and s2.sent_at >= now() - ($3 || ' days')::interval)))`;
+  const params = [status, q, String(days)];
+
+  const rows = await query(
+    `select f.id, f.title, f.status, f.target,
+            ${svKstDate('f.open_until')} as open_until,
+            ${svKstDate('min(sh.sent_at)')} as sent_at,
+            max(sh.trigger_offset) as trigger_offset,
+            count(sh.id)::int as sent,
+            count(sh.responded_at)::int as responded,
+            count(distinct sh.company_id)::int as companies,
+            count(distinct sh.unit_id)::int as units
+       from forms f
+       left join survey_history sh on sh.form_id = f.id
+      where ${where}
+      group by f.id, f.title, f.status, f.target, f.open_until, f.created_at
+      order by coalesce(min(sh.sent_at), f.created_at) desc`, params);
+
+  const today = kstToday();
+  const summary = {
+    active: rows.filter(r => r.status === 'active').length,
+    closingSoon: rows.filter(r => r.status === 'active' && r.open_until &&
+      (new Date(r.open_until) - new Date(today)) / 86400000 <= 7).length,
+    sent: rows.reduce((n, r) => n + r.sent, 0),
+    responded: rows.reduce((n, r) => n + r.responded, 0),
+    companies: 0, units: 0, lastRespAt: null,
+  };
+
+  // 고객사·조직 수는 설문별 distinct를 더하면 중복 계산된다 — 전체에서 한 번에 센다.
+  const [agg] = await query(
+    `select count(distinct sh.company_id)::int as companies,
+            count(distinct sh.unit_id)::int as units,
+            ${svKstDate('max(sh.responded_at)')} as last_resp
+       from survey_history sh join forms f on f.id = sh.form_id
+      where ${where}`, params);
+  summary.companies = agg?.companies ?? 0;
+  summary.units = agg?.units ?? 0;
+  summary.lastRespAt = agg?.last_resp ?? null;
+
+  // 발송 후 경과일별 응답 수 — 재발송 시점 판단용 누적 곡선의 원자료.
+  const curve = await query(
+    // 경과일은 0 이하로 내려가지 않게 보정한다 — 시계 오차나 이력 백필로 응답 시각이
+    // 발송 시각보다 앞서면 음수가 나오고, 누적 곡선이 100%에 도달하지 못한다.
+    `select greatest(floor(extract(epoch from (sh.responded_at - sh.sent_at)) / 86400), 0)::int as d,
+            count(*)::int as n
+       from survey_history sh join forms f on f.id = sh.form_id
+      where ${where} and sh.responded_at is not null
+      group by 1 order by 1`, params);
+
+  const byTrigger = await query(
+    `select case when sh.trigger_offset is null then '수동 발송'
+                 else 'D-' || sh.trigger_offset end as label,
+            count(*)::int as sent, count(sh.responded_at)::int as responded
+       from survey_history sh join forms f on f.id = sh.form_id
+      where ${where}
+      group by 1 order by 1`, params);
+
+  const pending = await query(
+    `select sh.company_name, sh.unit_name, u.name as user_name, f.title,
+            ${svKstDate('sh.sent_at')} as sent_at,
+            floor(extract(epoch from (now() - sh.sent_at)) / 86400)::int as days
+       from survey_history sh
+       join forms f on f.id = sh.form_id
+       left join users u on u.id = sh.user_id
+      where ${where} and sh.responded_at is null
+      order by sh.sent_at asc limit 50`, params);
+
+  return json(200, { summary, rows, curve, byTrigger, pending });
+}
+
+async function getSurveyDetail(event) {
+  const authz = getAuthz(event);
+  if (!(await hasPermission(authz.role, 'stats_view'))) {
+    return json(403, { error: '설문 현황을 볼 권한이 없습니다' });
+  }
+  const id = event.queryStringParameters?.id;
+  if (!id) return json(400, { error: 'id가 필요합니다' });
+  const [form] = await query(
+    `select id, title, status, target, ${svKstDate('open_until')} as open_until, fields
+       from forms where id = $1 and form_type = 'survey'`, [id]);
+  if (!form) return json(404, { error: '설문을 찾을 수 없습니다' });
+  if (authz.role !== 'admin' && String(form.title || '').startsWith('[테스트]')) {
+    return json(404, { error: '설문을 찾을 수 없습니다' });
+  }
+
+  const [tot] = await query(
+    `select count(*)::int as sent, count(responded_at)::int as responded,
+            ${svKstDate('min(sent_at)')} as sent_at, max(trigger_offset) as trigger_offset
+       from survey_history where form_id = $1`, [id]);
+  const answered = await query(
+    `select sh.answers, sh.company_name, sh.unit_name,
+            ${svKstDate('sh.responded_at')} as at
+       from survey_history sh
+      where sh.form_id = $1 and sh.responded_at is not null
+      order by sh.responded_at desc`, [id]);
+  const byCompany = await query(
+    `select sh.company_name, sh.unit_name,
+            count(*)::int as sent, count(sh.responded_at)::int as responded,
+            ${svKstDate('max(ct.end_date)')} as contract_end
+       from survey_history sh
+       left join company_contracts ct on ct.id = sh.contract_id
+      where sh.form_id = $1
+      group by sh.company_name, sh.unit_name
+      order by sh.company_name, sh.unit_name`, [id]);
+
+  const fields = Array.isArray(form.fields) ? form.fields : [];
+  const dist = {};
+  fields.forEach((f, i) => {
+    const key = f.id || `q${i + 1}`;
+    const raw = answered
+      .map(r => ({ v: svPickAnswer(r.answers, f, i), company: r.company_name, unit: r.unit_name, at: r.at }))
+      .filter(x => x.v !== undefined && x.v !== null && x.v !== '' && !(Array.isArray(x.v) && !x.v.length));
+    const d = { answered: raw.length };
+
+    if (f.type === 'nps' || f.type === 'rating' || f.type === 'scale') {
+      const nums = raw.map(x => Number(x.v)).filter(n => !Number.isNaN(n));
+      const cnt = {};
+      nums.forEach(n => { cnt[n] = (cnt[n] || 0) + 1; });
+      d.answered = nums.length;
+      d.nums = Object.keys(cnt).map(k => ({ k: Number(k), n: cnt[k] })).sort((a, b) => a.k - b.k);
+      if (nums.length) d.avg = Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100;
+      if (f.type === 'nps') {
+        const pro = nums.filter(n => n >= 9).length;
+        const det = nums.filter(n => n <= 6).length;
+        const pas = nums.length - pro - det;
+        const pct = (x) => (nums.length ? Math.round((x / nums.length) * 100) : 0);
+        d.nps = { pro, pas, det, score: pct(pro) - pct(det) };
+      }
+    } else if (f.type === 'single' || f.type === 'date') {
+      const cnt = {};
+      raw.forEach(x => { const k = String(x.v); cnt[k] = (cnt[k] || 0) + 1; });
+      d.opts = Object.keys(cnt).map(k => ({ k, n: cnt[k] })).sort((a, b) => b.n - a.n);
+    } else if (f.type === 'multi') {
+      const cnt = {};
+      let sum = 0;
+      raw.forEach(x => {
+        const arr = Array.isArray(x.v) ? x.v : [x.v];
+        [...new Set(arr.map(String))].forEach(k => { cnt[k] = (cnt[k] || 0) + 1; sum++; });
+      });
+      d.opts = Object.keys(cnt).map(k => ({ k, n: cnt[k] })).sort((a, b) => b.n - a.n);
+      d.sum = sum;
+    } else if (SV_TEXT_TYPES.has(f.type)) {
+      d.textTotal = raw.length;
+      d.texts = raw.slice(0, SV_QUOTE_LIMIT).map(x => ({
+        v: String(x.v), company: x.company, unit: x.unit, at: x.at,
+      }));
+    }
+    dist[key] = d;
+    if (f.id && key !== f.id) dist[f.id] = d;   // 프론트는 f.id로 조회한다
+  });
+
+  return json(200, {
+    form: { id: form.id, title: form.title, status: form.status, target: form.target, open_until: form.open_until },
+    summary: { sent: tot?.sent ?? 0, responded: tot?.responded ?? 0, sent_at: tot?.sent_at ?? null,
+               trigger_offset: tot?.trigger_offset ?? null, fieldCount: fields.length },
+    fields, dist, byCompany,
+  });
+}
+
 // ── EventBridge Scheduler가 매일 09:00 KST에 {"task":"survey_dispatch"} 페이로드로 직접 호출 ──
 // ① 마감일이 지난 설문을 closed로 정리 ② 자동 발송이 켜진(target.auto='on') 설문을 발송.
 // 자동 발송은 수동 발송이 안정화된 뒤에 켠다 — 지금은 target.auto를 켜는 화면이 없으므로
@@ -2733,6 +2931,12 @@ export const handler = async (event) => {
     }
     if (method === 'GET' && path === '/survey/report') {
       return await surveyReport(event);
+    }
+    if (method === 'GET' && path === '/stats/surveys') {
+      return await getSurveyStats(event);
+    }
+    if (method === 'GET' && path === '/stats/survey-detail') {
+      return await getSurveyDetail(event);
     }
     if (method === 'POST' && path === '/tickets') {
       return await createTicket(body, event);
