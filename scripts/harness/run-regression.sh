@@ -16,19 +16,19 @@ export PYTHONIOENCODING=utf-8
 HDIR="$(cd "$(dirname "$0")" && pwd)"
 export HARNESS_TMP="$HDIR/lib"
 
-ALL=(test_harness_lint.py test_itest_helpers.py test_deploy_gate.py test_fn_smoke.py test_promote.py test_permissions.py test_ticket_delete.py test_ticket_status.py test_ticket_assign.py test_notify_routing.py test_internal_review.py test_ticket_rate.py test_customer_e2e.py test_stats_view.py test_proxy_register.py test_storage_rules.py test_auth.py test_schema_contract.py test_batch.py test_jwt.py test_l2_runtime.py test_email_backstop.py)
+ALL=(test_harness_lint.py test_itest_helpers.py test_deploy_gate.py test_fn_smoke.py test_promote.py test_permissions.py test_ticket_delete.py test_ticket_status.py test_ticket_assign.py test_notify_routing.py test_internal_review.py test_ticket_rate.py test_customer_e2e.py test_stats_view.py test_proxy_register.py test_storage_rules.py test_auth.py test_schema_contract.py test_batch.py test_jwt.py test_l2_runtime.py test_email_backstop.py test_survey_send.py test_form_access.py)
 # 병렬 안전 = 알림 발송 건수/타입을 단언하지 않는 스위트(응답 코드·권한·구조만 검사).
 # 나머지(알림 타이밍 민감 + 전역 집계)는 직렬. 지정 실행 시엔 이 분류를 그대로 따른다.
 # 자기점검 5종(harness_lint·itest_helpers·deploy_gate·fn_smoke·promote)은 AWS를 아예 안 쓰는
 # 순수 정적/모의 검사라 항상 병렬 안전 — deploy_gate는 aws.exe·curl을 스텁으로 갈아끼우고
 # --dry-run으로 판정만 보고, fn_smoke는 invoke를 모의로, promote는 임시 로컬 git 레포를 쓴다.
-PAR_SAFE=(test_harness_lint.py test_itest_helpers.py test_deploy_gate.py test_fn_smoke.py test_promote.py test_permissions.py test_ticket_delete.py test_storage_rules.py test_ticket_rate.py test_proxy_register.py test_auth.py test_schema_contract.py test_jwt.py test_l2_runtime.py)
+PAR_SAFE=(test_harness_lint.py test_itest_helpers.py test_deploy_gate.py test_fn_smoke.py test_promote.py test_permissions.py test_ticket_delete.py test_storage_rules.py test_ticket_rate.py test_proxy_register.py test_auth.py test_schema_contract.py test_jwt.py test_l2_runtime.py test_form_access.py)
 
 # flaky 허용목록 = 비동기 알림(wait_notif/notif_rows)에 의존해 병렬 부하에서 정당하게
 # 간헐 실패할 수 있는 스위트만. 이 목록 밖(권한·스키마·jwt·삭제 등 결정적 스위트)은
 # 1차 실패 후 재시도에서 통과해도 flaky로 봐주지 않고 진짜 실패로 처리한다 — 결정적
 # 스위트가 깜빡이는 건 그 자체로 조사 대상이지 눈감아 줄 일이 아니다.
-FLAKY_OK=(test_ticket_status.py test_ticket_assign.py test_notify_routing.py test_internal_review.py test_batch.py test_email_backstop.py)
+FLAKY_OK=(test_ticket_status.py test_ticket_assign.py test_notify_routing.py test_internal_review.py test_batch.py test_email_backstop.py test_survey_send.py)
 
 # ── 인자 해석: 이름 정규화 + 존재 검증 ──
 if [ "$#" -gt 0 ]; then
@@ -104,7 +104,10 @@ if [ "${#FAILED[@]}" -gt 0 ]; then
   for tf in "${FAILED[@]}"; do
     echo "────────────────────────────────────────"
     echo "▶ 재시도 $tf"
-    if python "$HDIR/tests/$tf"; then
+    # 재시도도 파일로 받아 출력 — 스위트별 "최종" 카운트를 아래 SUMMARY가 이 파일에서 집계한다.
+    rc_retry=0; python "$HDIR/tests/$tf" > "$LOGDIR/$tf.retry.log" 2>&1 || rc_retry=1
+    cat "$LOGDIR/$tf.retry.log"
+    if [ "$rc_retry" -eq 0 ]; then
       # 재시도 통과 — 단, 알림 의존 스위트만 flaky로 봐준다. 결정적 스위트가 깜빡였다면
       # 재시도 통과라도 진짜 실패로 처리(조사 필요 — 경합 아닌 실제 불안정/부분결함 신호).
       ok=0; for s in "${FLAKY_OK[@]}"; do [ "$tf" = "$s" ] && ok=1; done
@@ -131,6 +134,17 @@ echo "════════════════════════�
 # ── 판정 ── 치명 = L2 실패 또는 재시도도 실패한 스위트. flaky만이면 통과(경고).
 strip(){ printf '%s' "$*" | sed 's/\.py//g;s/test_//g'; }
 echo "TOTAL $(fmt_dur $(($(date +%s%3N)-REG_T0)))"
+# 스위트별 "최종" 카운트(재시도가 있으면 재시도 결과)를 합산한 한 줄 요약 — nightly는 이 줄만
+# 파싱한다. 예전엔 nightly가 로그 전체를 grep해서 재시도 스위트를 이중 계수했다(감사 T3).
+CP=0; CT=0
+for tf in "${TESTS[@]}"; do
+  f="$LOGDIR/$tf.retry.log"; [ -f "$f" ] || f="$LOGDIR/$tf.log"
+  nm="$(grep -oE '[0-9]+/[0-9]+ PASS' "$f" 2>/dev/null | tail -1)"
+  if [ -n "$nm" ]; then
+    CP=$((CP + ${nm%%/*})); d="${nm#*/}"; CT=$((CT + ${d%% *}))
+  fi
+done
+echo "SUMMARY suites=${#TESTS[@]} checks=${CP}/${CT} flaky=${#FLAKY[@]} realfail=${#REALFAIL[@]}"
 if [ "$l2_fail" -ne 0 ] || [ "${#REALFAIL[@]}" -gt 0 ]; then
   MARK="❌ 회귀 실패"
   [ "$l2_fail" -ne 0 ] && MARK="$MARK · L2"

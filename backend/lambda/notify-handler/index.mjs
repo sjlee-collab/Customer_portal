@@ -43,7 +43,7 @@ const STATUS_KO = {
 };
 const CATEGORY_KO = {
   tech_support: '기술지원', contract: '계약 문의', license: '라이선스 문의',
-  education: '교육 문의', other: '기타',
+  education: '교육 문의', voc: '서비스 제안/불만(VOC)', other: '기타',
 };
 const PRIORITY_KO = { normal: '일반', high: '빠른 확인 필요', critical: '긴급' };
 
@@ -204,10 +204,12 @@ async function handleLicenseExpiry(payload, results) {
 // registrarRole은 DB를 못 보는 이 Lambda 대신 api-layer가 조회해 payload로 넘겨준다.
 function registeredBySales(payload) { return payload?.registrarRole === 'sales'; }
 
-// 영업 채널 대상 여부 — 계약·라이선스 카테고리이거나, 영업이 대리 등록한 건.
+// 영업 채널 대상 여부 — 계약·라이선스·VOC 카테고리이거나, 영업이 대리 등록한 건.
 // 두 조건을 한 곳에서 판정해 카테고리와 등록자가 겹칠 때 중복 발송되지 않게 한다.
+// VOC(서비스 제안/불만)는 고객 관계에 직접 영향이 있어 영업이 함께 봐야 한다 —
+// 공통 채널은 모든 카테고리가 이미 받으므로 여기서 영업만 추가로 열어준다.
 function needsSalesChannel(ticket, payload) {
-  return ['contract', 'license'].includes(ticket.category) || registeredBySales(payload);
+  return ['contract', 'license', 'voc'].includes(ticket.category) || registeredBySales(payload);
 }
 
 async function handleTicketInsert(payload, results) {
