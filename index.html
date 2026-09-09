@@ -13595,7 +13595,9 @@ function renderAllTickets() {
   const q = (document.getElementById('ar-search')?.value || '').toLowerCase();
   // [테스트] 숨김 토글은 관리자에게만 노출(비관리자 스태프는 서버가 이미 숨겨 토글이 무의미).
   const htEl = document.getElementById('ar-hide-test');
-  if (htEl) htEl.style.display = currentUser?.role === 'admin' ? 'inline-flex' : 'none';
+  // 2026-09-09: 관리자 화면에서도 내지 않기로 함(목록 상단이 복잡해진다는 판단).
+  // 아래 arHideTest 필터는 그대로 남겨둔다 — 다시 필요해지면 이 줄만 되돌리면 된다.
+  if (htEl) htEl.style.display = 'none';
   const isTestRow = (t) => String(t.title || '').startsWith('[테스트]') || String(t.company?.name || t.company_name || '').startsWith('[테스트]');
   const list = allMgTickets.filter(t => {
     if (arHideTest && isTestRow(t)) return false;
