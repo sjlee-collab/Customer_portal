@@ -1,6 +1,8 @@
 # 변경 체크리스트 (유형별)
 
-모든 변경 공통 마무리: `guard-commit.sh` → commit → `promote.sh`(4브랜치) → `run-regression.sh`.
+모든 변경 공통 마무리: `guard-commit.sh` → commit → `promote.sh` → `run-regression.sh`.
+`promote.sh`는 main을 dev/Design/notion-migration/stats에 **ff-only**로 전파한다 — 대상이 앞서 있거나
+갈라져 있으면 건드리지 않고 보고만 한다(rc 1). 밀기 전에 확인하려면 `--dry-run`.
 
 ## 1) 프론트만 (index.html)
 - [ ] 편집
@@ -11,6 +13,9 @@
 ## 2) data-api 변경 (범용 CRUD/권한/격리 로직)
 - [ ] `backend/lambda/data-api/index.mjs` 편집
 - [ ] `deploy-fn.sh data-api` (drift 진단 → 배포 → data-api 스모크)
+      ⚠ **종료코드 3 = 파괴적 drift**(배포본에만 있는 줄이 사라짐 — 운영 핫픽스를 덮는 상황).
+      `drift-check.sh data-api`로 전체 diff를 보고, 배포본이 앞서면 **레포를 먼저 역동기화**할 것.
+      의도한 삭제가 확실할 때만 `--force`. 판정만 보려면 `--dry-run`
 - [ ] `run-regression.sh` (권한/격리/삭제/고객 전 기능 재검증)
 - [ ] guard-commit(소스+필요시 index.html) → commit → promote
 
@@ -34,6 +39,15 @@
 - [ ] `data-perm="키"`(정적) 또는 `permState[role]?.키`(동적 렌더)로 노출 게이팅
 - [ ] api-layer/data-api에서 `hasPermission(role,'키')`로 서버 강제
 - [ ] `run-regression.sh`
+
+## 6) 하네스 자체 수정 (테스트·헬퍼 추가/변경)
+- [ ] 설계 원칙 확인 — [DESIGN.md](DESIGN.md) §4.1(결함 클래스 봉쇄) · §5(확장 규칙)
+- [ ] 픽스처는 `Fixtures`, 목록 단언은 `t.all_of`, 권한 토글은 `with permission(...)`,
+      id 추출은 `must_id()` — 옛 패턴은 `test_harness_lint`가 막는다
+- [ ] `python scripts/harness/tests/test_harness_lint.py` (AWS 불필요, 1초)
+- [ ] `python scripts/harness/tests/test_itest_helpers.py` (헬퍼를 고쳤다면 필수)
+- [ ] 부채를 줄였으면 `test_harness_lint.py --update-baseline`으로 기준선 낮추기
+- [ ] 새 스위트면 `run-regression.sh`의 `ALL`(+알림 무관하면 `PAR_SAFE`)와 README 목록에 등록
 
 ## 알림 안전 (슬랙·메일이 트리거되는 테스트) — 필수 규칙
 원칙: **운영 메일은 항상 정상 발송(실수신자), 테스트성 메일만 sjlee로.**
