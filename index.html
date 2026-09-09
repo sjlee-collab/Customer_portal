@@ -218,12 +218,15 @@ button,input,select,textarea{font-family:inherit;}
 .nwf-stars{display:flex;gap:5px;}
 .nwf-stars button{all:unset;cursor:pointer;font-size:23px;line-height:1;color:#D1D5DB;}
 .nwf-stars button.on{color:#F59E0B;}
-/* 상세 화면 — 접수 당시 문항 스냅샷 */
-.rd-fa{display:flex;flex-direction:column;gap:9px;}
-.rd-fa .row{display:flex;gap:10px;font-size:12.5px;line-height:1.6;}
-.rd-fa .row .q{width:190px;flex-shrink:0;color:var(--muted);font-weight:600;}
-.rd-fa .row .a{flex:1;white-space:pre-wrap;word-break:break-word;}
-.rd-fa .row .a.none{color:var(--faint);}
+/* 상세 화면 — 접수 당시 문항 스냅샷을 접수 화면과 같은 폼 형식으로(읽기 전용).
+   접수 위젯(.nwf-*)을 그대로 쓰고 조작만 막는다 — 고른 보기만 진하게, 나머지는 흐리게. */
+.nwf-ro{pointer-events:none;}
+.nwf-ro .nwf-opt{cursor:default;}
+.nwf-ro .nwf-opt:not(.on){opacity:.5;}
+.nwf-ro .nwf-stars button:not(.on),.nwf-ro .nwf-scale button:not(.on){opacity:.45;}
+.nwf-ro .ro-text{background:var(--surface);border:1px solid var(--border-md);border-radius:9px;padding:9px 12px;font-size:12.5px;white-space:pre-wrap;word-break:break-word;line-height:1.65;}
+.nwf-ro .ro-text.tall{min-height:52px;}
+.nwf-ro .ro-text.none{color:var(--faint);}
 .svq-banner{flex-shrink:0;display:flex;align-items:center;gap:11px;background:var(--accent-l);border:1px solid #d6d0f7;border-radius:var(--r-md);padding:10px 14px;margin-bottom:14px;}
 .svq-banner .ic{font-size:15px;}
 .svq-banner .msg{flex:1;font-size:12.5px;color:var(--text);line-height:1.5;}
@@ -2085,7 +2088,7 @@ textarea{resize:vertical;min-height:100px;}
                     <!-- 고객 문의 내용 -->
                     <div style="background:var(--surface2);border-radius:var(--r-md);padding:10px 12px;font-size:13px;line-height:1.7;word-break:break-all;overflow-wrap:break-word;white-space:pre-wrap;" id="rd-description">—</div>
                     <!-- 폼 빌더 추가 문항 — 접수 당시 문항 정의 스냅샷으로 렌더 -->
-                    <div id="rd-form-answers" style="display:none;margin-top:13px;background:var(--surface2);border-radius:var(--r-md);padding:11px 13px;"></div>
+                    <div id="rd-form-answers" style="display:none;margin-top:13px;"></div>
                     <!-- 첨부 파일 -->
                     <div id="rd-attachments-card" style="display:none;margin-top:13px;">
                       <div onclick="toggleRdAttachments()" style="cursor:pointer;font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
@@ -4824,7 +4827,36 @@ function nwCollectFormAnswers(cat, title) {
   } };
 }
 
-// 상세 화면 — 접수 당시 스냅샷으로 렌더(현재 폼 정의를 참조하지 않는다).
+// 상세 화면 — 접수 당시 스냅샷을 **고객이 본 폼 그대로** 다시 그린다(읽기 전용).
+// 현재 폼 정의는 참조하지 않는다: 문항·보기·타입 모두 스냅샷에 있는 것만 쓴다.
+// 보기를 전부 보여주고 고른 것만 강조하는 이유 — 무엇 중에서 골랐는지가 함께 남아야
+// 나중에 폼이 바뀌어도 그 답변의 뜻을 알 수 있다.
+function _rdFaWidget(f, v) {
+  const has = v !== undefined && v !== null && v !== '';
+  if (f.type === 'single' || f.type === 'multi') {
+    const multi = f.type === 'multi', shape = multi ? 'sq' : 'ci';
+    const sel = Array.isArray(v) ? v : (has ? [v] : []);
+    const opts = Array.isArray(f.options) ? f.options : [];
+    // 보기 정의가 없는 옛 스냅샷은 답변만 보여준다
+    if (!opts.length) return `<div class="ro-text${sel.length ? '' : ' none'}">${sel.length ? escHtml(sel.join(', ')) : '—'}</div>`;
+    return opts.map(o => {
+      const on = sel.includes(o);
+      return `<div class="nwf-opt${on ? ' on' : ''}"><span class="bx ${shape}">${on ? '✓' : ''}</span> ${escHtml(o)}</div>`;
+    }).join('');
+  }
+  if (f.type === 'rating') {
+    return `<div class="nwf-stars">` + [1, 2, 3, 4, 5].map(n =>
+      `<button type="button" class="${Number(v) >= n ? 'on' : ''}" aria-label="${n}점">★</button>`).join('') + `</div>`;
+  }
+  if (f.type === 'nps' || f.type === 'scale') {
+    const nums = f.type === 'nps' ? Array.from({ length: 11 }, (_, n) => n) : [1, 2, 3, 4, 5];
+    return `<div class="nwf-scale">` + nums.map(n =>
+      `<button type="button" class="${Number(v) === n ? 'on' : ''}">${n}</button>`).join('') + `</div>`;
+  }
+  const tall = (f.type === 'para' || f.type === 'text') ? ' tall' : '';
+  return `<div class="ro-text${tall}${has ? '' : ' none'}">${has ? escHtml(String(v)) : '—'}</div>`;
+}
+
 function rdRenderFormAnswers(fa) {
   const wrap = document.getElementById('rd-form-answers');
   if (!wrap) return;
@@ -4832,12 +4864,20 @@ function rdRenderFormAnswers(fa) {
   if (!fields.length) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
   const ans = fa.answers || {};
   wrap.style.display = '';
-  wrap.innerHTML = `<div class="rd-fa">` + fields.map(f => {
-    const v = ans[f.id];
-    const txt = Array.isArray(v) ? v.join(', ') : (v === undefined || v === null || v === '' ? '' : String(v));
-    return `<div class="row"><span class="q">${escHtml(f.label || '')}</span>` +
-      `<span class="a${txt ? '' : ' none'}">${txt ? escHtml(txt) : '—'}</span></div>`;
-  }).join('') + `</div>`;
+  wrap.innerHTML = `<div class="nwf-wrap nwf-ro"><div class="nwf-hd"><span class="tag">접수 당시 문항</span>` +
+    `<span>폼을 나중에 고쳐도 이 요청은 접수 시점 문항으로 남습니다</span></div>` +
+    fields.map(f =>
+      `<div class="nwf-q"><label>${escHtml(f.label || '')} ${f.required ? '<span class="req">*</span>' : ''}</label>` +
+      _rdFaWidget(f, ans[f.id]) + `</div>`).join('') +
+    `</div>`;
+}
+
+// 내용을 받지 않는 폼(VOC)은 본문이 비어 있다 — 그 자리에 '(내용 없음)' 박스를 남기지 않고
+// 문항 블록이 본문 역할을 하게 한다. 내용을 받는 카테고리는 종전과 동일하다.
+function _rdSyncDesc(descEl) {
+  if (!descEl) return;
+  const hasFa = Array.isArray(rdTicket?.form_answers?.fields) && rdTicket.form_answers.fields.length > 0;
+  descEl.style.display = (!rdTicket?.description && hasFa) ? 'none' : '';
 }
 
 function _optsHtml(itemsHtml, placeholder) {
@@ -13867,7 +13907,8 @@ async function selectRdTicket(idx, directTicket) {
   document.getElementById('rd-title').textContent = rdTicket.title || '—';
   const descEl = document.getElementById('rd-description');
   if (descEl) descEl.textContent = rdTicket.description ?? '불러오는 중...';
-  rdRenderFormAnswers(rdTicket.form_answers);   // 추가 문항(있으면) — 컬럼 추가 전에는 항상 숨김
+  rdRenderFormAnswers(rdTicket.form_answers);   // 추가 문항(있으면)
+  _rdSyncDesc(descEl);
 
   const rdDelBtn = document.getElementById('rd-delete-btn');
   if (rdDelBtn) rdDelBtn.style.display = permState[currentUser?.role]?.ticket_delete ? '' : 'none';
@@ -13911,11 +13952,14 @@ async function selectRdTicket(idx, directTicket) {
   // ── 백그라운드: description·created_by 등 전체 필드 재조회 ──
   if (sb) {
     const { data } = await sb.from('tickets')
-      .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, created_by, company_id, contract_id, unit_id, unit_name, assigned_to, assigned_to_name, company_name, created_by_name, satisfaction_rating, satisfaction_comment, rated_at, is_internal, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name,email,phone)')
+      .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, created_by, company_id, contract_id, unit_id, unit_name, assigned_to, assigned_to_name, company_name, created_by_name, satisfaction_rating, satisfaction_comment, rated_at, is_internal, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name,email,phone), form_answers')
       .eq('id', selectedId).single();
     if (data && rdTicket.id === selectedId) {
       rdTicket = data;
       if (descEl) descEl.textContent = rdTicket.description || '(내용 없음)';
+      // 목록에서 넘어온 행에는 form_answers가 없다 — 재조회로 받은 뒤 한 번 더 그린다.
+      rdRenderFormAnswers(rdTicket.form_answers);
+      _rdSyncDesc(descEl);
       if (dueDateValue) dueDateValue.textContent = rdTicket.due_date ? rdTicket.due_date.slice(0, 10) : '—';
       // 수정 버튼: 소유자 본인 또는 관리자(admin — 모든 요청 수정 가능). 서버(PATCH /tickets/{id})는
       // ticket_manage 권한을 허용하지만 UI 노출은 정책상 admin까지만.
