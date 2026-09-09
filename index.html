@@ -198,6 +198,32 @@ button,input,select,textarea{font-family:inherit;}
 /* ── 갱신 설문: 상단 배너 + 응답 팝업 ──
    팝업에서 "나중에 하기"를 누르면 배너로 강등해 응답할 때까지 유지한다(밀어내기식 —
    목록 높이는 fitListHeight()가 다시 계산해 흡수). */
+/* 요청 등록 — 폼 빌더가 붙인 추가 문항 */
+.nwf-wrap{border:1px solid var(--border);border-radius:var(--r-md);padding:13px 15px;background:var(--surface2);}
+.nwf-hd{font-size:11.5px;font-weight:700;color:var(--muted);margin-bottom:11px;display:flex;align-items:center;gap:6px;}
+.nwf-hd .tag{background:var(--accent-l);color:var(--accent);border-radius:999px;padding:2px 8px;font-size:10px;}
+.nwf-q{margin-bottom:13px;}
+.nwf-q:last-child{margin-bottom:0;}
+.nwf-q > label{display:block;font-size:12px;font-weight:600;margin-bottom:6px;}
+.nwf-q .req{color:var(--red);}
+.nwf-opt{display:flex;align-items:center;gap:8px;border:1.5px solid var(--border);border-radius:8px;padding:7px 11px;font-size:12.5px;color:var(--muted);margin-bottom:5px;cursor:pointer;background:var(--surface);}
+.nwf-opt:last-child{margin-bottom:0;}
+.nwf-opt.on{border-color:var(--accent);background:var(--accent-l);color:var(--text);font-weight:600;}
+.nwf-opt .bx{width:13px;height:13px;flex-shrink:0;border:1.5px solid var(--border-strong);display:grid;place-items:center;font-size:9px;color:#fff;}
+.nwf-opt .bx.sq{border-radius:3px;} .nwf-opt .bx.ci{border-radius:50%;}
+.nwf-opt.on .bx{background:var(--accent);border-color:var(--accent);}
+.nwf-scale{display:flex;gap:4px;flex-wrap:wrap;}
+.nwf-scale button{all:unset;cursor:pointer;min-width:27px;height:27px;border:1px solid var(--border-md);border-radius:7px;display:grid;place-items:center;font-size:11.5px;color:var(--muted);padding:0 4px;background:var(--surface);}
+.nwf-scale button.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;}
+.nwf-stars{display:flex;gap:5px;}
+.nwf-stars button{all:unset;cursor:pointer;font-size:23px;line-height:1;color:#D1D5DB;}
+.nwf-stars button.on{color:#F59E0B;}
+/* 상세 화면 — 접수 당시 문항 스냅샷 */
+.rd-fa{display:flex;flex-direction:column;gap:9px;}
+.rd-fa .row{display:flex;gap:10px;font-size:12.5px;line-height:1.6;}
+.rd-fa .row .q{width:190px;flex-shrink:0;color:var(--muted);font-weight:600;}
+.rd-fa .row .a{flex:1;white-space:pre-wrap;word-break:break-word;}
+.rd-fa .row .a.none{color:var(--faint);}
 .svq-banner{flex-shrink:0;display:flex;align-items:center;gap:11px;background:var(--accent-l);border:1px solid #d6d0f7;border-radius:var(--r-md);padding:10px 14px;margin-bottom:14px;}
 .svq-banner .ic{font-size:15px;}
 .svq-banner .msg{flex:1;font-size:12.5px;color:var(--text);line-height:1.5;}
@@ -2057,6 +2083,8 @@ textarea{resize:vertical;min-height:100px;}
                     </div>
                     <!-- 고객 문의 내용 -->
                     <div style="background:var(--surface2);border-radius:var(--r-md);padding:10px 12px;font-size:13px;line-height:1.7;word-break:break-all;overflow-wrap:break-word;white-space:pre-wrap;" id="rd-description">—</div>
+                    <!-- 폼 빌더 추가 문항 — 접수 당시 문항 정의 스냅샷으로 렌더 -->
+                    <div id="rd-form-answers" style="display:none;margin-top:13px;background:var(--surface2);border-radius:var(--r-md);padding:11px 13px;"></div>
                     <!-- 첨부 파일 -->
                     <div id="rd-attachments-card" style="display:none;margin-top:13px;">
                       <div onclick="toggleRdAttachments()" style="cursor:pointer;font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
@@ -3700,11 +3728,11 @@ textarea{resize:vertical;min-height:100px;}
           <label>요청 카테고리 <span class="req">*</span></label>
           <select id="f-category"><!-- 옵션은 populateStaticSelects()가 채움(단일 출처) --></select>
         </div>
-        <div class="form-group">
+        <div class="form-group" id="nw-product-group">
           <label>제품명</label>
           <select id="f-product"><!-- 옵션은 populateStaticSelects()가 채움(단일 출처) --></select>
         </div>
-        <div class="form-group">
+        <div class="form-group" id="nw-priority-group">
           <label>긴급도 <span class="req">*</span></label>
           <select id="f-priority">
             <option value="normal">일반</option>
@@ -3720,6 +3748,8 @@ textarea{resize:vertical;min-height:100px;}
           <label>요청 내용 <span class="req">*</span></label>
           <textarea placeholder="문제 상황, 오류 메시지, 재현 방법 등을 자세히 설명해 주세요." style="min-height:80px;"></textarea>
         </div>
+        <!-- 폼 빌더에서 만든 추가 문항 — 해당 카테고리에 적용된 폼이 있을 때만 채워진다 -->
+        <div class="form-group span2" id="nw-form-fields" style="display:none;"></div>
         <div class="form-group span2">
           <label>첨부 파일</label>
           <input type="file" id="f-attach" multiple accept="image/*,.pdf,.log,.txt,.zip,.xlsx,.xls,.docx,.pptx,.twbx,.twb" style="display:none;" onchange="handleFileSelect(this)">
@@ -4644,12 +4674,128 @@ const TICKET_CATEGORY_FORM_KEYS = ['tech_support', 'contract', 'license', 'educa
 // 초안(draft)만 있으면 아직 미적용이므로 숨긴다. 실패 시 기본값은 숨김(안전한 쪽).
 // 주의: 요청 목록 필터·통계의 VOC 항목은 건드리지 않는다 — 이미 접수된 VOC 티켓을 조회해야 한다.
 let vocFormReady = false;
+let vocForm = null;            // 적용 중인 VOC 요청 폼 정의(문항·숨김 항목)
 async function loadVocFormState() {
   try {
     const { data, error } = await sb.from('forms')
-      .select('id').eq('form_type', 'request').eq('status', 'active').limit(1);
-    if (!error) vocFormReady = !!(data && data.length);
+      .select('id,title,fields,target').eq('form_type', 'request').eq('status', 'active').limit(1);
+    if (!error) {
+      vocForm = (data && data[0]) || null;
+      vocFormReady = !!vocForm;
+    }
   } catch (e) { console.error('[VOC 폼 상태 조회]', e); }
+}
+
+// ── 요청 등록: 폼 빌더가 붙인 추가 문항 ──────────────────────────────
+// 카테고리에 적용(active)된 폼이 있으면 기본 항목 아래에 문항을 그리고, 폼의 target.hide에
+// 따라 기본 입력(제품·긴급도)을 숨긴다. VOC는 특정 제품 장애가 아니라 서비스 전반에 대한
+// 제안·불만이라 그 두 항목이 의미가 없어 폼 빌더에서 숨기도록 설계돼 있다.
+// 답변 키는 설문과 동일하게 **문항 고유 id**(없으면 순서 키)를 쓴다.
+let nwFormAnswers = {};
+function _nwKey(f, i) { return f?.id || `q${i + 1}`; }
+
+function nwApplyCategoryForm(cat) {
+  const box = document.getElementById('nw-form-fields');
+  const form = (cat === 'voc') ? vocForm : null;
+  nwFormAnswers = {};
+  // 기본 입력 표시 복원 후, 폼이 지정한 것만 숨긴다
+  const hide = new Set(form?.target?.hide || []);
+  const prodGrp = document.getElementById('nw-product-group');
+  const priGrp = document.getElementById('nw-priority-group');
+  if (prodGrp) prodGrp.style.display = hide.has('product') ? 'none' : '';
+  if (priGrp) priGrp.style.display = hide.has('priority') ? 'none' : '';
+  if (hide.has('product')) { const el = document.getElementById('f-product'); if (el) el.value = ''; }
+  if (hide.has('priority')) { const el = document.getElementById('f-priority'); if (el) el.value = 'normal'; }
+  if (!box) return;
+  const fields = Array.isArray(form?.fields) ? form.fields : [];
+  if (!fields.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  box.style.display = '';
+  nwRenderFormFields();
+}
+
+function _nwWidget(f, i) {
+  const key = _nwKey(f, i), cur = nwFormAnswers[key];
+  if (f.type === 'nps' || f.type === 'scale') {
+    const nums = f.type === 'nps' ? Array.from({ length: 11 }, (_, n) => n) : [1, 2, 3, 4, 5];
+    return `<div class="nwf-scale">` + nums.map(n =>
+      `<button type="button" class="${cur === n ? 'on' : ''}" onclick="nwSet('${key}',${n})">${n}</button>`).join('') + `</div>`;
+  }
+  if (f.type === 'rating') {
+    return `<div class="nwf-stars">` + [1, 2, 3, 4, 5].map(n =>
+      `<button type="button" class="${cur >= n ? 'on' : ''}" onclick="nwSet('${key}',${n})" aria-label="${n}점">★</button>`).join('') + `</div>`;
+  }
+  if (f.type === 'single' || f.type === 'multi') {
+    const multi = f.type === 'multi', shape = multi ? 'sq' : 'ci';
+    const sel = multi ? (Array.isArray(cur) ? cur : []) : cur;
+    return (f.options || []).map(o => {
+      const on = multi ? sel.includes(o) : sel === o;
+      return `<div class="nwf-opt${on ? ' on' : ''}" onclick="nwSet('${key}',${JSON.stringify(String(o)).replace(/"/g, '&quot;')},${multi})">` +
+        `<span class="bx ${shape}">${on ? '✓' : ''}</span> ${escHtml(o)}</div>`;
+    }).join('');
+  }
+  if (f.type === 'date') {
+    return `<input type="date" value="${_fbAttr(cur || '')}" oninput="nwSetText('${key}', this.value)" style="width:100%;">`;
+  }
+  if (f.type === 'para' || f.type === 'text') {
+    return `<textarea placeholder="내용을 입력해 주세요${f.required ? '' : ' (선택)'}" style="min-height:64px;" oninput="nwSetText('${key}', this.value)">${escHtml(cur || '')}</textarea>`;
+  }
+  return `<input type="text" placeholder="내용을 입력해 주세요${f.required ? '' : ' (선택)'}" value="${_fbAttr(cur || '')}" oninput="nwSetText('${key}', this.value)" style="width:100%;">`;
+}
+
+function nwRenderFormFields() {
+  const box = document.getElementById('nw-form-fields');
+  const fields = Array.isArray(vocForm?.fields) ? vocForm.fields : [];
+  if (!box || !fields.length) return;
+  box.innerHTML = `<div class="nwf-wrap"><div class="nwf-hd"><span class="tag">추가 문항</span>` +
+    `<span>이 카테고리에만 적용되는 항목입니다</span></div>` +
+    fields.map((f, i) =>
+      `<div class="nwf-q"><label>${escHtml(f.label || '')} ${f.required ? '<span class="req">*</span>' : ''}</label>${_nwWidget(f, i)}</div>`).join('') +
+    `</div>`;
+}
+// 선택형은 즉시 다시 그려 선택 표시를 반영하고, 입력형은 값만 저장한다(포커스·IME 유지).
+function nwSet(key, val, multi) {
+  if (multi) {
+    const arr = Array.isArray(nwFormAnswers[key]) ? nwFormAnswers[key] : [];
+    const i = arr.indexOf(val);
+    if (i >= 0) arr.splice(i, 1); else arr.push(val);
+    nwFormAnswers[key] = arr;
+  } else nwFormAnswers[key] = val;
+  nwRenderFormFields();
+}
+function nwSetText(key, val) { nwFormAnswers[key] = val; }
+
+// 필수 추가 문항 검증 — 통과하면 저장용 페이로드(문항 스냅샷 포함)를 돌려준다.
+function nwCollectFormAnswers(cat) {
+  if (cat !== 'voc' || !vocForm) return { ok: true, payload: null };
+  const fields = Array.isArray(vocForm.fields) ? vocForm.fields : [];
+  if (!fields.length) return { ok: true, payload: null };
+  for (let i = 0; i < fields.length; i++) {
+    const f = fields[i], v = nwFormAnswers[_nwKey(f, i)];
+    const empty = v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length);
+    if (f.required && empty) { showToast(`'${f.label}' 항목을 입력해 주세요.`, true); return { ok: false }; }
+  }
+  // 문항 정의를 함께 얼려 보낸다 — 폼이 나중에 바뀌어도 이 요청은 접수 당시 문항으로 보인다.
+  return { ok: true, payload: {
+    form_id: vocForm.id, captured_at: new Date().toISOString(),
+    fields: fields.map((f, i) => ({ id: _nwKey(f, i), label: f.label, type: f.type, required: !!f.required, options: f.options || undefined })),
+    answers: nwFormAnswers,
+  } };
+}
+
+// 상세 화면 — 접수 당시 스냅샷으로 렌더(현재 폼 정의를 참조하지 않는다).
+function rdRenderFormAnswers(fa) {
+  const wrap = document.getElementById('rd-form-answers');
+  if (!wrap) return;
+  const fields = Array.isArray(fa?.fields) ? fa.fields : [];
+  if (!fields.length) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+  const ans = fa.answers || {};
+  wrap.style.display = '';
+  wrap.innerHTML = `<div class="rd-fa">` + fields.map(f => {
+    const v = ans[f.id];
+    const txt = Array.isArray(v) ? v.join(', ') : (v === undefined || v === null || v === '' ? '' : String(v));
+    return `<div class="row"><span class="q">${escHtml(f.label || '')}</span>` +
+      `<span class="a${txt ? '' : ' none'}">${txt ? escHtml(txt) : '—'}</span></div>`;
+  }).join('') + `</div>`;
 }
 
 function _optsHtml(itemsHtml, placeholder) {
@@ -6127,6 +6273,7 @@ function openModal(id) {
     if (catGrp) catGrp.style.display = '';
     const catChip = document.getElementById('nw-cat-chip');
     if (catChip) catChip.style.display = 'none';
+    nwApplyCategoryForm(document.getElementById('f-category')?.value || '');
     const companyEl = document.getElementById('nw-company');
     const companyTxt = document.getElementById('nw-company-txt');
     const _co = (currentUser && currentUser.company) || '';
@@ -6223,6 +6370,7 @@ function nrqPick(cat) {
     chipLabel.textContent = CATEGORY_LABELS[cat] || cat;
     chip.style.display = 'inline-flex';
   }
+  nwApplyCategoryForm(cat);     // 적용된 폼이 있으면 추가 문항 렌더 + 기본 입력 숨김
 }
 function nrqChangeCategory() {
   closeModal('modal-new');
@@ -7339,6 +7487,10 @@ async function submitRequest() {
     showToast('제목, 카테고리, 내용은 필수 항목입니다.', true);
     return;
   }
+  // 폼 빌더 추가 문항 — 필수 검증 후 스냅샷과 함께 보낸다(백엔드 저장은 api-layer 연동 후).
+  const _fa = nwCollectFormAnswers(category);
+  if (!_fa.ok) return;
+  const formAnswers = _fa.payload;
 
   const btn = document.querySelector('#modal-new .btn-primary');
   if (btn) { btn.disabled = true; btn.textContent = '접수 중...'; }
@@ -13546,6 +13698,7 @@ async function selectRdTicket(idx, directTicket) {
   document.getElementById('rd-title').textContent = rdTicket.title || '—';
   const descEl = document.getElementById('rd-description');
   if (descEl) descEl.textContent = rdTicket.description ?? '불러오는 중...';
+  rdRenderFormAnswers(rdTicket.form_answers);   // 추가 문항(있으면) — 컬럼 추가 전에는 항상 숨김
 
   const rdDelBtn = document.getElementById('rd-delete-btn');
   if (rdDelBtn) rdDelBtn.style.display = permState[currentUser?.role]?.ticket_delete ? '' : 'none';
