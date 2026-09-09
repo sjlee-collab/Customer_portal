@@ -48,9 +48,9 @@ def run():
 
         # ── 비밀번호 변경 — currentPassword 서버 재확인(토큰만으로 탈취 방지) ──
         rc0 = api('PATCH', '/auth/change-password', {'newPassword': 'New!2345'}, role='customer', userId=uid)
-        t.check('현재비번 누락 시 거부', rc0.get('status') not in (200, 204), 'status=%s' % rc0.get('status'))
+        t.check('현재비번 누락 시 400', rc0.get('status') == 400, 'status=%s' % rc0.get('status'))
         rc1 = api('PATCH', '/auth/change-password', {'currentPassword': 'wrong-pw', 'newPassword': 'New!2345'}, role='customer', userId=uid)
-        t.check('현재비번 틀리면 거부', rc1.get('status') not in (200, 204), 'status=%s' % rc1.get('status'))
+        t.check('현재비번 틀리면 401', rc1.get('status') == 401, 'status=%s' % rc1.get('status'))
         rc2 = api('PATCH', '/auth/change-password', {'currentPassword': 'InitPw!234', 'newPassword': 'New!2345'}, role='customer', userId=uid)
         t.check('현재비번 맞으면 변경 200', rc2.get('status') == 200, 'status=%s body=%s' % (rc2.get('status'), rc2.get('body')))
         # 변경 반영 확인: 옛 비번으로 로그인하면 거부(401). (성공 로그인은 하지 않음 — login_events 오염 방지)
@@ -59,13 +59,13 @@ def run():
 
         # ── 재설정 무효 토큰 거부 ──
         rr = api('POST', '/auth/reset-password', {'token': 'bogus-invalid-token', 'password': 'Zz!234567'})
-        t.check('무효 재설정 토큰 거부', rr.get('status') not in (200, 204), 'status=%s' % rr.get('status'))
+        t.check('무효 재설정 토큰 400', rr.get('status') == 400, 'status=%s' % rr.get('status'))
 
         # ── 비밀번호 확인(/auth/verify-password) — 현재 비번은 New!2345 ──
         rv = api('POST', '/auth/verify-password', {'password': 'New!2345'}, role='customer', userId=uid)
         t.check('비밀번호 확인 200', rv.get('status') == 200, 'status=%s' % rv.get('status'))
         rv = api('POST', '/auth/verify-password', {'password': 'wrong-pw'}, role='customer', userId=uid)
-        t.check('비밀번호 확인 틀리면 거부', rv.get('status') not in (200, 204), 'status=%s' % rv.get('status'))
+        t.check('비밀번호 확인 틀리면 401', rv.get('status') == 401, 'status=%s' % rv.get('status'))
 
         # ── 관리자 재설정(/auth/admin-reset-password) ──
         staff = dpost('users', {'name': tname('인증직원'), 'email': temail('authstaff'), 'role': 'internal',

@@ -46,3 +46,22 @@
 ## 알림 Lambda(notify-handler/send-email) 변경 시
 - `TEST_TAG` env가 있으면 슬랙 헤더·메일 제목에 그 값을 접두하도록 유지(테스트 표기 규칙 2의 근거).
 - 배포는 `deploy-fn.sh notify-handler` / `deploy-fn.sh send-email`(drift 진단 → 배포). notify-handler도 매핑에 포함됨.
+
+## 6) 설문 발송 개통 (폼 빌더 D 단계) — **배포 완료(2026-09-08), 실발송 미개통**
+Lambda 4개·API GW 라우트 5개는 배포됐고 **실제 발송만 남았다**(드라이런까지 검증 완료).
+오발송은 회수 불가 — 남은 순서를 절대 건너뛰지 말 것.
+
+- [x] `deploy-fn.sh notify-handler` (voc → 영업 채널) — 영향 작은 것부터 올려 파이프라인 검증
+- [x] `deploy-fn.sh send-email` (SURVEY_INVITE 타입)
+- [x] `deploy-fn.sh data-api` (forms를 고객에게 active만 개방, survey_history 조회 허용·직접쓰기 차단)
+- [x] `deploy-fn.sh api-layer` (소스 4개 동봉, 배포 후 로그인 왕복 200·토큰 확인)
+- [x] API GW 라우트 5개 (`POST /survey/send|remind|answer`, `GET /survey/my|report`) — 인가자 jwt-authorizer 재사용
+- [x] **드라이런 diff 0**: D-90에서 조직 61 / 고객사 61 / 수신자 70 / 제외 5 — 화면 실측과 일치.
+      HTTPS 경로 검증(무토큰 401, `/survey/my` 200, `/survey/report` 200), 발송 이력 0건(메일 0통), 회귀 334/334 PASS
+- [ ] **[테스트] 경로 왕복**: `{form_id, only_test:true}` (=`[테스트]` 고객사만) → survey_history 행·메일(temail 싱크)·알림 로그 "설문" 탭 확인 → `sweep.sh --delete`
+- [ ] **본인 테스트 발송**: 폼 빌더에서 [테스트 발송] → 관리자 본인 메일 1통(제목 `[테스트]`), survey_history 행 **없음** 확인
+- [ ] 시범 고객사 1곳만 직접 선택(발송 대상에서 조직 1개 체크)해 실발송 → 수신·응답 제출까지 확인
+- [ ] 전체 실발송 (발송 버튼 → 드라이런 명단 확인 모달에서 인원 확인 후 진행)
+- [ ] 마지막에 자동 배치: EventBridge 4번째 잡 `survey_dispatch`(매일 09:00 KST, `{"task":"survey_dispatch"}`)
+      — 자동 발송은 `forms.target.auto='on'`인 설문만 대상이라, 등록만 하면 "마감 지난 설문 closed 정리"만 동작(안전한 기본값)
+- [ ] `run-regression.sh`

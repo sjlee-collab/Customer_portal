@@ -83,9 +83,13 @@ def run():
         created['licenses'].append(lic)
         r = batch('license_expiry_notice', only_test=True, date=d7)
         t.check('license_expiry_notice 200', r.get('status') == 200, 'status=%s body=%s' % (r.get('status'), r.get('body')))
-        # 발송 결과는 ok/results로 확인(라이선스 알림은 ticket_id 없음)
-        ok = (r.get('body') or {}).get('ok', True)
-        t.check('라이선스 배치 정상 수행', ok is not False, 'body=%s' % r.get('body'))
+        # 라이선스 알림은 ticket_id가 없어 알림행 판정 불가 — 대신 배치의 집계 응답으로 단언.
+        # (예전엔 ok 기본값 True라 body에 키가 없어도 통과 — 배치가 깨져도 200이면 PASS였다. T2-2)
+        body = r.get('body') or {}
+        t.check('라이선스 배치: 테스트 라이선스 집계됨', body.get('expiring', 0) >= 1,
+                'expiring=%s body=%s' % (body.get('expiring'), body))
+        t.check('라이선스 배치: targetDate 반영', body.get('targetDate') == d7,
+                'targetDate=%s 기대=%s' % (body.get('targetDate'), d7))
     finally:
         for x in created['tickets']:
             if len(dget('tickets', {'select': 'id', 'id': 'eq.' + x}, role='admin').get('body') or []):

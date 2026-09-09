@@ -33,7 +33,7 @@ const ALLOWED_TABLES = new Set([
   'companies', 'company_contracts', 'company_licenses', 'users', 'tickets',
   'log_notification', 'content_documents', 'ticket_history', 'log_integration',
   'ticket_replies', 'ticket_memos', 'ticket_attachments', 'content_notices', 'role_permissions',
-  'org_units', 'user_org_units',
+  'org_units', 'user_org_units', 'forms', 'survey_history',
 ]);
 
 // 이 컬럼들은 select=* 나 명시적 요청과 무관하게 응답에서 절대 내려주지 않는다.
@@ -70,6 +70,9 @@ const STAFF_ONLY_TABLES = {
   // (고객 화면에 필요한 조직 정보는 tickets.unit_name 스냅샷과 로그인 응답으로 충분).
   org_units: new Set(['tech_support', 'sales', 'education', 'admin']),
   user_org_units: new Set(['tech_support', 'sales', 'education', 'admin']),
+  // forms(폼 정의)는 스태프 전용에서 제외한다 — 고객이 설문에 응답하고 VOC 요청 폼을
+  // 렌더하려면 문항을 읽어야 한다. 대신 tenantRowFilterSql에서 비스태프에게는
+  // status='active' 행만 내려준다(초안·마감 설문은 계속 비노출). 쓰기는 form_builder 권한.
 };
 
 function assertTableAccess(table, event) {
@@ -102,7 +105,24 @@ const WRITE_PERMISSION_BY_TABLE = {
   log_integration: 'integration',
   role_permissions: 'permission',
   content_documents: 'library_manage',
+  forms: 'form_builder',
 };
+
+// jsonb 컬럼에 배열을 넣으면 node-postgres가 JSON이 아니라 PostgreSQL 배열 리터럴('{...}')로
+// 직렬화해서 "invalid input syntax for type json"으로 실패한다(객체는 JSON으로 잘 나감).
+// companies.products / notification_emails, tickets.cc_emails 같은 진짜 text[] 컬럼이 있어서
+// 배열을 일괄 변환할 수는 없으므로, jsonb 컬럼만 여기 명시해 JSON 문자열로 바인딩한다.
+const JSONB_COLUMNS = {
+  forms: new Set(['fields', 'target']),
+  survey_history: new Set(['answers']),
+};
+
+function bindWriteValue(table, col, value) {
+  if (value === undefined || value === null) return null;
+  const jsonCols = JSONB_COLUMNS[table];
+  if (jsonCols && jsonCols.has(col) && typeof value === 'object') return JSON.stringify(value);
+  return value;
+}
 
 // content_notices(공지사항)는 화면에서도 role_permissions와 무관하게 순수 role==='admin'
 // 하드코딩(isNoticeAdmin())으로만 노출된다 — library_manage 등 커스터마이징 가능한
@@ -128,7 +148,10 @@ async function hasPermission(role, featureKey) {
 // api-layer가 자체 DB 연결로만 남기고, 클라이언트는 조회만 한다. 이렇게 안 막으면 로그인한
 // 사용자가 가짜 상태변경 이력을 주입하거나(작성자 위조) 자기 티켓 이력을 DELETE로 지워
 // 감사 추적을 파괴할 수 있었다(실제 테스트로 확인). GET(조회)은 여기 걸리지 않는다.
-const NO_DIRECT_WRITE_TABLES = new Set(['tickets', 'ticket_history']);
+// survey_history(설문 발송·응답 이력)도 같은 이유로 막는다 — 발송 행 생성은 api-layer의
+// /survey/send(멱등 삽입·토큰 발급), 응답 기록은 /survey/answer(1회 제출 강제)가 전담한다.
+// 이 범용 API로 쓰게 두면 응답을 위조하거나 남의 초대를 지워 응답률을 조작할 수 있다.
+const NO_DIRECT_WRITE_TABLES = new Set(['tickets', 'ticket_history', 'survey_history']);
 
 // 이 테이블들에 쓸 때 "누가 썼는가" 컬럼은 클라이언트가 준 값을 절대 믿지 않고 항상 인증
 // 토큰의 본인 userId로 덮어쓴다 — 안 그러면 남(관리자 포함)의 명의로 답글/첨부/메모를
@@ -179,6 +202,16 @@ async function tenantRowFilterSql(table, authz, paramOffset, qs) {
 
   if (STAFF_ROLES.has(role)) return null;
 
+  // 폼 정의: 비스태프에게는 "발송 중(active)" 폼만. 초안·마감 폼은 존재 자체를 숨긴다 —
+  // 고객이 아직 검토 중인 설문 문항이나 지난 설문을 미리 볼 수 없어야 한다.
+  if (table === 'forms') {
+    return { sql: `"status" = 'active'`, params: [] };
+  }
+  // 설문 발송·응답 이력: 본인에게 온 초대만. 남의 응답 내용·수신 여부를 볼 수 없다.
+  // (응답 제출은 이 범용 API가 아니라 api-layer POST /survey/answer 전용 — 아래 쓰기 차단)
+  if (table === 'survey_history') {
+    return userId ? { sql: `"user_id" = $${paramOffset}`, params: [userId] } : { sql: '1=0', params: [] };
+  }
   if (table === 'companies') {
     return companyId ? { sql: `"id" = $${paramOffset}`, params: [companyId] } : { sql: '1=0', params: [] };
   }
@@ -255,12 +288,18 @@ async function tenantRowFilterSql(table, authz, paramOffset, qs) {
 // 스태프가 아닌 역할(고객/internal)이 users를 조회할 때, 본인 행이 아니면 이름/역할
 // 정도만(사내 조직도 수준) 남기고 이메일·전화번호·소속회사 등 나머지 컬럼은 지운다.
 const PUBLIC_USER_COLUMNS = new Set(['id', 'name', 'role']);
+// internal(내부직원)은 전체 요청을 열람하고 그 요청자에게 직접 회신해야 하므로 연락처까지
+// 열어준다. STAFF_ROLES에 넣으면 tenantRowFilterSql 면제까지 딸려와 전 고객사 계약·라이선스가
+// 열리므로, 이렇게 컬럼 허용 목록만 넓히는 방식으로 좁게 준다. 명단 전체 조회는 여전히 막힌다
+// (users의 tenantRowFilterSql이 id 필터 없으면 본인 행으로 좁힘).
+const CONTACT_USER_COLUMNS = new Set(['id', 'name', 'role', 'email', 'phone']);
 function restrictUserColumnsForNonStaff(table, rows, authz) {
   if (table !== 'users' || STAFF_ROLES.has(authz.role)) return;
+  const allow = authz.role === 'internal' ? CONTACT_USER_COLUMNS : PUBLIC_USER_COLUMNS;
   for (const row of rows) {
     if (row.id === authz.userId) continue;
     for (const col of Object.keys(row)) {
-      if (!PUBLIC_USER_COLUMNS.has(col)) delete row[col];
+      if (!allow.has(col)) delete row[col];
     }
   }
 }
@@ -566,7 +605,7 @@ async function handlePost(table, body, onConflict, event) {
 
   const results = [];
   for (const rec of records) {
-    const params = cols.map(c => rec[c] ?? null);
+    const params = cols.map(c => bindWriteValue(table, c, rec[c]));
     const placeholders = cols.map((_, i) => `$${i + 1}`).join(',');
     const inserted = await query(
       `insert into "${table}" (${colsSql}) values (${placeholders})${conflictSql} returning *`,
@@ -591,7 +630,7 @@ async function handlePatch(table, id, body, event) {
   assertNoBlockedWrite(table, cols);
   await assertWriteAllowed(table, 'PATCH', getAuthz(event), id, cols, body);
   const setSql = cols.map((c, i) => `"${c}" = $${i + 1}`).join(',');
-  const params = cols.map(c => body[c] ?? null);
+  const params = cols.map(c => bindWriteValue(table, c, body[c]));
   params.push(id);
   const updated = await query(
     `update "${table}" set ${setSql} where id = $${params.length} returning *`,

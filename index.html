@@ -195,6 +195,73 @@ button,input,select,textarea{font-family:inherit;}
 
 /* ── body area ── */
 .body{flex:1;overflow:hidden;padding:24px;display:flex;flex-direction:column;}
+/* ── 갱신 설문: 상단 배너 + 응답 팝업 ──
+   팝업에서 "나중에 하기"를 누르면 배너로 강등해 응답할 때까지 유지한다(밀어내기식 —
+   목록 높이는 fitListHeight()가 다시 계산해 흡수). */
+/* 요청 등록 — 폼 빌더가 붙인 추가 문항 */
+.nwf-wrap{border:1px solid var(--border);border-radius:var(--r-md);padding:13px 15px;background:var(--surface2);}
+.nwf-hd{font-size:11.5px;font-weight:700;color:var(--muted);margin-bottom:11px;display:flex;align-items:center;gap:6px;}
+.nwf-hd .tag{background:var(--accent-l);color:var(--accent);border-radius:999px;padding:2px 8px;font-size:10px;}
+.nwf-q{margin-bottom:13px;}
+.nwf-q:last-child{margin-bottom:0;}
+.nwf-q > label{display:block;font-size:12px;font-weight:600;margin-bottom:6px;}
+.nwf-q .req{color:var(--red);}
+.nwf-opt{display:flex;align-items:center;gap:8px;border:1.5px solid var(--border);border-radius:8px;padding:7px 11px;font-size:12.5px;color:var(--muted);margin-bottom:5px;cursor:pointer;background:var(--surface);}
+.nwf-opt:last-child{margin-bottom:0;}
+.nwf-opt.on{border-color:var(--accent);background:var(--accent-l);color:var(--text);font-weight:600;}
+.nwf-opt .bx{width:13px;height:13px;flex-shrink:0;border:1.5px solid var(--border-strong);display:grid;place-items:center;font-size:9px;color:#fff;}
+.nwf-opt .bx.sq{border-radius:3px;} .nwf-opt .bx.ci{border-radius:50%;}
+.nwf-opt.on .bx{background:var(--accent);border-color:var(--accent);}
+.nwf-scale{display:flex;gap:4px;flex-wrap:wrap;}
+.nwf-scale button{all:unset;cursor:pointer;min-width:27px;height:27px;border:1px solid var(--border-md);border-radius:7px;display:grid;place-items:center;font-size:11.5px;color:var(--muted);padding:0 4px;background:var(--surface);}
+.nwf-scale button.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;}
+.nwf-stars{display:flex;gap:5px;}
+.nwf-stars button{all:unset;cursor:pointer;font-size:23px;line-height:1;color:#D1D5DB;}
+.nwf-stars button.on{color:#F59E0B;}
+/* 상세 화면 — 접수 당시 문항 스냅샷 */
+.rd-fa{display:flex;flex-direction:column;gap:9px;}
+.rd-fa .row{display:flex;gap:10px;font-size:12.5px;line-height:1.6;}
+.rd-fa .row .q{width:190px;flex-shrink:0;color:var(--muted);font-weight:600;}
+.rd-fa .row .a{flex:1;white-space:pre-wrap;word-break:break-word;}
+.rd-fa .row .a.none{color:var(--faint);}
+.svq-banner{flex-shrink:0;display:flex;align-items:center;gap:11px;background:var(--accent-l);border:1px solid #d6d0f7;border-radius:var(--r-md);padding:10px 14px;margin-bottom:14px;}
+.svq-banner .ic{font-size:15px;}
+.svq-banner .msg{flex:1;font-size:12.5px;color:var(--text);line-height:1.5;}
+.svq-banner .msg b{color:var(--accent);}
+.svq-banner .x{all:unset;cursor:pointer;font-size:12px;color:var(--faint);padding:0 4px;}
+#modal-svq .svq-box{background:var(--surface);border-radius:14px;width:460px;max-width:calc(100vw - 40px);max-height:calc(100vh - 60px);box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden;display:flex;flex-direction:column;}
+#modal-svq .svq-hd{background:linear-gradient(135deg,var(--accent),#6D67E4);padding:18px 22px 15px;color:#fff;text-align:center;flex-shrink:0;}
+#modal-svq .svq-badge{display:inline-block;background:rgba(255,255,255,.22);font-size:10.5px;font-weight:700;padding:3px 12px;border-radius:999px;margin-bottom:8px;}
+#modal-svq .svq-title{font-size:15.5px;font-weight:800;}
+#modal-svq .svq-sub{font-size:11.5px;color:#DDDAF8;line-height:1.55;margin-top:4px;}
+#modal-svq .svq-bd{padding:16px 22px 6px;overflow-y:auto;display:flex;flex-direction:column;gap:16px;}
+#modal-svq .svq-q{font-size:12.5px;font-weight:700;margin-bottom:9px;}
+#modal-svq .svq-q .req{color:var(--red);}
+#modal-svq .svq-scale{display:flex;gap:4px;flex-wrap:wrap;}
+#modal-svq .svq-scale button{all:unset;cursor:pointer;min-width:28px;height:28px;border:1px solid var(--border-md);border-radius:7px;display:grid;place-items:center;font-size:11.5px;color:var(--muted);padding:0 4px;}
+#modal-svq .svq-scale button.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;}
+#modal-svq .svq-cap{display:flex;justify-content:space-between;font-size:10px;color:var(--faint);margin-top:4px;}
+#modal-svq .svq-opt{display:flex;align-items:center;gap:9px;border:1.5px solid var(--border);border-radius:9px;padding:9px 12px;font-size:12.5px;color:var(--muted);margin-bottom:6px;cursor:pointer;}
+#modal-svq .svq-opt:last-child{margin-bottom:0;}
+#modal-svq .svq-opt.on{border-color:var(--accent);background:var(--accent-l);color:var(--text);font-weight:600;}
+#modal-svq .svq-opt .bx{width:14px;height:14px;flex-shrink:0;border:1.5px solid var(--border-strong);display:grid;place-items:center;font-size:9px;color:#fff;}
+#modal-svq .svq-opt .bx.sq{border-radius:4px;}
+#modal-svq .svq-opt .bx.ci{border-radius:50%;}
+#modal-svq .svq-opt.on .bx{background:var(--accent);border-color:var(--accent);}
+#modal-svq .svq-stars{display:flex;gap:6px;}
+#modal-svq .svq-stars button{all:unset;cursor:pointer;font-size:27px;line-height:1;color:#D1D5DB;}
+#modal-svq .svq-stars button.on{color:#F59E0B;}
+#modal-svq textarea.svq-ta{width:100%;box-sizing:border-box;border:1px solid var(--border-md);border-radius:9px;padding:9px 12px;font-size:12.5px;font-family:inherit;min-height:70px;resize:vertical;color:var(--text);background:var(--surface);outline:none;}
+#modal-svq .svq-ft{flex-shrink:0;padding:12px 22px 16px;}
+#modal-svq .svq-submit{width:100%;padding:11px 0;border:none;border-radius:10px;background:var(--accent);color:#fff;font-size:13px;font-weight:750;font-family:inherit;cursor:pointer;}
+#modal-svq .svq-submit:disabled{opacity:.45;cursor:default;}
+#modal-svq .svq-ftrow{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:10px;}
+#modal-svq .svq-later{all:unset;cursor:pointer;font-size:11.5px;color:var(--faint);text-decoration:underline;}
+#modal-svq .svq-step{font-size:10.5px;color:var(--faint);}
+#modal-svq .svq-done{padding:26px 22px 24px;text-align:center;}
+#modal-svq .svq-done .em{font-size:34px;}
+#modal-svq .svq-done .h{font-size:15px;font-weight:800;margin-top:8px;}
+#modal-svq .svq-done .d{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.6;}
 .body>#p-request-detail.active{flex:1;min-height:0;}
 /* 요청/요청 관리/고객사 관리 목록: JS로 높이를 계산하지 않고 flex로 남는 세로 공간을 채움 (해상도 무관하게 항상 정확) */
 .body>#p-my-requests.active,
@@ -342,6 +409,46 @@ button,input,select,textarea{font-family:inherit;}
 .sat-quote b{color:var(--text);font-weight:600;}
 .sat-quote .m{font-size:10.5px;color:var(--faint);margin-top:2px;}
 .sat-trend-up{color:var(--green-d);font-weight:700;} .sat-trend-dn{color:var(--red-d);font-weight:700;}
+/* ── 사용 통계 > 설문 현황 탭 ── */
+/* 이 탭만 2단(목록=설문 단위 / 상세=문항 단위)이다. 설문마다 문항이 달라 여러 설문의 응답을
+   한 축으로 합칠 수 없어서, 합계가 성립하는 발송·응답·응답률만 목록에 두고 문항은 상세로 내렸다. */
+/* .rq-bfill은 인라인 span이라 부모가 flex가 아니면 height/width가 적용되지 않는다.
+   설문 탭이 쓰는 막대만 블록으로 승격한다 — 기존 탭의 규칙은 건드리지 않는다. */
+.sv-rate{display:flex;align-items:center;gap:9px;min-width:118px;}
+.sv-rate .rq-btrack{flex:1;display:block;}
+.sv-rate .rq-bfill,.sv-q .rq-bfill{display:block;}
+.sv-rate b{font-size:12px;font-variant-numeric:tabular-nums;width:38px;text-align:right;}
+/* 문항 카드의 선택지 라벨은 제품명·문장이라 기본 92px로는 대부분 잘린다. */
+.sv-q .rq-brow{grid-template-columns:172px 1fr 70px;}
+@media (max-width:900px){.sv-q .rq-brow{grid-template-columns:108px 1fr 64px;}}
+.sv-pill{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:99px;white-space:nowrap;}
+.sv-pill.act{background:var(--green-l);color:var(--green-d);}
+.sv-pill.clo{background:var(--surface2);color:var(--muted);}
+.sv-pill.dra{background:var(--amber-l);color:var(--amber-d);}
+.sv-pill.tri{background:var(--accent-l);color:var(--accent-d);}
+.sv-row{cursor:pointer;}
+.sv-row:hover{background:var(--accent-l);}
+.sv-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.sv-head .dt{font-size:16px;font-weight:800;letter-spacing:-.01em;}
+.sv-head .dm{display:flex;gap:20px;margin-left:auto;flex-wrap:wrap;}
+.sv-head .dm div{font-size:11px;color:var(--muted);}
+.sv-head .dm b{display:block;font-size:19px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums;margin-top:2px;}
+.sv-q{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:15px 18px;box-shadow:var(--shadow-sm);margin-bottom:14px;}
+.sv-qh{display:flex;align-items:flex-start;gap:9px;margin-bottom:14px;}
+.sv-qn{font-size:11px;font-weight:800;color:#fff;background:#9AA1B4;border-radius:5px;padding:2px 7px;flex:none;margin-top:1px;}
+.sv-qt{font-size:13.5px;font-weight:700;flex:1;min-width:0;}
+.sv-qty{font-size:10.5px;font-weight:700;color:var(--muted);background:var(--surface2);border:1px solid var(--border-md);border-radius:99px;padding:2px 8px;flex:none;white-space:nowrap;}
+.sv-qc{font-size:11px;color:var(--faint);flex:none;white-space:nowrap;}
+.sv-big{display:flex;align-items:baseline;gap:8px;margin-bottom:12px;}
+.sv-big .bv{font-size:30px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
+.sv-big .bl{font-size:11.5px;color:var(--muted);}
+.sv-nps{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
+.sv-nps>div{flex:1;min-width:112px;border-radius:var(--r-md);padding:9px 12px;}
+.sv-nps .sn{font-size:11px;font-weight:700;margin-bottom:3px;}
+.sv-nps .snum{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;}
+.sv-nps .det{background:var(--red-l);color:var(--red-d);}
+.sv-nps .pas{background:var(--surface2);color:var(--muted);}
+.sv-nps .pro{background:var(--green-l);color:var(--green-d);}
 /* 다운로드 상위 자료 — 제목이 FAQ 한 문장이라 한 줄 그리드로는 대부분 잘린다.
    제목을 위에 두 줄까지 펼치고 막대·횟수를 아래 줄에 둔다. */
 .dl-item{padding:9px 0;border-bottom:1px solid var(--border);}
@@ -383,6 +490,229 @@ button,input,select,textarea{font-family:inherit;}
 .rd-hist-sum .h-pre{flex:none;margin-right:4px;}
 .rd-hist-sum .h-tail{flex:none;white-space:nowrap;margin-left:4px;}
 .rd-hist-sum .h-who{color:var(--text);font-weight:700;}
+/* 새 요청 카테고리 드롭다운 — 등록 버튼 아래에서 카테고리를 먼저 고르고 폼을 연다 (전 역할 공통) */
+.nrq-dd{position:absolute;z-index:520;width:max-content;min-width:150px;max-width:230px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 32px rgba(20,20,50,.16);padding:5px;}
+.nrq-dd-item{padding:8px 12px;font-size:12.5px;font-weight:600;border-radius:7px;cursor:pointer;white-space:nowrap;}
+.nrq-dd-item:hover{background:var(--accent-l);color:var(--accent);}
+/* 폼 빌더 — 단계 흐름(폼 종류 → VOC 요청 폼/설문 폼) */
+#p-forms.active{flex:1;min-height:0;overflow-y:auto;} /* .body가 overflow:hidden이라 페이지 자체 스크롤 */
+/* 폼 빌더만 가운데 정렬 — 1280px 초과 화면에서 콘텐츠를 중앙으로 (좁은 화면은 기존과 동일) */
+#p-forms > .section-header, #p-forms > .fb-steps, #p-forms > .fb-panel{max-width:1280px;margin-left:auto;margin-right:auto;}
+.fb-doc{display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--border-md);border-radius:999px;padding:6px 8px 6px 14px;box-shadow:var(--shadow-sm);}
+.fb-doc .nm{font-size:12.5px;font-weight:700;}
+.fb-pill{display:inline-flex;align-items:center;font-size:10.5px;font-weight:700;border-radius:999px;padding:3px 10px;}
+.fb-pill.draft{background:var(--amber-l);color:var(--amber-d);}
+.fb-pill.active{background:var(--green-l);color:var(--green-d);}
+.fb-steps{display:flex;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:16px;}
+.fb-step{flex:1;display:flex;gap:10px;align-items:flex-start;padding:13px 15px;border:none;background:transparent;border-right:1px solid var(--border);text-align:left;font-family:inherit;color:inherit;cursor:pointer;position:relative;}
+.fb-step:last-child{border-right:none;}
+.fb-step .dot{flex-shrink:0;width:25px;height:25px;border-radius:50%;display:grid;place-items:center;font-size:11.5px;font-weight:700;background:var(--surface2);color:var(--faint);border:1px solid var(--border-md);}
+.fb-step .t{display:block;font-size:12.5px;font-weight:700;line-height:1.3;}
+.fb-step .d{display:block;font-size:10.5px;color:var(--faint);margin-top:3px;line-height:1.45;}
+.fb-step.done .dot{background:var(--green-l);color:var(--green-d);border-color:transparent;}
+.fb-step.done .t{color:var(--muted);}
+.fb-step.current{background:var(--accent-l);}
+.fb-step.current::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--accent);}
+.fb-step.current .dot{background:var(--accent);color:#fff;border-color:transparent;}
+.fb-step.current .t{color:var(--accent);}
+.fb-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:20px 22px;}
+.fb-phd{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-bottom:13px;margin-bottom:16px;border-bottom:1px solid var(--border);}
+.fb-phd h2{font-size:15px;font-weight:800;margin:0;}
+.fb-phd .hint{font-size:11.5px;color:var(--muted);}
+.fb-picks{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.fb-pick{border:1.5px solid var(--border-md);border-radius:var(--r-lg);padding:18px 20px;text-align:left;background:var(--surface);font-family:inherit;color:inherit;cursor:pointer;display:flex;flex-direction:column;gap:9px;}
+.fb-pick:hover{border-color:var(--accent);background:var(--accent-l);}
+.fb-pick .kind{font-size:15px;font-weight:800;}
+.fb-pick .why{font-size:12.5px;color:var(--muted);line-height:1.65;}
+.fb-pick .flow{font-size:11px;color:var(--faint);border-top:1px dashed var(--border-md);padding-top:9px;line-height:1.6;}
+.fb-pick .state{display:flex;gap:7px;flex-wrap:wrap;}
+.fb-tag{font-size:11px;font-weight:700;border-radius:999px;padding:3px 10px;background:var(--surface2);color:var(--muted);border:1px solid var(--border-md);}
+.fb-tag.on{background:var(--green-l);color:var(--green-d);border-color:transparent;}
+.fb-editor{display:grid;grid-template-columns:196px 1fr;gap:14px;align-items:start;}
+.fb-pal{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);padding:12px;position:sticky;top:8px;}
+.fb-pal .cap{font-size:11.5px;font-weight:700;margin-bottom:8px;}
+.fb-pal button{display:flex;align-items:center;gap:8px;width:100%;border:1px solid var(--border);background:var(--surface);border-radius:var(--r-md);padding:8px 11px;margin-bottom:6px;font-size:12.5px;font-family:inherit;color:var(--text);cursor:pointer;text-align:left;}
+.fb-pal button:last-child{margin-bottom:0;}
+.fb-pal button:hover{border-color:var(--accent);background:var(--accent-l);}
+.fb-pal .k{color:var(--faint);font-size:11px;}
+.fb-fixed{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:11px;}
+.fb-fixed .cap{font-size:11.5px;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:7px;margin-bottom:9px;}
+.fb-fixed .lock{font-size:10px;font-weight:700;color:var(--faint);background:var(--surface);border:1px solid var(--border-md);border-radius:999px;padding:2px 8px;}
+.fb-fixed .items{display:flex;gap:6px;flex-wrap:wrap;}
+.fb-fx{font-size:11.5px;color:var(--muted);background:var(--surface);border:1px solid var(--border-md);border-radius:var(--r-sm);padding:4px 10px;}
+.fb-fx.off{color:var(--faint);border-style:dashed;text-decoration:line-through;text-decoration-color:var(--border-strong);}
+.fb-field{border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:9px;background:var(--surface);}
+.fb-field-hd{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:11.5px;}
+.fb-no{font-weight:700;color:var(--accent);background:var(--accent-l);border-radius:var(--r-sm);padding:2px 7px;font-size:11px;}
+.fb-type{color:var(--muted);border:1px solid var(--border);border-radius:5px;padding:2px 7px;font-size:10.5px;}
+.fb-act{width:24px;height:24px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:12px;cursor:pointer;line-height:1;}
+.fb-act:disabled{opacity:.4;cursor:default;}
+.fb-label-inp{width:100%;border:1px solid var(--border-md);border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;background:var(--surface);color:var(--text);}
+.fb-opts{width:100%;border:1px solid var(--border-md);border-radius:8px;padding:8px 11px;font-size:12.5px;font-family:inherit;margin-top:7px;resize:vertical;background:var(--surface);color:var(--text);}
+.fb-inp{width:100%;border:1px solid var(--border-md);border-radius:8px;padding:8px 11px;font-size:13px;font-family:inherit;background:var(--surface);color:var(--text);}
+.fb-lbl{display:block;font-size:12px;font-weight:600;margin-bottom:5px;}
+.fb-grid3{display:grid;grid-template-columns:1.2fr 1.6fr 150px;gap:12px;margin-bottom:16px;}
+.fb-empty{border:1.5px dashed var(--border-md);border-radius:10px;padding:30px;text-align:center;color:var(--faint);font-size:12.5px;}
+.fb-preview{display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start;}
+.fb-phone{border:1px solid var(--border-md);border-radius:var(--r-md);overflow:hidden;}
+.fb-phone .bar{background:var(--surface2);border-bottom:1px solid var(--border);padding:8px 13px;font-size:11px;color:var(--muted);}
+.fb-phone .bd{padding:15px 16px;display:flex;flex-direction:column;gap:11px;}
+.fb-pf{display:flex;flex-direction:column;gap:5px;}
+.fb-pf label{font-size:12px;font-weight:600;}
+.fb-pf .req{color:var(--red);}
+.fb-pf .box{border:1px solid var(--border-md);border-radius:var(--r-md);padding:8px 11px;font-size:12.5px;color:var(--faint);background:var(--surface);}
+.fb-pf .box.tall{min-height:56px;}
+.fb-pf.added label::after{content:"추가 문항";font-size:9.5px;font-weight:700;color:var(--accent);background:var(--accent-l);border-radius:999px;padding:2px 7px;margin-left:6px;}
+.fb-rev{border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden;}
+.fb-rev-row{display:flex;justify-content:space-between;gap:12px;padding:11px 15px;font-size:12.5px;border-bottom:1px solid var(--border);}
+.fb-rev-row:last-child{border-bottom:none;}
+.fb-rev-row .k{color:var(--muted);}
+.fb-rev-row .v{font-weight:600;text-align:right;}
+.fb-warn{margin-top:12px;background:var(--amber-l);border:1px solid var(--amber);border-radius:var(--r-md);padding:9px 12px;font-size:11.5px;color:var(--amber-d);line-height:1.6;}
+.fb-two{display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start;}
+.fb-fset{border:1px solid var(--border);border-radius:var(--r-md);padding:13px 15px;margin-bottom:14px;}
+.fb-fset .cap{font-size:12px;font-weight:700;margin-bottom:9px;}
+.fb-chips{display:flex;gap:7px;flex-wrap:wrap;}
+.fb-chip{font-size:12px;border:1px solid var(--border-md);background:var(--surface);border-radius:999px;padding:5px 13px;cursor:pointer;font-family:inherit;color:var(--muted);}
+.fb-chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
+.fb-tally{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);padding:16px 18px;}
+.fb-tally .cap{font-size:11.5px;color:var(--muted);margin-bottom:4px;}
+.fb-tally .big{font-size:30px;font-weight:800;line-height:1.1;}
+.fb-mail{border:1px solid var(--border-md);border-radius:var(--r-md);overflow:hidden;}
+.fb-mail .bar{background:var(--surface2);border-bottom:1px solid var(--border);padding:8px 13px;font-size:11px;color:var(--muted);}
+.fb-mail .body{padding:15px 16px;font-size:12.5px;line-height:1.65;color:var(--muted);}
+.fb-mail .body h4{font-size:13.5px;color:var(--text);margin:0 0 7px;}
+.fb-mail .cta{display:inline-block;margin-top:11px;background:var(--accent);color:#fff;font-size:12px;font-weight:600;border-radius:var(--r-md);padding:7px 15px;}
+/* 설문 미리보기 — 고객 응답 화면 위젯 */
+.fb-pv-hd{background:linear-gradient(135deg,var(--accent),#6D67E4);padding:20px 22px 16px;color:#fff;text-align:center;}
+.fb-pv-badge{display:inline-block;background:rgba(255,255,255,.22);font-size:10.5px;font-weight:700;padding:3px 12px;border-radius:999px;margin-bottom:8px;}
+.fb-pv-title{font-size:15.5px;font-weight:800;margin-bottom:4px;}
+.fb-pv-sub{font-size:11.5px;color:#DDDAF8;line-height:1.5;}
+.fb-pv-bd{padding:17px 20px 8px;display:flex;flex-direction:column;gap:15px;}
+.fb-pv-q{font-size:12.5px;font-weight:700;margin-bottom:8px;}
+.fb-pv-q .req{color:var(--red);}
+.fb-pv-nps{display:flex;gap:4px;flex-wrap:wrap;}
+.fb-pv-nps span{min-width:27px;height:27px;border:1px solid var(--border-md);border-radius:7px;display:grid;place-items:center;font-size:11.5px;color:var(--muted);padding:0 4px;}
+.fb-pv-npscap{display:flex;justify-content:space-between;font-size:10px;color:var(--faint);margin-top:4px;}
+.fb-pv-opt{display:flex;align-items:center;gap:9px;border:1.5px solid var(--border);border-radius:9px;padding:8px 12px;font-size:12.5px;color:var(--muted);margin-bottom:6px;}
+.fb-pv-opt:last-child{margin-bottom:0;}
+.fb-pv-opt .bx{width:14px;height:14px;flex-shrink:0;border:1.5px solid var(--border-strong);}
+.fb-pv-opt .bx.sq{border-radius:4px;}
+.fb-pv-opt .bx.ci{border-radius:50%;}
+.fb-pv-stars{font-size:26px;color:#e2e2e8;letter-spacing:4px;}
+.fb-pv-ta{border:1px solid var(--border-md);border-radius:9px;padding:8px 12px;font-size:12px;color:var(--faint);min-height:56px;}
+.fb-pv-submit{margin:8px 20px 0;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:11px;font-size:13px;font-weight:700;font-family:inherit;display:block;width:calc(100% - 40px);}
+.fb-pv-ft{display:flex;justify-content:space-between;align-items:center;padding:10px 20px 15px;font-size:11px;color:var(--faint);}
+/* 발송 대상 — 고객사·수신자 리스트 */
+.fb-tgt-list{margin-top:14px;border:1px solid var(--border);border-radius:var(--r-md);overflow:visible;}
+.fb-tgt-list .hd{display:flex;justify-content:space-between;align-items:center;background:var(--surface2);border-bottom:1px solid var(--border);padding:9px 14px;font-size:12px;font-weight:700;border-radius:var(--r-md) var(--r-md) 0 0;}
+.fb-tgt-list .tblwrap{overflow-x:auto;}
+/* 발송 대상 리스트 뷰 필터 (선택+검색 콤보) */
+.fb-tgt-fbar{display:flex;gap:10px;align-items:flex-end;padding:11px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+.fb-tgt-fbar .lbl{font-size:10.5px;font-weight:700;color:var(--muted);margin:0 0 4px 2px;display:block;}
+.fb-fctl{position:relative;min-width:190px;}
+.fb-fbox{display:flex;flex-wrap:wrap;gap:4px;align-items:center;min-height:32px;border:1px solid var(--border-md);border-radius:9px;background:var(--surface);padding:3px 26px 3px 6px;cursor:pointer;font-size:12px;position:relative;}
+.fb-fbox:hover{border-color:var(--border-strong);}
+.fb-fctl.open .fb-fbox{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-l);}
+.fb-fbox .ph{color:var(--faint);padding:0 4px;}
+.fb-fbox::after{content:"\25BE";position:absolute;right:9px;top:50%;transform:translateY(-50%);color:var(--faint);font-size:11px;}
+.fb-fchip{display:inline-flex;align-items:center;gap:4px;background:var(--accent-l);color:var(--accent);font-size:11px;font-weight:600;border-radius:999px;padding:2px 6px 2px 9px;}
+.fb-fchip .x{cursor:pointer;font-weight:700;opacity:.6;padding:0 2px;}
+.fb-fchip .x:hover{opacity:1;}
+.fb-fmore{font-size:11px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:2px 8px;}
+.fb-fpop{position:absolute;z-index:60;top:calc(100% + 6px);left:0;width:256px;background:var(--surface);border:1px solid var(--border-md);border-radius:12px;box-shadow:0 10px 34px rgba(20,20,50,.16);display:none;overflow:hidden;}
+.fb-fctl.open .fb-fpop{display:block;}
+.fb-fpop .srch{display:flex;align-items:center;gap:7px;padding:8px 11px;border-bottom:1px solid var(--border);}
+.fb-fpop .srch input{flex:1;border:none;outline:none;font-size:12.5px;font-family:inherit;color:var(--text);background:transparent;}
+.fb-fopts{max-height:214px;overflow-y:auto;padding:5px;}
+.fb-fopt{display:flex;align-items:center;gap:9px;padding:6.5px 9px;border-radius:8px;font-size:12.5px;cursor:pointer;}
+.fb-fopt:hover{background:var(--surface2);}
+.fb-fopt .cb{width:15px;height:15px;border:1.5px solid var(--border-strong);border-radius:4px;flex-shrink:0;display:grid;place-items:center;font-size:10px;color:#fff;}
+.fb-fopt.on .cb{background:var(--accent);border-color:var(--accent);}
+.fb-fopt.on .cb::after{content:"\2713";}
+.fb-fopt .sub{margin-left:auto;font-size:10.5px;color:var(--faint);white-space:nowrap;padding-left:8px;}
+.fb-fopt .hl{background:#FDF3C8;border-radius:2px;}
+.fb-fempty{padding:15px;text-align:center;font-size:12px;color:var(--faint);}
+.fb-fft{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding:6px 11px;background:var(--surface2);}
+.fb-fft button{border:none;background:none;font-family:inherit;font-size:11.5px;color:var(--muted);cursor:pointer;padding:3px 6px;border-radius:6px;}
+.fb-fft button:hover{background:var(--border);color:var(--text);}
+.fb-fft .cnt{font-size:11px;color:var(--faint);}
+.fb-freset{border:1px solid var(--border-md);background:var(--surface);border-radius:9px;font-family:inherit;font-size:12px;color:var(--muted);padding:0 12px;cursor:pointer;height:32px;}
+.fb-freset:hover{border-color:var(--border-strong);color:var(--text);}
+.fb-fsum{margin-left:auto;height:32px;display:flex;align-items:center;font-size:12px;color:var(--muted);padding:0 4px;}
+.fb-fsum b{color:var(--accent);margin:0 3px;}
+.fb-rcpt.hit{background:var(--accent-l);border-color:#d6d0f7;}
+.fb-rcpt.hit b{color:var(--accent);}
+/* 발송 최종 확인 모달 — 드라이런으로 받아온 실제 명단을 보여주고 한 번 더 확인받는다 */
+#modal-fb-send .fs-box{background:var(--surface);border-radius:14px;width:640px;max-width:calc(100vw - 40px);box-shadow:0 20px 60px rgba(20,20,50,.28);overflow:hidden;display:flex;flex-direction:column;max-height:calc(100vh - 80px);}
+#modal-fb-send .fs-hd{padding:16px 22px;border-bottom:1px solid var(--border);}
+#modal-fb-send .fs-hd h3{margin:0;font-size:15px;font-weight:800;}
+#modal-fb-send .fs-hd .sub{font-size:11.5px;color:var(--muted);margin-top:3px;}
+#modal-fb-send .fs-bd{padding:16px 22px;overflow-y:auto;}
+#modal-fb-send .fs-big{display:flex;align-items:baseline;gap:8px;}
+#modal-fb-send .fs-big b{font-size:28px;font-weight:800;}
+#modal-fb-send .fs-big span{font-size:12.5px;color:var(--muted);}
+#modal-fb-send .fs-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+#modal-fb-send .fs-meta span{font-size:11px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:3px 10px;}
+#modal-fb-send .fs-warn{margin-top:12px;background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:9px 13px;font-size:12px;color:#B91C1C;line-height:1.6;}
+#modal-fb-send .fs-list{margin-top:12px;border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+#modal-fb-send .fs-list .h{background:var(--surface2);border-bottom:1px solid var(--border);padding:7px 12px;font-size:11px;font-weight:700;color:var(--muted);}
+#modal-fb-send .fs-row{display:flex;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px;align-items:flex-start;}
+#modal-fb-send .fs-row:last-child{border-bottom:none;}
+#modal-fb-send .fs-row .co{width:150px;flex-shrink:0;font-weight:700;}
+#modal-fb-send .fs-row .un{width:130px;flex-shrink:0;color:var(--accent);font-size:11px;}
+#modal-fb-send .fs-row .rc{flex:1;color:var(--muted);font-size:11px;line-height:1.6;}
+#modal-fb-send .fs-more{padding:7px 12px;text-align:center;font-size:11px;color:var(--faint);background:var(--surface2);}
+#modal-fb-send .fs-ft{display:flex;gap:8px;align-items:center;padding:13px 22px;border-top:1px solid var(--border);background:var(--surface2);}
+.fb-uchip{display:inline-flex;align-items:center;font-size:10.5px;font-weight:700;border-radius:6px;padding:2px 7px;background:#EAF3FF;color:#1D6FD6;max-width:130px;overflow:hidden;text-overflow:ellipsis;}
+.fb-uchip.none{background:#f1f1f5;color:var(--faint);}
+.fb-diff{background:#F0FDF4;border:1px solid #BBF7D0;color:#166534;border-radius:999px;font-size:10px;font-weight:700;padding:2px 8px;margin-left:6px;vertical-align:3px;}
+.fb-tgt-table td.cogrp{background:var(--surface);}
+/* 발송 고객사 직접 선택 */
+.fb-modebar{display:flex;gap:8px;flex-wrap:wrap;}
+.fb-mode{display:flex;gap:9px;align-items:flex-start;border:1.5px solid var(--border-md);border-radius:11px;padding:10px 14px;cursor:pointer;background:var(--surface);max-width:330px;}
+.fb-mode .rd{width:15px;height:15px;border-radius:50%;border:1.5px solid var(--border-strong);flex-shrink:0;margin-top:1px;display:grid;place-items:center;}
+.fb-mode.on{border-color:var(--accent);background:var(--accent-l);}
+.fb-mode.on .rd{border-color:var(--accent);}
+.fb-mode.on .rd::after{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent);}
+.fb-mode .mt{display:block;font-size:12.5px;font-weight:700;}
+.fb-mode .md{display:block;font-size:10.5px;color:var(--muted);margin-top:2px;line-height:1.5;}
+.fb-ckb{width:16px;height:16px;border:1.5px solid var(--border-strong);border-radius:4.5px;display:inline-grid;place-items:center;font-size:10.5px;color:#fff;cursor:pointer;background:var(--surface);vertical-align:middle;}
+.fb-ckb.on{background:var(--accent);border-color:var(--accent);}
+.fb-ckb.on::after{content:"\2713";}
+.fb-ckb.half{background:var(--accent);border-color:var(--accent);}
+.fb-ckb.half::after{content:"\2013";}
+.fb-tgt-selbar{display:flex;align-items:center;gap:12px;padding:9px 14px;border-bottom:1px solid var(--border);background:#FBFAFF;font-size:12px;}
+.fb-tgt-selbar .selcnt{background:var(--accent);color:#fff;font-weight:700;font-size:11px;border-radius:999px;padding:2px 10px;}
+.fb-tgt-selbar button{border:none;background:none;font-family:inherit;font-size:11.5px;color:var(--accent);cursor:pointer;padding:2px 4px;font-weight:600;}
+.fb-tgt-selbar .sep{color:var(--border-strong);}
+.fb-tgt-selbar .note{margin-left:auto;color:var(--faint);font-size:11px;}
+tr.fb-tgt-off td{opacity:.42;}
+tr.fb-tgt-off td.fb-ckcol{opacity:1;}
+.fb-tgt-list .hd .sub{font-weight:400;color:var(--muted);font-size:11px;}
+.fb-tgt-table{width:100%;border-collapse:collapse;font-size:12px;}
+.fb-tgt-table th{text-align:left;font-size:10.5px;font-weight:600;color:var(--muted);padding:7px 14px;border-bottom:1px solid var(--border);}
+.fb-tgt-table td{padding:9px 14px;border-bottom:1px solid var(--border);vertical-align:top;white-space:nowrap;}
+.fb-tgt-table .clip{display:block;max-width:260px;overflow:hidden;text-overflow:ellipsis;}
+.fb-tgt-table .clip-sm{display:block;max-width:170px;overflow:hidden;text-overflow:ellipsis;}
+.fb-tgt-table tr:last-child td{border-bottom:none;}
+.fb-dchip{display:inline-flex;font-size:10px;font-weight:700;border-radius:999px;padding:2px 8px;background:var(--accent-l);color:var(--accent);}
+.fb-rcpt{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:2px 9px;margin:2px 3px 2px 0;}
+.fb-rcpt b{color:var(--text);font-weight:600;}
+.fb-tgt-pager{display:flex;align-items:center;gap:10px;padding:9px 14px;background:var(--surface2);border-top:1px solid var(--border);border-radius:0 0 var(--r-md) var(--r-md);flex-wrap:wrap;}
+.fb-tgt-more{font-size:11px;color:var(--faint);margin-right:auto;line-height:1.5;}
+.fb-tgt-more b{color:var(--muted);font-weight:700;}
+.fb-tgt-pager .pgno{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);}
+.fb-tgt-pager .pgno input{width:38px;text-align:center;border:1px solid var(--accent);border-radius:7px;padding:4px 2px;font-size:12px;font-family:inherit;font-variant-numeric:tabular-nums;outline:none;box-shadow:0 0 0 3px var(--accent-l);color:var(--text);background:var(--surface);}
+.fb-tgt-excl td{opacity:.5;}
+.fb-tgt-excl .why{font-size:10px;color:#92400E;background:#FEF3C7;border-radius:999px;padding:2px 8px;font-weight:700;}
+.fb-actions{display:flex;align-items:center;gap:10px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);}
+.fb-actions .spacer{margin-left:auto;}
+@media (max-width:880px){
+  .fb-steps{flex-wrap:wrap;}
+  .fb-step{flex:1 1 45%;border-bottom:1px solid var(--border);}
+  .fb-picks,.fb-editor,.fb-two,.fb-preview,.fb-grid3{grid-template-columns:1fr;}
+}
 /* 만족도 팝업 (고객 홈) — 상세의 평가 카드와 같은 별점 UI를 모달로 */
 #modal-survey-box .sv-hd{padding:18px 22px 0;text-align:center;}
 #modal-survey-box .sv-done-badge{display:inline-block;font-size:10.5px;font-weight:700;color:var(--green);background:var(--green-l);border:1px solid #A7F3D0;border-radius:999px;padding:2px 10px;}
@@ -485,6 +815,22 @@ tr.co-org-sub>td{background:var(--surface2);padding:0 10px;}
 .b-blue{background:#EFF6FF;color:#2563EB;border-color:#BFDBFE;}
 /* 대리 등록 배지 — 내부직원이 고객 대신 남긴 요청. 상태/역할 배지와 겹치지 않는 인디고 아웃라인. */
 .proxy-badge{display:inline-flex;align-items:center;font-size:10px;font-weight:600;line-height:1.5;padding:0 6px;border-radius:99px;background:var(--accent-l);color:var(--accent);border:1px solid #C7D2FE;vertical-align:middle;}
+/* 요청자 연락처 호버 카드 — 스태프·내부직원이 요청자 이름에 마우스를 올리면 뜬다.
+   표가 overflow-x:auto 컨테이너 안이라 position:fixed로 띄우고 스크롤 시 닫는다. */
+.rq-who{border-bottom:1px dashed var(--border-md);padding-bottom:1px;cursor:default;}
+.rq-who:hover{color:var(--accent);border-bottom-color:var(--accent);}
+#rq-card{position:fixed;z-index:2000;width:224px;padding:10px 11px;background:var(--surface);border:1px solid var(--border-md);border-radius:9px;box-shadow:0 8px 22px rgba(0,0,0,.14),0 2px 5px rgba(0,0,0,.07);opacity:0;visibility:hidden;transform:translateY(-4px);transition:opacity .12s ease,transform .12s ease,visibility .12s;}
+#rq-card.on{opacity:1;visibility:visible;transform:translateY(0);}
+#rq-card .rq-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;}
+#rq-card .rq-nm{font-size:13.5px;font-weight:700;color:var(--text);}
+#rq-card .rq-badge{font-size:10.5px;color:var(--muted);background:var(--surface2);padding:1px 7px;border-radius:9px;}
+#rq-card .rq-row{display:flex;align-items:center;gap:7px;padding:4px 0;border-top:1px solid var(--border);}
+#rq-card .rq-lb{font-size:10px;color:var(--faint);width:30px;flex:none;}
+#rq-card .rq-vl{font-size:11px;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums;}
+#rq-card .rq-cp{border:1px solid var(--border-md);background:var(--surface2);color:var(--muted);border-radius:5px;font-size:10px;padding:2px 6px;flex:none;cursor:pointer;font-family:inherit;line-height:1.6;}
+#rq-card .rq-cp:hover{background:var(--accent-l);color:var(--accent);border-color:var(--accent);}
+#rq-card .rq-cp.done{background:var(--green-l);color:var(--green-d);border-color:var(--green);}
+@media (prefers-reduced-motion:reduce){#rq-card{transition:none;}}
 /* 요청 상세 '+ 추가' hover 툴팁 — 업로드 가능 확장자 안내 */
 .rd-add-wrap{position:relative;display:inline-flex;}
 .rd-add-tip{position:absolute;bottom:calc(100% + 9px);right:0;width:248px;background:var(--surface);color:var(--text);border:1px solid var(--border-md,var(--border));border-radius:8px;padding:9px 11px;box-shadow:0 10px 26px rgba(20,20,50,.22);opacity:0;visibility:hidden;transform:translateY(4px);transition:.13s;z-index:20;font-weight:400;text-align:left;}
@@ -1175,10 +1521,17 @@ textarea{resize:vertical;min-height:100px;}
     <span class="nt"        data-roles="all"                       data-perm="notify_log"      onclick="showPage(this,'p-notify-log')">알림 로그</span>
     <span class="nt"        data-roles="all"                       data-perm="permission"      onclick="showPage(this,'p-permission')">권한 관리</span>
     <span class="nt"        data-roles="all"                       data-perm="stats_view"      onclick="showPage(this,'p-stats')">사용 통계</span>
+    <span class="nt"        data-roles="all"                       data-perm="form_builder"    onclick="showPage(this,'p-forms')">폼 빌더</span>
   </nav>
   <div class="nav-backdrop" id="nav-backdrop" onclick="toggleDrawer()"></div>
   <!-- ── 콘텐츠 영역 ── -->
   <div class="body" id="main-body">
+    <!-- 갱신 설문 배너 — 팝업을 "나중에 하기"로 닫으면 응답할 때까지 여기 남는다 -->
+    <div class="svq-banner" id="svq-banner" style="display:none;">
+      <span class="ic">📊</span>
+      <span class="msg" id="svq-banner-msg"></span>
+      <button class="btn btn-primary btn-sm" onclick="svqOpen()">응답하기</button>
+    </div>
 
       <!-- ══ 대시보드 ══ -->
       <div id="p-dashboard" class="page u-page active">
@@ -1241,7 +1594,7 @@ textarea{resize:vertical;min-height:100px;}
         <div class="card" style="display:flex;flex-direction:column;overflow:hidden;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-shrink:0;">
             <div class="card-title" style="margin-bottom:0;">최근 요청건</div>
-            <button class="btn btn-primary btn-sm" data-show-roles="customer,internal" data-perm="ticket_create" onclick="openModal('modal-new')">+ 새 요청 등록</button>
+            <button class="btn btn-primary btn-sm" data-show-roles="customer,internal" data-perm="ticket_create" data-nrq onclick="openNewRequestMenu(this)">+ 새 요청 등록 <span style="font-size:9px;">▼</span></button>
           </div>
           <div class="tbl-scroll list-scroll" style="flex:1;min-height:0;overflow-y:hidden;overflow-x:auto;"><table class="tbl">
             <thead><tr>
@@ -1276,7 +1629,7 @@ textarea{resize:vertical;min-height:100px;}
               <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;padding-bottom:10px;">
                 <div class="card-title" style="margin-bottom:0;">요청</div>
                 <div style="display:flex;gap:8px;align-items:center;">
-                  <button class="btn btn-primary btn-sm" data-show-roles="tech_support,sales,education,admin" data-perm="ticket_create" style="display:none;" onclick="openModal('modal-new')">+ 새 요청 등록</button>
+                  <button class="btn btn-primary btn-sm" data-show-roles="tech_support,sales,education,admin" data-perm="ticket_create" style="display:none;" data-nrq onclick="openNewRequestMenu(this)">+ 새 요청 등록 <span style="font-size:9px;">▼</span></button>
                   <button id="dash-refresh-btn" class="btn btn-outline btn-sm" data-show-roles="admin" style="display:none;font-size:12px;padding:6px 12px;" onclick="refreshDashboard(this)"><svg id="dash-refresh-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>새로고침</button>
                 </div>
               </div>
@@ -1327,7 +1680,7 @@ textarea{resize:vertical;min-height:100px;}
       <div id="p-my-requests" class="page u-page">
       <div class="section-header">
         <div><div class="section-title">기술 지원</div><div class="section-sub">요청을 등록하고 처리 이력을 확인합니다.</div></div>
-        <button class="btn btn-primary" id="btn-new-request" data-show-roles="customer,internal" data-perm="ticket_create" onclick="openModal('modal-new')">+ 새 요청 등록</button>
+        <button class="btn btn-primary" id="btn-new-request" data-show-roles="customer,internal" data-perm="ticket_create" data-nrq onclick="openNewRequestMenu(this)">+ 새 요청 등록 <span style="font-size:9px;">▼</span></button>
       </div>
       <div class="filter-bar">
         <div class="search-wrap">
@@ -1347,6 +1700,7 @@ textarea{resize:vertical;min-height:100px;}
             <label class="th-filter-opt"><input type="checkbox" value="contract"> 계약 문의</label>
             <label class="th-filter-opt"><input type="checkbox" value="license"> 라이선스 문의</label>
             <label class="th-filter-opt"><input type="checkbox" value="education"> 교육 문의</label>
+            <label class="th-filter-opt"><input type="checkbox" value="voc"> 서비스 제안/불만(VOC)</label>
             <label class="th-filter-opt"><input type="checkbox" value="other"> 기타</label>
           </div>
         </div>
@@ -1591,7 +1945,7 @@ textarea{resize:vertical;min-height:100px;}
       <div id="p-all-requests" class="page u-page">
         <div class="section-header">
           <div><div class="section-title">요청 관리</div><div class="section-sub">접수된 요청에 담당자를 지정하고 상태를 변경합니다. <span id="ar-count" style="color:var(--muted);font-weight:600;"></span></div></div>
-          <button class="btn btn-primary" id="ar-proxy-btn" data-show-roles="admin,sales,tech_support,education" data-perm="ticket_create" style="margin-left:auto;display:none;" onclick="openModal('modal-new')">+ 새 요청 등록</button>
+          <button class="btn btn-primary" id="ar-proxy-btn" data-show-roles="admin,sales,tech_support,education" data-perm="ticket_create" style="margin-left:auto;display:none;" data-nrq onclick="openNewRequestMenu(this)">+ 새 요청 등록 <span style="font-size:9px;">▼</span></button>
         </div>
         <div class="filter-bar">
           <input class="search-box" id="ar-search" placeholder="요청 번호, 제목 검색..." oninput="renderAllTickets()">
@@ -1609,6 +1963,7 @@ textarea{resize:vertical;min-height:100px;}
               <label class="th-filter-opt"><input type="checkbox" value="contract"> 계약 문의</label>
               <label class="th-filter-opt"><input type="checkbox" value="license"> 라이선스 문의</label>
               <label class="th-filter-opt"><input type="checkbox" value="education"> 교육 문의</label>
+              <label class="th-filter-opt"><input type="checkbox" value="voc"> 서비스 제안/불만(VOC)</label>
               <label class="th-filter-opt"><input type="checkbox" value="other"> 기타</label>
             </div>
           </div>
@@ -1728,6 +2083,8 @@ textarea{resize:vertical;min-height:100px;}
                     </div>
                     <!-- 고객 문의 내용 -->
                     <div style="background:var(--surface2);border-radius:var(--r-md);padding:10px 12px;font-size:13px;line-height:1.7;word-break:break-all;overflow-wrap:break-word;white-space:pre-wrap;" id="rd-description">—</div>
+                    <!-- 폼 빌더 추가 문항 — 접수 당시 문항 정의 스냅샷으로 렌더 -->
+                    <div id="rd-form-answers" style="display:none;margin-top:13px;background:var(--surface2);border-radius:var(--r-md);padding:11px 13px;"></div>
                     <!-- 첨부 파일 -->
                     <div id="rd-attachments-card" style="display:none;margin-top:13px;">
                       <div onclick="toggleRdAttachments()" style="cursor:pointer;font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
@@ -2064,6 +2421,7 @@ textarea{resize:vertical;min-height:100px;}
         </div>
         <div class="co-tabs" style="margin:0 0 12px;">
           <button class="co-tab on" id="nl-tab-real" onclick="switchNotifyTab('real')">운영 알림 <span class="cnt" id="nl-cnt-real"></span></button>
+          <button class="co-tab" id="nl-tab-survey" onclick="switchNotifyTab('survey')">📊 설문 <span class="cnt" id="nl-cnt-survey"></span></button>
           <button class="co-tab" id="nl-tab-test" onclick="switchNotifyTab('test')">🧪 테스트 알림 <span class="cnt" id="nl-cnt-test"></span></button>
           <button class="co-tab" id="nl-tab-reg" onclick="switchNotifyTab('reg')">🌙 회귀 알람 <span class="cnt" id="nl-cnt-reg"></span></button>
         </div>
@@ -2151,6 +2509,7 @@ textarea{resize:vertical;min-height:100px;}
                   <th colspan="2" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">자료실</th>
                   <th colspan="1" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">고객사</th>
                   <th colspan="1" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">사용자</th>
+                  <th colspan="1" title="폼 빌더 — 설문·VOC 폼 생성과 발송" style="border-right:1.5px solid var(--border-strong);border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">폼</th>
                   <th colspan="4" style="border-bottom:0.5px solid var(--border-strong);text-align:center;font-size:11px;">시스템</th>
                 </tr>
                 <tr>
@@ -2163,6 +2522,7 @@ textarea{resize:vertical;min-height:100px;}
                   <th style="border-right:1.5px solid var(--border-strong);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">관리</th>
                   <th style="border-right:1.5px solid var(--border-strong);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">관리</th>
                   <th style="border-right:1.5px solid var(--border-strong);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">관리</th>
+                  <th style="border-right:1.5px solid var(--border-strong);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">빌더</th>
                   <th style="border-right:1px solid var(--border);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">연동</th>
                   <th style="border-right:1px solid var(--border);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">알림로그</th>
                   <th style="border-right:1px solid var(--border);text-align:center;font-size:10px;font-weight:400;color:var(--muted);">통계</th>
@@ -2174,6 +2534,247 @@ textarea{resize:vertical;min-height:100px;}
           </div>
         </div>
         <div style="margin-top:10px;font-size:11px;color:var(--muted);">* 관리자 권한은 고정값으로 변경할 수 없습니다.</div>
+      </div>
+
+      <!-- ══ 폼 빌더 (단계 흐름: 폼 종류 → VOC 요청 폼 / 설문 폼) ══ -->
+      <div id="p-forms" class="page u-page">
+        <div class="section-header">
+          <div><div class="section-title">폼 빌더</div><div class="section-sub">요청 폼과 설문을 만들고 관리합니다</div></div>
+          <div class="fb-doc" id="fb-doc" style="display:none;">
+            <span class="nm" id="fb-doc-name">—</span>
+            <span class="fb-pill draft" id="fb-doc-status">작성 중</span>
+          </div>
+        </div>
+
+        <nav class="fb-steps" id="fb-steps" aria-label="폼 만들기 단계"></nav>
+
+        <!-- 1. 폼 종류 -->
+        <section class="fb-panel" data-fbpanel="type">
+          <div class="fb-phd"><h2>어떤 폼을 만드나요?</h2><span class="hint">고른 종류에 따라 다음 단계가 달라집니다</span></div>
+          <div class="fb-picks">
+            <button class="fb-pick" onclick="fbPick('req')">
+              <span class="kind">VOC 요청 폼</span>
+              <span class="why">고객이 <b>VOC로 요청을 남길 때 더 물어볼 항목</b>을 정합니다. 의견이 어떤 종류인지, 어느 영역에 대한 것인지를 받아두면 담당 배정과 집계가 쉬워집니다.</span>
+              <span class="state" id="fb-state-req"><span class="fb-tag">VOC 아직 미설정 — 기본 항목만 받는 중</span></span>
+              <span class="flow">문항 구성 → 미리보기 후 적용</span>
+            </button>
+            <button class="fb-pick" onclick="fbPick('sur')">
+              <span class="kind">설문 폼</span>
+              <span class="why">고객에게 <b>보내서 응답을 받습니다.</b> 계약 갱신을 앞둔 고객처럼 받을 대상을 정하고, 안내 메일로 발송합니다.</span>
+              <span class="state" id="fb-state-sur"><span class="fb-tag">아직 만든 설문 없음</span></span>
+              <span class="flow">설문 작성 → 발송 대상 → 발송</span>
+            </button>
+          </div>
+          <div id="fb-exist-wrap" style="margin-top:16px;display:none;">
+            <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;">저장된 폼</div>
+            <div class="fb-rev" id="fb-exist"></div>
+          </div>
+          <div id="fb-exist-err" style="margin-top:14px;font-size:11.5px;color:var(--faint);display:none;"></div>
+        </section>
+
+        <!-- VOC: 2. 문항 구성 -->
+        <section class="fb-panel" data-fbpanel="req-fields" hidden>
+          <div class="fb-phd"><h2>문항 구성 · VOC</h2><span class="hint">VOC는 기본 항목을 묻지 않고 아래 문항만으로 접수합니다</span></div>
+          <div class="fb-editor">
+            <div class="fb-pal">
+              <div class="cap">문항 추가</div>
+              <button onclick="fbAddField('single')">◉ 객관식 <span class="k">단일</span></button>
+              <button onclick="fbAddField('multi')">☑ 객관식 <span class="k">복수</span></button>
+              <button onclick="fbAddField('line')">✎ 한 줄 입력</button>
+              <button onclick="fbAddField('para')">▤ 여러 줄 입력</button>
+              <button onclick="fbAddField('rating')">★ 별점 <span class="k">1~5</span></button>
+              <button onclick="fbAddField('date')">📅 날짜</button>
+            </div>
+            <div>
+              <div class="fb-fixed">
+                <div class="cap">기본 항목 <span class="lock">모든 카테고리 공통</span></div>
+                <div class="items">
+                  <span class="fb-fx">요청 조직 *</span>
+                  <span class="fb-fx off">요청 제목 — 문항 답변으로 자동 생성</span>
+                  <span class="fb-fx off">요청 내용 — VOC에서 숨김</span><span class="fb-fx off">첨부 파일 — VOC에서 숨김</span>
+                  <span class="fb-fx off">제품 — VOC에서 숨김</span><span class="fb-fx off">긴급도 — VOC에서 숨김</span>
+                </div>
+              </div>
+              <div id="fb-fields-req"></div>
+              <div class="fb-empty" id="fb-empty-req">왼쪽에서 문항 유형을 눌러 VOC 전용 문항을 추가하세요</div>
+            </div>
+          </div>
+          <div class="fb-actions">
+            <button class="btn btn-ghost btn-sm" onclick="fbShow('type')">← 폼 종류</button>
+            <span class="spacer"></span>
+            <button class="btn btn-outline btn-sm" onclick="fbSave('draft')">임시 저장</button>
+            <button class="btn btn-primary btn-sm" onclick="fbGoApply()">미리보기 →</button>
+          </div>
+        </section>
+
+        <!-- VOC: 3. 미리보기·적용 -->
+        <section class="fb-panel" data-fbpanel="req-apply" hidden>
+          <div class="fb-phd"><h2>미리보기 후 적용</h2><span class="hint">적용하면 다음 VOC 요청부터 고객 화면에 바로 반영됩니다</span></div>
+          <div class="fb-preview">
+            <div class="fb-phone">
+              <div class="bar">고객이 'VOC'로 요청을 남길 때 보는 화면</div>
+              <div class="bd" id="fb-phone-bd"></div>
+            </div>
+            <div>
+              <div class="fb-rev" id="fb-req-rev"></div>
+              <div class="fb-warn">이미 등록된 요청은 그대로 두고, <b>적용 이후 새로 등록되는 VOC부터</b> 이 문항을 받습니다. 문항을 지워도 예전 답변은 요청 상세에서 계속 보입니다.</div>
+            </div>
+          </div>
+          <div class="fb-actions">
+            <button class="btn btn-ghost btn-sm" onclick="fbShow('req-fields')">← 문항 구성</button>
+            <span class="spacer"></span>
+            <button class="btn btn-outline btn-sm" onclick="fbSave('draft')">초안으로 저장</button>
+            <button class="btn btn-primary btn-sm" onclick="fbApplyVoc()">VOC에 적용</button>
+          </div>
+        </section>
+
+        <!-- 설문: 2. 작성 -->
+        <section class="fb-panel" data-fbpanel="sur-edit" hidden>
+          <div class="fb-phd"><h2>설문 작성</h2><span class="hint">문항 6개 유형 · 저장하면 초안으로 보관됩니다</span></div>
+          <div class="fb-grid3">
+            <div><label class="fb-lbl">설문 이름 <span style="color:var(--red);">*</span></label><input type="text" class="fb-inp" id="fb-name" placeholder="예: 2026 하반기 갱신 만족도 조사"></div>
+            <div><label class="fb-lbl">안내 문구</label><input type="text" class="fb-inp" id="fb-intro" placeholder="계약 갱신을 앞두고 의견을 여쭙습니다."></div>
+            <div><label class="fb-lbl">응답 마감일</label><input type="date" class="fb-inp" id="fb-until"></div>
+          </div>
+          <div id="fb-locked-note" style="display:none;" class="fb-warn">발송 중인 설문은 응답 정합성을 위해 문항을 수정할 수 없습니다. 이름·안내 문구·마감일만 변경됩니다.</div>
+          <div class="fb-editor" style="margin-top:8px;">
+            <div class="fb-pal">
+              <div class="cap">문항 추가</div>
+              <button onclick="fbAddField('single')">◉ 객관식 <span class="k">단일</span></button>
+              <button onclick="fbAddField('multi')">☑ 객관식 <span class="k">복수</span></button>
+              <button onclick="fbAddField('text')">✎ 주관식</button>
+              <button onclick="fbAddField('rating')">★ 별점 <span class="k">1~5</span></button>
+              <button onclick="fbAddField('nps')">⑩ NPS <span class="k">0~10</span></button>
+              <button onclick="fbAddField('scale')">⇄ 척도 <span class="k">1~5</span></button>
+            </div>
+            <div>
+              <div id="fb-fields-sur"></div>
+              <div class="fb-empty" id="fb-empty-sur">왼쪽에서 문항 유형을 눌러 추가하세요</div>
+            </div>
+          </div>
+          <div class="fb-actions">
+            <button class="btn btn-ghost btn-sm" onclick="fbShow('type')">← 폼 종류</button>
+            <span class="spacer"></span>
+            <button class="btn btn-outline btn-sm" onclick="fbSave('draft')">임시 저장</button>
+            <button class="btn btn-primary btn-sm" onclick="fbGoPreview()">미리보기 →</button>
+          </div>
+        </section>
+
+        <!-- 설문: 3. 미리보기 -->
+        <section class="fb-panel" data-fbpanel="sur-preview" hidden>
+          <div class="fb-phd"><h2>미리보기</h2><span class="hint">고객이 포탈에서 보게 될 응답 화면 그대로 — 문항을 고치려면 이전 단계로</span></div>
+          <div class="fb-preview">
+            <div class="fb-phone">
+              <div class="bar">고객이 포탈에서 보는 응답 화면</div>
+              <div id="fb-pv-body"></div>
+            </div>
+            <div>
+              <div class="fb-rev" id="fb-pv-rev"></div>
+              <div class="fb-warn">문항을 수정하면 이 미리보기에 바로 반영됩니다. 발송 후에는 문항이 잠기므로, 여기서 오탈자·보기 순서를 최종 확인하세요.</div>
+            </div>
+          </div>
+          <div class="fb-actions">
+            <button class="btn btn-ghost btn-sm" onclick="fbShow('sur-edit')">← 설문 작성</button>
+            <span class="spacer"></span>
+            <button class="btn btn-outline btn-sm" onclick="fbSave('draft')">임시 저장</button>
+            <button class="btn btn-primary btn-sm" onclick="fbGoTarget()">발송 대상 선택 →</button>
+          </div>
+        </section>
+
+        <!-- 설문: 4. 발송 대상 -->
+        <section class="fb-panel" data-fbpanel="sur-target" hidden>
+          <div class="fb-phd"><h2>발송 대상</h2><span class="hint">조건에 걸린 계약의 <b>조직(사업부·팀)에 배정된 활성 고객 계정</b>에게 발송 — 같은 사람에겐 1통만</span></div>
+          <div class="fb-two">
+            <div>
+              <div class="fb-fset"><div class="cap">계약 만료 시점</div>
+                <div class="fb-chips" id="fb-t-expiry"></div></div>
+              <div class="fb-fset"><div class="cap">사용 제품 <span style="font-weight:400;color:var(--faint);">(미선택 = 전 제품)</span></div>
+                <div class="fb-chips" id="fb-t-products"></div></div>
+              <div class="fb-fset" style="margin-bottom:0;"><div class="cap">대상 선택 방식</div>
+                <div class="fb-modebar">
+                  <div class="fb-mode on" id="fb-mode-all" onclick="fbSetTargetMode('all')">
+                    <span class="rd"></span><span><span class="mt">조건에 걸린 전체 조직</span><span class="md">위 조건을 충족하는 모든 계약 조직에 발송</span></span>
+                  </div>
+                  <div class="fb-mode" id="fb-mode-pick" onclick="fbSetTargetMode('pick')">
+                    <span class="rd"></span><span><span class="mt">발송할 조직 직접 선택</span><span class="md">아래 리스트에서 체크한 조직에만 발송</span></span>
+                  </div>
+                </div></div>
+            </div>
+            <div class="fb-tally">
+              <div class="cap" id="fb-t-cap">발송 대상</div>
+              <div class="big" id="fb-t-big">—</div>
+              <div id="fb-t-brk" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:7px;font-size:12px;"></div>
+            </div>
+          </div>
+          <div class="fb-tgt-list">
+            <div class="hd">대상 조직 · 수신자 <span class="sub" id="fb-tgt-sub">계약 만료 임박 순 · 수신: 그 계약 조직에 배정된 활성 계정만</span></div>
+            <div class="fb-tgt-selbar" id="fb-tgt-selbar" style="display:none;">
+              <span class="fb-ckb" id="fb-tgt-ckall" onclick="fbTgtPickMaster()"></span>
+              <span>전체 선택</span>
+              <span class="selcnt" id="fb-tgt-selcnt"></span>
+              <button onclick="fbTgtPickSet(false)">모두 해제</button><span class="sep">|</span><button onclick="fbTgtPickSet(true)">모두 선택</button>
+              <span class="note">체크한 조직에만 발송됩니다 — 해제된 행은 흐리게 표시</span>
+            </div>
+            <div class="fb-tgt-fbar" id="fb-tgt-fbar" style="display:none;">
+              <div><span class="lbl">고객사</span><div class="fb-fctl" id="fb-fctl-co"></div></div>
+              <div><span class="lbl">조직</span><div class="fb-fctl" id="fb-fctl-org"></div></div>
+              <div><span class="lbl">수신자</span><div class="fb-fctl" id="fb-fctl-rc"></div></div>
+              <div class="fb-fsum" id="fb-tgt-fsum"></div>
+              <button class="fb-freset" onclick="fbTgtResetFilters()">필터 초기화</button>
+            </div>
+            <div class="tblwrap">
+              <table class="fb-tgt-table">
+                <thead><tr>
+                  <th class="fb-ckcol" style="width:34px;display:none;"></th>
+                  <th style="width:150px;">고객사</th>
+                  <th style="width:150px;">발송 조직</th>
+                  <th style="width:230px;">계약</th>
+                  <th style="width:190px;">계약기간</th>
+                  <th style="width:150px;">사용 제품</th><th>수신자</th>
+                </tr></thead>
+                <tbody id="fb-tgt-tbody"><tr><td colspan="7" style="text-align:center;color:var(--faint);padding:18px;">조건을 선택하면 대상이 계산됩니다</td></tr></tbody>
+              </table>
+            </div>
+            <div class="fb-tgt-pager" id="fb-tgt-pager" style="display:none;">
+              <span class="fb-tgt-more" id="fb-tgt-more"></span>
+              <button class="btn btn-outline btn-sm" onclick="fbTgtPage(-1)">← 이전</button>
+              <div class="pgno">
+                <input type="text" id="fb-tgt-page-input" value="1" inputmode="numeric" onkeydown="if(event.key==='Enter')fbTgtPageJump(this.value)">
+                <span>/ <span id="fb-tgt-page-count">1</span> 페이지</span>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="fbTgtPage(1)">다음 →</button>
+            </div>
+          </div>
+          <div class="fb-warn" id="fb-tgt-warn" style="display:none;"></div>
+          <div class="fb-actions">
+            <button class="btn btn-ghost btn-sm" onclick="fbShow('sur-preview');renderFbPreview()">← 미리보기</button>
+            <span class="spacer"></span>
+            <button class="btn btn-outline btn-sm" onclick="fbSave('draft')">임시 저장</button>
+            <button class="btn btn-primary btn-sm" onclick="fbShow('sur-send');fbRenderSend()">발송 내용 확인 →</button>
+          </div>
+        </section>
+
+        <!-- 설문: 4. 발송 -->
+        <section class="fb-panel" data-fbpanel="sur-send" hidden>
+          <div class="fb-phd"><h2>발송</h2><span class="hint">보내고 나면 문항은 잠깁니다 — 이름·안내 문구·마감일만 바꿀 수 있어요</span></div>
+          <div class="fb-preview">
+            <div class="fb-rev" id="fb-send-rev"></div>
+            <div class="fb-mail">
+              <div class="bar">고객에게 가는 안내 메일 미리보기</div>
+              <div class="body">
+                <h4 id="fb-mail-subj">[빅스데이터] 설문에 참여해 주세요</h4>
+                <span id="fb-mail-body">아래 버튼을 누르면 포탈에 로그인한 뒤 설문으로 이동합니다.</span>
+                <br><span class="cta">포탈에서 설문 참여하기</span>
+              </div>
+            </div>
+          </div>
+          <div class="fb-actions">
+            <button class="btn btn-ghost btn-sm" onclick="fbShow('sur-target')">← 발송 대상</button>
+            <span class="spacer"></span>
+            <button class="btn btn-outline btn-sm" onclick="fbSendSurvey(true)">테스트 발송</button>
+            <button class="btn btn-primary btn-sm" onclick="fbSendSurvey(false)" id="fb-send-btn">발송</button>
+          </div>
+        </section>
       </div>
 
       <!-- ══ 사용 통계 (접속·계정 중심) ══ -->
@@ -2195,6 +2796,7 @@ textarea{resize:vertical;min-height:100px;}
           <button type="button" data-stab="lib" onclick="switchStatsTab('lib')">📄 자료실 활용</button>
           <button type="button" data-stab="sys" onclick="switchStatsTab('sys')">🔔 알람 현황</button>
           <button type="button" data-stab="sat" onclick="switchStatsTab('sat')">⭐ 응답 현황</button>
+          <button type="button" data-stab="sv" onclick="switchStatsTab('sv')">📋 설문 현황</button>
           <button type="button" data-stab="feed" onclick="switchStatsTab('feed')">👣 고객 활동</button>
         </div>
 
@@ -2369,7 +2971,7 @@ textarea{resize:vertical;min-height:100px;}
               <option value="">전체 카테고리</option>
               <option value="tech_support">기술지원</option><option value="license">라이선스</option>
               <option value="contract">계약</option><option value="education">교육</option>
-              <option value="customer">고객문의</option><option value="other">기타</option>
+              <option value="customer">고객문의</option><option value="voc">VOC</option><option value="other">기타</option>
             </select>
             <select id="rq-product" onchange="loadTicketStats()"><option value="">전체 제품</option></select>
             <select id="rq-priority" onchange="loadTicketStats()">
@@ -2584,7 +3186,7 @@ textarea{resize:vertical;min-height:100px;}
               <option value="">전체 카테고리</option>
               <option value="tech_support">기술지원</option><option value="license">라이선스</option>
               <option value="contract">계약</option><option value="education">교육</option>
-              <option value="customer">고객문의</option><option value="other">기타</option>
+              <option value="customer">고객문의</option><option value="voc">VOC</option><option value="other">기타</option>
             </select>
           </div>
           <div class="rq-filters2"><span class="rq-fnote">기간: 평가 제출일 기준 (응답률 분모는 접수일 근사)</span></div>
@@ -2630,6 +3232,99 @@ textarea{resize:vertical;min-height:100px;}
             </div>
           </div>
         </div><!-- /stab-sat -->
+
+        <div class="stab-panel" id="stab-sv" style="display:none;">
+          <!-- 목록 레벨 — 설문 단위. answers를 열지 않고 발송·응답 수만 센다(스키마 무관). -->
+          <div id="sv-list">
+          <div class="rq-filters">
+            <input id="sv-q" class="search-box" placeholder="설문 제목 검색" onkeydown="if(event.key==='Enter')loadSurveyStats()">
+            <span class="rq-fspace"></span>
+            <span class="rq-seg" id="sv-days" role="group" aria-label="기간">
+              <button type="button" onclick="setSvDays(7,this)">7일</button>
+              <button type="button" onclick="setSvDays(30,this)">30일</button>
+              <button type="button" class="on" onclick="setSvDays(90,this)">90일</button>
+              <button type="button" onclick="setSvDays(0,this)">전체</button>
+            </span>
+            <select id="sv-status" onchange="setSvStatus(this.value)">
+              <option value="">전체 상태</option>
+              <option value="active">진행 중</option>
+              <option value="closed">마감</option>
+              <option value="draft">초안</option>
+            </select>
+          </div>
+          <div class="rq-filters2"><span class="rq-fnote">기간: 발송일 기준 — 아직 발송하지 않은 초안도 목록에는 표시됩니다</span></div>
+
+          <div class="rq-kpis" id="sv-kpis">
+            <div class="rq-kpi" style="grid-column:1/-1;"><div class="s" style="margin:0;">불러오는 중...</div></div>
+          </div>
+
+          <div class="card" style="padding:0;overflow:hidden;">
+            <div style="padding:15px 18px 11px;">
+              <div class="card-title" style="margin-bottom:0;">설문별 현황
+                <span style="font-size:11px;color:var(--faint);font-weight:400;">행을 클릭하면 문항별 응답이 열립니다</span></div>
+            </div>
+            <div class="tbl-scroll"><table class="tbl tbl-compact" style="min-width:960px;">
+              <thead><tr><th>설문명</th><th>상태</th><th>발송 조건</th><th>발송일</th><th>마감일</th>
+                <th style="text-align:right;">발송</th><th style="text-align:right;">응답</th><th style="width:180px;">응답률</th></tr></thead>
+              <tbody id="sv-rows"><tr><td colspan="8" style="padding:16px;text-align:center;color:var(--faint);">불러오는 중...</td></tr></tbody>
+            </table></div>
+            <div style="padding:11px 18px;border-top:1px solid var(--border);background:var(--surface2);">
+              <span class="rq-note">ⓘ 응답률 = 응답 ÷ 발송. 분자·분모가 같은 발송 이력 행에서 나와 100%를 넘을 수 없습니다.</span>
+            </div>
+          </div>
+
+          <div class="rq-g2" style="margin-bottom:16px;">
+            <div class="card" style="margin-bottom:0;">
+              <div class="card-title">응답 시간 분포 <span style="font-size:11px;color:var(--faint);font-weight:400;">발송 후 경과일별 누적 응답률</span>
+                <span style="margin-left:auto;font-size:11px;color:var(--muted);font-weight:400;">재발송 시점 근거</span></div>
+              <div id="sv-curve"></div>
+            </div>
+            <div class="card" style="margin-bottom:0;">
+              <div class="card-title">발송 조건별 응답률 <span style="font-size:11px;color:var(--faint);font-weight:400;">자동·수동</span></div>
+              <div id="sv-trigger"></div>
+              <div class="rq-note" style="margin-top:12px;">ⓘ 대상을 좁게 고른 설문일수록 응답률이 높은 경향이 있습니다.</div>
+            </div>
+          </div>
+
+          <div class="card" style="padding:0;overflow:hidden;">
+            <div style="padding:15px 18px 11px;">
+              <div class="card-title" style="margin-bottom:0;">미응답 명단
+                <span id="sv-pending-sub" style="font-size:11px;color:var(--faint);font-weight:400;">경과 오래된 순</span></div>
+            </div>
+            <div class="tbl-scroll"><table class="tbl tbl-compact" style="min-width:820px;">
+              <thead><tr><th>고객사</th><th>조직</th><th>수신자</th><th>설문</th><th>발송일</th><th style="text-align:right;">경과</th></tr></thead>
+              <tbody id="sv-pending"></tbody>
+            </table></div>
+            <div style="padding:11px 18px;border-top:1px solid var(--border);background:var(--surface2);">
+              <span class="rq-note">ⓘ 재발송은 폼 빌더에서 합니다 — 사용 통계는 읽기 화면이고, 오발송은 회수할 수 없어 발송 경로를 한 곳으로 유지합니다.</span>
+            </div>
+          </div>
+          </div><!-- /sv-list -->
+
+          <!-- 상세 레벨 — 문항 단위. survey_history.answers 스키마에 의존한다. -->
+          <div id="sv-detail" style="display:none;">
+            <div class="rq-filters">
+              <button class="btn btn-outline btn-sm" onclick="backToSurveyList()">← 목록으로</button>
+              <span class="rq-fspace"></span>
+            </div>
+            <div class="card" id="sv-dhead" style="margin-bottom:16px;"></div>
+            <div id="sv-qs"></div>
+            <div class="card" style="padding:0;overflow:hidden;">
+              <div style="padding:15px 18px 11px;">
+                <div class="card-title" style="margin-bottom:0;">고객사별 응답 현황
+                  <span style="font-size:11px;color:var(--faint);font-weight:400;">응답률 낮은 순 · 조직 단위</span></div>
+              </div>
+              <div class="tbl-scroll"><table class="tbl tbl-compact" style="min-width:760px;">
+                <thead><tr><th>고객사</th><th>조직</th><th style="text-align:right;">발송</th><th style="text-align:right;">응답</th>
+                  <th style="width:180px;">응답률</th><th>계약 만료</th></tr></thead>
+                <tbody id="sv-bycompany"></tbody>
+              </table></div>
+              <div style="padding:11px 18px;border-top:1px solid var(--border);background:var(--surface2);">
+                <span class="rq-note">ⓘ 계약 만료가 가까운데 응답률이 0%인 고객사는 이탈 신호일 수 있습니다 — 고객 활용 탭의 등급과 함께 보세요.</span>
+              </div>
+            </div>
+          </div>
+        </div><!-- /stab-sv -->
 
         <div class="stab-panel" id="stab-feed" style="display:none;">
           <div class="rq-filters">
@@ -2803,6 +3498,7 @@ textarea{resize:vertical;min-height:100px;}
             <option value="contract">계약 문의</option>
             <option value="license">라이선스 문의</option>
             <option value="education">교육 문의</option>
+            <option value="voc">서비스 제안/불만(VOC)</option>
             <option value="other">기타 문의</option>
           </select>
         </div>
@@ -2970,7 +3666,12 @@ textarea{resize:vertical;min-height:100px;}
   <div class="modal-box" style="background:var(--surface);border-radius:var(--r-lg);width:720px;max-width:calc(100vw - 32px);max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
     <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
       <div style="font-size:16px;font-weight:800;">요청</div>
-      <button onclick="closeModal('modal-new')" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--faint);">✕</button>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <span id="nw-cat-chip" onclick="nrqChangeCategory()" title="카테고리 다시 선택" style="display:none;align-items:center;gap:6px;background:var(--accent-l);color:var(--accent);font-size:12px;font-weight:700;border-radius:20px;padding:4px 12px;cursor:pointer;">
+          <span id="nw-cat-chip-label"></span>
+        </span>
+        <button onclick="closeModal('modal-new')" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--faint);">✕</button>
+      </div>
     </div>
     <div style="padding:18px 22px;">
       <div class="form-grid" style="gap:11px 16px;">
@@ -3020,19 +3721,19 @@ textarea{resize:vertical;min-height:100px;}
             <div id="pxy-note" style="font-size:11px;color:var(--muted);margin-top:9px;display:none;"></div>
           </div>
         </div>
-        <div class="form-group span2">
+        <div class="form-group span2" id="nw-title-group">
           <label>요청 제목 <span class="req">*</span></label>
           <input type="text" id="f-title" placeholder="문제를 간략하게 설명해 주세요">
         </div>
-        <div class="form-group">
+        <div class="form-group" id="nw-cat-group">
           <label>요청 카테고리 <span class="req">*</span></label>
           <select id="f-category"><!-- 옵션은 populateStaticSelects()가 채움(단일 출처) --></select>
         </div>
-        <div class="form-group">
+        <div class="form-group" id="nw-product-group">
           <label>제품명</label>
           <select id="f-product"><!-- 옵션은 populateStaticSelects()가 채움(단일 출처) --></select>
         </div>
-        <div class="form-group">
+        <div class="form-group" id="nw-priority-group">
           <label>긴급도 <span class="req">*</span></label>
           <select id="f-priority">
             <option value="normal">일반</option>
@@ -3044,11 +3745,13 @@ textarea{resize:vertical;min-height:100px;}
           <label>요청 조직 <span class="req">*</span> <span style="font-size:10.5px;color:var(--faint);font-weight:400;">(사업부/팀/부서)</span></label>
           <select id="nw-org"></select>
         </div>
-        <div class="form-group span2">
+        <div class="form-group span2" id="nw-desc-group">
           <label>요청 내용 <span class="req">*</span></label>
-          <textarea placeholder="문제 상황, 오류 메시지, 재현 방법 등을 자세히 설명해 주세요." style="min-height:80px;"></textarea>
+          <textarea id="f-desc" placeholder="문제 상황, 오류 메시지, 재현 방법 등을 자세히 설명해 주세요." style="min-height:80px;"></textarea>
         </div>
-        <div class="form-group span2">
+        <!-- 폼 빌더에서 만든 추가 문항 — 해당 카테고리에 적용된 폼이 있을 때만 채워진다 -->
+        <div class="form-group span2" id="nw-form-fields" style="display:none;"></div>
+        <div class="form-group span2" id="nw-attach-group">
           <label>첨부 파일</label>
           <input type="file" id="f-attach" multiple accept="image/*,.pdf,.log,.txt,.zip,.xlsx,.xls,.docx,.pptx,.twbx,.twb" style="display:none;" onchange="handleFileSelect(this)">
           <div class="file-drop" style="padding:10px 12px;" onclick="document.getElementById('f-attach').click()"
@@ -3550,7 +4253,27 @@ textarea{resize:vertical;min-height:100px;}
 </div>
 
 <!-- 접수 완료 toast -->
+<!-- 설문 발송 최종 확인 — 발송 버튼은 곧바로 보내지 않고 서버 드라이런 명단을 먼저 보여준다 -->
+<div id="modal-fb-send" style="display:none;position:fixed;inset:0;z-index:520;background:rgba(0,0,0,.35);align-items:center;justify-content:center;" onclick="if(event.target===this)closeFbSendModal()">
+  <div class="fs-box">
+    <div class="fs-hd">
+      <h3>발송 전 최종 확인</h3>
+      <div class="sub" id="fb-send-sub">아래 명단으로 안내 메일이 발송됩니다</div>
+    </div>
+    <div class="fs-bd" id="fb-send-body"></div>
+    <div class="fs-ft">
+      <button class="btn btn-ghost btn-sm" onclick="closeFbSendModal()">취소</button>
+      <span style="flex:1;"></span>
+      <button class="btn btn-primary btn-sm" id="fb-send-go" onclick="fbConfirmSend()">발송</button>
+    </div>
+  </div>
+</div>
+
 <!-- 완료 건 만족도 팝업 — 고객 홈 진입 시 미평가 완료 건이 있으면 1회 노출 -->
+<!-- 갱신 설문 응답 — 발송된 설문(survey_history)의 내 미응답 건. 만족도 팝업과 한 큐로 동작(설문 우선) -->
+<div id="modal-svq" style="display:none;position:fixed;inset:0;z-index:505;background:rgba(0,0,0,.38);align-items:center;justify-content:center;" onclick="if(event.target===this)svqLater()">
+  <div class="svq-box" id="svq-box"></div>
+</div>
 <div id="modal-survey" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.35);align-items:center;justify-content:center;" onclick="if(event.target===this)svPopupLater()">
   <div id="modal-survey-box" style="background:var(--surface);border-radius:14px;width:360px;max-width:calc(100vw - 40px);box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden;"></div>
 </div>
@@ -3932,13 +4655,13 @@ function daysUntil(dateStr) {
 // ══════════════════════════════════════════
 const CATEGORY_LABELS = {
   tech_support:'기술지원', contract:'계약 문의', license:'라이선스 문의',
-  education:'교육 문의', customer:'고객 문의', other:'기타 문의',
+  education:'교육 문의', customer:'고객 문의', voc:'서비스 제안/불만(VOC)', other:'기타 문의',
 };
 // 시안은 카테고리를 전부 회색으로 통일한다 — 색은 긴급도·상태가 쓰고,
 // 카테고리까지 색을 가지면 표에서 무엇이 급한 건지 색만으로 읽히지 않는다.
 const CATEGORY_BADGE = {
   tech_support:'b-gray', contract:'b-gray', license:'b-gray',
-  education:'b-gray', customer:'b-gray', other:'b-gray',
+  education:'b-gray', customer:'b-gray', voc:'b-gray', other:'b-gray',
 };
 
 // ── 폼 옵션 단일 출처(중복 제거) ──
@@ -3946,7 +4669,173 @@ const CATEGORY_BADGE = {
 // 목록을 바꾸면(예: 제품 추가/삭제) 모든 폼에 자동 반영된다.
 const PRODUCT_OPTIONS = ['Tableau Server', 'Tableau Cloud', 'DataWorks', 'AgentWorks', '기타'];
 // 요청 폼에서 사용자가 고를 수 있는 카테고리(시스템 전용 'customer' 제외). 라벨은 CATEGORY_LABELS 사용.
-const TICKET_CATEGORY_FORM_KEYS = ['tech_support', 'contract', 'license', 'education', 'other'];
+const TICKET_CATEGORY_FORM_KEYS = ['tech_support', 'contract', 'license', 'education', 'voc', 'other'];
+// VOC(서비스 제안/불만)는 폼 빌더에서 "적용"(status=active)한 요청 폼이 있을 때만 접수 입구를
+// 연다 — 폼 없이 열어두면 추가 문항·제품/긴급도 숨김이 빠진 기본 폼으로 접수돼 의도와 달라진다.
+// 초안(draft)만 있으면 아직 미적용이므로 숨긴다. 실패 시 기본값은 숨김(안전한 쪽).
+// 주의: 요청 목록 필터·통계의 VOC 항목은 건드리지 않는다 — 이미 접수된 VOC 티켓을 조회해야 한다.
+let vocFormReady = false;
+let vocForm = null;            // 적용 중인 VOC 요청 폼 정의(문항·숨김 항목)
+async function loadVocFormState() {
+  try {
+    const { data, error } = await sb.from('forms')
+      .select('id,title,fields,target').eq('form_type', 'request').eq('status', 'active').limit(1);
+    if (!error) {
+      vocForm = (data && data[0]) || null;
+      vocFormReady = !!vocForm;
+    }
+  } catch (e) { console.error('[VOC 폼 상태 조회]', e); }
+}
+
+// ── 요청 등록: 폼 빌더가 붙인 추가 문항 ──────────────────────────────
+// 카테고리에 적용(active)된 폼이 있으면 문항을 그리고, 폼의 target.hide가 지정한 기본 입력을
+// 숨긴다. VOC는 제목·내용·첨부·제품·긴급도를 전부 숨기고 문항만으로 접수한다 — 같은 것을 두 번
+// 묻지 않기 위해서이고, 티켓 제목은 답변에서 조립한다(nwComposeTitle).
+// 답변 키는 설문과 동일하게 **문항 고유 id**(없으면 순서 키)를 쓴다.
+let nwFormAnswers = {};
+function _nwKey(f, i) { return f?.id || `q${i + 1}`; }
+// 폼이 숨길 수 있는 기본 항목 ↔ 화면 그룹. VOC는 이 다섯을 다 숨기고 문항만으로 접수한다.
+const NW_BASE_FIELDS = [
+  ['title', 'nw-title-group'], ['description', 'nw-desc-group'],
+  ['product', 'nw-product-group'], ['priority', 'nw-priority-group'], ['attach', 'nw-attach-group'],
+];
+// 요청 제목으로 쓸 수 있는 문항 타입 — 제목은 한 줄이라 선택형·점수형은 후보가 아니다.
+const FB_TITLE_TYPES = new Set(['line', 'text', 'para']);
+// 실제로 문항이 있을 때만 기본 항목을 숨긴다 — 문항 0개인 폼에서 제목까지 숨기면 접수 자체가 불가능해진다.
+function nwHiddenFor(cat) {
+  const form = (cat === 'voc') ? vocForm : null;
+  const fields = Array.isArray(form?.fields) ? form.fields : [];
+  return new Set(fields.length ? (form?.target?.hide || []) : []);
+}
+
+function nwApplyCategoryForm(cat) {
+  const box = document.getElementById('nw-form-fields');
+  const form = (cat === 'voc') ? vocForm : null;
+  nwFormAnswers = {};
+  // 기본 입력 표시 복원 후, 폼이 지정한 것만 숨긴다
+  const hide = nwHiddenFor(cat);
+  NW_BASE_FIELDS.forEach(([k, grpId]) => {
+    const g = document.getElementById(grpId);
+    if (g) g.style.display = hide.has(k) ? 'none' : '';
+  });
+  // 숨긴 항목은 값도 비운다 — 카테고리를 바꿔가며 입력했을 때 남은 값이 함께 접수되지 않도록.
+  if (hide.has('product'))     { const el = document.getElementById('f-product');  if (el) el.value = ''; }
+  if (hide.has('priority'))    { const el = document.getElementById('f-priority'); if (el) el.value = 'normal'; }
+  if (hide.has('title'))       { const el = document.getElementById('f-title');    if (el) el.value = ''; }
+  if (hide.has('description')) { const el = document.getElementById('f-desc');     if (el) el.value = ''; }
+  if (hide.has('attach') && _attachFiles.length) { _attachFiles.length = 0; _syncAttachInput(); }
+  if (!box) return;
+  const fields = Array.isArray(form?.fields) ? form.fields : [];
+  if (!fields.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  box.style.display = '';
+  nwRenderFormFields();
+}
+
+function _nwWidget(f, i) {
+  const key = _nwKey(f, i), cur = nwFormAnswers[key];
+  if (f.type === 'nps' || f.type === 'scale') {
+    const nums = f.type === 'nps' ? Array.from({ length: 11 }, (_, n) => n) : [1, 2, 3, 4, 5];
+    return `<div class="nwf-scale">` + nums.map(n =>
+      `<button type="button" class="${cur === n ? 'on' : ''}" onclick="nwSet('${key}',${n})">${n}</button>`).join('') + `</div>`;
+  }
+  if (f.type === 'rating') {
+    return `<div class="nwf-stars">` + [1, 2, 3, 4, 5].map(n =>
+      `<button type="button" class="${cur >= n ? 'on' : ''}" onclick="nwSet('${key}',${n})" aria-label="${n}점">★</button>`).join('') + `</div>`;
+  }
+  if (f.type === 'single' || f.type === 'multi') {
+    const multi = f.type === 'multi', shape = multi ? 'sq' : 'ci';
+    const sel = multi ? (Array.isArray(cur) ? cur : []) : cur;
+    return (f.options || []).map(o => {
+      const on = multi ? sel.includes(o) : sel === o;
+      return `<div class="nwf-opt${on ? ' on' : ''}" onclick="nwSet('${key}',${JSON.stringify(String(o)).replace(/"/g, '&quot;')},${multi})">` +
+        `<span class="bx ${shape}">${on ? '✓' : ''}</span> ${escHtml(o)}</div>`;
+    }).join('');
+  }
+  if (f.type === 'date') {
+    return `<input type="date" value="${_fbAttr(cur || '')}" oninput="nwSetText('${key}', this.value)" style="width:100%;">`;
+  }
+  if (f.type === 'para' || f.type === 'text') {
+    return `<textarea placeholder="내용을 입력해 주세요${f.required ? '' : ' (선택)'}" style="min-height:64px;" oninput="nwSetText('${key}', this.value)">${escHtml(cur || '')}</textarea>`;
+  }
+  return `<input type="text" placeholder="내용을 입력해 주세요${f.required ? '' : ' (선택)'}" value="${_fbAttr(cur || '')}" oninput="nwSetText('${key}', this.value)" style="width:100%;">`;
+}
+
+function nwRenderFormFields() {
+  const box = document.getElementById('nw-form-fields');
+  const fields = Array.isArray(vocForm?.fields) ? vocForm.fields : [];
+  if (!box || !fields.length) return;
+  box.innerHTML = `<div class="nwf-wrap"><div class="nwf-hd"><span class="tag">추가 문항</span>` +
+    `<span>이 카테고리에만 적용되는 항목입니다</span></div>` +
+    fields.map((f, i) =>
+      `<div class="nwf-q"><label>${escHtml(f.label || '')} ${f.required ? '<span class="req">*</span>' : ''}</label>${_nwWidget(f, i)}</div>`).join('') +
+    `</div>`;
+}
+// 선택형은 즉시 다시 그려 선택 표시를 반영하고, 입력형은 값만 저장한다(포커스·IME 유지).
+function nwSet(key, val, multi) {
+  if (multi) {
+    const arr = Array.isArray(nwFormAnswers[key]) ? nwFormAnswers[key] : [];
+    const i = arr.indexOf(val);
+    if (i >= 0) arr.splice(i, 1); else arr.push(val);
+    nwFormAnswers[key] = arr;
+  } else nwFormAnswers[key] = val;
+  nwRenderFormFields();
+}
+function nwSetText(key, val) { nwFormAnswers[key] = val; }
+
+// 필수 추가 문항 검증 — 통과하면 저장용 페이로드(문항 스냅샷 포함)를 돌려준다.
+function nwCollectFormAnswers(cat) {
+  if (cat !== 'voc' || !vocForm) return { ok: true, payload: null };
+  const fields = Array.isArray(vocForm.fields) ? vocForm.fields : [];
+  if (!fields.length) return { ok: true, payload: null };
+  for (let i = 0; i < fields.length; i++) {
+    const f = fields[i], v = nwFormAnswers[_nwKey(f, i)];
+    const empty = v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length);
+    if (f.required && empty) { showToast(`'${f.label}' 항목을 입력해 주세요.`, true); return { ok: false }; }
+  }
+  // 문항 정의를 함께 얼려 보낸다 — 폼이 나중에 바뀌어도 이 요청은 접수 당시 문항으로 보인다.
+  return { ok: true, payload: {
+    form_id: vocForm.id, captured_at: new Date().toISOString(),
+    fields: fields.map((f, i) => ({ id: _nwKey(f, i), label: f.label, type: f.type, required: !!f.required, options: f.options || undefined })),
+    answers: nwFormAnswers,
+  } };
+}
+
+// 제목 조립 — 제목을 묻지 않는 폼(VOC)은 tickets.title을 답변에서 만든다. title은 not null이고
+// 목록·검색·메일 제목에 그대로 쓰이므로, 사람이 읽을 수 있는 한 줄이 반드시 나와야 한다.
+// 형태: [첫 단일선택 답변] "제목으로 사용" 문항 답변   (예: [불편·불만] 로그인이 자주 끊깁니다)
+function nwComposeTitle(form, ans) {
+  const fields = Array.isArray(form?.fields) ? form.fields : [];
+  const answers = ans || {};
+  const val = (i) => {
+    if (i < 0) return '';
+    const v = answers[_nwKey(fields[i], i)];
+    const t = Array.isArray(v) ? v.join(', ') : (v === undefined || v === null ? '' : String(v));
+    return t.trim().replace(/\s+/g, ' ');
+  };
+  let ti = fields.findIndex(f => f.title_src && FB_TITLE_TYPES.has(f.type));
+  if (ti < 0) ti = fields.findIndex(f => FB_TITLE_TYPES.has(f.type));
+  const body = val(ti);
+  const chip = val(fields.findIndex(f => f.type === 'single'));
+  // 지정 문항이 선택 항목이라 비어 있을 수도 있다 — 그때도 빈 제목으로 접수되지 않게 폴백.
+  const t = ((chip ? `[${chip}] ` : '') + (body || 'VOC 요청')).trim();
+  return t.length > 150 ? t.slice(0, 149) + '…' : t;
+}
+
+// 상세 화면 — 접수 당시 스냅샷으로 렌더(현재 폼 정의를 참조하지 않는다).
+function rdRenderFormAnswers(fa) {
+  const wrap = document.getElementById('rd-form-answers');
+  if (!wrap) return;
+  const fields = Array.isArray(fa?.fields) ? fa.fields : [];
+  if (!fields.length) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+  const ans = fa.answers || {};
+  wrap.style.display = '';
+  wrap.innerHTML = `<div class="rd-fa">` + fields.map(f => {
+    const v = ans[f.id];
+    const txt = Array.isArray(v) ? v.join(', ') : (v === undefined || v === null || v === '' ? '' : String(v));
+    return `<div class="row"><span class="q">${escHtml(f.label || '')}</span>` +
+      `<span class="a${txt ? '' : ' none'}">${txt ? escHtml(txt) : '—'}</span></div>`;
+  }).join('') + `</div>`;
+}
 
 function _optsHtml(itemsHtml, placeholder) {
   return (placeholder !== undefined ? `<option value="">${placeholder}</option>` : '') + itemsHtml;
@@ -4226,6 +5115,8 @@ async function enterApp(email, acct, isRestore) {
   // 통합 셸로 이동 후 역할별 권한 로드 + UI 적용
   goScreen('screen-main');
   await loadPermissions();
+  loadVocFormState();          // VOC 입구 노출 여부 — 드롭다운 클릭을 기다리게 하지 않도록 await 없이
+
   applyRoleUI(acct.role);
 
   // 새로고침 복원: showPage가 남긴 URL 해시(#p-xxx)가 있으면 그 페이지로 돌아간다.
@@ -4257,7 +5148,10 @@ async function enterApp(email, acct, isRestore) {
   const rateParam = parseInt(new URLSearchParams(window.location.search).get('rate'), 10);
   if (rateParam >= 1 && rateParam <= 5) window._rdPendingRate = rateParam;
   // survey=1: 완료 메일의 '별점 남기기' 버튼 — 별점 미선택 상태로 홈 팝업을 연다
-  window._rdSurveyEntry = new URLSearchParams(window.location.search).get('survey') === '1';
+  // survey 파라미터는 두 가지다: '1'=완료 건 별점 링크(기존), 그 외=설문 초대 토큰(?survey=토큰).
+  const _svParam = new URLSearchParams(window.location.search).get('survey');
+  window._rdSurveyEntry = _svParam === '1';
+  window._svqToken = (_svParam && _svParam !== '1') ? _svParam : null;
   if (ticketParam && sb) {
     sb.from('tickets').select('*').eq('ticket_number', ticketParam).single().then(({ data }) => {
       const pre = window._rdPendingRate; window._rdPendingRate = 0;
@@ -4574,6 +5468,7 @@ function showPage(tabEl, pageId, fromHistory) {
   if (pageId === 'p-notify-log')  loadNotifyLog().then(fitListHeight);
   if (pageId === 'p-permission')  renderPermissions();
   if (pageId === 'p-stats')       loadStats();
+  if (pageId === 'p-forms')       loadForms();
   if (pageId === 'p-request-detail') {
     const isCustomerUser = currentUser && !ADMIN_ROLES.has(currentUser.role);
     if (isCustomerUser) {
@@ -5412,6 +6307,12 @@ function openModal(id) {
   document.getElementById(id).style.display = 'flex';
   if (id === 'modal-user') populateCompanySelect(document.getElementById('u-company').dataset.pending);
   if (id === 'modal-new') {
+    // 카테고리 선택 상태 초기화 — 드롭다운 경유(nrqPick)가 이 뒤에 다시 숨긴다
+    const catGrp = document.getElementById('nw-cat-group');
+    if (catGrp) catGrp.style.display = '';
+    const catChip = document.getElementById('nw-cat-chip');
+    if (catChip) catChip.style.display = 'none';
+    nwApplyCategoryForm(document.getElementById('f-category')?.value || '');
     const companyEl = document.getElementById('nw-company');
     const companyTxt = document.getElementById('nw-company-txt');
     const _co = (currentUser && currentUser.company) || '';
@@ -5468,6 +6369,65 @@ function closeModal(id) {
     _attachFiles = [];
   }
 }
+
+// ── 새 요청 카테고리 드롭다운 (고객 전용) ──────────────────
+// "+ 새 요청 등록" 클릭 시 폼을 바로 열지 않고 카테고리 메뉴를 먼저 펼친다.
+// 항목을 고르면 폼이 열리고(카테고리 확정), 폼의 카테고리 셀렉트는 숨긴 채
+// 헤더 칩으로 표시한다("변경"으로 재선택). 모든 역할 공통 — 스태프의 대리 등록
+// 모달도 같은 흐름으로 열리며, 대리 등록 필드(고객사/요청자)는 그대로 유지된다.
+let _nrqAnchor = null;
+function openNewRequestMenu(btn) {
+  const existing = document.getElementById('nrq-dd');
+  if (existing) {
+    existing.remove();
+    if (_nrqAnchor === btn) { _nrqAnchor = null; return; } // 같은 버튼 재클릭 = 닫기
+  }
+  _nrqAnchor = btn;
+  const menu = document.createElement('div');
+  menu.id = 'nrq-dd';
+  menu.className = 'nrq-dd';
+  menu.innerHTML = TICKET_CATEGORY_FORM_KEYS
+    .filter(k => k !== 'voc' || vocFormReady)      // 적용된 VOC 요청 폼이 없으면 항목 자체를 숨긴다
+    .map(k => `<div class="nrq-dd-item" onclick="nrqPick('${k}')">${CATEGORY_LABELS[k] || k}</div>`).join('');
+  document.body.appendChild(menu);
+  const r = btn.getBoundingClientRect();
+  menu.style.top = (r.bottom + 6 + window.scrollY) + 'px';
+  menu.style.left = Math.max(12, r.right - menu.offsetWidth + window.scrollX) + 'px';
+}
+function nrqPick(cat) {
+  // 메뉴를 열어둔 사이 폼이 내려갔을 수도 있어 선택 시점에 한 번 더 막는다.
+  if (cat === 'voc' && !vocFormReady) { closeNrqMenu(); return; }
+  closeNrqMenu();
+  openModal('modal-new'); // 안에서 칩/그룹 상태가 초기화된 뒤 아래에서 다시 세팅
+  const sel = document.getElementById('f-category');
+  if (sel) sel.value = cat;
+  const grp = document.getElementById('nw-cat-group');
+  if (grp) grp.style.display = 'none';
+  const chip = document.getElementById('nw-cat-chip');
+  const chipLabel = document.getElementById('nw-cat-chip-label');
+  if (chip && chipLabel) {
+    chipLabel.textContent = CATEGORY_LABELS[cat] || cat;
+    chip.style.display = 'inline-flex';
+  }
+  nwApplyCategoryForm(cat);     // 적용된 폼이 있으면 추가 문항 렌더 + 기본 입력 숨김
+}
+function nrqChangeCategory() {
+  closeModal('modal-new');
+  if (_nrqAnchor && document.body.contains(_nrqAnchor) && _nrqAnchor.offsetParent !== null) {
+    openNewRequestMenu(_nrqAnchor);
+  } else {
+    // 앵커 버튼이 화면에 없으면(페이지 전환 등) 폼을 카테고리 셀렉트 보이는 상태로 다시 연다
+    openModal('modal-new');
+  }
+}
+function closeNrqMenu() {
+  const m = document.getElementById('nrq-dd');
+  if (m) m.remove();
+}
+// 메뉴 밖 클릭 시 닫기 (등록 버튼 자체 클릭은 토글 로직이 처리하므로 제외)
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#nrq-dd') && !e.target.closest('[data-nrq]')) closeNrqMenu();
+});
 
 // ESC 키로 현재 열려있는 모달 닫기 (여러 모달이 겹쳐 있으면 가장 위(z-index가 높은) 것만 닫음)
 document.addEventListener('keydown', (e) => {
@@ -5942,7 +6902,7 @@ async function loadDashboard() {
     window._dashRecentFilter = window._dashRecentFilter || 'all';
     updateDashRecentCardStyles();
     renderDashRecentTable(window._dashRecentFilter);
-    maybeShowSurveyPopup();
+    maybeShowSurveyQueue();      // 갱신 설문(우선) → 없으면 만족도 팝업
 
   } else if (ADMIN_ROLES.has(role)) {
     const todayStart = new Date(); todayStart.setHours(0,0,0,0);
@@ -6154,7 +7114,7 @@ async function loadTickets() {
 
   let query = sb
     .from('tickets')
-    .select('id, ticket_number, title, description, category, product, priority, status, created_at, updated_at, due_date, unit_name, assigned_to_name, company_name, created_by_name, registered_by, registered_by_name, is_internal, assignee:assigned_to(name), company:company_id(name), requester:created_by(name)')
+    .select('id, ticket_number, title, description, category, product, priority, status, created_at, updated_at, due_date, unit_name, assigned_to_name, company_name, created_by_name, registered_by, registered_by_name, is_internal, assignee:assigned_to(name), company:company_id(name), requester:created_by(name,email,phone)')
     .order('created_at', { ascending: false });
 
   if (DEMO_COMPANY_ID) query = query.eq('company_id', DEMO_COMPANY_ID);
@@ -6240,6 +7200,16 @@ function detachSharedRequestDetail(tbody) {
 // ── 티켓 목록 공용 셀 빌더 ──
 // 요청 탭·요청 관리 두 아코디언 테이블이 똑같이 쓰는 9개 셀을 한 곳에 정의(중복 제거).
 // 화면별로 다른 셀은 각 렌더러에 그대로 둔다: num(폴백 차이)·due(지연뱃지 유무)·action(요청관리 전용).
+// 요청자 이름 — 응답에 연락처가 실려 있으면(스태프·내부직원) 호버 카드 대상으로 감싼다.
+// 고객에게는 data-api가 email/phone을 지워 보내므로 자동으로 평문 이름만 남는다(서버가 1차 차단).
+function requesterNameHtml(t) {
+  const name = t.requester?.name || t.created_by_name || '';
+  if (!name) return '<span style="color:var(--faint);">—</span>';
+  const em = t.requester?.email || '', ph = t.requester?.phone || '';
+  if (!em && !ph) return escHtml(name);
+  return `<span class="rq-who" data-nm="${escHtml(name)}" data-em="${escHtml(em)}" data-ph="${escHtml(ph)}">${escHtml(name)}</span>`;
+}
+
 const TICKET_CELL = {
   title:     t => `<td style="font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.is_internal?'<span title="내부 검토 — 고객에게 보이지 않는 요청" style="margin-right:4px;">🔒</span>':''}${escHtml(t.title||'')}<span class="row-arrow">▾</span></td>`,
   category:  t => `<td><span class="badge ${CATEGORY_BADGE[t.category]||'b-gray'}">${CATEGORY_LABELS[t.category]||t.category||'—'}</span></td>`,
@@ -6247,7 +7217,7 @@ const TICKET_CELL = {
   status:    t => `<td><span class="badge ${STATUS_BADGE[t.status]||'b-gray'}">${STATUS_LABELS[t.status]||t.status||'—'}</span></td>`,
   company:   t => `<td style="font-size:12px;">${t.company?.name?escHtml(t.company.name):(t.company_name?escHtml(t.company_name):'<span style="color:var(--faint);">—</span>')}</td>`,
   org:       t => `<td style="font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(t.unit_name||'')}">${t.unit_name?escHtml(t.unit_name):'<span style="color:var(--faint);">—</span>'}</td>`,
-  requester: t => `<td style="font-size:12px;">${t.requester?.name?escHtml(t.requester.name):(t.created_by_name?escHtml(t.created_by_name):'<span style="color:var(--faint);">—</span>')}${t.registered_by?` <span class="proxy-badge" title="빅스데이터 ${escHtml(t.registered_by_name||'')} 대리 등록">대리</span>`:''}</td>`,
+  requester: t => `<td style="font-size:12px;">${requesterNameHtml(t)}${t.registered_by?` <span class="proxy-badge" title="빅스데이터 ${escHtml(t.registered_by_name||'')} 대리 등록">대리</span>`:''}</td>`,
   assignee:  t => `<td style="font-size:12px;">${t.assignee?.name?escHtml(t.assignee.name):(t.assigned_to_name?escHtml(t.assigned_to_name)+' <span style="color:var(--faint);font-size:10px;">(탈퇴)</span>':'<span style="color:var(--faint);">미배정</span>')}</td>`,
   created:   t => `<td style="color:var(--faint);font-size:12px;">${t.created_at?t.created_at.slice(0,10):'—'}</td>`,
   // 접수일과 달리 시각까지 보여주므로 UTC 문자열을 그대로 자르면 안 되고 KST로 변환한다.
@@ -6281,7 +7251,7 @@ function renderTickets(tickets) {
     // 내부일반: 대리등록자를 별도 컬럼으로 보여주므로 요청자 셀엔 [대리] 배지 없이 이름만.
     // 고객: 컬럼이 없으니 기존 배지 방식(TICKET_CELL.requester) 유지.
     const requesterCell = isCustomerRole ? TICKET_CELL.requester(t)
-      : `<td style="font-size:12px;">${t.requester?.name?escHtml(t.requester.name):(t.created_by_name?escHtml(t.created_by_name):'<span style="color:var(--faint);">—</span>')}</td>`;
+      : `<td style="font-size:12px;">${requesterNameHtml(t)}</td>`;
     const registrarCell = isCustomerRole ? ''
       : `<td style="font-size:12px;">${t.registered_by_name?escHtml(t.registered_by_name):'<span style="color:var(--faint);">—</span>'}</td>`;
     const cells = [
@@ -6544,18 +7514,26 @@ document.addEventListener('click', (e) => {
 });
 
 async function submitRequest() {
-  const title       = document.getElementById('f-title')?.value?.trim() || '';
   const category    = document.getElementById('f-category')?.value;
   const product     = document.getElementById('f-product')?.value;
   const priority    = document.getElementById('f-priority')?.value || 'normal';
-  const description = document.querySelector('#modal-new textarea')?.value?.trim();
   const attachInput = document.getElementById('f-attach');
   const attachFiles = attachInput?.files ? [...attachInput.files].map(f => ({ name: f.name, size: f.size })) : [];
+  // 기본 항목을 숨긴 폼(VOC)은 제목·내용을 아예 묻지 않으므로 그만큼 필수 검증도 빠진다.
+  // 같은 걸 두 번 묻지 않는 대신, 제목은 아래에서 답변으로 조립한다.
+  const hidden      = nwHiddenFor(category);
+  let title         = hidden.has('title') ? '' : (document.getElementById('f-title')?.value?.trim() || '');
+  let description   = hidden.has('description') ? '' : (document.getElementById('f-desc')?.value?.trim() || '');
 
-  if (!title || !category || !description) {
-    showToast('제목, 카테고리, 내용은 필수 항목입니다.', true);
+  if (!category || (!hidden.has('title') && !title) || (!hidden.has('description') && !description)) {
+    showToast(hidden.has('title') ? '카테고리는 필수 항목입니다.' : '제목, 카테고리, 내용은 필수 항목입니다.', true);
     return;
   }
+  // 폼 빌더 추가 문항 — 필수 검증 후 문항 스냅샷과 함께 보낸다(api-layer가 tickets.form_answers에 저장).
+  const _fa = nwCollectFormAnswers(category);
+  if (!_fa.ok) return;
+  const formAnswers = _fa.payload;
+  if (hidden.has('title')) title = nwComposeTitle(vocForm, nwFormAnswers);
 
   const btn = document.querySelector('#modal-new .btn-primary');
   if (btn) { btn.disabled = true; btn.textContent = '접수 중...'; }
@@ -6576,7 +7554,8 @@ async function submitRequest() {
   }
 
   // 담당자 자동 배정, 신규등록 알림(Slack/이메일)은 서버(api-layer)가 처리한다.
-  const payload = { title, category, description, priority };
+  const payload = { title, category, description: description || null, priority };
+  if (formAnswers)              payload.form_answers = formAnswers;
   if (product)                  payload.product    = product;
   if (currentUser?.id)          payload.created_by = currentUser.id;
   if (currentUser?.company_id)  payload.company_id = currentUser.company_id;
@@ -8121,6 +9100,946 @@ async function deleteLicenseGroup(ids, filePaths) {
   loadCompanyLicenses();
 }
 
+// ── 폼 빌더 (단계 흐름) ──────────────────────────────────
+// 폼 종류(type) → [VOC 요청 폼] req-fields → req-apply / [설문 폼] sur-edit → sur-target → sur-send.
+// 저장은 data-api /data/forms — DDL·data-api 등록 전에는 목록/저장이 실패하며 화면에 안내된다.
+// 실제 발송(메일)·대상 집계·고객 화면 렌더는 백엔드(api-layer) 연동 후 활성화 — 버튼은 초안 저장으로 대체.
+// VOC 요청 폼이 숨기는 기본 항목 — 문항만으로 접수하는 형태(제목은 답변으로 조립).
+const FB_REQ_HIDE = ['product', 'priority', 'title', 'description', 'attach'];
+// 요청 폼 target 정규화 — 숨김 목록은 저장된 값이 아니라 항상 현재 규약으로 맞춘다.
+function _fbReqTarget(t) { return { ...(t || {}), category: 'voc', hide: [...FB_REQ_HIDE] }; }
+const FB_TYPES = { single:'객관식 · 단일', multi:'객관식 · 복수', text:'주관식', line:'한 줄 입력', para:'여러 줄 입력', rating:'별점 (1~5)', nps:'NPS (0~10)', scale:'척도 (1~5)', date:'날짜' };
+const FB_STATUS = { draft:['작성 중','draft'], active:['발송 중','active'], applied:['적용 중','active'], closed:['마감','draft'] };
+const FB_FLOWS = {
+  req:  [ {id:'type', t:'폼 종류', d:'VOC 요청 폼'}, {id:'req-fields', t:'문항 구성', d:'VOC 추가 문항'}, {id:'req-apply', t:'미리보기 · 적용', d:'고객 화면 확인'} ],
+  sur:  [ {id:'type', t:'폼 종류', d:'설문 폼'}, {id:'sur-edit', t:'설문 작성', d:'문항 구성'}, {id:'sur-preview', t:'미리보기', d:'고객 응답 화면'}, {id:'sur-target', t:'발송 대상', d:'고객사·조건'}, {id:'sur-send', t:'발송', d:'확인 후 전송'} ],
+  none: [ {id:'type', t:'폼 종류', d:'요청 폼 · 설문 폼'} ],
+};
+const FB_EXPIRY_OPTS = [ ['all','전체'], ['d90','D-90 이내'], ['d60','D-60 이내'], ['d30','D-30 이내'] ];
+// 수신 규칙(고정): 조건 충족 고객사의 활성 고객 계정 전원, 같은 사람에겐 1통만.
+let fbForms = [];
+let fbKind = 'none';   // none | req | sur
+let fbStep = 'type';
+let fbCur = null;      // 작업 사본 {id?, form_type, title, intro, open_until, status, fields[], target{}}
+
+function _fbAttr(v) { return String(v ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+// ── 단계 레일 / 문서 칩 ──
+function fbRenderRail() {
+  const rail = document.getElementById('fb-steps');
+  const flow = FB_FLOWS[fbKind];
+  const at = flow.findIndex(x => x.id === fbStep);
+  rail.innerHTML = flow.map((st, i) => {
+    const cls = i === at ? 'fb-step current' : (i < at ? 'fb-step done' : 'fb-step');
+    const mark = i < at ? '✓' : String(i + 1);
+    return `<button class="${cls}" onclick="fbRailGo('${st.id}')"${i === at ? ' aria-current="step"' : ''}>` +
+      `<span class="dot">${mark}</span><span><span class="t">${st.t}</span><span class="d">${st.d}</span></span></button>`;
+  }).join('');
+}
+function fbRailGo(id) {
+  // 레일 카드 클릭 이동 — 뒤로는 자유, 앞으로는 진행 버튼과 같은 검증을 통과해야 이동.
+  const flow = FB_FLOWS[fbKind];
+  const to = flow.findIndex(x => x.id === id);
+  const at = flow.findIndex(x => x.id === fbStep);
+  if (to === at || to < 0) return;
+  if (to < at) {
+    fbShow(id);
+    if (id === 'sur-preview') renderFbPreview();
+    else if (id === 'sur-target') fbRenderTarget();
+    else if (id === 'req-apply') fbRenderReqPreview();
+    return;
+  }
+  if (!fbCur) return;
+  if (fbKind === 'req') { if (id === 'req-apply') fbGoApply(); return; }
+  if (fbKind !== 'sur') return;
+  if (fbStep === 'sur-edit' && !fbReadSurEdit()) return; // 작성 화면에서 전진: 입력 반영+검증
+  if (id === 'sur-preview') { fbShow('sur-preview'); renderFbPreview(); fbRenderDoc(); }
+  else if (id === 'sur-target') fbGoTarget();
+  else if (id === 'sur-send') { fbShow('sur-send'); fbRenderSend(); }
+}
+function fbRenderDoc() {
+  const doc = document.getElementById('fb-doc');
+  if (fbKind === 'none' || !fbCur) { doc.style.display = 'none'; return; }
+  doc.style.display = 'flex';
+  document.getElementById('fb-doc-name').textContent =
+    fbKind === 'req' ? 'VOC 요청 폼' : ('설문 · ' + (fbCur.title || '(이름 없음)'));
+  const st = FB_STATUS[fbCur.status] || FB_STATUS.draft;
+  const pill = document.getElementById('fb-doc-status');
+  pill.textContent = st[0];
+  pill.className = 'fb-pill ' + st[1];
+}
+function fbShow(id) {
+  fbStep = id;
+  if (id === 'type') { fbKind = 'none'; fbCur = null; fbRefreshTypePanel(); }
+  document.querySelectorAll('[data-fbpanel]').forEach(p => { p.hidden = p.dataset.fbpanel !== id; });
+  fbRenderRail(); fbRenderDoc();
+  const pg = document.getElementById('p-forms'); if (pg) pg.scrollTop = 0;
+}
+
+// ── 진입/목록 ──
+async function loadForms() {
+  fbShow('type');
+  const err = document.getElementById('fb-exist-err');
+  err.style.display = 'none';
+  const { data, error } = await sb.from('forms').select('*').order('updated_at', { ascending: false });
+  if (error) {
+    fbForms = [];
+    err.style.display = '';
+    err.textContent = '저장된 폼을 불러오지 못했습니다 — 폼 저장소(forms) 백엔드 연동 전이거나 일시적인 오류입니다. (' + (error.message || '') + ')';
+  } else {
+    fbForms = data || [];
+  }
+  fbRefreshTypePanel();
+}
+function fbRefreshTypePanel() {
+  // 종류 카드의 상태 태그
+  const reqForm = fbForms.find(f => f.form_type === 'request');
+  const surAll = fbForms.filter(f => f.form_type !== 'request');
+  const surActive = surAll.filter(f => f.status === 'active').length;
+  const surDraft = surAll.filter(f => f.status !== 'active').length;
+  document.getElementById('fb-state-req').innerHTML = reqForm && reqForm.status === 'active'
+    ? '<span class="fb-tag on">VOC에 적용 중</span>'
+    : (reqForm ? '<span class="fb-tag">초안 있음 — 아직 미적용</span>' : '<span class="fb-tag">VOC 아직 미설정 — 기본 항목만 받는 중</span>');
+  document.getElementById('fb-state-sur').innerHTML =
+    (surActive ? `<span class="fb-tag on">${surActive}건 발송 중</span>` : '') +
+    (surDraft ? `<span class="fb-tag">초안 ${surDraft}건</span>` : '') +
+    (!surAll.length ? '<span class="fb-tag">아직 만든 설문 없음</span>' : '');
+  // 저장된 폼 리스트
+  const wrap = document.getElementById('fb-exist-wrap');
+  const list = document.getElementById('fb-exist');
+  if (!fbForms.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  list.innerHTML = fbForms.map(f => {
+    const isReq = f.form_type === 'request';
+    const st = FB_STATUS[f.status] || FB_STATUS.draft;
+    const n = Array.isArray(f.fields) ? f.fields.length : 0;
+    const upd = (f.updated_at || '').slice(0, 10);
+    return `<div class="fb-rev-row"><span class="k">${isReq ? 'VOC 요청 폼' : '설문 · ' + escHtml(f.title || '(이름 없음)')}` +
+      ` <span class="fb-pill ${st[1]}" style="margin-left:6px;">${st[0]}</span></span>` +
+      `<span class="v" style="display:flex;gap:8px;align-items:center;font-weight:400;color:var(--muted);font-size:11.5px;">문항 ${n} · ${escHtml(upd)}` +
+      ` <button class="btn btn-outline btn-sm" onclick="fbEdit('${f.id}')">편집</button>` +
+      // 적용 중인 요청 폼은 "적용 해제"로 잠시 내릴 수 있다 — 문항을 보존한 채 입구만 닫는다.
+      // (삭제와 결과는 같지만, 다시 열 때 "적용" 한 번으로 복구된다.)
+      (isReq && f.status === 'active'
+        ? ` <button class="btn btn-outline btn-sm" onclick="fbUnapply('${f.id}')">적용 해제</button>` : '') +
+      // 요청 폼은 적용 중에도 삭제할 수 있다 — 지우면 VOC 접수 입구가 닫히는 게 전부이고,
+      // 과거 요청은 접수 당시 문항 스냅샷을 각자 들고 있어 잃는 이력이 없다.
+      // 설문은 발송 중이면 숨긴다 — 삭제하면 survey_history(발송·응답 이력)가 CASCADE로 함께 지워진다.
+      (f.form_type === 'request' || f.status !== 'active'
+        ? ` <button class="btn btn-ghost btn-sm" onclick="fbDelete('${f.id}')">삭제</button>` : '') +
+      `</span></div>`;
+  }).join('');
+}
+function fbPick(kind) {
+  fbKind = kind;
+  if (kind === 'req') {
+    const exist = fbForms.find(f => f.form_type === 'request');
+    fbCur = exist
+      ? { id: exist.id, form_type: 'request', title: 'VOC 요청 폼', intro: null, open_until: null, status: exist.status || 'draft', fields: JSON.parse(JSON.stringify(exist.fields || [])), target: _fbReqTarget(exist.target) }
+      : { form_type: 'request', title: 'VOC 요청 폼', intro: null, open_until: null, status: 'draft', fields: [], target: _fbReqTarget() };
+    fbShow('req-fields'); fbStep = 'req-fields'; fbRenderRail(); fbRenderDoc();
+    renderFbFields();
+  } else {
+    fbCur = { form_type: 'survey', title: '', intro: '', open_until: '', status: 'draft', fields: [], target: { expiry: 'all', products: [] } };
+    document.getElementById('fb-name').value = '';
+    document.getElementById('fb-intro').value = '';
+    document.getElementById('fb-until').value = '';
+    fbShow('sur-edit'); fbStep = 'sur-edit'; fbRenderRail(); fbRenderDoc();
+    renderFbFields(); fbRenderTarget();
+  }
+}
+function fbEdit(id) {
+  const f = fbForms.find(x => x.id === id);
+  if (!f) return;
+  const isReq = f.form_type === 'request';
+  fbKind = isReq ? 'req' : 'sur';
+  fbCur = { id: f.id, form_type: f.form_type || 'survey', title: f.title || '', intro: f.intro || '', open_until: f.open_until || '', status: f.status || 'draft',
+    fields: JSON.parse(JSON.stringify(Array.isArray(f.fields) ? f.fields : [])),
+    target: isReq ? _fbReqTarget(f.target) : (f.target || { expiry: 'all', products: [] }) };
+  if (isReq) { fbShow('req-fields'); }
+  else {
+    document.getElementById('fb-name').value = fbCur.title;
+    document.getElementById('fb-intro').value = fbCur.intro || '';
+    document.getElementById('fb-until').value = fbCur.open_until ? String(fbCur.open_until).slice(0, 10) : '';
+    fbShow('sur-edit'); fbRenderTarget();
+  }
+  fbStep = isReq ? 'req-fields' : 'sur-edit';
+  fbRenderRail(); fbRenderDoc();
+  renderFbFields();
+}
+// 적용 해제 — status를 draft로 되돌려 고객 화면의 입구만 닫는다(문항은 그대로 보존).
+// 요청 폼 전용: 이미 발송된 설문을 초안으로 내리면 고객의 응답 화면이 갑자기 닫혀버린다.
+async function fbUnapply(id) {
+  const f = fbForms.find(x => x.id === id);
+  if (!f) return;
+  if (f.form_type !== 'request') {
+    showToast('설문은 적용 해제할 수 없습니다. 이미 받은 고객의 응답 화면이 닫힙니다.', true);
+    return;
+  }
+  if (f.status !== 'active') return;
+  const msg = ['VOC 요청 폼의 적용을 해제할까요?', '',
+    '고객의 "새 요청 등록"에서 VOC 카테고리가 사라지고, 문항은 초안으로 보존됩니다.',
+    '다시 열 때는 폼 빌더에서 "적용"만 누르면 됩니다.'].join(String.fromCharCode(10));
+  if (!confirm(msg)) return;
+  const { error } = await sb.from('forms').update({ status: 'draft' }).eq('id', id);
+  if (error) { showToast('적용 해제 실패: ' + (error.message || ''), true); return; }
+  showToast('적용을 해제했습니다. 문항은 초안으로 보존됩니다.');
+  if (fbCur?.id === id) { fbCur.status = 'draft'; fbRenderDoc(); }
+  loadVocFormState();     // VOC 입구 상태 즉시 갱신
+  loadForms();
+}
+
+async function fbDelete(id) {
+  const f = fbForms.find(x => x.id === id);
+  if (!f) return;
+  const isReq = f.form_type === 'request';
+  if (f.status === 'active' && !isReq) {
+    showToast('발송 중인 설문은 삭제할 수 없습니다. 발송·응답 이력이 함께 지워집니다.', true);
+    return;
+  }
+  const nm = isReq ? 'VOC 요청 폼' : ('설문 "' + (f.title || '(이름 없음)') + '"');
+  // 줄바꿈은 String.fromCharCode(10)으로 넣는다 — 소스에 실제 개행을 두면 문법이 깨진다
+  // (문항 보기 입력에서 같은 실수를 한 적이 있어 같은 방식을 쓴다).
+  const msg = (isReq && f.status === 'active')
+    ? [nm + '을 삭제할까요?', '',
+       '적용 중인 폼이라 삭제하면 고객의 "새 요청 등록"에서 VOC 카테고리가 사라집니다.',
+       '이미 접수된 VOC 요청은 그대로 유지됩니다.'].join(String.fromCharCode(10))
+    : nm + ' 초안을 삭제할까요?';
+  if (!confirm(msg)) return;
+  const { error } = await sb.from('forms').delete().eq('id', id);
+  if (error) { showToast('삭제 실패: ' + (error.message || ''), true); return; }
+  showToast('삭제됐습니다.');
+  if (f.form_type === 'request') loadVocFormState();   // 요청 폼이 사라졌으면 VOC 입구도 닫는다
+  loadForms();
+}
+
+// ── 문항 편집 (두 갈래 공용) ──
+function _fbFieldsBox() { return document.getElementById(fbKind === 'req' ? 'fb-fields-req' : 'fb-fields-sur'); }
+function _fbEmptyBox() { return document.getElementById(fbKind === 'req' ? 'fb-empty-req' : 'fb-empty-sur'); }
+function fbAddField(type) {
+  if (!fbCur) return;
+  if (fbCur.status === 'active' && fbKind === 'sur') { showToast('발송 중인 설문은 문항을 수정할 수 없습니다.', true); return; }
+  const f = { id: 'f' + Date.now().toString(36) + Math.floor(Math.random() * 100), type, label: '', required: true };
+  if (type === 'single' || type === 'multi') f.options = [];
+  fbCur.fields.push(f);
+  renderFbFields();
+  setTimeout(() => { const inps = _fbFieldsBox().querySelectorAll('.fb-label-inp'); inps[inps.length - 1]?.focus(); }, 30);
+}
+function fbMove(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= fbCur.fields.length) return;
+  [fbCur.fields[i], fbCur.fields[j]] = [fbCur.fields[j], fbCur.fields[i]];
+  renderFbFields();
+}
+function fbDelField(i) { fbCur.fields.splice(i, 1); renderFbFields(); }
+// 요청 제목으로 쓸 문항은 하나뿐이라 라디오처럼 동작한다(고르면 나머지 해제).
+function fbSetTitleSrc(i) {
+  if (!fbCur) return;
+  fbCur.fields.forEach((f, k) => { if (k === i) f.title_src = true; else delete f.title_src; });
+  renderFbFields();
+}
+function fbOptsInput(i, el) {
+  // 인라인 핸들러 속성 문자열에는 개행 리터럴을 안전하게 넣을 수 없어 전용 함수로 분리
+  fbCur.fields[i].options = el.value.split(String.fromCharCode(10));
+}
+function renderFbFields() {
+  const box = _fbFieldsBox(); const empty = _fbEmptyBox();
+  if (!box) return;
+  const locked = fbKind === 'sur' && fbCur?.status === 'active';
+  const lockNote = document.getElementById('fb-locked-note');
+  if (lockNote) lockNote.style.display = locked ? '' : 'none';
+  if (!fbCur || !fbCur.fields.length) { box.innerHTML = ''; if (empty) empty.style.display = ''; return; }
+  if (empty) empty.style.display = 'none';
+  const dis = locked ? 'disabled' : '';
+  const noLabel = fbKind === 'req' ? '추가 ' : 'Q';
+  box.innerHTML = fbCur.fields.map((f, i) => `
+    <div class="fb-field">
+      <div class="fb-field-hd">
+        <span class="fb-no">${noLabel}${i + 1}</span>
+        <span class="fb-type">${FB_TYPES[f.type] || escHtml(f.type)}</span>
+        <label style="display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--muted);cursor:pointer;"><input type="checkbox" ${f.required ? 'checked' : ''} ${dis} onchange="fbCur.fields[${i}].required=this.checked"> 필수</label>
+        ${fbKind === 'req' && FB_TITLE_TYPES.has(f.type)
+          ? `<label style="display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--muted);cursor:pointer;" title="이 문항의 답변이 요청 제목이 됩니다"><input type="radio" name="fb-title-src" ${f.title_src ? 'checked' : ''} ${dis} onchange="fbSetTitleSrc(${i})"> 제목으로 사용</label>`
+          : ''}
+        <span style="margin-left:auto;display:flex;gap:4px;">
+          <button class="fb-act" ${dis} title="위로" onclick="fbMove(${i},-1)">↑</button>
+          <button class="fb-act" ${dis} title="아래로" onclick="fbMove(${i},1)">↓</button>
+          <button class="fb-act" ${dis} title="삭제" onclick="fbDelField(${i})">✕</button>
+        </span>
+      </div>
+      <input type="text" class="fb-label-inp" placeholder="문항을 입력하세요" value="${_fbAttr(f.label)}" ${dis} oninput="fbCur.fields[${i}].label=this.value">
+      ${(f.type === 'single' || f.type === 'multi')
+        ? `<textarea class="fb-opts" rows="3" placeholder="보기를 한 줄에 하나씩 입력하세요" ${dis} oninput="fbOptsInput(${i}, this)">${escHtml((f.options || []).join(String.fromCharCode(10)))}</textarea>`
+        : ''}
+    </div>`).join('');
+}
+function fbValidateFields() {
+  if (!fbCur.fields.length) { showToast('문항을 1개 이상 추가해 주세요.', true); return false; }
+  for (let i = 0; i < fbCur.fields.length; i++) {
+    const f = fbCur.fields[i];
+    if (!String(f.label || '').trim()) { showToast((fbKind === 'req' ? '추가 ' : 'Q') + (i + 1) + ' 문항 내용을 입력해 주세요.', true); return false; }
+    if (f.type === 'single' || f.type === 'multi') {
+      f.options = (f.options || []).map(o => String(o).trim()).filter(Boolean);
+      if (f.options.length < 2) { showToast((fbKind === 'req' ? '추가 ' : 'Q') + (i + 1) + ' 보기를 2개 이상 입력해 주세요.', true); return false; }
+    }
+    f.label = String(f.label).trim();
+  }
+  // 요청 폼은 제목 입력을 없애고 답변으로 제목을 만들기 때문에, 제목이 될 문항이 반드시 있어야 한다.
+  if (fbKind === 'req') {
+    const cand = fbCur.fields.filter(f => FB_TITLE_TYPES.has(f.type));
+    if (!cand.length) {
+      showToast('요청 제목을 만들 문항이 필요합니다 — 한 줄 입력·여러 줄 입력·주관식 중 하나를 추가해 주세요.', true);
+      return false;
+    }
+    if (!cand.some(f => f.title_src)) { cand[0].title_src = true; renderFbFields(); }  // 미지정이면 첫 후보로
+  }
+  return true;
+}
+
+// ── VOC: 미리보기·적용 ──
+function fbGoApply() {
+  if (!fbValidateFields()) return;
+  fbShow('req-apply');
+  fbRenderReqPreview();
+}
+function fbRenderReqPreview() {
+  const bd = document.getElementById('fb-phone-bd');
+  const added = fbCur.fields.map(f => {
+    const hint = (f.type === 'single' || f.type === 'multi') ? escHtml((f.options || [])[0] || '보기 선택') :
+      f.type === 'rating' ? '★★★★☆' : f.type === 'date' ? '2026-09-07' : '입력';
+    return `<div class="fb-pf added"><label>${escHtml(f.label)} ${f.required ? '<span class="req">*</span>' : ''}</label><div class="box">${hint}</div></div>`;
+  }).join('');
+  bd.innerHTML =
+    added +
+    `<div class="fb-pf"><label>요청 조직 <span class="req">*</span></label><div class="box">사업부 · 팀 선택</div></div>`;
+  const req = fbCur.fields.filter(f => f.required).length;
+  const tf = fbCur.fields.find(f => f.title_src && FB_TITLE_TYPES.has(f.type))
+          || fbCur.fields.find(f => FB_TITLE_TYPES.has(f.type));
+  document.getElementById('fb-req-rev').innerHTML =
+    `<div class="fb-rev-row"><span class="k">적용 카테고리</span><span class="v">VOC</span></div>` +
+    `<div class="fb-rev-row"><span class="k">추가 문항</span><span class="v">${fbCur.fields.length}개 (필수 ${req})</span></div>` +
+    `<div class="fb-rev-row"><span class="k">요청 제목</span><span class="v">${tf ? escHtml(tf.label || '') + ' 답변으로 자동 생성' : '지정 필요'}</span></div>` +
+    `<div class="fb-rev-row"><span class="k">숨기는 기본 항목</span><span class="v">제목 · 내용 · 제품 · 긴급도 · 첨부</span></div>` +
+    `<div class="fb-rev-row"><span class="k">Slack 알림</span><span class="v">공통 · 영업</span></div>` +
+    `<div class="fb-rev-row"><span class="k">기존 요청</span><span class="v">영향 없음</span></div>`;
+}
+async function fbApplyVoc() {
+  if (!fbValidateFields()) return;
+  // 적용 = active로 저장. 저장이 끝나면 새 요청 등록 드롭다운의 VOC 항목이 곧바로 열린다
+  // (재로그인 없이 반영 — 문항대로 렌더하는 것은 고객 폼 렌더 단계에서 이어진다).
+  await fbSave('active');
+  if (fbCur?.status === 'active') vocFormReady = true;
+}
+
+// ── 설문: 미리보기 (3단계) ──
+function fbReadSurEdit() {
+  fbCur.title = document.getElementById('fb-name').value.trim();
+  fbCur.intro = document.getElementById('fb-intro').value.trim();
+  fbCur.open_until = document.getElementById('fb-until').value || null;
+  if (!fbCur.title) { showToast('설문 이름을 입력해 주세요.', true); return false; }
+  return fbValidateFields();
+}
+function fbGoPreview() {
+  if (!fbReadSurEdit()) return;
+  fbShow('sur-preview');
+  renderFbPreview(); fbRenderDoc();
+}
+// 편집 중인 문항(fbCur.fields)을 고객 응답 화면 그대로 렌더
+function renderFbPreview() {
+  if (!fbCur) return;
+  const mins = Math.max(1, Math.ceil(fbCur.fields.length / 3));
+  const until = fbCur.open_until ? new Date(fbCur.open_until + 'T00:00:00') : null;
+  const untilTxt = until ? `${until.getMonth() + 1}월 ${until.getDate()}일까지` : '';
+  const widget = (f) => {
+    if (f.type === 'nps') return `<div class="fb-pv-nps">${Array.from({length:11},(_,n)=>`<span>${n}</span>`).join('')}</div>` +
+      `<div class="fb-pv-npscap"><span>전혀 추천 안 함</span><span>매우 추천</span></div>`;
+    if (f.type === 'scale') return `<div class="fb-pv-nps">${[1,2,3,4,5].map(n=>`<span>${n}</span>`).join('')}</div>` +
+      `<div class="fb-pv-npscap"><span>전혀 아니다</span><span>매우 그렇다</span></div>`;
+    if (f.type === 'rating') return `<div class="fb-pv-stars">★★★★★</div>`;
+    if (f.type === 'single' || f.type === 'multi') {
+      const shape = f.type === 'single' ? 'ci' : 'sq';
+      return (f.options || []).map(o => `<div class="fb-pv-opt"><span class="bx ${shape}"></span> ${escHtml(o)}</div>`).join('');
+    }
+    return `<div class="fb-pv-ta">자유롭게 입력해 주세요${f.required ? '' : ' (선택)'}</div>`;
+  };
+  document.getElementById('fb-pv-body').innerHTML =
+    `<div class="fb-pv-hd">
+       <span class="fb-pv-badge">📊 설문 · 약 ${mins}분${untilTxt ? ' · ' + untilTxt : ''}</span>
+       <div class="fb-pv-title">${escHtml(fbCur.title)}</div>
+       ${fbCur.intro ? `<div class="fb-pv-sub">${escHtml(fbCur.intro)}</div>` : ''}
+     </div>
+     <div class="fb-pv-bd">` +
+    fbCur.fields.map((f, i) =>
+      `<div><div class="fb-pv-q">Q${i + 1}. ${escHtml(f.label)} ${f.required ? '<span class="req">*</span>' : ''}</div>${widget(f)}</div>`).join('') +
+    `</div>
+     <button class="fb-pv-submit" disabled>제출하기</button>
+     <div class="fb-pv-ft"><span style="text-decoration:underline;">나중에 하기</span><span>문항 ${fbCur.fields.length}개 · 제출 후 수정 불가</span></div>`;
+  const req = fbCur.fields.filter(f => f.required).length;
+  document.getElementById('fb-pv-rev').innerHTML =
+    `<div class="fb-rev-row"><span class="k">문항</span><span class="v">${fbCur.fields.length}개 (필수 ${req})</span></div>` +
+    `<div class="fb-rev-row"><span class="k">예상 소요</span><span class="v">약 ${mins}분</span></div>` +
+    `<div class="fb-rev-row"><span class="k">응답 마감</span><span class="v">${fbCur.open_until ? escHtml(String(fbCur.open_until).slice(0, 10)) : '—'}</span></div>` +
+    `<div class="fb-rev-row"><span class="k">노출 방식</span><span class="v">안내 메일 링크 + 포탈 알림</span></div>` +
+    `<div class="fb-rev-row"><span class="k">제출 규칙</span><span class="v">1회 제출 · 수정 불가</span></div>`;
+}
+
+// ── 설문: 대상/발송 ──
+function fbGoTarget() {
+  fbShow('sur-target');
+  fbRenderTarget(); fbRenderDoc();
+}
+function fbRenderTarget() {
+  const t = fbCur?.target || {};
+  const chip = (on, label, onclick) => `<button class="fb-chip${on ? ' on' : ''}" onclick="${onclick}">${label}</button>`;
+  document.getElementById('fb-t-expiry').innerHTML = FB_EXPIRY_OPTS.map(([k, l]) =>
+    chip(t.expiry === k, l, `fbSetTarget('expiry','${k}')`)).join('');
+  document.getElementById('fb-t-products').innerHTML = PRODUCT_OPTIONS.filter(p => p !== '기타').map(pd =>
+    chip((t.products || []).includes(pd), escHtml(pd), `fbToggleProduct('${_fbAttr(pd)}')`)).join('');
+  fbComputeTarget();
+}
+function fbSetTarget(key, val) { fbCur.target[key] = val; fbRenderTarget(); }
+function fbToggleProduct(pd) {
+  const arr = fbCur.target.products || (fbCur.target.products = []);
+  const i = arr.indexOf(pd);
+  if (i >= 0) arr.splice(i, 1); else arr.push(pd);
+  fbRenderTarget();
+}
+function fbTargetSummary() {
+  const t = fbCur.target || {};
+  const ex = (FB_EXPIRY_OPTS.find(o => o[0] === t.expiry) || [])[1] || '전체';
+  const pd = (t.products || []).length ? t.products.join(', ') : '전 제품';
+  const n = fbTargetResult ? ` ${fbTargetResult.userCount}명` : '';
+  const md = t.mode === 'pick'
+    ? `직접 선택 ${fbTargetResult ? fbTargetResult.unitCount + '개 조직' : ''}`
+    : '계약 조직 전체';
+  return `계약 만료 ${ex} · ${pd} · ${md} 배정 계정${n}`;
+}
+
+// ── 발송 대상 실계산 (admin 화면 — 진행중 계약·고객사·활성 고객 계정을 받아 클라이언트에서 집계) ──
+let fbTargetRaw = null;     // {contracts, companies, users} 1회 로드 캐시
+let fbTargetResult = null;  // {companyCount, userCount, exclCount, rows}
+async function fbLoadTargetRaw() {
+  if (fbTargetRaw) return fbTargetRaw;
+  const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+  const [ct, co, us, ou, uo] = await Promise.all([
+    sb.from('company_contracts').select('id,company_id,unit_id,contract_name,start_date,end_date,status').eq('status', '진행중').gte('end_date', today).order('end_date').limit(1000),
+    sb.from('companies').select('id,name,products').limit(1000),
+    sb.from('users').select('id,name,company_id,department,unit_id').eq('role', 'customer').eq('is_active', 'true').limit(2000),
+    sb.from('org_units').select('id,unit_name').limit(2000),
+    sb.from('user_org_units').select('user_id,unit_id').limit(5000),
+  ]);
+  const err = ct.error || co.error || us.error || ou.error || uo.error;
+  if (err) throw new Error(err.message || '조회 실패');
+  fbTargetRaw = { contracts: ct.data || [], companies: co.data || [], users: us.data || [], units: ou.data || [], memberships: uo.data || [] };
+  return fbTargetRaw;
+}
+async function fbComputeTarget() {
+  const big = document.getElementById('fb-t-big');
+  const brk = document.getElementById('fb-t-brk');
+  const tbody = document.getElementById('fb-tgt-tbody');
+  const more = document.getElementById('fb-tgt-more');
+  if (!big) return;
+  big.textContent = '…';
+  let raw;
+  try { raw = await fbLoadTargetRaw(); }
+  catch (e) {
+    big.textContent = '—';
+    brk.innerHTML = `<span style="color:var(--faint);">대상 집계 실패: ${escHtml(e.message || '')}</span>`;
+    return;
+  }
+  const t = fbCur?.target || {};
+  const OFFSET = { all: null, d90: 90, d60: 60, d30: 30 };
+  const off = OFFSET[t.expiry] ?? null;
+  const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+  const limitDate = off == null ? null : new Date(Date.now() + 9 * 3600 * 1000 + off * 86400000).toISOString().slice(0, 10);
+  const coById = Object.fromEntries(raw.companies.map(c => [c.id, c]));
+  const unitName = Object.fromEntries((raw.units || []).map(u => [u.id, u.unit_name]));
+  const usersById = Object.fromEntries(raw.users.map(u => [u.id, u]));
+  const usersByCo = {};
+  raw.users.forEach(u => { (usersByCo[u.company_id] = usersByCo[u.company_id] || []).push(u); });
+  // 조직 → 배정 계정. user_org_units(정식 N:M)와 users.unit_id(대표 조직 비정규화)의 합집합 —
+  // 어느 쪽 데이터가 어긋나도 받아야 할 사람이 빠지지 않게 한다.
+  const usersByUnit = {};
+  const addToUnit = (unitId, u) => {
+    if (!unitId || !u) return;
+    const arr = (usersByUnit[unitId] = usersByUnit[unitId] || []);
+    if (!arr.some(x => x.id === u.id)) arr.push(u);
+  };
+  (raw.memberships || []).forEach(m => addToUnit(m.unit_id, usersById[m.user_id]));
+  raw.users.forEach(u => addToUnit(u.unit_id, u));
+  const selProducts = t.products || [];
+  // 계약을 (고객사, 계약 조직) 단위로 묶는다 — 같은 조직에 조건 계약이 여러 개면 만료 임박한 것을 대표로.
+  const byUnit = {};
+  for (const c of raw.contracts) {
+    const end = String(c.end_date).slice(0, 10);
+    if (limitDate && end > limitDate) continue;
+    const co = coById[c.company_id];
+    if (!co) continue;
+    if (selProducts.length) {
+      const prods = co.products || [];
+      if (!selProducts.some(p => prods.some(cp => String(cp).includes(p) || p.includes(String(cp))))) continue;
+    }
+    const key = c.company_id + '|' + (c.unit_id || '');
+    const cur = byUnit[key];
+    if (!cur || end < cur.end) {
+      byUnit[key] = { key, co, unit: { id: c.unit_id || null, name: c.unit_id ? (unitName[c.unit_id] || '(삭제된 조직)') : '' },
+                      contract: c, end, extra: cur ? cur.extra + 1 : 0 };
+    } else cur.extra++;
+  }
+  const entries = Object.values(byUnit);
+  entries.forEach(e => { e.users = e.unit.id ? (usersByUnit[e.unit.id] || []) : []; });
+  // 정렬: 고객사의 가장 임박한 만료일 순 → 같은 고객사의 조직들은 인접(리스트에서 고객사 셀 병합)
+  const coFirstEnd = {};
+  entries.forEach(e => { const prev = coFirstEnd[e.co.id]; if (!prev || e.end < prev) coFirstEnd[e.co.id] = e.end; });
+  entries.sort((a, b) =>
+    coFirstEnd[a.co.id].localeCompare(coFirstEnd[b.co.id]) ||
+    String(a.co.name).localeCompare(String(b.co.name), 'ko') ||
+    a.end.localeCompare(b.end) ||
+    String(a.unit.name).localeCompare(String(b.unit.name), 'ko'));
+  const userSet = new Set();
+  let exclCount = 0;
+  entries.forEach(e => {
+    if (!e.users.length) exclCount++;
+    e.users.forEach(u => userSet.add(u.id));
+  });
+  // 참고용: 같은 조건을 회사 단위로 발송했다면 몇 명인지 (비교 배지)
+  const coUserSet = new Set();
+  [...new Set(entries.map(e => e.co.id))].forEach(cid => (usersByCo[cid] || []).forEach(u => coUserSet.add(u.id)));
+  // 조직 미배정 활성 계정 — 어떤 설문도 받을 수 없으므로 경고로 노출
+  const assigned = new Set();
+  (raw.memberships || []).forEach(m => assigned.add(m.user_id));
+  raw.users.forEach(u => { if (u.unit_id) assigned.add(u.id); });
+  const unassigned = raw.users.filter(u => !assigned.has(u.id)).length;
+  // 집계·리스트 렌더 — 뷰 필터는 확인용, 직접 선택(mode:'pick')만 발송 대상을 좁힌다.
+  fbTgtData = {
+    entries, usersByCo, usersByUnit, today, unitName,
+    totalUsers: userSet.size, totalExcl: exclCount, coUserCount: coUserSet.size, unassigned,
+  };
+  fbTgtBuildOpts();
+  fbTgtPageNo = 1;          // 조건이 바뀌면 목록이 달라지므로 첫 페이지로
+  fbTgtSyncPick();
+  fbRenderTargetMeta();
+  fbTgtRenderFilters();
+  fbRenderTgtList();
+}
+
+// ── 발송 조직 직접 선택 (target.mode: 'all'|'pick', target.include: "회사id|조직id" 배열) ──
+function _fbTgtEligible() {
+  return fbTgtData ? fbTgtData.entries.filter(e => e.users.length) : [];
+}
+function fbTgtSyncPick() {
+  const t = fbCur?.target; if (!t || !fbTgtData) return;
+  if (t.mode !== 'pick') return;
+  const keys = new Set(_fbTgtEligible().map(e => e.key));
+  if (!Array.isArray(t.include)) t.include = [...keys];        // 직접 선택 첫 진입: 전부 체크에서 빼는 방식
+  else t.include = t.include.filter(k => keys.has(k));         // 조건 변경으로 후보에서 빠진 선택 정리
+}
+function fbSetTargetMode(m) {
+  if (!fbCur) return;
+  fbCur.target.mode = m;
+  fbTgtSyncPick();
+  fbRenderTargetMeta(); fbRenderTgtList();
+}
+function fbTgtPickToggle(key) {
+  const t = fbCur?.target; if (!t || t.mode !== 'pick') return;
+  const arr = (t.include = t.include || []);
+  const i = arr.indexOf(key);
+  if (i >= 0) arr.splice(i, 1); else arr.push(key);
+  fbRenderTargetMeta(); fbRenderTgtList();
+}
+function fbTgtPickSet(all) {
+  const t = fbCur?.target; if (!t) return;
+  t.include = all ? _fbTgtEligible().map(e => e.key) : [];
+  fbRenderTargetMeta(); fbRenderTgtList();
+}
+function fbTgtPickMaster() {
+  const t = fbCur?.target; if (!t) return;
+  fbTgtPickSet((t.include || []).length < _fbTgtEligible().length);
+}
+// 집계 카드·모드 카드·선택 바 — 직접 선택을 반영한 실제 발송 대상 기준
+function fbRenderTargetMeta() {
+  const d = fbTgtData; if (!d) return;
+  const t = fbCur?.target || {};
+  const pick = t.mode === 'pick';
+  const eligible = _fbTgtEligible();
+  const chosen = pick ? eligible.filter(e => (t.include || []).includes(e.key)) : eligible;
+  const users = new Set();
+  chosen.forEach(e => e.users.forEach(u => users.add(u.id)));
+  const coCount = new Set(chosen.map(e => e.co.id)).size;
+  fbTargetResult = { unitCount: chosen.length, companyCount: coCount, userCount: users.size, exclCount: d.totalExcl, mode: pick ? 'pick' : 'all' };
+  document.getElementById('fb-mode-all')?.classList.toggle('on', !pick);
+  document.getElementById('fb-mode-pick')?.classList.toggle('on', pick);
+  const cap = document.getElementById('fb-t-cap');
+  if (cap) cap.textContent = pick ? '발송 대상 (직접 선택)' : '발송 대상';
+  const big = document.getElementById('fb-t-big');
+  const brk = document.getElementById('fb-t-brk');
+  const cmp = (!pick && d.coUserCount && d.coUserCount !== users.size)
+    ? `<span class="fb-diff">회사 단위였다면 ${d.coUserCount}명</span>` : '';
+  if (big) big.innerHTML = `${users.size}<span style="font-size:14px;font-weight:600;color:var(--muted);"> 명</span>${cmp}`;
+  if (brk) brk.innerHTML = (pick
+    ? `<div style="display:flex;justify-content:space-between;"><span>선택한 조직</span><b>${chosen.length}개 / 후보 ${eligible.length}개</b></div>`
+    : `<div style="display:flex;justify-content:space-between;"><span>대상 조직</span><b>${eligible.length}개 (${coCount}개사)</b></div>`) +
+    `<div style="display:flex;justify-content:space-between;"><span>수신자 (조직 배정 계정)</span><b>${users.size}명</b></div>` +
+    `<div style="display:flex;justify-content:space-between;color:#B45309;"><span>계정 없는 조직 제외</span><b>${d.totalExcl}개</b></div>`;
+  const bar = document.getElementById('fb-tgt-selbar');
+  if (bar) {
+    bar.style.display = pick && d.entries.length ? 'flex' : 'none';
+    const cnt = document.getElementById('fb-tgt-selcnt');
+    if (cnt) cnt.textContent = `${chosen.length}개 조직 · ${users.size}명 선택`;
+    const mk = document.getElementById('fb-tgt-ckall');
+    if (mk) mk.className = 'fb-ckb' + (eligible.length && chosen.length === eligible.length ? ' on' : (chosen.length ? ' half' : ''));
+  }
+  document.querySelectorAll('.fb-ckcol').forEach(c => { c.style.display = pick ? '' : 'none'; });
+  const warn = document.getElementById('fb-tgt-warn');
+  if (warn) {
+    warn.style.display = d.unassigned ? '' : 'none';
+    warn.innerHTML = d.unassigned
+      ? `조직 미배정 활성 계정 <b>${d.unassigned}명</b>은 조직 단위 발송에서 어떤 설문도 받지 못합니다 — 사용자 관리에서 조직을 배정해 주세요.`
+      : '';
+  }
+}
+
+// ── 발송 대상 리스트 뷰 필터 (선택+검색 콤보) ──
+let fbTgtData = null;
+let fbTgtOpts = { co: [], org: [], rc: [] };          // [{id, label, sub}]
+const fbTgtSel = { co: new Set(), org: new Set(), rc: new Set() };
+const fbTgtQ = { co: '', org: '', rc: '' };
+let fbTgtOpenKey = null;
+let fbTgtPageNo = 1;                  // 조직 리스트 페이지 (필터·조건 변경 시 1로, 체크 토글 시 유지)
+const FB_TGT_PAGE_SIZE = 20;
+const FB_TGT_META = { co: { ph: '전체 고객사', srch: '고객사 검색…' }, org: { ph: '전체 조직', srch: '조직 검색…' }, rc: { ph: '전체 수신자', srch: '이름 검색…' } };
+
+function fbTgtBuildOpts() {
+  const d = fbTgtData;
+  const co = [], org = [], rc = [], seenCo = new Set(), seenOrg = new Set(), seenRc = new Set();
+  d.entries.forEach(e => {
+    if (!seenCo.has(e.co.id)) { seenCo.add(e.co.id); co.push({ id: e.co.id, label: e.co.name }); }
+    if (e.unit.id && !seenOrg.has(e.unit.id)) { seenOrg.add(e.unit.id); org.push({ id: e.unit.id, label: e.unit.name, sub: e.co.name }); }
+    e.users.forEach(u => {
+      if (!seenRc.has(u.id)) { seenRc.add(u.id); rc.push({ id: u.id, label: u.name, sub: e.co.name }); }
+    });
+  });
+  const ko = (a, b) => a.label.localeCompare(b.label, 'ko');
+  fbTgtOpts = { co: co.sort(ko), org: org.sort(ko), rc: rc.sort(ko) };
+  // 조건 변경으로 옵션에서 사라진 선택은 정리
+  for (const k of ['co', 'org', 'rc']) {
+    const ids = new Set(fbTgtOpts[k].map(o => o.id));
+    for (const v of [...fbTgtSel[k]]) if (!ids.has(v)) fbTgtSel[k].delete(v);
+  }
+}
+// 옵션 목록 마크업 — 전체 재렌더와 "입력 중 부분 갱신"이 같은 결과를 내도록 한 곳에 둔다.
+function _fbTgtOptsHtml(key) {
+  const q = fbTgtQ[key];
+  const opts = fbTgtOpts[key].filter(o => !q || o.label.toLowerCase().includes(q.toLowerCase()));
+  const hl = (txt) => {
+    if (!q) return escHtml(txt);
+    const i = txt.toLowerCase().indexOf(q.toLowerCase());
+    if (i < 0) return escHtml(txt);
+    return escHtml(txt.slice(0, i)) + '<span class="hl">' + escHtml(txt.slice(i, i + q.length)) + '</span>' + escHtml(txt.slice(i + q.length));
+  };
+  if (!opts.length) return `<div class="fb-fempty">검색 결과 없음</div>`;
+  return opts.map(o =>
+    `<div class="fb-fopt${fbTgtSel[key].has(o.id) ? ' on' : ''}" onclick="fbTgtToggle('${key}','${o.id}')">` +
+      `<span class="cb"></span><span>${hl(o.label)}</span>` +
+      (o.sub && key !== 'co' ? `<span class="sub">${escHtml(o.sub)}</span>` : '') +
+    `</div>`).join('');
+}
+function fbTgtRenderFilters() {
+  const bar = document.getElementById('fb-tgt-fbar');
+  if (!bar || !fbTgtData) return;
+  bar.style.display = fbTgtData.entries.length ? 'flex' : 'none';
+  for (const key of ['co', 'org', 'rc']) {
+    const box = document.getElementById('fb-fctl-' + key);
+    const m = FB_TGT_META[key];
+    const byId = Object.fromEntries(fbTgtOpts[key].map(o => [o.id, o]));
+    const chosen = [...fbTgtSel[key]].map(id => byId[id]).filter(Boolean);
+    const chips = chosen.slice(0, 2).map(o =>
+      `<span class="fb-fchip">${escHtml(o.label)}<span class="x" onclick="event.stopPropagation();fbTgtToggle('${key}','${o.id}')">×</span></span>`).join('') +
+      (chosen.length > 2 ? `<span class="fb-fmore">+${chosen.length - 2}</span>` : '');
+    const q = fbTgtQ[key];
+    box.className = 'fb-fctl' + (fbTgtOpenKey === key ? ' open' : '');
+    box.innerHTML =
+      `<div class="fb-fbox" onclick="event.stopPropagation();fbTgtOpenPop('${key}')">${chips || `<span class="ph">${m.ph}</span>`}</div>` +
+      `<div class="fb-fpop" onclick="event.stopPropagation()">` +
+        `<div class="srch"><span style="color:var(--faint);font-size:12px;">🔍</span><input id="fb-fq-${key}" placeholder="${m.srch}" value="${_fbAttr(q)}" oninput="fbTgtSearch('${key}', this)"></div>` +
+        `<div class="fb-fopts" id="fb-fopts-${key}">${_fbTgtOptsHtml(key)}</div>` +
+        `<div class="fb-fft"><button onclick="fbTgtClear('${key}')">선택 해제</button><span class="cnt" id="fb-fcnt-${key}">${fbTgtSel[key].size}개 선택</span></div>` +
+      `</div>`;
+  }
+  const anyFilter = fbTgtSel.co.size || fbTgtSel.org.size || fbTgtSel.rc.size;
+  const sum = document.getElementById('fb-tgt-fsum');
+  if (sum) {
+    if (anyFilter && fbTgtData) {
+      const rows = fbTgtData.entries.filter(fbTgtMatch);
+      const users = new Set(); let excl = 0;
+      rows.forEach(e => { if (!e.users.length) excl++; e.users.forEach(u => users.add(u.id)); });
+      sum.innerHTML = `필터 결과 <b>${rows.length - excl}</b>개 조직 · <b>${users.size}</b>명`;
+    } else sum.innerHTML = '';
+  }
+}
+function fbTgtOpenPop(key) {
+  fbTgtOpenKey = fbTgtOpenKey === key ? null : key;
+  fbTgtRenderFilters();
+  if (fbTgtOpenKey) document.getElementById('fb-fq-' + fbTgtOpenKey)?.focus();
+}
+// ⚠️ 입력 중에는 컨트롤 전체를 다시 그리지 않는다. innerHTML을 갈아끼우면 <input>이 새로
+// 만들어져 **한글 IME 조합이 매 글자 끊긴다**("빅스" → "ㅂㅣㄱㅅㅡ"). 포커스를 다시 줘도
+// 조합 상태는 복구되지 않으므로, 목록과 선택 개수만 부분 갱신하고 입력 노드는 그대로 둔다.
+function fbTgtSearch(key, el) {
+  fbTgtQ[key] = el.value;
+  const list = document.getElementById('fb-fopts-' + key);
+  if (list) list.innerHTML = _fbTgtOptsHtml(key);
+  const cnt = document.getElementById('fb-fcnt-' + key);
+  if (cnt) cnt.textContent = `${fbTgtSel[key].size}개 선택`;
+}
+function fbTgtToggle(key, id) {
+  fbTgtSel[key].has(id) ? fbTgtSel[key].delete(id) : fbTgtSel[key].add(id);
+  fbTgtPageNo = 1;
+  fbTgtRenderFilters(); fbRenderTgtList();
+}
+function fbTgtClear(key) { fbTgtSel[key].clear(); fbTgtPageNo = 1; fbTgtRenderFilters(); fbRenderTgtList(); }
+function fbTgtResetFilters() {
+  fbTgtSel.co.clear(); fbTgtSel.org.clear(); fbTgtSel.rc.clear();
+  fbTgtQ.co = fbTgtQ.org = fbTgtQ.rc = ''; fbTgtOpenKey = null; fbTgtPageNo = 1;
+  fbTgtRenderFilters(); fbRenderTgtList();
+}
+function fbTgtPage(delta) { fbTgtPageNo += delta; fbRenderTgtList(); }
+function fbTgtPageJump(val) {
+  const n = parseInt(val, 10);
+  if (!isNaN(n)) fbTgtPageNo = n;
+  fbRenderTgtList();
+}
+document.addEventListener('click', () => { if (fbTgtOpenKey) { fbTgtOpenKey = null; fbTgtRenderFilters(); } });
+function fbTgtMatch(e) {
+  if (fbTgtSel.co.size && !fbTgtSel.co.has(e.co.id)) return false;
+  if (fbTgtSel.org.size && !fbTgtSel.org.has(e.unit.id)) return false;
+  if (fbTgtSel.rc.size && !e.users.some(u => fbTgtSel.rc.has(u.id))) return false;
+  return true;
+}
+function fbRenderTgtList() {
+  const tbody = document.getElementById('fb-tgt-tbody');
+  const more = document.getElementById('fb-tgt-more');
+  const pager = document.getElementById('fb-tgt-pager');
+  if (!tbody || !fbTgtData) return;
+  const d = fbTgtData;
+  if (!d.entries.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--faint);padding:18px;">조건에 맞는 계약이 없습니다</td></tr>';
+    if (pager) pager.style.display = 'none';
+    return;
+  }
+  const entries = d.entries.filter(fbTgtMatch);
+  const anyFilter = fbTgtSel.co.size || fbTgtSel.org.size || fbTgtSel.rc.size;
+  const pick = fbCur?.target?.mode === 'pick';
+  const inc = new Set(fbCur?.target?.include || []);
+  const dday = (end) => Math.max(0, Math.round((new Date(end + 'T00:00:00') - new Date(d.today + 'T00:00:00')) / 86400000));
+  if (!entries.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--faint);padding:18px;">필터 조건에 맞는 조직이 없습니다</td></tr>';
+    if (pager) pager.style.display = 'none';
+    return;
+  }
+  // 페이지 슬라이스 — 체크(직접 선택)는 페이지를 넘겨도 유지된다(전체 목록 기준으로 저장).
+  const totalPages = Math.max(1, Math.ceil(entries.length / FB_TGT_PAGE_SIZE));
+  fbTgtPageNo = Math.min(Math.max(1, fbTgtPageNo), totalPages);
+  const from = (fbTgtPageNo - 1) * FB_TGT_PAGE_SIZE;
+  const shownRows = entries.slice(from, from + FB_TGT_PAGE_SIZE);
+  // 같은 고객사의 연속 행은 고객사 셀을 병합(rowspan) — 조직별로 나뉘어도 회사가 한 덩어리로 읽힌다.
+  const span = shownRows.map((e, i) => {
+    if (i && shownRows[i - 1].co.id === e.co.id) return 0;      // 그룹 후속 행 → 셀 생략
+    let n = 1;
+    while (i + n < shownRows.length && shownRows[i + n].co.id === e.co.id) n++;
+    return n;
+  });
+  tbody.innerHTML = shownRows.map((e, i) => {
+    const us = e.users;
+    const shown = us.slice(0, 6);
+    const rcpt = us.length
+      ? shown.map(u => `<span class="fb-rcpt${fbTgtSel.rc.has(u.id) ? ' hit' : ''}"><b>${escHtml(u.name)}</b>${u.department ? ' ' + escHtml(u.department) : ''}</span>`).join('') +
+        (us.length > 6 ? `<span class="fb-rcpt">+${us.length - 6}명</span>` : '')
+      : (e.unit.id
+        ? '<span class="why" style="font-size:10px;color:#92400E;background:#FEF3C7;border-radius:999px;padding:2px 8px;font-weight:700;">이 조직에 포탈 계정 없음 — 발송 제외</span>'
+        : '<span class="why" style="font-size:10px;color:#92400E;background:#FEF3C7;border-radius:999px;padding:2px 8px;font-weight:700;">계약에 조직 미지정 — 발송 제외</span>');
+    const off = pick && us.length && !inc.has(e.key);
+    // 고객사 셀: 그룹 첫 행에만. 조직이 여러 개면 몇 개인지 함께 표기.
+    const grpUnits = span[i] || 0;
+    const coCell = span[i]
+      ? `<td class="cogrp"${span[i] > 1 ? ` rowspan="${span[i]}"` : ''}><b>${escHtml(e.co.name)}</b>` +
+        (grpUnits > 1 ? `<div style="font-size:10px;color:var(--faint);margin-top:2px;">조직 ${grpUnits}개</div>` : '') + `</td>`
+      : '';
+    return `<tr class="${us.length ? '' : 'fb-tgt-excl'}${off ? ' fb-tgt-off' : ''}">
+      ${pick ? `<td class="fb-ckcol">${us.length ? `<span class="fb-ckb${inc.has(e.key) ? ' on' : ''}" onclick="fbTgtPickToggle('${_fbAttr(e.key)}')"></span>` : ''}</td>` : ''}
+      ${coCell}
+      <td><span class="fb-uchip${e.unit.id ? '' : ' none'}" title="${_fbAttr(e.unit.name || '조직 미지정')}">${escHtml(e.unit.name || '조직 미지정')}</span>${e.extra ? `<div style="font-size:10px;color:var(--faint);margin-top:2px;">조건 계약 ${e.extra + 1}건</div>` : ''}</td>
+      <td><span class="clip" title="${_fbAttr(e.contract.contract_name || '')}">${escHtml(e.contract.contract_name || '')}</span></td>
+      <td><span style="color:var(--muted);font-size:11px;">${e.contract.start_date ? escHtml(String(e.contract.start_date).slice(0, 10)) : '—'} ~ ${escHtml(e.end)}</span> <span class="fb-dchip">D-${dday(e.end)}</span></td>
+      <td style="font-size:11px;color:var(--muted);"><span class="clip-sm" title="${_fbAttr((e.co.products || []).join(', '))}">${escHtml((e.co.products || []).join(', '))}</span></td>
+      <td>${rcpt}</td>
+    </tr>`;
+  }).join('');
+  if (pager) pager.style.display = 'flex';
+  const pgInput = document.getElementById('fb-tgt-page-input');
+  if (pgInput) pgInput.value = fbTgtPageNo;
+  const pgCount = document.getElementById('fb-tgt-page-count');
+  if (pgCount) pgCount.textContent = totalPages;
+  const coShown = new Set(entries.map(e => e.co.id)).size;
+  const range = `<b>${from + 1}–${from + shownRows.length}</b> / `;
+  if (pick) {
+    const elig = _fbTgtEligible();
+    const chosen = elig.filter(x => inc.has(x.key));
+    const uu = new Set(); chosen.forEach(x => x.users.forEach(u => uu.add(u.id)));
+    more.innerHTML = `${range}후보 ${elig.length}개 조직 중 <b>${chosen.length}개 선택 · 수신자 ${uu.size}명</b> — 체크한 조직에만 발송됩니다 (선택은 페이지를 넘겨도 유지)`;
+  } else if (anyFilter) {
+    more.innerHTML = `${range}필터 결과 ${entries.length}개 조직 / 조건 전체 ${d.entries.length}개 — 필터는 확인용이며 발송 대상은 상단 조건(만료 시점·제품) 기준입니다`;
+  } else {
+    more.innerHTML = `${range}전체 ${entries.length}개 조직 · ${coShown}개사 · 수신자 ${d.totalUsers}명 · 계정 없는 조직 ${d.totalExcl}개 제외 — 발송 전 이 명단이 드라이런 확인 대상입니다`;
+  }
+}
+function fbRenderSend() {
+  const req = fbCur.fields.filter(f => f.required).length;
+  document.getElementById('fb-send-rev').innerHTML =
+    `<div class="fb-rev-row"><span class="k">설문 이름</span><span class="v">${escHtml(fbCur.title)}</span></div>` +
+    `<div class="fb-rev-row"><span class="k">문항</span><span class="v">${fbCur.fields.length}개 (필수 ${req})</span></div>` +
+    `<div class="fb-rev-row"><span class="k">발송 대상</span><span class="v">${escHtml(fbTargetSummary())}${fbTargetResult ? ' (' + fbTargetResult.companyCount + '개사)' : ''}</span></div>` +
+    `<div class="fb-rev-row"><span class="k">응답 마감</span><span class="v">${fbCur.open_until ? escHtml(String(fbCur.open_until).slice(0, 10)) : '—'}</span></div>` +
+    `<div class="fb-rev-row"><span class="k">알림 방법</span><span class="v">안내 메일 + 포탈 알림</span></div>`;
+  document.getElementById('fb-mail-subj').textContent = '[빅스데이터] ' + fbCur.title + '에 참여해 주세요';
+  document.getElementById('fb-mail-body').textContent = (fbCur.intro ? fbCur.intro + ' ' : '') + '아래 버튼을 누르면 포탈에 로그인한 뒤 설문으로 이동합니다.';
+}
+// ── 발송 (2단계) ──
+// 발송 버튼은 곧바로 메일을 보내지 않는다: 먼저 서버 드라이런(DB·메일 미변경)으로 실제
+// 명단을 받아 확인 모달에 띄우고, 거기서 한 번 더 확인해야 실제로 나간다. 오발송은 회수가
+// 불가능하므로 버튼 한 번으로 수백 명에게 나가는 구조를 만들지 않는다.
+let fbSendPlan = null;      // 드라이런 결과 {formId, units, companies, recipients, excluded_units, rows}
+let fbSending = false;      // 중복 제출 방지
+
+async function fbSurveyApi(payload) {
+  try {
+    const res = await fetch(`${API_BASE}/survey/send`, {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    let data = null;
+    try { data = await res.json(); } catch (_) { /* 본문 없음 */ }
+    return { ok: res.ok, status: res.status, data };
+  } catch (e) {
+    return { ok: false, status: 0, data: { error: e?.message || '네트워크 오류' } };
+  }
+}
+// 발송 백엔드가 아직 개통되지 않은 상태(API GW 라우트 미등록)를 사용자에게 구분해 알린다.
+function fbSendNotReady(status) { return status === 404 || status === 0; }
+
+async function fbSendSurvey(isTest) {
+  if (!fbCur || fbSending) return;
+  await fbSave('draft', true);                 // 조건·문항까지 저장하고 form_id 확보
+  if (!fbCur.id) { showToast('설문을 먼저 저장해야 발송할 수 있습니다.', true); return; }
+
+  if (isTest) {
+    // 테스트 발송: 관리자 본인에게 1통. survey_history에 남지 않아 응답률에 영향 없음.
+    const r = await fbSurveyApi({ form_id: fbCur.id, test_only: true });
+    if (r.ok) { showToast(`테스트 메일을 ${r.data?.recipient || '본인 계정'}으로 1통 보냈습니다.`); return; }
+    showToast(fbSendNotReady(r.status)
+      ? '테스트 발송은 발송 백엔드 개통 후 활성화됩니다. 설문은 초안으로 저장했습니다.'
+      : `테스트 발송 실패: ${r.data?.error || 'HTTP ' + r.status}`, true);
+    return;
+  }
+
+  showToast('발송 대상을 확인하고 있습니다…');
+  const r = await fbSurveyApi({ form_id: fbCur.id, dry_run: true });
+  if (!r.ok) {
+    showToast(fbSendNotReady(r.status)
+      ? '발송은 발송 백엔드 개통 후 활성화됩니다. 설문은 초안으로 저장했습니다.'
+      : `발송 대상 확인 실패: ${r.data?.error || 'HTTP ' + r.status}`, true);
+    return;
+  }
+  fbSendPlan = { formId: fbCur.id, ...(r.data || {}) };
+  fbRenderSendConfirm();
+}
+
+function fbRenderSendConfirm() {
+  const p = fbSendPlan;
+  if (!p) return;
+  const rows = Array.isArray(p.rows) ? p.rows : [];
+  const CAP = 12;
+  const sub = document.getElementById('fb-send-sub');
+  if (sub) sub.textContent = `${escHtml(fbCur?.title || '')} — 서버가 방금 다시 계산한 실제 명단입니다`;
+  document.getElementById('fb-send-body').innerHTML =
+    `<div class="fs-big"><b>${p.recipients ?? 0}</b><span>명에게 발송</span></div>` +
+    `<div class="fs-meta">` +
+      `<span>대상 조직 ${p.units ?? 0}개</span>` +
+      `<span>고객사 ${p.companies ?? 0}개사</span>` +
+      (p.excluded_units ? `<span>계정 없는 조직 ${p.excluded_units}개 제외</span>` : '') +
+      `<span>문항 ${(fbCur?.fields || []).length}개</span>` +
+      (fbCur?.open_until ? `<span>마감 ${escHtml(String(fbCur.open_until).slice(0, 10))}</span>` : '') +
+    `</div>` +
+    `<div class="fs-warn">발송하면 즉시 안내 메일이 나가며 <b>회수할 수 없습니다.</b> 명단을 확인한 뒤 진행해 주세요. 이미 받은 사람에게는 다시 가지 않습니다.</div>` +
+    (rows.length ? `<div class="fs-list"><div class="h">발송 명단 (고객사 · 발송 조직 · 수신자)</div>` +
+      rows.slice(0, CAP).map(row => `<div class="fs-row">` +
+        `<span class="co">${escHtml(row.company || '')}</span>` +
+        `<span class="un">${escHtml(row.unit || '—')}</span>` +
+        `<span class="rc">${(row.recipients || []).map(u => escHtml(u.name || u.email || '')).join(', ')}</span>` +
+      `</div>`).join('') +
+      (rows.length > CAP ? `<div class="fs-more">… ${rows.length - CAP}개 조직 더</div>` : '') +
+      `</div>` : `<div class="fs-warn" style="background:var(--surface2);border-color:var(--border);color:var(--muted);">조건에 맞는 수신자가 없습니다 — 발송 대상 단계에서 조건을 다시 확인해 주세요.</div>`);
+  const go = document.getElementById('fb-send-go');
+  if (go) {
+    go.disabled = !p.recipients;
+    go.textContent = p.recipients ? `${p.recipients}명에게 발송` : '발송 대상 없음';
+  }
+  document.getElementById('modal-fb-send').style.display = 'flex';
+}
+
+function closeFbSendModal() {
+  const m = document.getElementById('modal-fb-send');
+  if (m) m.style.display = 'none';
+  fbSendPlan = null;
+}
+
+async function fbConfirmSend() {
+  if (!fbSendPlan || fbSending) return;
+  fbSending = true;
+  const go = document.getElementById('fb-send-go');
+  const label = go?.textContent;
+  if (go) { go.disabled = true; go.textContent = '발송 중…'; }
+  const r = await fbSurveyApi({ form_id: fbSendPlan.formId });
+  fbSending = false;
+  if (go) { go.disabled = false; go.textContent = label || '발송'; }
+  if (!r.ok) {
+    showToast(`발송 실패: ${r.data?.error || 'HTTP ' + r.status}`, true);
+    return;
+  }
+  const d = r.data || {};
+  closeFbSendModal();
+  showToast(`발송 완료 — ${d.sent ?? 0}명에게 안내 메일을 보냈습니다.` +
+    (d.already_sent ? ` (이미 받은 ${d.already_sent}명 제외)` : ''));
+  if (fbCur) { fbCur.status = 'active'; fbRenderDoc(); }
+  loadForms();
+}
+
+// ── 저장 ──
+async function fbSave(status, silent) {
+  if (!fbCur) return;
+  if (fbKind === 'sur' && fbStep === 'sur-edit') {
+    fbCur.title = document.getElementById('fb-name').value.trim();
+    fbCur.intro = document.getElementById('fb-intro').value.trim();
+    fbCur.open_until = document.getElementById('fb-until').value || null;
+  }
+  if (fbKind === 'sur' && !fbCur.title) { showToast('설문 이름을 입력해 주세요.', true); return; }
+  if (!fbValidateFields()) return;
+  const payload = { form_type: fbCur.form_type, title: fbCur.title, intro: fbCur.intro || null,
+    open_until: fbCur.open_until || null, status: status || fbCur.status || 'draft',
+    fields: fbCur.fields, target: fbCur.target || {} };
+  let error;
+  if (fbCur.id) ({ error } = await sb.from('forms').update(payload).eq('id', fbCur.id));
+  else ({ error } = await sb.from('forms').insert(payload));
+  if (error) { if (!silent) showToast('저장 실패: ' + (error.message || '알 수 없는 오류'), true); return; }
+  fbCur.status = payload.status;
+  fbRenderDoc();
+  if (!silent) showToast(payload.status === 'active' ? 'VOC 요청 폼을 적용했습니다.' : '저장됐습니다.');
+  // 목록 데이터 갱신(화면 이동 없이)
+  const { data } = await sb.from('forms').select('*').order('updated_at', { ascending: false });
+  if (data) { fbForms = data; if (!fbCur.id) { const mine = data.find(x => x.title === payload.title && x.form_type === payload.form_type); if (mine) fbCur.id = mine.id; } }
+}
+
 // ── 권한 관리 ──────────────────────────────────────────────────
 const PERM_ROLES = [
   { key:'admin',        label:'관리자',   color:'#3B82F6', locked:true },
@@ -8135,17 +10054,18 @@ const PERM_COLS = [
   'library_view','library_manage',
   'company_manage',
   'user_manage',
+  'form_builder',
   'integration','notify_log','stats_view','permission'
 ];
 // "기본권한" 버튼이 되돌리는 기준값이자 DB 조회 실패 시 폴백.
 // 2026-08-20 운영 role_permissions 테이블의 실제 저장값에 맞췄다.
 const PERM_DEFAULT = {
-  admin:        { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:1,ticket_correct:1,library_view:1,library_manage:1,company_manage:1,user_manage:1,integration:1,notify_log:1,stats_view:1,permission:1 },
-  internal:     { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:0,ticket_correct:0,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0 },
-  sales:        { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:1,ticket_correct:0,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0 },
-  tech_support: { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:1,ticket_correct:0,library_view:1,library_manage:1,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0 },
-  education:    { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:0,ticket_correct:0,library_view:1,library_manage:1,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0 },
-  customer:     { ticket_view:1,ticket_create:1,ticket_delete:0,ticket_manage:0,ticket_correct:0,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0 },
+  admin:        { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:1,ticket_correct:1,library_view:1,library_manage:1,company_manage:1,user_manage:1,integration:1,notify_log:1,stats_view:1,permission:1, form_builder:1 },
+  internal:     { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:0,ticket_correct:0,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0, form_builder:0 },
+  sales:        { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:1,ticket_correct:0,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0, form_builder:0 },
+  tech_support: { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:1,ticket_correct:0,library_view:1,library_manage:1,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0, form_builder:0 },
+  education:    { ticket_view:1,ticket_create:1,ticket_delete:1,ticket_manage:0,ticket_correct:0,library_view:1,library_manage:1,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0, form_builder:0 },
+  customer:     { ticket_view:1,ticket_create:1,ticket_delete:0,ticket_manage:0,ticket_correct:0,library_view:1,library_manage:0,company_manage:0,user_manage:0,integration:0,notify_log:0,stats_view:0,permission:0, form_builder:0 },
 };
 let permState = JSON.parse(JSON.stringify(PERM_DEFAULT));
 
@@ -8172,7 +10092,7 @@ function resetPermissionsToDefault() {
 function renderPermissions() {
   const tbody = document.getElementById('perm-tbody');
   if (!tbody) return;
-  const sepCols = [4,6,7,8]; // border-right after these indices (0-based) — ticket_correct(유형) 추가로 시프트
+  const sepCols = [4,6,7,8,9]; // border-right after these indices (0-based) — 9는 폼 그룹(form_builder) 끝
   tbody.innerHTML = PERM_ROLES.map(role => {
     const cells = PERM_COLS.map((col, i) => {
       const on = permState[role.key][col];
@@ -8350,6 +10270,8 @@ function switchStatsTab(tab) {
   if (sys) sys.style.display = tab === 'sys' ? '' : 'none';
   const sat = document.getElementById('stab-sat');
   if (sat) sat.style.display = tab === 'sat' ? '' : 'none';
+  const sv = document.getElementById('stab-sv');
+  if (sv) sv.style.display = tab === 'sv' ? '' : 'none';
   const feed = document.getElementById('stab-feed');
   if (feed) feed.style.display = tab === 'feed' ? '' : 'none';
   // 계정 탭에서만 페이지를 뷰포트 높이에 고정하고(acct-mode) 목록으로 남는 공간을 채운다.
@@ -8361,6 +10283,7 @@ function switchStatsTab(tab) {
   if (tab === 'lib' && !_dlLoaded) loadDocStats();
   if (tab === 'sys' && !_sysLoaded) loadSystemStats();
   if (tab === 'sat' && !_satLoaded) loadSatStats();
+  if (tab === 'sv' && !_svLoaded) loadSurveyStats();
   if (tab === 'feed' && !_fdLoaded) loadActivity();
 }
 
@@ -8414,6 +10337,7 @@ async function loadStats() {
   if (_dlLoaded) loadDocStats();
   if (_sysLoaded) loadSystemStats();
   if (_satLoaded) loadSatStats();
+  if (_svLoaded) loadSurveyStats();
   if (_fdLoaded) loadActivity();
   try {
     // 접속 활동(서버 집계)
@@ -8743,6 +10667,354 @@ function _satRenderRecent(rows) {
         ${_satStars(r.r)} <b>${escHtml(r.company || '—')}</b> · ${CAT[r.category] || escHtml(r.category)}<br>
         ${escHtml(r.comment)}<div class="m">${escHtml(r.ticket_number)} · ${escHtml(r.at)}</div></div>`).join('')
     : '<div class="rq-empty">한줄평이 아직 없습니다. 완료 요청의 고객이 평가를 남기면 여기에 표시됩니다.</div>';
+}
+
+// ── 설문 현황 (GET /stats/surveys · /stats/survey-detail, 서버 집계) ─────
+// 폼 빌더 설문(forms.form_type='survey')의 발송·응답 이력(survey_history) 집계.
+// 이 탭만 2단이다 — 설문마다 문항이 달라 여러 설문의 응답을 한 축으로 합칠 수 없기 때문.
+//   목록: 발송·응답·응답률만 센다. answers를 열지 않아 응답 스키마와 무관하게 동작한다.
+//   상세: 문항별 분포. survey_history.answers = { "<field.id>": 값 } 을 전제로 한다.
+//         값 타입 — single:문자열 / multi:문자열배열 / rating·scale:1~5 / nps:0~10 /
+//                   line·para·text:문자열 / date:'YYYY-MM-DD'
+// 응답률은 분자(responded_at 있음)와 분모(발송 행)가 같은 테이블 같은 행에서 나온다 —
+// 만족도 응답률처럼 분모를 따로 세다 100%를 넘는 일이 구조적으로 불가능하다.
+// ⚠️ 두 엔드포인트는 발송 백엔드(D단계)와 함께 배포한다. 그 전에는 404가 돌아오고 화면은
+//    "아직 배포되지 않았습니다" 안내를 띄운다 — 장애가 아니라 의도된 상태다.
+
+let _svDays = 90, _svStatus = '', _svLoaded = false;
+
+const SV_QTYPE_KO = { single: '객관식 · 단일', multi: '객관식 · 복수', text: '주관식',
+  line: '한 줄 입력', para: '여러 줄 입력', rating: '별점 1~5', nps: 'NPS 0~10',
+  scale: '척도 1~5', date: '날짜' };
+const SV_STATUS_KO = { active: ['act', '진행 중'], closed: ['clo', '마감'], draft: ['dra', '초안'] };
+const SV_EXPIRY_KO = { all: '전체', d90: 'D-90', d60: 'D-60', d30: 'D-30' };
+
+function setSvDays(d, btn) {
+  _svDays = d;
+  document.querySelectorAll('#sv-days button').forEach(b => b.classList.toggle('on', b === btn));
+  loadSurveyStats();
+}
+function setSvStatus(v) { _svStatus = v; loadSurveyStats(); }
+
+// 조회 결과를 {ok, data, status}로 정규화한다 — 호출부가 상태별로 다른 안내를 낼 수 있게
+// status를 그대로 넘긴다. 실패를 0으로 렌더링하지 않기 위한 최소 장치.
+async function _svFetch(path) {
+  try {
+    const r = await fetch(`${API_BASE}${path}`, { headers: { ...authHeaders() } });
+    if (r.ok) return { ok: true, data: await r.json() };
+    return { ok: false, status: r.status };
+  } catch (e) { console.error('설문 통계 조회 오류', e); return { ok: false, status: 0 }; }
+}
+
+// 빈 데이터·권한 없음·미배포·장애를 각각 다른 문구로 구분한다. 재시도가 의미 있는 경우에만
+// 버튼을 붙인다(403·404는 다시 눌러도 결과가 같다).
+function _svErrHtml(status, retryCall) {
+  const msg = status === 403 ? '설문 현황을 볼 권한이 없습니다. 관리자에게 문의하세요.'
+    : status === 404 ? '설문 집계 API가 아직 배포되지 않았습니다. 설문 발송 기능과 함께 열립니다.'
+    : status === 0 ? '네트워크 오류로 불러오지 못했습니다.'
+    : `불러오지 못했습니다 (HTTP ${status}).`;
+  const btn = (status === 403 || status === 404) ? ''
+    : `<div style="margin-top:10px;"><button class="btn btn-outline btn-sm" onclick="${retryCall}">다시 시도</button></div>`;
+  return `<div class="rq-empty">${msg}${btn}</div>`;
+}
+
+function _svRateHtml(pct) {
+  const bg = pct >= 60 ? 'background:var(--green);' : pct === 0 ? 'background:var(--red);' : '';
+  return `<span class="sv-rate"><span class="rq-btrack"><span class="rq-bfill" style="display:block;width:${pct}%;${bg}"></span></span>` +
+    `<b${pct === 0 ? ' style="color:var(--red-d);"' : ''}>${pct}%</b></span>`;
+}
+
+// 분모를 명시적으로 받는 막대. _rqRenderBars는 분모를 항목 합으로 잡는데, 복수 선택 문항은
+// "응답자 수" 기준이어야 해서 합으로 나누면 비율이 틀린다.
+function _svBars(id, items, denom) {
+  const box = document.getElementById(id);
+  if (!box) return;
+  const max = Math.max(...items.map(r => r.n), 1);
+  box.innerHTML = items.length
+    ? items.map(r => `<div class="rq-brow"><span class="nm">${_rqEsc(r.k)}</span>
+        <span class="rq-btrack"><span class="rq-bfill" style="display:block;width:${(r.n / max) * 100}%;${r.c ? `background:${r.c};` : ''}"></span></span>
+        <span class="v">${r.n} <em>${_rqPct(r.n, denom)}%</em></span></div>`).join('')
+    : '<div class="rq-empty">응답 없음</div>';
+}
+
+function _svDday(openUntil) {
+  if (!openUntil) return '<span style="color:var(--faint);">—</span>';
+  const d = String(openUntil).slice(0, 10);
+  const diff = Math.ceil((new Date(d + 'T00:00:00+09:00').getTime() - Date.now()) / 86400000);
+  if (diff < 0) return `<span style="color:var(--faint);">${d.slice(5)} 마감</span>`;
+  if (diff <= 3) return `<span class="rq-age-bad">${d.slice(5)} (D-${diff})</span>`;
+  return d.slice(5);
+}
+
+// 발송 조건 라벨 — 자동 배치는 trigger_offset, 수동은 forms.target(만료 조건 × 선택 방식).
+function _svTrigLabel(target, off) {
+  if (off) return `<span class="sv-pill tri">D-${off} 자동</span>`;
+  const t = target || {};
+  const ex = t.expiry && t.expiry !== 'all' ? (SV_EXPIRY_KO[t.expiry] || t.expiry) + ' ' : '';
+  return `<span style="font-size:11.5px;color:var(--muted);">수동 · ${ex}${t.mode === 'pick' ? '선택' : '전체'}</span>`;
+}
+
+async function loadSurveyStats() {
+  const kpis = document.getElementById('sv-kpis');
+  if (!kpis) return;
+  const params = new URLSearchParams({ days: String(_svDays) });
+  if (_svStatus) params.set('status', _svStatus);
+  const q = (document.getElementById('sv-q')?.value || '').trim();
+  if (q) params.set('q', q);
+
+  kpis.innerHTML = '<div class="rq-kpi" style="grid-column:1/-1;"><div class="s" style="margin:0;">불러오는 중...</div></div>';
+  const res = await _svFetch(`/stats/surveys?${params}`);
+  if (!res.ok) {
+    // 실패는 KPI 자리에 한 번만 알리고 나머지 카드는 비운다 — 이전 값이 남아 있으면
+    // 최신 수치로 오해된다. _svLoaded를 세우지 않아 탭을 다시 열면 재시도된다.
+    kpis.innerHTML = `<div style="grid-column:1/-1;">${_svErrHtml(res.status, 'loadSurveyStats()')}</div>`;
+    ['sv-curve', 'sv-trigger'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
+    const rows = document.getElementById('sv-rows'); if (rows) rows.innerHTML = '';
+    const pend = document.getElementById('sv-pending'); if (pend) pend.innerHTML = '';
+    return;
+  }
+  _svLoaded = true;
+  const d = res.data;
+  _svRenderKpis(d.summary || {});
+  _svRenderRows(d.rows || []);
+  _svRenderCurve(d.curve || []);
+  _svRenderTrigger(d.byTrigger || []);
+  _svRenderPending(d.pending || []);
+}
+
+function _svRenderKpis(s) {
+  const sent = s.sent || 0, resp = s.responded || 0;
+  document.getElementById('sv-kpis').innerHTML = [
+    `<div class="rq-kpi"><div class="k">진행 중 설문</div><div class="v">${s.active || 0}</div><div class="s">${s.closingSoon ? `마감 임박 ${s.closingSoon}건` : '마감 임박 없음'}</div></div>`,
+    `<div class="rq-kpi"><div class="k">발송</div><div class="v">${sent}<span style="font-size:14px;color:var(--faint);">통</span></div><div class="s">${s.companies || 0}개 고객사${s.units ? ` · ${s.units}개 조직` : ''}</div></div>`,
+    `<div class="rq-kpi good"><div class="k">응답</div><div class="v">${resp}</div><div class="s">${s.lastRespAt ? `최근 응답 ${_rqEsc(s.lastRespAt)}` : '아직 응답이 없습니다'}</div></div>`,
+    `<div class="rq-kpi"><div class="k">응답률</div><div class="v">${sent ? _rqPct(resp, sent) + '%' : '—'}</div><div class="s">응답 ${resp} ÷ 발송 ${sent}</div></div>`,
+    `<div class="rq-kpi ${sent - resp > 0 ? 'warn' : ''}"><div class="k">미응답</div><div class="v">${sent - resp}</div><div class="s">재발송 검토 대상</div></div>`,
+  ].join('');
+}
+
+function _svRenderRows(rows) {
+  document.getElementById('sv-rows').innerHTML = rows.length
+    ? rows.map(r => {
+        const sent = r.sent || 0, resp = r.responded || 0;
+        const st = SV_STATUS_KO[r.status] || ['clo', r.status || ''];
+        const dash = '<span style="color:var(--faint);">—</span>';
+        return `<tr class="sv-row" onclick="openSurveyDetail('${_rqEsc(r.id)}')">
+          <td><b>${_rqEsc(r.title || '(제목 없음)')}</b></td>
+          <td><span class="sv-pill ${st[0]}">${st[1]}</span></td>
+          <td>${_svTrigLabel(r.target, r.trigger_offset)}</td>
+          <td>${r.sent_at ? _rqEsc(String(r.sent_at).slice(0, 10)) : dash}</td>
+          <td>${_svDday(r.open_until)}</td>
+          <td style="text-align:right;">${sent || dash}</td>
+          <td style="text-align:right;">${sent ? resp : dash}</td>
+          <td>${sent ? _svRateHtml(_rqPct(resp, sent)) : '<span style="color:var(--faint);font-size:11.5px;">발송 전</span>'}</td>
+        </tr>`;
+      }).join('')
+    : `<tr><td colspan="8"><div class="rq-empty">아직 만들어진 설문이 없습니다.<br>
+        <span style="font-size:11.5px;">폼 빌더에서 설문을 만들어 발송하면 여기에 집계됩니다.</span></div></td></tr>`;
+}
+
+// 발송 후 경과일별 누적 응답률. "언제까지 기다렸다 재발송할지"를 감이 아니라 곡선으로 정한다.
+// SVG 프레젠테이션 속성은 var()를 해석하지 않으므로 색은 style로 준다.
+function _svRenderCurve(curve) {
+  const box = document.getElementById('sv-curve');
+  if (!box) return;
+  const total = curve.reduce((a, r) => a + (r.n || 0), 0);
+  if (!total) { box.innerHTML = '<div class="rq-empty">응답이 아직 없습니다.</div>'; return; }
+  const maxD = Math.max(7, ...curve.map(r => r.d || 0));
+  const m = {};
+  curve.forEach(r => { m[r.d] = (m[r.d] || 0) + (r.n || 0); });
+  const W = 520, H = 132, L = 30, B = 22, T = 10;
+  const pts = [];
+  let acc = 0, hit = null;
+  for (let day = 0; day <= maxD; day++) {
+    acc += m[day] || 0;
+    const x = L + ((W - L - 6) * day) / maxD;
+    const y = H - B - ((H - B - T) * acc) / total;
+    pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+    if (hit === null && acc / total >= 0.9) hit = day;
+  }
+  const hx = hit === null ? null : L + ((W - L - 6) * hit) / maxD;
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H + 16}" style="width:100%;height:auto;" role="img"
+      aria-label="발송 후 경과일별 누적 응답률">
+    <line x1="${L}" y1="${H - B}" x2="${W - 4}" y2="${H - B}" style="stroke:var(--border-md);"/>
+    <line x1="${L}" y1="${T}" x2="${L}" y2="${H - B}" style="stroke:var(--border-md);"/>
+    <text x="${L - 4}" y="${H - B + 4}" font-size="9" style="fill:var(--faint);" text-anchor="end">0%</text>
+    <text x="${L - 4}" y="${T + 8}" font-size="9" style="fill:var(--faint);" text-anchor="end">100%</text>
+    ${hx === null ? '' : `<line x1="${hx.toFixed(1)}" y1="${T}" x2="${hx.toFixed(1)}" y2="${H - B}"
+        style="stroke:var(--amber);" stroke-width="1.2" stroke-dasharray="3 3"/>
+      <text x="${(hx + 5).toFixed(1)}" y="${T + 9}" font-size="9.5" style="fill:var(--amber-d);" font-weight="700">D+${hit} 에 90% 도달</text>`}
+    <polyline fill="none" style="stroke:var(--accent);" stroke-width="2.2" stroke-linejoin="round" points="${pts.join(' ')}"/>
+    <text x="${L}" y="${H + 6}" font-size="9" style="fill:var(--faint);">D+0</text>
+    <text x="${W - 4}" y="${H + 6}" font-size="9" style="fill:var(--faint);" text-anchor="end">D+${maxD}</text>
+  </svg>
+  <div class="rq-note" style="margin-top:6px;">전체 응답 ${total}건 기준 누적 비율입니다. 곡선이 평탄해진 뒤로는 기다려도 거의 들어오지 않습니다${hit === null ? '' : ` — 재발송은 <b>D+${hit}</b> 전후가 적기입니다`}.</div>`;
+}
+
+function _svRenderTrigger(rows) {
+  const box = document.getElementById('sv-trigger');
+  if (!box) return;
+  box.innerHTML = rows.length
+    ? rows.map(r => {
+        const sent = r.sent || 0, pct = _rqPct(r.responded || 0, sent);
+        return `<div class="rq-brow"><span class="nm">${_rqEsc(r.label || '—')}</span>
+          <span class="rq-btrack"><span class="rq-bfill" style="display:block;width:${sent ? pct : 0}%;${pct >= 60 ? 'background:var(--green);' : ''}"></span></span>
+          <span class="v">${sent ? pct + '%' : '—'} <em>${r.responded || 0}/${sent}</em></span></div>`;
+      }).join('')
+    : '<div class="rq-empty">발송 이력이 없습니다.</div>';
+}
+
+function _svRenderPending(rows) {
+  const sub = document.getElementById('sv-pending-sub');
+  if (sub) sub.textContent = rows.length ? `${rows.length}건 표시 · 경과 오래된 순` : '경과 오래된 순';
+  document.getElementById('sv-pending').innerHTML = rows.length
+    ? rows.map(r => {
+        const days = r.days || 0;
+        const cls = days >= 14 ? 'rq-age-bad' : days >= 7 ? 'rq-age-warn' : '';
+        return `<tr><td>${_rqEsc(r.company_name || '—')}</td><td>${_rqEsc(r.unit_name || '—')}</td>
+          <td>${_rqEsc(r.user_name || '—')}</td><td>${_rqEsc(r.title || '')}</td>
+          <td style="font-size:12px;color:var(--muted);">${r.sent_at ? _rqEsc(String(r.sent_at).slice(0, 10)) : '—'}</td>
+          <td style="text-align:right;" class="${cls}">${days}일</td></tr>`;
+      }).join('')
+    : '<tr><td colspan="6"><div class="rq-empty">미응답이 없습니다.</div></td></tr>';
+}
+
+// ── 상세 레벨 ──
+async function openSurveyDetail(id) {
+  document.getElementById('sv-list').style.display = 'none';
+  document.getElementById('sv-detail').style.display = '';
+  document.getElementById('sv-dhead').innerHTML = '';
+  document.getElementById('sv-bycompany').innerHTML = '';
+  document.getElementById('sv-qs').innerHTML = '<div class="rq-empty">불러오는 중...</div>';
+  window.scrollTo(0, 0);
+  const res = await _svFetch(`/stats/survey-detail?id=${encodeURIComponent(id)}`);
+  if (!res.ok) {
+    document.getElementById('sv-qs').innerHTML = _svErrHtml(res.status, `openSurveyDetail('${id}')`);
+    return;
+  }
+  const d = res.data;
+  _svRenderDetailHead(d.form || {}, d.summary || {});
+  _svRenderQuestions(d.fields || [], d.dist || {});
+  _svRenderByCompany(d.byCompany || []);
+}
+
+function backToSurveyList() {
+  document.getElementById('sv-detail').style.display = 'none';
+  document.getElementById('sv-list').style.display = '';
+  window.scrollTo(0, 0);
+}
+
+function _svRenderDetailHead(f, s) {
+  const sent = s.sent || 0, resp = s.responded || 0;
+  const st = SV_STATUS_KO[f.status] || ['clo', f.status || ''];
+  const when = (s.sent_at ? _rqEsc(String(s.sent_at).slice(0, 10)) + ' 발송' : '미발송')
+    + (f.open_until ? ' · ' + _rqEsc(String(f.open_until).slice(0, 10)) + ' 마감' : '');
+  document.getElementById('sv-dhead').innerHTML = `<div class="sv-head">
+    <div><div class="dt">${_rqEsc(f.title || '(제목 없음)')}</div>
+      <div style="margin-top:5px;display:flex;gap:7px;align-items:center;flex-wrap:wrap;">
+        <span class="sv-pill ${st[0]}">${st[1]}</span>${_svTrigLabel(f.target, s.trigger_offset)}
+        <span style="font-size:11px;color:var(--faint);">${when}</span>
+      </div></div>
+    <div class="dm">
+      <div>발송<b>${sent}</b></div><div>응답<b>${resp}</b></div>
+      <div>응답률<b style="color:var(--accent);">${sent ? _rqPct(resp, sent) + '%' : '—'}</b></div>
+      <div>문항<b>${s.fieldCount || 0}</b></div>
+    </div></div>`;
+}
+
+// 별점·척도는 1~5를 모두 그린다 — 0건인 구간을 빼면 가장 나쁜 응답이 화면에서 사라진다.
+function _svScaleItems(d, type) {
+  const m = {};
+  (d.nums || []).forEach(r => { m[String(r.k)] = r.n; });
+  const out = [];
+  for (let v = 5; v >= 1; v--) {
+    out.push({ k: type === 'rating' ? '★'.repeat(v) + '☆'.repeat(5 - v) : v + '점',
+      n: m[String(v)] || 0, c: v >= 4 ? 'var(--green)' : v <= 2 ? 'var(--red)' : '' });
+  }
+  return out;
+}
+function _svNpsItems(d) {
+  const m = {};
+  (d.nums || []).forEach(r => { m[String(r.k)] = r.n; });
+  const out = [];
+  for (let v = 10; v >= 0; v--) {
+    out.push({ k: String(v), n: m[String(v)] || 0,
+      c: v >= 9 ? 'var(--green)' : v <= 6 ? 'var(--red)' : 'var(--faint)' });
+  }
+  return out;
+}
+
+function _svRenderQuestions(fields, dist) {
+  const box = document.getElementById('sv-qs');
+  if (!fields.length) { box.innerHTML = '<div class="rq-empty">문항이 없습니다.</div>'; return; }
+  box.innerHTML = fields.map((f, i) => {
+    const d = dist[f.id] || {};
+    const cnt = `응답 ${d.answered || 0}` + (f.type === 'multi' && d.sum ? ` · 선택 ${d.sum}` : '');
+    return `<div class="sv-q">
+      <div class="sv-qh"><span class="sv-qn">Q${i + 1}</span>
+        <span class="sv-qt">${_rqEsc(f.label || '(제목 없음)')}</span>
+        <span class="sv-qty">${SV_QTYPE_KO[f.type] || _rqEsc(f.type)}</span>
+        <span class="sv-qc">${cnt}</span></div>
+      ${_svQBody(f, d, i)}</div>`;
+  }).join('');
+  // 막대는 DOM에 붙은 뒤 채운다.
+  fields.forEach((f, i) => {
+    const d = dist[f.id] || {}, a = d.answered || 0, id = 'sv-qb' + i;
+    if (f.type === 'single' || f.type === 'date') _svBars(id, d.opts || d.nums || [], a);
+    else if (f.type === 'multi') _svBars(id, d.opts || [], a);          // 분모=응답자 수
+    else if (f.type === 'rating' || f.type === 'scale') _svBars(id, _svScaleItems(d, f.type), a);
+    else if (f.type === 'nps') _svBars(id, _svNpsItems(d), a);
+  });
+}
+
+function _svQBody(f, d, i) {
+  const id = 'sv-qb' + i, a = d.answered || 0;
+  if (f.type === 'nps') {
+    const n = d.nps || {};
+    const score = n.score != null ? n.score : (_rqPct(n.pro || 0, a) - _rqPct(n.det || 0, a));
+    return `<div class="sv-big">
+        <span class="bv" style="color:${score >= 0 ? 'var(--green-d)' : 'var(--red-d)'};">${score > 0 ? '+' : ''}${score}</span>
+        <span class="bl">NPS · 추천 ${_rqPct(n.pro || 0, a)}% − 비추천 ${_rqPct(n.det || 0, a)}%</span></div>
+      <div class="sv-nps">
+        <div class="det"><div class="sn">비추천 0~6</div><div class="snum">${n.det || 0}명 · ${_rqPct(n.det || 0, a)}%</div></div>
+        <div class="pas"><div class="sn">중립 7~8</div><div class="snum">${n.pas || 0}명 · ${_rqPct(n.pas || 0, a)}%</div></div>
+        <div class="pro"><div class="sn">추천 9~10</div><div class="snum">${n.pro || 0}명 · ${_rqPct(n.pro || 0, a)}%</div></div>
+      </div>
+      <div id="${id}"></div>
+      <div class="rq-note" style="margin-top:10px;">ⓘ NPS는 평균이 아니라 <b>추천% − 비추천%</b>입니다. 중립(7~8)은 계산에서 빠집니다.</div>`;
+  }
+  if (f.type === 'rating' || f.type === 'scale') {
+    return `<div class="sv-big">
+        <span class="bv" style="color:#F59E0B;">${d.avg != null ? Number(d.avg).toFixed(1) : '—'}</span>
+        <span class="bl">/ 5${d.avg != null ? ' · ' + _satStars(d.avg) : ''}</span></div>
+      <div id="${id}"></div>
+      <div class="rq-note" style="margin-top:10px;">ⓘ 1~5 전체 구간을 표시합니다 — 0건인 최저 구간을 빼면 가장 나쁜 응답이 보이지 않습니다.</div>`;
+  }
+  if (f.type === 'multi') {
+    return `<div id="${id}"></div>
+      <div class="rq-note" style="margin-top:10px;">ⓘ 복수 선택이라 합계가 100%를 넘습니다 — %는 <b>응답자 ${a}명 중 몇 명이 골랐나</b>이며 선택 건수(${d.sum || 0}) 대비가 아닙니다.</div>`;
+  }
+  if (f.type === 'single' || f.type === 'date') return `<div id="${id}"></div>`;
+  // 주관식 — 키워드 추출은 넣지 않는다. 응답 현황 탭의 키워드 카드가 "2회 이상 언급" 조건
+  // 탓에 표본 부족으로 늘 비어 있어, 같은 실수를 반복하지 않는다. 원문이 더 유용하다.
+  const t = d.texts || [];
+  if (!t.length) return '<div class="rq-empty">작성된 응답이 없습니다.</div>';
+  const more = (d.textTotal || t.length) - t.length;
+  return t.map(r => `<div class="sat-quote">${_rqEsc(r.v)}
+      <div class="m">${_rqEsc(r.company || '')}${r.unit ? ' · ' + _rqEsc(r.unit) : ''}${r.at ? ' · ' + _rqEsc(r.at) : ''}</div></div>`).join('')
+    + (more > 0 ? `<div class="rq-note" style="margin-top:8px;">외 ${more}건</div>` : '');
+}
+
+function _svRenderByCompany(rows) {
+  document.getElementById('sv-bycompany').innerHTML = rows.length
+    ? rows.map(r => {
+        const sent = r.sent || 0;
+        return `<tr><td>${_rqEsc(r.company_name || '—')}</td><td>${_rqEsc(r.unit_name || '—')}</td>
+          <td style="text-align:right;">${sent}</td><td style="text-align:right;">${r.responded || 0}</td>
+          <td>${_svRateHtml(_rqPct(r.responded || 0, sent))}</td>
+          <td style="font-size:12px;color:var(--muted);">${r.contract_end ? _rqEsc(String(r.contract_end).slice(0, 10)) : '—'}</td></tr>`;
+      }).join('')
+    : '<tr><td colspan="6"><div class="rq-empty">발송 이력이 없습니다.</div></td></tr>';
 }
 
 // ── 시스템 현황 (GET /stats/system, 서버 집계) ────────────────────
@@ -9361,9 +11633,9 @@ function _cuDetailHtml(d) {
 // ── 요청 현황 (GET /stats/tickets, 서버 집계) ────────────────────
 // 집계는 전부 서버에서 끝낸다 — data-api 범용 조회는 limit이 1000으로 캡되므로
 // 전건을 받아 프런트에서 세면 티켓이 늘어난 뒤 조용히 틀린 값이 된다.
-const RQ_CAT_KO = { tech_support:'기술지원', license:'라이선스', contract:'계약', education:'교육', customer:'고객문의', other:'기타' };
+const RQ_CAT_KO = { tech_support:'기술지원', license:'라이선스', contract:'계약', education:'교육', customer:'고객문의', voc:'VOC', other:'기타' };
 // 카테고리 색: 인디고 계열(주력) → 보조색 순. 상태·우선순위의 의미색(초록/주황/빨강)과 겹치지 않게 고른다.
-const RQ_CAT_COLOR = { tech_support:'#4F46E5', license:'#818CF8', contract:'#A5B4FC', education:'#6EE7B7', customer:'#FCD34D', other:'#D1D5DB' };
+const RQ_CAT_COLOR = { tech_support:'#4F46E5', license:'#818CF8', contract:'#A5B4FC', education:'#6EE7B7', customer:'#FCD34D', voc:'#F9A8D4', other:'#D1D5DB' };
 // 상태 막대 색 — 고객 확인 필요(pending_customer)만 주황으로 떼어놓는다. 우리가 밀린 게 아니라
 // 고객 회신을 기다리는 건이라 대응이 달라서, 처리 중과 같은 색이면 이 구분이 사라진다.
 const RQ_ST_COLOR = { received:'#9CA3AF', classifying:'#A5B4FC', assigned:'#818CF8', in_progress:'#4F46E5',
@@ -9786,6 +12058,7 @@ let notifyTab = 'real';
 function switchNotifyTab(tab) {
   notifyTab = tab;
   document.getElementById('nl-tab-real')?.classList.toggle('on', tab === 'real');
+  document.getElementById('nl-tab-survey')?.classList.toggle('on', tab === 'survey');
   document.getElementById('nl-tab-test')?.classList.toggle('on', tab === 'test');
   document.getElementById('nl-tab-reg')?.classList.toggle('on', tab === 'reg');
   const tbar = document.getElementById('nl-testbar'); if (tbar) tbar.style.display = tab === 'test' ? '' : 'none';
@@ -9795,12 +12068,14 @@ function switchNotifyTab(tab) {
 async function updateNotifyTabCounts() {
   if (!sb) return;
   // 테스트 탭은 회귀 알람(channel='regression')을 제외한다 — 회귀는 전용 탭에서만 보이게.
-  const [r, t, g] = await Promise.all([
+  const [r, sv, t, g] = await Promise.all([
     sb.from('log_notification').select('id', { count: 'exact', head: true }).eq('is_test', false),
+    sb.from('log_notification').select('id', { count: 'exact', head: true }).eq('is_test', false).in('event_type', ['survey_invite', 'survey_resend']),
     sb.from('log_notification').select('id', { count: 'exact', head: true }).eq('is_test', true).neq('channel', 'regression'),
     sb.from('log_notification').select('id', { count: 'exact', head: true }).eq('channel', 'regression'),
   ]);
   const er = document.getElementById('nl-cnt-real'); if (er) er.textContent = r.count ?? '';
+  const es = document.getElementById('nl-cnt-survey'); if (es) es.textContent = sv.count ?? '';
   const et = document.getElementById('nl-cnt-test'); if (et) et.textContent = t.count ?? '';
   const eg = document.getElementById('nl-cnt-reg');  if (eg) eg.textContent = g.count ?? '';
 }
@@ -10005,9 +12280,10 @@ async function loadNotifyLog() {
     .limit(200);
 
   // 탭 분리 — 운영(is_test=false) / 테스트(is_test=true, 회귀 제외) / 회귀(channel=regression)
-  if (notifyTab === 'reg')       q = q.eq('channel', 'regression');
-  else if (notifyTab === 'test') q = q.eq('is_test', true).neq('channel', 'regression');
-  else                           q = q.eq('is_test', false);
+  if (notifyTab === 'reg')         q = q.eq('channel', 'regression');
+  else if (notifyTab === 'test')   q = q.eq('is_test', true).neq('channel', 'regression');
+  else if (notifyTab === 'survey') q = q.eq('is_test', false).in('event_type', ['survey_invite', 'survey_resend']); // 설문 발송 메일만 (운영 탭의 부분집합 뷰)
+  else                             q = q.eq('is_test', false);
   updateNotifyTabCounts();                      // 탭 라벨 건수 갱신(비파괴 head count)
 
   if (typeFilter)   q = q.eq('channel', typeFilter);
@@ -10031,7 +12307,7 @@ async function loadNotifyLog() {
     return;
   }
 
-  const CATEGORY_KO  = { tech_support:'기술지원', contract:'계약 문의', license:'라이선스 문의', education:'교육 문의', other:'기타' };
+  const CATEGORY_KO  = { tech_support:'기술지원', contract:'계약 문의', license:'라이선스 문의', education:'교육 문의', voc:'서비스 제안/불만(VOC)', other:'기타' };
   const PRIORITY_KO  = { normal:'일반', high:'빠른 확인 필요', critical:'긴급' };
   const EVENT_TYPE_KO = {
     new_ticket:          '신규 요청',
@@ -11144,7 +13420,7 @@ function clearTkFilter(key) { filterPopClear('tk', key); }
 function updateTkFilterButtonStates() { filterUpdateButtons('tk'); }
 
 // 요청 관리 티켓 조회 — 전체 로드와 델타 폴링이 같은 select·역할필터를 쓰도록 공용화.
-const AR_TICKET_SELECT = 'id, ticket_number, title, category, priority, status, created_at, updated_at, due_date, cc_emails, unit_name, assigned_to_name, company_name, created_by_name, registered_by, registered_by_name, is_internal, company_id, created_by, unit_id, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name,email)';
+const AR_TICKET_SELECT = 'id, ticket_number, title, category, priority, status, created_at, updated_at, due_date, cc_emails, unit_name, assigned_to_name, company_name, created_by_name, registered_by, registered_by_name, is_internal, company_id, created_by, unit_id, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name,email,phone)';
 const AR_ROLE_ALLOWED_CATS = {}; // 스태프(영업/기술/교육/관리자) 전 카테고리 조회 — 카테고리 제한 없음
 function _arBaseQuery() {
   const allowedCats = AR_ROLE_ALLOWED_CATS[currentUser?.role] || null;
@@ -11313,7 +13589,7 @@ function renderAllTickets() {
     const actionCell = `<td style="white-space:nowrap;"><button class="btn btn-primary btn-sm" style="font-size:11px;" onclick="event.stopPropagation();openManage(${idx})">처리</button>${correctBtn}${delBtn}</td>`;
     // 요청 관리 전용: 대리등록자를 별도 컬럼으로 보여주므로 요청자 셀엔 [대리] 배지를 붙이지 않는다
     // (요청 탭은 이 컬럼이 없어 기존 배지 유지 — TICKET_CELL.requester 그대로 사용).
-    const requesterCell = `<td style="font-size:12px;">${t.requester?.name?escHtml(t.requester.name):(t.created_by_name?escHtml(t.created_by_name):'<span style="color:var(--faint);">—</span>')}</td>`;
+    const requesterCell = `<td style="font-size:12px;">${requesterNameHtml(t)}</td>`;
     const registrarCell = `<td style="font-size:12px;">${t.registered_by_name?escHtml(t.registered_by_name):'<span style="color:var(--faint);">—</span>'}</td>`;
     const cells = [
       numCell, TICKET_CELL.company(t), TICKET_CELL.org(t), TICKET_CELL.title(t), TICKET_CELL.category(t), TICKET_CELL.priority(t), TICKET_CELL.status(t),
@@ -11530,6 +13806,7 @@ async function selectRdTicket(idx, directTicket) {
   document.getElementById('rd-title').textContent = rdTicket.title || '—';
   const descEl = document.getElementById('rd-description');
   if (descEl) descEl.textContent = rdTicket.description ?? '불러오는 중...';
+  rdRenderFormAnswers(rdTicket.form_answers);   // 추가 문항(있으면) — 컬럼 추가 전에는 항상 숨김
 
   const rdDelBtn = document.getElementById('rd-delete-btn');
   if (rdDelBtn) rdDelBtn.style.display = permState[currentUser?.role]?.ticket_delete ? '' : 'none';
@@ -11573,7 +13850,7 @@ async function selectRdTicket(idx, directTicket) {
   // ── 백그라운드: description·created_by 등 전체 필드 재조회 ──
   if (sb) {
     const { data } = await sb.from('tickets')
-      .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, created_by, company_id, contract_id, unit_id, unit_name, assigned_to, assigned_to_name, company_name, created_by_name, satisfaction_rating, satisfaction_comment, rated_at, is_internal, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name)')
+      .select('id, ticket_number, title, description, category, product, priority, status, created_at, due_date, created_by, company_id, contract_id, unit_id, unit_name, assigned_to, assigned_to_name, company_name, created_by_name, satisfaction_rating, satisfaction_comment, rated_at, is_internal, assignee:assigned_to(id,name), company:company_id(name), requester:created_by(name,email,phone)')
       .eq('id', selectedId).single();
     if (data && rdTicket.id === selectedId) {
       rdTicket = data;
@@ -11619,6 +13896,186 @@ function _svPromptCount(id) {
 }
 function _svBumpPrompt(id) {
   try { localStorage.setItem('svPromptCount:' + id, String(_svPromptCount(id) + 1)); } catch (_) {}
+}
+
+// ══ 갱신 설문 응답 (고객) ═══════════════════════════════════════════════════
+// 발송된 설문 중 "내 미응답 건"을 GET /survey/my로 받아 첫 로그인 시 중앙 팝업으로 띄운다.
+// "나중에 하기"를 누르면 상단 배너로 강등하고, 응답을 마칠 때까지 배너를 유지한다.
+// 만족도 팝업과 한 번에 하나만 보이게 조율한다 — 갱신 설문이 우선(계약 갱신 판단에 쓰인다).
+// 답변 키 규약은 서버와 동일: { q1: 값, q2: 값, ... } (fields 순서, 1부터)
+let svqList = [];        // [{id, token, form_id, title, intro, fields, open_until, unit_name}]
+let svqIdx = 0;
+let svqAnswers = {};
+
+async function loadMySurveys() {
+  try {
+    const r = await fetch(`${API_BASE}/survey/my`, { headers: { ...authHeaders() } });
+    if (!r.ok) { svqList = []; renderSvqBanner(); return; }
+    const d = await r.json();
+    svqList = Array.isArray(d.surveys) ? d.surveys : [];
+  } catch (e) {
+    console.error('[내 설문 조회]', e);
+    svqList = [];
+  }
+  renderSvqBanner();
+}
+
+// 대시보드 로드 끝에서 호출 — 설문이 있으면 설문을, 없으면 기존 만족도 팝업을 띄운다.
+async function maybeShowSurveyQueue() {
+  await loadMySurveys();
+  const token = window._svqToken; window._svqToken = null;
+  if (token) {
+    const i = svqList.findIndex(x => x.token === token);
+    if (i >= 0) { svqOpen(i); return; }
+    showToast('이미 응답하셨거나 마감된 설문입니다.', true);
+  }
+  let deferred = false;
+  try { deferred = sessionStorage.getItem('svqDeferred') === '1'; } catch (_) {}
+  if (svqList.length && !deferred) { svqOpen(0); return; }   // 설문 우선(한 번에 하나)
+  maybeShowSurveyPopup();
+}
+
+function renderSvqBanner() {
+  const el = document.getElementById('svq-banner');
+  if (!el) return;
+  if (!svqList.length) { el.style.display = 'none'; fitListHeight(); return; }
+  const first = svqList[0];
+  const until = first.open_until ? ` · ${escHtml(String(first.open_until).slice(0, 10))}까지` : '';
+  document.getElementById('svq-banner-msg').innerHTML =
+    `응답 대기 중인 설문이 <b>${svqList.length}건</b> 있습니다 — ${escHtml(first.title || '')}${until}`;
+  el.style.display = 'flex';
+  fitListHeight();          // 배너가 목록 높이를 밀어내므로 다시 맞춘다
+}
+
+function svqOpen(idx) {
+  if (!svqList.length) return;
+  svqIdx = Math.min(Math.max(0, idx ?? 0), svqList.length - 1);
+  svqAnswers = {};
+  document.getElementById('modal-svq').style.display = 'flex';
+  renderSvqModal();
+}
+function svqClose() {
+  const m = document.getElementById('modal-svq');
+  if (m) m.style.display = 'none';
+}
+function svqLater() {
+  // 세션 동안은 팝업을 다시 띄우지 않되, 배너는 응답 전까지 남긴다.
+  try { sessionStorage.setItem('svqDeferred', '1'); } catch (_) {}
+  svqClose();
+  renderSvqBanner();
+}
+
+// 답변 키는 **문항 고유 id**를 쓴다(fbAddField가 부여). 순서 기반(q1..qN)이면 문항을 지우거나
+// 순서를 바꿨을 때 과거 답변이 다른 문항의 것으로 잘못 해석된다. id가 없는 옛 문항만 q-키로 폴백.
+function _svqKey(f, i) { return f?.id || `q${i + 1}`; }
+
+function _svqWidget(f, i) {
+  const key = _svqKey(f, i);
+  const cur = svqAnswers[key];
+  if (f.type === 'nps' || f.type === 'scale') {
+    const nums = f.type === 'nps' ? Array.from({ length: 11 }, (_, n) => n) : [1, 2, 3, 4, 5];
+    const caps = f.type === 'nps' ? ['전혀 추천 안 함', '매우 추천'] : ['전혀 아니다', '매우 그렇다'];
+    return `<div class="svq-scale">` +
+      nums.map(n => `<button type="button" class="${cur === n ? 'on' : ''}" onclick="svqSet('${key}',${n})">${n}</button>`).join('') +
+      `</div><div class="svq-cap"><span>${caps[0]}</span><span>${caps[1]}</span></div>`;
+  }
+  if (f.type === 'rating') {
+    return `<div class="svq-stars">` +
+      [1, 2, 3, 4, 5].map(n => `<button type="button" class="${cur >= n ? 'on' : ''}" onclick="svqSet('${key}',${n})" aria-label="${n}점">★</button>`).join('') +
+      `</div>`;
+  }
+  if (f.type === 'single' || f.type === 'multi') {
+    const multi = f.type === 'multi';
+    const shape = multi ? 'sq' : 'ci';
+    const sel = multi ? (Array.isArray(cur) ? cur : []) : cur;
+    return (f.options || []).map((o, oi) => {
+      const on = multi ? sel.includes(o) : sel === o;
+      return `<div class="svq-opt${on ? ' on' : ''}" onclick="svqSet('${key}',${JSON.stringify(String(o)).replace(/"/g, '&quot;')},${multi})">` +
+        `<span class="bx ${shape}">${on ? '✓' : ''}</span> ${escHtml(o)}</div>`;
+    }).join('');
+  }
+  return `<textarea class="svq-ta" placeholder="자유롭게 입력해 주세요${f.required ? '' : ' (선택)'}" ` +
+    `oninput="svqSetText('${key}', this.value)">${escHtml(cur || '')}</textarea>`;
+}
+
+function renderSvqModal() {
+  const sv = svqList[svqIdx];
+  if (!sv) { svqClose(); return; }
+  const fields = Array.isArray(sv.fields) ? sv.fields : [];
+  const mins = Math.max(1, Math.ceil(fields.length / 3));
+  const until = sv.open_until ? ` · ${escHtml(String(sv.open_until).slice(0, 10))}까지` : '';
+  document.getElementById('svq-box').innerHTML =
+    `<div class="svq-hd">
+       <span class="svq-badge">📊 설문 · 약 ${mins}분${until}</span>
+       <div class="svq-title">${escHtml(sv.title || '')}</div>
+       ${sv.intro ? `<div class="svq-sub">${escHtml(sv.intro)}</div>` : ''}
+     </div>
+     <div class="svq-bd">` +
+    fields.map((f, i) =>
+      `<div><div class="svq-q">Q${i + 1}. ${escHtml(f.label)} ${f.required ? '<span class="req">*</span>' : ''}</div>${_svqWidget(f, i)}</div>`).join('') +
+    `</div>
+     <div class="svq-ft">
+       <button class="svq-submit" id="svq-submit" onclick="svqSubmit()">제출하기</button>
+       <div class="svq-ftrow">
+         <button class="svq-later" onclick="svqLater()">나중에 하기</button>
+         <span class="svq-step">${svqIdx + 1} / ${svqList.length} · 제출 후 수정 불가</span>
+       </div>
+     </div>`;
+}
+
+// 선택형(척도·별점·단일·복수) — 값 저장 후 항상 다시 그려 선택 표시를 즉시 반영한다.
+function svqSet(key, val, multi) {
+  if (multi) {
+    const arr = Array.isArray(svqAnswers[key]) ? svqAnswers[key] : [];
+    const i = arr.indexOf(val);
+    if (i >= 0) arr.splice(i, 1); else arr.push(val);
+    svqAnswers[key] = arr;
+  } else {
+    svqAnswers[key] = val;
+  }
+  renderSvqModal();
+}
+// 서술형 — 입력 중 재렌더하면 포커스·커서가 날아가므로 값만 저장한다.
+function svqSetText(key, val) { svqAnswers[key] = val; }
+
+async function svqSubmit() {
+  const sv = svqList[svqIdx];
+  if (!sv) return;
+  const fields = Array.isArray(sv.fields) ? sv.fields : [];
+  for (let i = 0; i < fields.length; i++) {
+    const f = fields[i], v = svqAnswers[_svqKey(f, i)];
+    const empty = v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length);
+    if (f.required && empty) { showToast(`Q${i + 1} 문항에 응답해 주세요.`, true); return; }
+  }
+  const btn = document.getElementById('svq-submit');
+  if (btn) { btn.disabled = true; btn.textContent = '제출 중…'; }
+  let ok = false, err = '';
+  try {
+    const r = await fetch(`${API_BASE}/survey/answer`, {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ invite_id: sv.id, answers: svqAnswers }),
+    });
+    ok = r.ok;
+    if (!ok) { try { err = (await r.json())?.error || `HTTP ${r.status}`; } catch (_) { err = `HTTP ${r.status}`; } }
+  } catch (e) { err = e?.message || '네트워크 오류'; }
+  if (!ok) {
+    if (btn) { btn.disabled = false; btn.textContent = '제출하기'; }
+    showToast('제출 실패: ' + err, true);
+    return;
+  }
+  svqList.splice(svqIdx, 1);          // 제출한 건은 큐에서 제거
+  svqAnswers = {};
+  renderSvqBanner();
+  const remain = svqList.length;
+  document.getElementById('svq-box').innerHTML =
+    `<div class="svq-done"><div class="em">🙏</div>
+       <div class="h">응답이 제출됐습니다</div>
+       <div class="d">소중한 의견 감사합니다. 서비스 개선에 반영하겠습니다.${remain ? `<br>남은 설문이 ${remain}건 있습니다.` : ''}</div>
+       <div style="margin-top:16px;display:flex;gap:8px;justify-content:center;">` +
+        (remain ? `<button class="btn btn-primary btn-sm" onclick="svqOpen(0)">다음 설문 응답</button>` : '') +
+        `<button class="btn btn-outline btn-sm" onclick="svqClose()">닫기</button>
+       </div></div>`;
 }
 
 function maybeShowSurveyPopup() {
@@ -12253,6 +14710,7 @@ const MG_CAT_ROLES = {
   contract:     ['sales', 'admin'],
   license:      ['sales', 'admin'],
   education:    ['education', 'admin'],
+  voc:          ['sales', 'admin'],
   other:        ['tech_support', 'sales', 'admin'],
 };
 
@@ -13125,6 +15583,79 @@ if (_resetTokenFromUrl) {
 })();
 
 }
+
+/* ── 요청자 연락처 호버 카드 ────────────────────────────────────────────
+   목록은 innerHTML로 통째로 다시 그려지므로 개별 요소에 리스너를 붙이지 않고 document
+   위임으로 처리한다(mouseenter는 버블링하지 않아 mouseover/mouseout을 쓴다).
+   카드는 문서에 하나만 두고 위치만 옮긴다 — 행마다 만들지 않는다. */
+(function () {
+  var card = null, hideT = null;
+
+  function build() {
+    var d = document.createElement('div');
+    d.id = 'rq-card';
+    d.innerHTML =
+      '<div class="rq-hd"><span class="rq-nm"></span><span class="rq-badge">고객</span></div>' +
+      '<div class="rq-row"><span class="rq-lb">메일</span><span class="rq-vl" data-f="em">—</span>' +
+        '<button type="button" class="rq-cp" data-f="em">복사</button></div>' +
+      '<div class="rq-row"><span class="rq-lb">연락처</span><span class="rq-vl" data-f="ph">—</span>' +
+        '<button type="button" class="rq-cp" data-f="ph">복사</button></div>';
+    document.body.appendChild(d);
+    d.addEventListener('mouseover', function () { clearTimeout(hideT); });
+    d.addEventListener('mouseout', function (e) { if (!d.contains(e.relatedTarget)) scheduleHide(); });
+    d.addEventListener('click', function (e) {
+      var btn = e.target.closest && e.target.closest('.rq-cp');
+      if (!btn) return;
+      var v = d.querySelector('.rq-vl[data-f="' + btn.dataset.f + '"]').textContent;
+      if (!v || v === '—') return;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(v);
+        else {
+          var ta = document.createElement('textarea');
+          ta.value = v; document.body.appendChild(ta); ta.select();
+          document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      } catch (_) { /* 복사 실패해도 화면 흐름은 막지 않는다 */ }
+      btn.textContent = '완료'; btn.classList.add('done');
+      setTimeout(function () { btn.textContent = '복사'; btn.classList.remove('done'); }, 1400);
+    });
+    return d;
+  }
+
+  function scheduleHide() {
+    clearTimeout(hideT);
+    hideT = setTimeout(function () { if (card) card.classList.remove('on'); }, 260);
+  }
+  function hideNow() { clearTimeout(hideT); if (card) card.classList.remove('on'); }
+
+  function show(el) {
+    clearTimeout(hideT);
+    if (!card) card = build();
+    card.querySelector('.rq-nm').textContent = el.dataset.nm || '';
+    card.querySelector('.rq-vl[data-f="em"]').textContent = el.dataset.em || '—';
+    card.querySelector('.rq-vl[data-f="ph"]').textContent = el.dataset.ph || '—';
+    card.querySelectorAll('.rq-cp').forEach(function (b) { b.textContent = '복사'; b.classList.remove('done'); });
+    card.classList.add('on');
+    var r = el.getBoundingClientRect();
+    var left = Math.min(r.left - 12, window.innerWidth - card.offsetWidth - 8);
+    card.style.left = Math.max(8, left) + 'px';
+    // 화면 아래쪽에서는 위로 뒤집어 잘리지 않게 한다.
+    var top = r.bottom + 8;
+    if (top + card.offsetHeight > window.innerHeight - 8) top = r.top - card.offsetHeight - 8;
+    card.style.top = Math.max(8, top) + 'px';
+  }
+
+  document.addEventListener('mouseover', function (e) {
+    var el = e.target.closest && e.target.closest('.rq-who');
+    if (el) show(el);
+  });
+  document.addEventListener('mouseout', function (e) {
+    var el = e.target.closest && e.target.closest('.rq-who');
+    if (el && !(card && card.contains(e.relatedTarget))) scheduleHide();
+  });
+  window.addEventListener('scroll', hideNow, true);
+  window.addEventListener('resize', hideNow);
+})();
 </script>
 </body>
 </html>

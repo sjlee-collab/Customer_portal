@@ -96,7 +96,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 모든 화면 변경(생성/수정/삭제/상태변경)은 반드시 **RDS(위 API Gateway 경유)에 실제 반영**해야 한다.
 - 로컬 상태만 업데이트하는 방식 금지
 - 저장 후 해당 데이터를 다시 fetch해서 UI 갱신
-- 관련 테이블(총 16개, `data-api`의 `ALLOWED_TABLES` 기준): `companies`, `company_contracts`, `company_licenses`, `users`, `tickets`, `log_notification`, `content_documents`, `ticket_history`, `log_integration`, `ticket_replies`, `ticket_memos`, `ticket_attachments`, `content_notices`, `role_permissions`, `org_units`, `user_org_units`
+- 관련 테이블(총 18개, `data-api`의 `ALLOWED_TABLES` 기준): `companies`, `company_contracts`, `company_licenses`, `users`, `tickets`, `log_notification`, `content_documents`, `ticket_history`, `log_integration`, `ticket_replies`, `ticket_memos`, `ticket_attachments`, `content_notices`, `role_permissions`, `org_units`, `user_org_units`, `forms`, `survey_history`(폼 빌더 — forms는 비스태프에 active만, survey_history는 본인 행만·직접 쓰기 차단)
 - `org_units`(조직)·`user_org_units`(사용자↔조직 N:M)·`ticket_memos`·`log_integration`은 **스태프 전용**이라 고객/내부 역할로는 조회조차 안 된다(`data-api`의 `STAFF_ONLY_TABLES`). 고객 화면에서 조직 정보가 필요하면 JWT의 `unit_ids` 클레임과 `tickets.unit_name` 스냅샷을 쓴다.
 
 ### 변경 하네스 (운영 변경 시 표준 절차) — `scripts/harness/`

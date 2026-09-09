@@ -234,6 +234,17 @@ function accountInquiryHtml(d) {
   return layout('신규 계정 신청', `<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">로그인 화면에서 신규 계정 신청이 접수되었습니다.<br>아래 정보를 확인한 뒤 계정을 생성해주세요.</p><div class="lbl">신청 정보</div><table class="info">${table}</table>`);
 }
 
+// 설문 안내 — 고객이 받는 메일. 문항 수·예상 소요시간·마감일을 미리 알려 응답률을 높인다.
+// 응답 자체는 포탈 로그인 후 진행하므로(공개 응답 링크 아님) 메일에는 설문 내용을 넣지 않는다.
+function surveyInviteHtml({ userName, formTitle, intro, openUntil, questionCount, surveyUrl }) {
+  const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const minutes = Math.max(1, Math.ceil((questionCount || 3) / 3));
+  const display = surveyUrl.replace(/^https?:\/\//, '');
+  const meta = [`문항 ${questionCount || 0}개`, `약 ${minutes}분 소요`];
+  if (openUntil) meta.push(`${openUntil}까지`);
+  return layout('설문 참여 요청', `<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">안녕하세요, <strong>${esc(userName)}</strong>님.<br>빅스데이터 고객지원 포탈에서 <strong>${esc(formTitle)}</strong> 설문에 참여를 요청드립니다.</p>${intro ? `<p style="margin:0 0 20px;font-size:13px;line-height:1.7;color:#6b7280;">${esc(intro)}</p>` : ''}<div class="lbl">안내</div><table class="info"><tr><td>설문</td><td>${esc(formTitle)}</td></tr><tr><td>분량</td><td>${meta.join(' · ')}</td></tr></table><a class="btn" href="${surveyUrl}">설문 참여하기</a><div style="font-size:11px;color:#9ca3af;margin-top:8px;">${display}</div><p style="margin:20px 0 0;font-size:12px;color:#9ca3af;">포탈 로그인 후 응답하실 수 있으며, 제출 후에는 수정이 어렵습니다. 응답 내용은 서비스 개선 목적으로만 사용됩니다.</p>`);
+}
+
 function passwordResetHtml(userName, resetUrl) {
   const display = resetUrl.replace(/^https?:\/\//, '');
   return layout('비밀번호 재설정', `<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">안녕하세요, <strong>${userName}</strong>님.<br>비밀번호 재설정을 요청하셨습니다. 아래 버튼을 눌러 새 비밀번호를 설정해주세요.</p><a class="btn" href="${resetUrl}">비밀번호 재설정하기</a><div style="font-size:11px;color:#9ca3af;margin-top:8px;">${display}</div><p style="margin:20px 0 0;font-size:12px;color:#9ca3af;">이 링크는 30분간 유효합니다. 본인이 요청하지 않았다면 이 메일을 무시해주세요.</p>`);
@@ -289,6 +300,24 @@ export const handler = async (event) => {
       if (!list.length) return ok({ ok: true, sent: 0, note: 'no admin recipients' });
       await sendToManyAndLog(list, '[빅스데이터 고객지원] 신규 계정 신청',
         accountInquiryHtml({ name, company, phone, email, message }), null, 'account_inquiry', results);
+      const sent = results.filter(r => r.status === 'sent').length;
+      return ok({ ok: true, sent, results });
+    }
+
+    // 설문 안내 메일 (폼 빌더 D 단계) — api-layer가 초대 1건당 1회 호출한다.
+    // 링크는 포탈 토큰 진입(?survey=토큰): 로그인 후 본인 초대인지 확인한 뒤 응답 화면이 열린다.
+    // eventType으로 첫 발송(survey_invite)과 리마인더(survey_resend)를 구분해 알림 로그에 남긴다.
+    if (payload.type === 'SURVEY_INVITE') {
+      const { toEmail, userName, formTitle, intro, openUntil, questionCount, token } = payload;
+      if (!toEmail || !formTitle) return { statusCode: 400, body: 'missing toEmail/formTitle' };
+      const eventType = payload.eventType === 'survey_resend' ? 'survey_resend' : 'survey_invite';
+      const surveyUrl = token ? `${PORTAL_URL}?survey=${token}` : PORTAL_URL;
+      const subject = eventType === 'survey_resend'
+        ? `[빅스데이터 고객지원] [재안내] 설문 참여 요청 — ${formTitle}`
+        : `[빅스데이터 고객지원] 설문 참여 요청 — ${formTitle}`;
+      await sendAndLog(toEmail, subject,
+        surveyInviteHtml({ userName: userName || '고객', formTitle, intro, openUntil, questionCount, surveyUrl }),
+        null, eventType, results);
       const sent = results.filter(r => r.status === 'sent').length;
       return ok({ ok: true, sent, results });
     }

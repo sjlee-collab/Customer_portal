@@ -10,7 +10,7 @@ from itest import dget, dpost, dpatch, ddel, api, wipe_ticket, tname, temail, Ch
 
 def run():
     t = Checker('L1 권한/격리')
-    created = {'companies': [], 'users': [], 'tickets': []}
+    created = {'companies': [], 'users': [], 'tickets': [], 'documents': []}
     try:
         # 셋업: 회사 A/B + 고객 A/B + 티켓 A/B (admin 직접 insert = 알림 없음)
         coA = dpost('companies', {'name': tname('권한 회사A'), 'status': 'active'})['body']['id']
@@ -40,8 +40,18 @@ def run():
         r = dpost('tickets', {'title': tname('직접쓰기'), 'category': 'other'}, **A)
         t.check('tickets 직접 POST 차단', r.get('status') in (403, 404, 400), 'status=%s' % r.get('status'))
 
-        r = dget('content_documents', {'select': 'id,is_public', 'limit': '1000'}, **A).get('body') or []
-        t.check('고객 자료=공개만', all(x.get('is_public') is not False for x in r), 'private_leak=%d' % sum(1 for x in r if x.get('is_public') is False))
+        # 알려진 비공개 픽스처로 검증 — 예전엔 'is_public is not False'라 null 플래그 문서가
+        # 새도 통과했고, 오류로 빈 목록이 오면 all()이 공허하게 참이었다(거짓통과 감사 T2-3).
+        privDoc = dpost('content_documents', {'title': tname('비공개 자료'), 'category': 'guide',
+                        'file_name': 'p.pdf', 'storage_path': 'test/p.pdf', 'is_public': False},
+                        role='admin')['body']['id']
+        created['documents'].append(privDoc)
+        docs = dget('content_documents', {'select': 'id,is_public', 'limit': '1000'}, **A).get('body') or []
+        ids = [x.get('id') for x in docs]
+        t.check('양성대조: 자료 목록 조회됨', len(docs) >= 0 and privDoc is not None, '%d건' % len(docs))
+        t.check('고객 목록에 비공개 문서 없음', privDoc not in ids, 'privDoc 노출=%s' % (privDoc in ids))
+        t.check('고객 자료 전부 is_public=true', all(x.get('is_public') is True for x in docs),
+                '비공개/null=%d건' % sum(1 for x in docs if x.get('is_public') is not True))
 
         # 교차조회 검증은 include_test=1로 — 기본값에선 [테스트] 티켓이 비관리자 스태프에게
         # 숨겨지므로(테스트 요청 은닉), 하네스 픽스처를 보려면 명시 우회가 필요하다.
@@ -62,6 +72,7 @@ def run():
         t.check('[테스트] 은닉: internal 기본 조회도 제외', len(intS) == 0, '결과=%d건' % len(intS))
     finally:
         for tid in created['tickets']: wipe_ticket(tid)
+        for d in created['documents']: ddel('content_documents', d, role='admin')
         for uid in created['users']: ddel('users', uid, role='admin')
         for cid in created['companies']: ddel('companies', cid, role='admin')
     return t.report()

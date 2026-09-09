@@ -41,7 +41,7 @@ drift=0
 
 for k in "${KEYS[@]}"; do
   fn="${FN[$k]}"
-  url="$(aws lambda get-function --function-name "$fn" --region "$REGION" \
+  url="$(aws.exe lambda get-function --function-name "$fn" --region "$REGION" \
          --query 'Code.Location' --output text 2>/dev/null)" || url=""
   if [ -z "$url" ] || [ "$url" = "None" ]; then
     echo "❌ $k: 배포본 조회 실패($fn) — 자격증명/함수명 확인"; drift=1; continue
@@ -53,6 +53,7 @@ for k in "${KEYS[@]}"; do
   bad=()
   # 레포 쪽 각 .mjs를 배포본과 대조
   for f in "$LDIR/$k"/*.mjs; do
+    [ -e "$f" ] || continue   # 폴더에 .mjs가 없으면 glob이 문자 그대로 남는다(배포쪽 루프와 동일 가드)
     b="$(basename "$f")"
     if [ ! -f "$TMP/$k/$b" ]; then bad+=("$b(배포본에 없음)"); continue; fi
     diff -q <(tr -d '\r' < "$f") <(tr -d '\r' < "$TMP/$k/$b") >/dev/null \

@@ -36,9 +36,14 @@ def run():
 
         # 자식 cascade
         tf = mk(tname('삭제 자식'))
-        dpost('ticket_history', {'ticket_id': tf, 'action': 'created', 'changed_by': u, 'changed_by_name': 'x'}, role='admin')
-        dpost('ticket_replies', {'ticket_id': tf, 'note': 'r', 'changed_by': u}, role='admin')
-        dpost('ticket_attachments', {'ticket_id': tf, 'file_name': 'a.pdf', 'file_size': 1, 'storage_path': tf + '/a.pdf'}, role='admin')
+        # 양성대조 — 자식이 실제로 만들어졌음을 먼저 단언. 없으면 "삭제 후 0건"이 공허하게
+        # 통과해 cascade가 깨져도 못 잡는다(거짓통과 감사 T2-5).
+        h = dpost('ticket_history', {'ticket_id': tf, 'action': 'created', 'changed_by': u, 'changed_by_name': 'x'}, role='admin')
+        rp = dpost('ticket_replies', {'ticket_id': tf, 'note': 'r', 'changed_by': u}, role='admin')
+        at = dpost('ticket_attachments', {'ticket_id': tf, 'file_name': 'a.pdf', 'file_size': 1, 'storage_path': tf + '/a.pdf'}, role='admin')
+        made = all(bool((x.get('body') or {}).get('id')) for x in (h, rp, at))
+        t.check('양성대조: 자식 3건 생성됨', made,
+                'history=%s reply=%s attach=%s' % (h.get('status'), rp.get('status'), at.get('status')))
         r = api('DELETE', '/tickets/%s' % tf, None, role='admin', userId=u)
         gone = all(len(dget(x, {'select': 'id', 'ticket_id': 'eq.' + tf}, role='admin').get('body') or []) == 0 for x in ['ticket_history', 'ticket_replies', 'ticket_attachments'])
         t.check('자식 완전삭제', r.get('status') == 200 and gone)
