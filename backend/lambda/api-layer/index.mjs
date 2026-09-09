@@ -188,6 +188,59 @@ async function deferNotify(kind, payload) {
 // created_by/company_id/contract_id는 항상 로그인한 본인 계정 기준으로 채운다 — body로
 // 받은 값을 그대로 믿으면 남을 사칭해서(다른 created_by로) 티켓을 만들 수 있었다
 // (그 사람 명의로 등록되고 접수 확인 메일도 그 사람에게 감 — 실제 테스트로 확인됨).
+// VOC 요청 폼의 추가 문항 — 클라이언트가 보낸 문항 정의는 믿지 않고, 지금 적용 중인 폼을
+// 다시 읽어 **서버 정의로** 스냅샷을 만든다(정의는 서버 것, 답변만 클라이언트 것).
+// 정의까지 함께 굳히는 이유: 폼이 나중에 바뀌어도 이 요청의 상세 화면은 접수 당시 문항으로
+// 보여야 한다(survey_history.answers·forms 스냅샷과 같은 패턴).
+async function buildFormAnswers(category, raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { fa: null };
+  const rows = await query(
+    `select id, fields, target from forms
+      where form_type = 'request' and status = 'active'
+      order by updated_at desc limit 1`);
+  const form = rows[0];
+  if (!form) return { fa: null };                                    // 적용 중인 폼 없음 → 문항 없이 접수
+  if ((form.target?.category || 'voc') !== category) return { fa: null };
+  const fields = Array.isArray(form.fields) ? form.fields : [];
+  if (!fields.length) return { fa: null };
+
+  const given = (raw.answers && typeof raw.answers === 'object' && !Array.isArray(raw.answers)) ? raw.answers : {};
+  const snap = [], answers = {};
+  let dropped = 0;
+  fields.forEach((f, i) => {
+    const key = f.id || `q${i + 1}`;                                 // 설문과 같은 규약(문항 고유 id)
+    const opts = Array.isArray(f.options) ? f.options.map(String) : null;
+    snap.push({ id: key, label: String(f.label ?? ''), type: f.type, required: !!f.required,
+                ...(opts && opts.length ? { options: opts } : {}) });
+    let v = given[key];
+    if (v === undefined || v === null) return;
+    const choice = (f.type === 'single' || f.type === 'multi');
+    if (Array.isArray(v)) {
+      const before = v.length;
+      v = v.filter(x => typeof x === 'string' || typeof x === 'number').map(x => String(x).slice(0, 500));
+      if (choice && opts && opts.length) v = v.filter(x => opts.includes(x));
+      v = [...new Set(v)].slice(0, 50);
+      if (v.length !== before) dropped++;
+      if (!v.length) return;
+    } else if (typeof v === 'string') {
+      v = v.slice(0, 4000).trim();
+      if (choice && opts && opts.length && !opts.includes(v)) { dropped++; return; }
+      if (!v) return;
+    } else if (typeof v !== 'number' && typeof v !== 'boolean') {
+      return;                                                        // 예상 밖 구조는 버린다
+    }
+    answers[key] = v;
+  });
+  const missing = snap.find(f => f.required && answers[f.id] === undefined);
+  if (missing) {
+    // 보기에 없는 값이 걸러져 필수가 빈 경우와, 아예 안 보낸 경우를 구분해 안내한다.
+    return { error: dropped
+      ? '요청 폼이 방금 변경됐습니다. 화면을 새로 고친 뒤 다시 접수해 주세요'
+      : `'${missing.label}' 항목을 입력해 주세요` };
+  }
+  return { fa: { form_id: form.id, captured_at: new Date().toISOString(), fields: snap, answers } };
+}
+
 async function createTicket(body, event) {
   const authz = getAuthz(event);
   if (!authz.userId) return json(401, { error: '인증이 필요합니다' });
@@ -276,11 +329,15 @@ async function createTicket(body, event) {
   // not-null 제약 위반으로 등록 전체가 실패한다(2026-08-28 실제 발생).
   const isInternal = !!(isProxy && body.internal_review === true);
 
+  // 추가 문항 스냅샷 — 필수 미입력이면 티켓을 만들지 않고 400. 폼이 없으면 null(기존과 동일).
+  const faRes = await buildFormAnswers(category, body.form_answers);
+  if (faRes.error) return json(400, { error: faRes.error });
+
   const inserted = await query(
-    `insert into tickets (title, category, description, status, priority, product, created_by, created_by_name, company_id, company_name, contract_id, unit_id, unit_name, assigned_to, assigned_to_name, registered_by, registered_by_name, is_internal)
-     values ($1,$2,$3,'received',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+    `insert into tickets (title, category, description, status, priority, product, created_by, created_by_name, company_id, company_name, contract_id, unit_id, unit_name, assigned_to, assigned_to_name, registered_by, registered_by_name, is_internal, form_answers)
+     values ($1,$2,$3,'received',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
      returning *`,
-    [title, category, description ?? null, priority, product ?? null, created_by, requester.name, company_id ?? null, companyName, contract_id ?? null, unit_id, unit_name, assignedTo, assignedToName, registeredBy, registeredByName, isInternal]
+    [title, category, description ?? null, priority, product ?? null, created_by, requester.name, company_id ?? null, companyName, contract_id ?? null, unit_id, unit_name, assignedTo, assignedToName, registeredBy, registeredByName, isInternal, faRes.fa ? JSON.stringify(faRes.fa) : null]
   );
   const ticket = inserted[0];
 
@@ -580,14 +637,18 @@ async function editTicket(ticketId, body, event) {
     return json(200, { ticket: rows[0] });
   }
 
-  const VALID_CATEGORIES = new Set(['tech_support', 'contract', 'license', 'education', 'customer', 'other']);
+  // voc 누락 시 VOC 티켓을 스태프가 교정할 수 없다(카테고리 셀렉트에는 voc가 있어 400이 났다).
+  const VALID_CATEGORIES = new Set(['tech_support', 'contract', 'license', 'education', 'customer', 'voc', 'other']);
   const VALID_PRIORITIES = new Set(['normal', 'high', 'critical']);
   const title = (body.title ?? '').trim();
   const description = (body.description ?? '').trim();
   const category = body.category;
   const product = body.product ?? null;
   const priority = body.priority ?? 'normal';
-  if (!title || !category || !description) return json(400, { error: 'title, category, description은 필수입니다' });
+  // VOC는 접수 화면에서 내용을 묻지 않으므로(문항이 그 역할) 수정에서도 빈 내용을 허용한다.
+  if (!title || !category || (!description && category !== 'voc')) {
+    return json(400, { error: 'title, category, description은 필수입니다' });
+  }
   if (!VALID_CATEGORIES.has(category)) return json(400, { error: '허용되지 않은 카테고리입니다' });
   if (!VALID_PRIORITIES.has(priority)) return json(400, { error: '허용되지 않은 긴급도입니다' });
 
@@ -621,7 +682,7 @@ async function editTicket(ticketId, body, event) {
   }
 
   const sets = ['title=$1', 'category=$2', 'product=$3', 'priority=$4', 'description=$5', 'updated_at=now()'];
-  const params = [title, category, product, priority, description];
+  const params = [title, category, product, priority, description || null];
   if (setInternal !== undefined) { params.push(setInternal); sets.push(`is_internal=$${params.length}`); }
   if (setAssignee !== undefined) {
     params.push(setAssignee.id); sets.push(`assigned_to=$${params.length}`);
