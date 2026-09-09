@@ -2574,7 +2574,7 @@ textarea{resize:vertical;min-height:100px;}
 
         <!-- VOC: 2. 문항 구성 -->
         <section class="fb-panel" data-fbpanel="req-fields" hidden>
-          <div class="fb-phd"><h2>문항 구성 · VOC</h2><span class="hint">기본 항목 위에 VOC에서만 물어볼 문항을 더합니다</span></div>
+          <div class="fb-phd"><h2>문항 구성 · VOC</h2><span class="hint">VOC는 기본 항목을 묻지 않고 아래 문항만으로 접수합니다</span></div>
           <div class="fb-editor">
             <div class="fb-pal">
               <div class="cap">문항 추가</div>
@@ -2589,8 +2589,9 @@ textarea{resize:vertical;min-height:100px;}
               <div class="fb-fixed">
                 <div class="cap">기본 항목 <span class="lock">모든 카테고리 공통</span></div>
                 <div class="items">
-                  <span class="fb-fx">요청 제목 *</span><span class="fb-fx">요청 조직 *</span>
-                  <span class="fb-fx">요청 내용 *</span><span class="fb-fx">첨부 파일</span>
+                  <span class="fb-fx">요청 조직 *</span>
+                  <span class="fb-fx off">요청 제목 — 문항 답변으로 자동 생성</span>
+                  <span class="fb-fx off">요청 내용 — VOC에서 숨김</span><span class="fb-fx off">첨부 파일 — VOC에서 숨김</span>
                   <span class="fb-fx off">제품 — VOC에서 숨김</span><span class="fb-fx off">긴급도 — VOC에서 숨김</span>
                 </div>
               </div>
@@ -3720,7 +3721,7 @@ textarea{resize:vertical;min-height:100px;}
             <div id="pxy-note" style="font-size:11px;color:var(--muted);margin-top:9px;display:none;"></div>
           </div>
         </div>
-        <div class="form-group span2">
+        <div class="form-group span2" id="nw-title-group">
           <label>요청 제목 <span class="req">*</span></label>
           <input type="text" id="f-title" placeholder="문제를 간략하게 설명해 주세요">
         </div>
@@ -3744,13 +3745,13 @@ textarea{resize:vertical;min-height:100px;}
           <label>요청 조직 <span class="req">*</span> <span style="font-size:10.5px;color:var(--faint);font-weight:400;">(사업부/팀/부서)</span></label>
           <select id="nw-org"></select>
         </div>
-        <div class="form-group span2">
+        <div class="form-group span2" id="nw-desc-group">
           <label>요청 내용 <span class="req">*</span></label>
-          <textarea placeholder="문제 상황, 오류 메시지, 재현 방법 등을 자세히 설명해 주세요." style="min-height:80px;"></textarea>
+          <textarea id="f-desc" placeholder="문제 상황, 오류 메시지, 재현 방법 등을 자세히 설명해 주세요." style="min-height:80px;"></textarea>
         </div>
         <!-- 폼 빌더에서 만든 추가 문항 — 해당 카테고리에 적용된 폼이 있을 때만 채워진다 -->
         <div class="form-group span2" id="nw-form-fields" style="display:none;"></div>
-        <div class="form-group span2">
+        <div class="form-group span2" id="nw-attach-group">
           <label>첨부 파일</label>
           <input type="file" id="f-attach" multiple accept="image/*,.pdf,.log,.txt,.zip,.xlsx,.xls,.docx,.pptx,.twbx,.twb" style="display:none;" onchange="handleFileSelect(this)">
           <div class="file-drop" style="padding:10px 12px;" onclick="document.getElementById('f-attach').click()"
@@ -4687,25 +4688,42 @@ async function loadVocFormState() {
 }
 
 // ── 요청 등록: 폼 빌더가 붙인 추가 문항 ──────────────────────────────
-// 카테고리에 적용(active)된 폼이 있으면 기본 항목 아래에 문항을 그리고, 폼의 target.hide에
-// 따라 기본 입력(제품·긴급도)을 숨긴다. VOC는 특정 제품 장애가 아니라 서비스 전반에 대한
-// 제안·불만이라 그 두 항목이 의미가 없어 폼 빌더에서 숨기도록 설계돼 있다.
+// 카테고리에 적용(active)된 폼이 있으면 문항을 그리고, 폼의 target.hide가 지정한 기본 입력을
+// 숨긴다. VOC는 제목·내용·첨부·제품·긴급도를 전부 숨기고 문항만으로 접수한다 — 같은 것을 두 번
+// 묻지 않기 위해서이고, 티켓 제목은 답변에서 조립한다(nwComposeTitle).
 // 답변 키는 설문과 동일하게 **문항 고유 id**(없으면 순서 키)를 쓴다.
 let nwFormAnswers = {};
 function _nwKey(f, i) { return f?.id || `q${i + 1}`; }
+// 폼이 숨길 수 있는 기본 항목 ↔ 화면 그룹. VOC는 이 다섯을 다 숨기고 문항만으로 접수한다.
+const NW_BASE_FIELDS = [
+  ['title', 'nw-title-group'], ['description', 'nw-desc-group'],
+  ['product', 'nw-product-group'], ['priority', 'nw-priority-group'], ['attach', 'nw-attach-group'],
+];
+// 요청 제목으로 쓸 수 있는 문항 타입 — 제목은 한 줄이라 선택형·점수형은 후보가 아니다.
+const FB_TITLE_TYPES = new Set(['line', 'text', 'para']);
+// 실제로 문항이 있을 때만 기본 항목을 숨긴다 — 문항 0개인 폼에서 제목까지 숨기면 접수 자체가 불가능해진다.
+function nwHiddenFor(cat) {
+  const form = (cat === 'voc') ? vocForm : null;
+  const fields = Array.isArray(form?.fields) ? form.fields : [];
+  return new Set(fields.length ? (form?.target?.hide || []) : []);
+}
 
 function nwApplyCategoryForm(cat) {
   const box = document.getElementById('nw-form-fields');
   const form = (cat === 'voc') ? vocForm : null;
   nwFormAnswers = {};
   // 기본 입력 표시 복원 후, 폼이 지정한 것만 숨긴다
-  const hide = new Set(form?.target?.hide || []);
-  const prodGrp = document.getElementById('nw-product-group');
-  const priGrp = document.getElementById('nw-priority-group');
-  if (prodGrp) prodGrp.style.display = hide.has('product') ? 'none' : '';
-  if (priGrp) priGrp.style.display = hide.has('priority') ? 'none' : '';
-  if (hide.has('product')) { const el = document.getElementById('f-product'); if (el) el.value = ''; }
-  if (hide.has('priority')) { const el = document.getElementById('f-priority'); if (el) el.value = 'normal'; }
+  const hide = nwHiddenFor(cat);
+  NW_BASE_FIELDS.forEach(([k, grpId]) => {
+    const g = document.getElementById(grpId);
+    if (g) g.style.display = hide.has(k) ? 'none' : '';
+  });
+  // 숨긴 항목은 값도 비운다 — 카테고리를 바꿔가며 입력했을 때 남은 값이 함께 접수되지 않도록.
+  if (hide.has('product'))     { const el = document.getElementById('f-product');  if (el) el.value = ''; }
+  if (hide.has('priority'))    { const el = document.getElementById('f-priority'); if (el) el.value = 'normal'; }
+  if (hide.has('title'))       { const el = document.getElementById('f-title');    if (el) el.value = ''; }
+  if (hide.has('description')) { const el = document.getElementById('f-desc');     if (el) el.value = ''; }
+  if (hide.has('attach') && _attachFiles.length) { _attachFiles.length = 0; _syncAttachInput(); }
   if (!box) return;
   const fields = Array.isArray(form?.fields) ? form.fields : [];
   if (!fields.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
@@ -4780,6 +4798,27 @@ function nwCollectFormAnswers(cat) {
     fields: fields.map((f, i) => ({ id: _nwKey(f, i), label: f.label, type: f.type, required: !!f.required, options: f.options || undefined })),
     answers: nwFormAnswers,
   } };
+}
+
+// 제목 조립 — 제목을 묻지 않는 폼(VOC)은 tickets.title을 답변에서 만든다. title은 not null이고
+// 목록·검색·메일 제목에 그대로 쓰이므로, 사람이 읽을 수 있는 한 줄이 반드시 나와야 한다.
+// 형태: [첫 단일선택 답변] "제목으로 사용" 문항 답변   (예: [불편·불만] 로그인이 자주 끊깁니다)
+function nwComposeTitle(form, ans) {
+  const fields = Array.isArray(form?.fields) ? form.fields : [];
+  const answers = ans || {};
+  const val = (i) => {
+    if (i < 0) return '';
+    const v = answers[_nwKey(fields[i], i)];
+    const t = Array.isArray(v) ? v.join(', ') : (v === undefined || v === null ? '' : String(v));
+    return t.trim().replace(/\s+/g, ' ');
+  };
+  let ti = fields.findIndex(f => f.title_src && FB_TITLE_TYPES.has(f.type));
+  if (ti < 0) ti = fields.findIndex(f => FB_TITLE_TYPES.has(f.type));
+  const body = val(ti);
+  const chip = val(fields.findIndex(f => f.type === 'single'));
+  // 지정 문항이 선택 항목이라 비어 있을 수도 있다 — 그때도 빈 제목으로 접수되지 않게 폴백.
+  const t = ((chip ? `[${chip}] ` : '') + (body || 'VOC 요청')).trim();
+  return t.length > 150 ? t.slice(0, 149) + '…' : t;
 }
 
 // 상세 화면 — 접수 당시 스냅샷으로 렌더(현재 폼 정의를 참조하지 않는다).
@@ -7475,22 +7514,26 @@ document.addEventListener('click', (e) => {
 });
 
 async function submitRequest() {
-  const title       = document.getElementById('f-title')?.value?.trim() || '';
   const category    = document.getElementById('f-category')?.value;
   const product     = document.getElementById('f-product')?.value;
   const priority    = document.getElementById('f-priority')?.value || 'normal';
-  const description = document.querySelector('#modal-new textarea')?.value?.trim();
   const attachInput = document.getElementById('f-attach');
   const attachFiles = attachInput?.files ? [...attachInput.files].map(f => ({ name: f.name, size: f.size })) : [];
+  // 기본 항목을 숨긴 폼(VOC)은 제목·내용을 아예 묻지 않으므로 그만큼 필수 검증도 빠진다.
+  // 같은 걸 두 번 묻지 않는 대신, 제목은 아래에서 답변으로 조립한다.
+  const hidden      = nwHiddenFor(category);
+  let title         = hidden.has('title') ? '' : (document.getElementById('f-title')?.value?.trim() || '');
+  let description   = hidden.has('description') ? '' : (document.getElementById('f-desc')?.value?.trim() || '');
 
-  if (!title || !category || !description) {
-    showToast('제목, 카테고리, 내용은 필수 항목입니다.', true);
+  if (!category || (!hidden.has('title') && !title) || (!hidden.has('description') && !description)) {
+    showToast(hidden.has('title') ? '카테고리는 필수 항목입니다.' : '제목, 카테고리, 내용은 필수 항목입니다.', true);
     return;
   }
-  // 폼 빌더 추가 문항 — 필수 검증 후 스냅샷과 함께 보낸다(백엔드 저장은 api-layer 연동 후).
+  // 폼 빌더 추가 문항 — 필수 검증 후 문항 스냅샷과 함께 보낸다(api-layer가 tickets.form_answers에 저장).
   const _fa = nwCollectFormAnswers(category);
   if (!_fa.ok) return;
   const formAnswers = _fa.payload;
+  if (hidden.has('title')) title = nwComposeTitle(vocForm, nwFormAnswers);
 
   const btn = document.querySelector('#modal-new .btn-primary');
   if (btn) { btn.disabled = true; btn.textContent = '접수 중...'; }
@@ -7511,7 +7554,8 @@ async function submitRequest() {
   }
 
   // 담당자 자동 배정, 신규등록 알림(Slack/이메일)은 서버(api-layer)가 처리한다.
-  const payload = { title, category, description, priority };
+  const payload = { title, category, description: description || null, priority };
+  if (formAnswers)              payload.form_answers = formAnswers;
   if (product)                  payload.product    = product;
   if (currentUser?.id)          payload.created_by = currentUser.id;
   if (currentUser?.company_id)  payload.company_id = currentUser.company_id;
@@ -9060,6 +9104,10 @@ async function deleteLicenseGroup(ids, filePaths) {
 // 폼 종류(type) → [VOC 요청 폼] req-fields → req-apply / [설문 폼] sur-edit → sur-target → sur-send.
 // 저장은 data-api /data/forms — DDL·data-api 등록 전에는 목록/저장이 실패하며 화면에 안내된다.
 // 실제 발송(메일)·대상 집계·고객 화면 렌더는 백엔드(api-layer) 연동 후 활성화 — 버튼은 초안 저장으로 대체.
+// VOC 요청 폼이 숨기는 기본 항목 — 문항만으로 접수하는 형태(제목은 답변으로 조립).
+const FB_REQ_HIDE = ['product', 'priority', 'title', 'description', 'attach'];
+// 요청 폼 target 정규화 — 숨김 목록은 저장된 값이 아니라 항상 현재 규약으로 맞춘다.
+function _fbReqTarget(t) { return { ...(t || {}), category: 'voc', hide: [...FB_REQ_HIDE] }; }
 const FB_TYPES = { single:'객관식 · 단일', multi:'객관식 · 복수', text:'주관식', line:'한 줄 입력', para:'여러 줄 입력', rating:'별점 (1~5)', nps:'NPS (0~10)', scale:'척도 (1~5)', date:'날짜' };
 const FB_STATUS = { draft:['작성 중','draft'], active:['발송 중','active'], applied:['적용 중','active'], closed:['마감','draft'] };
 const FB_FLOWS = {
@@ -9187,8 +9235,8 @@ function fbPick(kind) {
   if (kind === 'req') {
     const exist = fbForms.find(f => f.form_type === 'request');
     fbCur = exist
-      ? { id: exist.id, form_type: 'request', title: 'VOC 요청 폼', intro: null, open_until: null, status: exist.status || 'draft', fields: JSON.parse(JSON.stringify(exist.fields || [])), target: exist.target || { category: 'voc', hide: ['product', 'priority'] } }
-      : { form_type: 'request', title: 'VOC 요청 폼', intro: null, open_until: null, status: 'draft', fields: [], target: { category: 'voc', hide: ['product', 'priority'] } };
+      ? { id: exist.id, form_type: 'request', title: 'VOC 요청 폼', intro: null, open_until: null, status: exist.status || 'draft', fields: JSON.parse(JSON.stringify(exist.fields || [])), target: _fbReqTarget(exist.target) }
+      : { form_type: 'request', title: 'VOC 요청 폼', intro: null, open_until: null, status: 'draft', fields: [], target: _fbReqTarget() };
     fbShow('req-fields'); fbStep = 'req-fields'; fbRenderRail(); fbRenderDoc();
     renderFbFields();
   } else {
@@ -9207,7 +9255,7 @@ function fbEdit(id) {
   fbKind = isReq ? 'req' : 'sur';
   fbCur = { id: f.id, form_type: f.form_type || 'survey', title: f.title || '', intro: f.intro || '', open_until: f.open_until || '', status: f.status || 'draft',
     fields: JSON.parse(JSON.stringify(Array.isArray(f.fields) ? f.fields : [])),
-    target: f.target || (isReq ? { category: 'voc', hide: ['product', 'priority'] } : { expiry: 'all', products: [] }) };
+    target: isReq ? _fbReqTarget(f.target) : (f.target || { expiry: 'all', products: [] }) };
   if (isReq) { fbShow('req-fields'); }
   else {
     document.getElementById('fb-name').value = fbCur.title;
@@ -9284,6 +9332,12 @@ function fbMove(i, dir) {
   renderFbFields();
 }
 function fbDelField(i) { fbCur.fields.splice(i, 1); renderFbFields(); }
+// 요청 제목으로 쓸 문항은 하나뿐이라 라디오처럼 동작한다(고르면 나머지 해제).
+function fbSetTitleSrc(i) {
+  if (!fbCur) return;
+  fbCur.fields.forEach((f, k) => { if (k === i) f.title_src = true; else delete f.title_src; });
+  renderFbFields();
+}
 function fbOptsInput(i, el) {
   // 인라인 핸들러 속성 문자열에는 개행 리터럴을 안전하게 넣을 수 없어 전용 함수로 분리
   fbCur.fields[i].options = el.value.split(String.fromCharCode(10));
@@ -9304,6 +9358,9 @@ function renderFbFields() {
         <span class="fb-no">${noLabel}${i + 1}</span>
         <span class="fb-type">${FB_TYPES[f.type] || escHtml(f.type)}</span>
         <label style="display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--muted);cursor:pointer;"><input type="checkbox" ${f.required ? 'checked' : ''} ${dis} onchange="fbCur.fields[${i}].required=this.checked"> 필수</label>
+        ${fbKind === 'req' && FB_TITLE_TYPES.has(f.type)
+          ? `<label style="display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--muted);cursor:pointer;" title="이 문항의 답변이 요청 제목이 됩니다"><input type="radio" name="fb-title-src" ${f.title_src ? 'checked' : ''} ${dis} onchange="fbSetTitleSrc(${i})"> 제목으로 사용</label>`
+          : ''}
         <span style="margin-left:auto;display:flex;gap:4px;">
           <button class="fb-act" ${dis} title="위로" onclick="fbMove(${i},-1)">↑</button>
           <button class="fb-act" ${dis} title="아래로" onclick="fbMove(${i},1)">↓</button>
@@ -9327,6 +9384,15 @@ function fbValidateFields() {
     }
     f.label = String(f.label).trim();
   }
+  // 요청 폼은 제목 입력을 없애고 답변으로 제목을 만들기 때문에, 제목이 될 문항이 반드시 있어야 한다.
+  if (fbKind === 'req') {
+    const cand = fbCur.fields.filter(f => FB_TITLE_TYPES.has(f.type));
+    if (!cand.length) {
+      showToast('요청 제목을 만들 문항이 필요합니다 — 한 줄 입력·여러 줄 입력·주관식 중 하나를 추가해 주세요.', true);
+      return false;
+    }
+    if (!cand.some(f => f.title_src)) { cand[0].title_src = true; renderFbFields(); }  // 미지정이면 첫 후보로
+  }
   return true;
 }
 
@@ -9344,16 +9410,16 @@ function fbRenderReqPreview() {
     return `<div class="fb-pf added"><label>${escHtml(f.label)} ${f.required ? '<span class="req">*</span>' : ''}</label><div class="box">${hint}</div></div>`;
   }).join('');
   bd.innerHTML =
-    `<div class="fb-pf"><label>요청 제목 <span class="req">*</span></label><div class="box">제안하시거나 불편하셨던 내용을 한 줄로</div></div>` +
     added +
-    `<div class="fb-pf"><label>요청 조직 <span class="req">*</span></label><div class="box">사업부 · 팀 선택</div></div>` +
-    `<div class="fb-pf"><label>요청 내용 <span class="req">*</span></label><div class="box tall">상세 내용을 알려주세요.</div></div>` +
-    `<div class="fb-pf"><label>첨부 파일</label><div class="box">📎 드래그하거나 클릭하여 업로드</div></div>`;
+    `<div class="fb-pf"><label>요청 조직 <span class="req">*</span></label><div class="box">사업부 · 팀 선택</div></div>`;
   const req = fbCur.fields.filter(f => f.required).length;
+  const tf = fbCur.fields.find(f => f.title_src && FB_TITLE_TYPES.has(f.type))
+          || fbCur.fields.find(f => FB_TITLE_TYPES.has(f.type));
   document.getElementById('fb-req-rev').innerHTML =
     `<div class="fb-rev-row"><span class="k">적용 카테고리</span><span class="v">VOC</span></div>` +
     `<div class="fb-rev-row"><span class="k">추가 문항</span><span class="v">${fbCur.fields.length}개 (필수 ${req})</span></div>` +
-    `<div class="fb-rev-row"><span class="k">숨기는 기본 항목</span><span class="v">제품 · 긴급도</span></div>` +
+    `<div class="fb-rev-row"><span class="k">요청 제목</span><span class="v">${tf ? escHtml(tf.label || '') + ' 답변으로 자동 생성' : '지정 필요'}</span></div>` +
+    `<div class="fb-rev-row"><span class="k">숨기는 기본 항목</span><span class="v">제목 · 내용 · 제품 · 긴급도 · 첨부</span></div>` +
     `<div class="fb-rev-row"><span class="k">Slack 알림</span><span class="v">공통 · 영업</span></div>` +
     `<div class="fb-rev-row"><span class="k">기존 요청</span><span class="v">영향 없음</span></div>`;
 }
