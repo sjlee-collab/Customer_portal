@@ -9170,6 +9170,10 @@ function fbRefreshTypePanel() {
       ` <span class="fb-pill ${st[1]}" style="margin-left:6px;">${st[0]}</span></span>` +
       `<span class="v" style="display:flex;gap:8px;align-items:center;font-weight:400;color:var(--muted);font-size:11.5px;">문항 ${n} · ${escHtml(upd)}` +
       ` <button class="btn btn-outline btn-sm" onclick="fbEdit('${f.id}')">편집</button>` +
+      // 적용 중인 요청 폼은 "적용 해제"로 잠시 내릴 수 있다 — 문항을 보존한 채 입구만 닫는다.
+      // (삭제와 결과는 같지만, 다시 열 때 "적용" 한 번으로 복구된다.)
+      (isReq && f.status === 'active'
+        ? ` <button class="btn btn-outline btn-sm" onclick="fbUnapply('${f.id}')">적용 해제</button>` : '') +
       // 요청 폼은 적용 중에도 삭제할 수 있다 — 지우면 VOC 접수 입구가 닫히는 게 전부이고,
       // 과거 요청은 접수 당시 문항 스냅샷을 각자 들고 있어 잃는 이력이 없다.
       // 설문은 발송 중이면 숨긴다 — 삭제하면 survey_history(발송·응답 이력)가 CASCADE로 함께 지워진다.
@@ -9215,6 +9219,28 @@ function fbEdit(id) {
   fbRenderRail(); fbRenderDoc();
   renderFbFields();
 }
+// 적용 해제 — status를 draft로 되돌려 고객 화면의 입구만 닫는다(문항은 그대로 보존).
+// 요청 폼 전용: 이미 발송된 설문을 초안으로 내리면 고객의 응답 화면이 갑자기 닫혀버린다.
+async function fbUnapply(id) {
+  const f = fbForms.find(x => x.id === id);
+  if (!f) return;
+  if (f.form_type !== 'request') {
+    showToast('설문은 적용 해제할 수 없습니다. 이미 받은 고객의 응답 화면이 닫힙니다.', true);
+    return;
+  }
+  if (f.status !== 'active') return;
+  const msg = ['VOC 요청 폼의 적용을 해제할까요?', '',
+    '고객의 "새 요청 등록"에서 VOC 카테고리가 사라지고, 문항은 초안으로 보존됩니다.',
+    '다시 열 때는 폼 빌더에서 "적용"만 누르면 됩니다.'].join(String.fromCharCode(10));
+  if (!confirm(msg)) return;
+  const { error } = await sb.from('forms').update({ status: 'draft' }).eq('id', id);
+  if (error) { showToast('적용 해제 실패: ' + (error.message || ''), true); return; }
+  showToast('적용을 해제했습니다. 문항은 초안으로 보존됩니다.');
+  if (fbCur?.id === id) { fbCur.status = 'draft'; fbRenderDoc(); }
+  loadVocFormState();     // VOC 입구 상태 즉시 갱신
+  loadForms();
+}
+
 async function fbDelete(id) {
   const f = fbForms.find(x => x.id === id);
   if (!f) return;
