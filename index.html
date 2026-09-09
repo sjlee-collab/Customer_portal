@@ -9170,7 +9170,11 @@ function fbRefreshTypePanel() {
       ` <span class="fb-pill ${st[1]}" style="margin-left:6px;">${st[0]}</span></span>` +
       `<span class="v" style="display:flex;gap:8px;align-items:center;font-weight:400;color:var(--muted);font-size:11.5px;">문항 ${n} · ${escHtml(upd)}` +
       ` <button class="btn btn-outline btn-sm" onclick="fbEdit('${f.id}')">편집</button>` +
-      (f.status === 'active' ? '' : ` <button class="btn btn-ghost btn-sm" onclick="fbDelete('${f.id}')">삭제</button>`) +
+      // 요청 폼은 적용 중에도 삭제할 수 있다 — 지우면 VOC 접수 입구가 닫히는 게 전부이고,
+      // 과거 요청은 접수 당시 문항 스냅샷을 각자 들고 있어 잃는 이력이 없다.
+      // 설문은 발송 중이면 숨긴다 — 삭제하면 survey_history(발송·응답 이력)가 CASCADE로 함께 지워진다.
+      (f.form_type === 'request' || f.status !== 'active'
+        ? ` <button class="btn btn-ghost btn-sm" onclick="fbDelete('${f.id}')">삭제</button>` : '') +
       `</span></div>`;
   }).join('');
 }
@@ -9213,9 +9217,21 @@ function fbEdit(id) {
 }
 async function fbDelete(id) {
   const f = fbForms.find(x => x.id === id);
-  if (!f || f.status === 'active') return;
-  const nm = f.form_type === 'request' ? 'VOC 요청 폼' : ('설문 "' + (f.title || '(이름 없음)') + '"');
-  if (!confirm(nm + ' 초안을 삭제할까요?')) return;
+  if (!f) return;
+  const isReq = f.form_type === 'request';
+  if (f.status === 'active' && !isReq) {
+    showToast('발송 중인 설문은 삭제할 수 없습니다. 발송·응답 이력이 함께 지워집니다.', true);
+    return;
+  }
+  const nm = isReq ? 'VOC 요청 폼' : ('설문 "' + (f.title || '(이름 없음)') + '"');
+  // 줄바꿈은 String.fromCharCode(10)으로 넣는다 — 소스에 실제 개행을 두면 문법이 깨진다
+  // (문항 보기 입력에서 같은 실수를 한 적이 있어 같은 방식을 쓴다).
+  const msg = (isReq && f.status === 'active')
+    ? [nm + '을 삭제할까요?', '',
+       '적용 중인 폼이라 삭제하면 고객의 "새 요청 등록"에서 VOC 카테고리가 사라집니다.',
+       '이미 접수된 VOC 요청은 그대로 유지됩니다.'].join(String.fromCharCode(10))
+    : nm + ' 초안을 삭제할까요?';
+  if (!confirm(msg)) return;
   const { error } = await sb.from('forms').delete().eq('id', id);
   if (error) { showToast('삭제 실패: ' + (error.message || ''), true); return; }
   showToast('삭제됐습니다.');
