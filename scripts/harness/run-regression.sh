@@ -16,10 +16,10 @@ export PYTHONIOENCODING=utf-8
 HDIR="$(cd "$(dirname "$0")" && pwd)"
 export HARNESS_TMP="$HDIR/lib"
 
-ALL=(test_permissions.py test_ticket_delete.py test_ticket_status.py test_ticket_assign.py test_notify_routing.py test_internal_review.py test_ticket_rate.py test_customer_e2e.py test_stats_view.py test_proxy_register.py test_storage_rules.py test_auth.py test_schema_contract.py test_batch.py test_jwt.py test_l2_runtime.py test_email_backstop.py test_survey_send.py)
+ALL=(test_permissions.py test_ticket_delete.py test_ticket_status.py test_ticket_assign.py test_notify_routing.py test_internal_review.py test_ticket_rate.py test_customer_e2e.py test_stats_view.py test_proxy_register.py test_storage_rules.py test_auth.py test_schema_contract.py test_batch.py test_jwt.py test_l2_runtime.py test_email_backstop.py test_survey_send.py test_form_access.py)
 # 병렬 안전 = 알림 발송 건수/타입을 단언하지 않는 스위트(응답 코드·권한·구조만 검사).
 # 나머지(알림 타이밍 민감 + 전역 집계)는 직렬. 지정 실행 시엔 이 분류를 그대로 따른다.
-PAR_SAFE=(test_permissions.py test_ticket_delete.py test_storage_rules.py test_ticket_rate.py test_proxy_register.py test_auth.py test_schema_contract.py test_jwt.py test_l2_runtime.py)
+PAR_SAFE=(test_permissions.py test_ticket_delete.py test_storage_rules.py test_ticket_rate.py test_proxy_register.py test_auth.py test_schema_contract.py test_jwt.py test_l2_runtime.py test_form_access.py)
 
 # flaky 허용목록 = 비동기 알림(wait_notif/notif_rows)에 의존해 병렬 부하에서 정당하게
 # 간헐 실패할 수 있는 스위트만. 이 목록 밖(권한·스키마·jwt·삭제 등 결정적 스위트)은
