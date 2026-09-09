@@ -15,7 +15,7 @@
 """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'lib'))
-from itest import dget, dpost, dpatch, ddel, api, tname, temail, Checker, _RUN
+from itest import dget, dpost, dpatch, ddel, api, tname, temail, Checker, must_id, _RUN
 
 
 def run():
@@ -23,33 +23,34 @@ def run():
     created = {'companies': [], 'users': [], 'forms': []}
     try:
         # ── 픽스처: 회사 + 고객 A/B + 폼 3상태(draft/active/closed) + 초대 행 ──
-        co = dpost('companies', {'name': tname('폼접근 회사'), 'status': 'active'}, role='admin')['body']['id']
+        co = must_id(dpost('companies', {'name': tname('폼접근 회사'), 'status': 'active'}, role='admin'), '회사')
         created['companies'].append(co)
-        uA = dpost('users', {'email': temail('formA'), 'name': tname('폼고객A'), 'role': 'customer',
-                             'company_id': co, 'is_active': True}, role='admin')['body']['id']
-        uB = dpost('users', {'email': temail('formB'), 'name': tname('폼고객B'), 'role': 'customer',
-                             'company_id': co, 'is_active': True}, role='admin')['body']['id']
+        uA = must_id(dpost('users', {'email': temail('formA'), 'name': tname('폼고객A'), 'role': 'customer',
+                                     'company_id': co, 'is_active': True}, role='admin'), '폼고객A')
+        uB = must_id(dpost('users', {'email': temail('formB'), 'name': tname('폼고객B'), 'role': 'customer',
+                                     'company_id': co, 'is_active': True}, role='admin'), '폼고객B')
         created['users'] += [uA, uB]
         A = dict(role='customer', userId=uA, companyId=co)
 
         def mkform(st):
-            f = dpost('forms', {'title': tname('폼 ' + st), 'form_type': 'survey', 'status': st,
-                                'fields': [{'label': '만족도', 'type': 'rating'}], 'target': {}},
-                      role='admin')['body']['id']
+            f = must_id(dpost('forms', {'title': tname('폼 ' + st), 'form_type': 'survey', 'status': st,
+                                        'fields': [{'label': '만족도', 'type': 'rating'}], 'target': {}},
+                              role='admin'), '폼(' + st + ')')
             created['forms'].append(f)
             return f
         f_draft, f_active, f_closed = mkform('draft'), mkform('active'), mkform('closed')
         # 초대 행: A/B 각각 active 폼, A는 draft 폼에도 하나(active 아닌 폼 응답 차단 검증용).
         # token은 unique — 실행 토큰으로 고유화.
-        invA = dpost('survey_history', {'form_id': f_active, 'user_id': uA, 'token': 'tk-A-' + _RUN,
-                                        'company_id': co, 'company_name': tname('폼접근 회사')},
-                     role='admin')['body']['id']
-        invB = dpost('survey_history', {'form_id': f_active, 'user_id': uB, 'token': 'tk-B-' + _RUN,
-                                        'company_id': co, 'company_name': tname('폼접근 회사')},
-                     role='admin')['body']['id']
-        invA_draft = dpost('survey_history', {'form_id': f_draft, 'user_id': uA, 'token': 'tk-Ad-' + _RUN},
-                           role='admin')['body']['id']
-        t.check('픽스처: 폼 3상태 + 초대 3행', all([f_draft, f_active, f_closed, invA, invB, invA_draft]))
+        invA = must_id(dpost('survey_history', {'form_id': f_active, 'user_id': uA, 'token': 'tk-A-' + _RUN,
+                                                'company_id': co, 'company_name': tname('폼접근 회사')},
+                             role='admin'), 'A 초대')
+        invB = must_id(dpost('survey_history', {'form_id': f_active, 'user_id': uB, 'token': 'tk-B-' + _RUN,
+                                                'company_id': co, 'company_name': tname('폼접근 회사')},
+                             role='admin'), 'B 초대')
+        invA_draft = must_id(dpost('survey_history', {'form_id': f_draft, 'user_id': uA, 'token': 'tk-Ad-' + _RUN},
+                                   role='admin'), 'A 초대(draft 폼)')
+        t.all_of('픽스처: 폼 3상태 + 초대 3행', [f_draft, f_active, f_closed, invA, invB, invA_draft],
+                 bool, min_n=6)
 
         # ── forms 읽기: 비스태프에겐 active만, 초안·마감은 존재 은닉 ──
         vis = {x['id'] for x in (dget('forms', {'select': 'id', 'limit': '500'}, **A).get('body') or [])}

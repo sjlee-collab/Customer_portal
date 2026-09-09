@@ -14,7 +14,7 @@ admin insert(form_builder 권한). 정리는 forms 삭제(cascade로 survey_hist
 """
 import sys, os, time, datetime
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'lib'))
-from itest import dget, dpost, ddel, api, tname, temail, Checker
+from itest import dget, dpost, ddel, api, tname, temail, Checker, must_id
 
 
 def survey_mail_rows(recipient):
@@ -42,32 +42,32 @@ def run():
     d30 = (datetime.date.today() + datetime.timedelta(days=30)).isoformat()
     try:
         # ── 픽스처: [테스트] 회사 + 진행중 계약(대상 선정 근거) + 활성 고객(temail) ──
-        co = dpost('companies', {'name': tname('설문 회사'), 'status': 'active'}, role='admin')['body']['id']
+        co = must_id(dpost('companies', {'name': tname('설문 회사'), 'status': 'active'}, role='admin'), '회사')
         created['companies'].append(co)
         # 발송 대상 규칙: "계약의 조직(unit)에 배정된 고객"만 — unit 없는 계약은 excluded(현행).
         # 그래서 조직을 만들고 계약·고객을 조직에 묶는다(운영과 동일 형상).
-        ou = dpost('org_units', {'unit_no': 'T-1', 'company_id': co, 'unit_name': tname('설문 조직'),
-                                 'status': 'active'}, role='admin')['body']['id']
+        ou = must_id(dpost('org_units', {'unit_no': 'T-1', 'company_id': co, 'unit_name': tname('설문 조직'),
+                                         'status': 'active'}, role='admin'), '조직')
         created['units'].append(ou)
-        ct = dpost('company_contracts', {'company_id': co, 'contract_name': tname('설문 계약'),
-                                         'status': '진행중', 'end_date': d30, 'unit_id': ou},
-                   role='admin')['body']['id']
+        ct = must_id(dpost('company_contracts', {'company_id': co, 'contract_name': tname('설문 계약'),
+                                                 'status': '진행중', 'end_date': d30, 'unit_id': ou},
+                           role='admin'), '설문 계약')
         created['contracts'].append(ct)
         # unit 없는 계약이 excluded로 빠지는 현행 규칙도 함께 고정한다.
-        ct_no_unit = dpost('company_contracts', {'company_id': co, 'contract_name': tname('무조직 계약'),
-                                                 'status': '진행중', 'end_date': d30},
-                           role='admin')['body']['id']
+        ct_no_unit = must_id(dpost('company_contracts', {'company_id': co, 'contract_name': tname('무조직 계약'),
+                                                         'status': '진행중', 'end_date': d30},
+                                   role='admin'), '무조직 계약')
         created['contracts'].append(ct_no_unit)
         cu_mail = temail('svyCust')
-        cu = dpost('users', {'email': cu_mail, 'name': tname('설문고객'), 'role': 'customer',
-                             'company_id': co, 'is_active': True}, role='admin')['body']['id']
+        cu = must_id(dpost('users', {'email': cu_mail, 'name': tname('설문고객'), 'role': 'customer',
+                                     'company_id': co, 'is_active': True}, role='admin'), '설문고객')
         created['users'].append(cu)
         uo = dpost('user_org_units', {'user_id': cu, 'unit_id': ou, 'is_primary': True},
                    role='admin')['body']
         created['uou'].append(uo.get('id'))
-        fm = dpost('forms', {'title': tname('만족도 설문'), 'form_type': 'survey', 'status': 'draft',
-                             'fields': [{'label': '전반적 만족도', 'type': 'rating'}],
-                             'target': {}}, role='admin')['body']['id']
+        fm = must_id(dpost('forms', {'title': tname('만족도 설문'), 'form_type': 'survey', 'status': 'draft',
+                                     'fields': [{'label': '전반적 만족도', 'type': 'rating'}],
+                                     'target': {}}, role='admin'), '설문 폼')
         created['forms'].append(fm)
         t.check('픽스처: 폼 생성(draft)', bool(fm))
 
@@ -84,8 +84,8 @@ def run():
         t.check('only_test 드라이런 200', r.get('status') == 200 and body.get('dry_run') is True,
                 'status=%s' % r.get('status'))
         t.check('only_test 대상에 내 [테스트] 회사 포함', tname('설문 회사') in comps, '대상회사=%s' % sorted(comps))
-        t.check('only_test 대상 전부 [테스트] 라벨', all(str(c).startswith('[테스트]') for c in comps),
-                '비라벨=%s' % [c for c in comps if not str(c).startswith('[테스트]')])
+        t.all_of('only_test 대상 전부 [테스트] 라벨', comps, lambda c: str(c).startswith('[테스트]'),
+                 detail='비라벨=%s' % [c for c in comps if not str(c).startswith('[테스트]')])
         excl = (body.get('excluded') or [])
         t.check('무조직 계약은 excluded 분류(현행)', any(x.get('company') == tname('설문 회사') for x in excl)
                 or len(excl) >= 1, 'excluded=%d' % len(excl))
