@@ -2575,8 +2575,8 @@ textarea{resize:vertical;min-height:100px;}
 
         <!-- VOC: 2. 문항 구성 -->
         <section class="fb-panel" data-fbpanel="req-fields" hidden>
-          <div class="fb-phd"><h2>문항 구성 · VOC</h2><span class="hint">VOC는 제목과 아래 문항만 받습니다 — 내용·첨부·제품·긴급도는 묻지 않습니다</span></div>
-          <div id="fb-locked-note-req" style="display:none;" class="fb-warn">적용 중인 폼은 제목 문구와 문항을 수정할 수 없습니다. 고객이 작성하는 중에 문항이 바뀌면 접수가 막히기 때문입니다. 고치려면 폼 목록에서 <b>[적용 해제]</b>로 초안으로 내린 뒤 수정하고 다시 적용하세요.</div>
+          <div class="fb-phd"><h2>문항 구성 · VOC</h2><span class="hint">VOC는 아래 문항만 받습니다 — 제목은 여기서 정하고, 내용·첨부·제품·긴급도는 묻지 않습니다</span></div>
+          <div id="fb-locked-note-req" style="display:none;" class="fb-warn">적용 중인 폼은 제목과 문항을 수정할 수 없습니다. 고객이 작성하는 중에 문항이 바뀌면 접수가 막히기 때문입니다. 고치려면 폼 목록에서 <b>[적용 해제]</b>로 초안으로 내린 뒤 수정하고 다시 적용하세요.</div>
           <div class="fb-editor">
             <div class="fb-pal">
               <div class="cap">문항 추가</div>
@@ -2591,12 +2591,13 @@ textarea{resize:vertical;min-height:100px;}
               <div class="fb-fixed">
                 <div class="cap">기본 항목 <span class="lock">모든 카테고리 공통</span></div>
                 <div style="margin:2px 0 12px;">
-                  <label class="fb-lbl">요청 제목 문구 <span class="req">*</span>
-                    <span style="font-weight:400;color:var(--faint);font-size:11px;">고객 화면의 제목 입력칸 위에 이 문구가 표시됩니다</span></label>
-                  <input type="text" class="fb-inp" id="fb-req-title-label" placeholder="불편하신 점을 한 줄로 알려주세요" oninput="fbSetTitleLabel(this.value)">
+                  <label class="fb-lbl">요청 제목 <span class="req">*</span>
+                    <span style="font-weight:400;color:var(--faint);font-size:11px;">고객에게 묻지 않고 이 문장이 요청 제목으로 저장됩니다 — 이 폼으로 접수된 요청은 제목이 모두 같습니다</span></label>
+                  <input type="text" class="fb-inp" id="fb-req-title-label" placeholder="예) 고객지원포탈 서비스 제안·불만" oninput="fbSetTitleText(this.value)">
                 </div>
                 <div class="items">
-                  <span class="fb-fx">요청 제목 *</span><span class="fb-fx">요청 조직 *</span>
+                  <span class="fb-fx">요청 조직 *</span>
+                  <span class="fb-fx off">요청 제목 — 위에 적은 문장으로 저장</span>
                   <span class="fb-fx off">요청 내용 — VOC에서 숨김</span><span class="fb-fx off">첨부 파일 — VOC에서 숨김</span>
                   <span class="fb-fx off">제품 — VOC에서 숨김</span><span class="fb-fx off">긴급도 — VOC에서 숨김</span>
                 </div>
@@ -3728,7 +3729,7 @@ textarea{resize:vertical;min-height:100px;}
           </div>
         </div>
         <div class="form-group span2" id="nw-title-group">
-          <label id="nw-title-label">요청 제목 <span class="req">*</span></label>
+          <label>요청 제목 <span class="req">*</span></label>
           <input type="text" id="f-title" placeholder="문제를 간략하게 설명해 주세요">
         </div>
         <div class="form-group" id="nw-cat-group">
@@ -4695,8 +4696,8 @@ async function loadVocFormState() {
 
 // ── 요청 등록: 폼 빌더가 붙인 추가 문항 ──────────────────────────────
 // 카테고리에 적용(active)된 폼이 있으면 문항을 그리고, 폼의 target.hide가 지정한 기본 입력을
-// 숨긴다. VOC는 내용·첨부·제품·긴급도를 숨기고 제목 + 문항만 받는다 — 제목은 고객이 직접 쓰고
-// (문구는 폼 빌더의 target.title_label), 문항 답변은 tickets.form_answers에 스냅샷으로 남는다.
+// 숨긴다. VOC는 문항만 받는다 — 제목은 폼 빌더에 적어 둔 문장(target.title_text)으로 저장하고,
+// 내용·첨부·제품·긴급도는 묻지 않는다. 문항 답변은 tickets.form_answers에 스냅샷으로 남는다.
 // 답변 키는 설문과 동일하게 **문항 고유 id**(없으면 순서 키)를 쓴다.
 let nwFormAnswers = {};
 function _nwKey(f, i) { return f?.id || `q${i + 1}`; }
@@ -4706,21 +4707,20 @@ const NW_BASE_FIELDS = [
   ['product', 'nw-product-group'], ['priority', 'nw-priority-group'], ['attach', 'nw-attach-group'],
 ];
 // 요청 제목으로 쓸 수 있는 문항 타입 — 제목은 한 줄이라 선택형·점수형은 후보가 아니다.
-const NW_TITLE_LABEL_DEFAULT = '불편하신 점을 한 줄로 알려주세요';
-// 문항이 있을 때만 기본 항목을 숨긴다. 제목은 예외 — VOC도 고객이 직접 쓰므로 절대 숨기지 않는다
-// (구 폼의 target.hide에 남아 있는 'title'은 무시한다. 재적용 없이 곧바로 제목칸이 보이도록).
+// 문항이 있을 때만 기본 항목을 숨긴다 — 문항 0개인 폼에서 제목까지 숨기면 접수 자체가 불가능해진다.
 function nwHiddenFor(cat) {
   const form = (cat === 'voc') ? vocForm : null;
   const fields = Array.isArray(form?.fields) ? form.fields : [];
-  const hide = new Set(fields.length ? (form?.target?.hide || []) : []);
-  hide.delete('title');
-  return hide;
+  return new Set(fields.length ? (form?.target?.hide || []) : []);
 }
-// 제목 입력칸 위에 띄울 문구 — 폼 빌더의 target.title_label.
-// 구 폼에는 그 문구가 '제목 문항'(title_src)으로 들어가 있어 그 라벨을 쓴다(마이그레이션 없이 호환).
+// VOC 티켓 제목 — 고객에게 묻지 않고 폼 빌더에 적어 둔 문장을 그대로 쓴다(사용자 결정).
+// 같은 폼에서 온 요청은 제목이 모두 같아지므로, 목록에서는 고객사·조직·날짜로 구분한다.
+// 구 폼 호환: 문장이 target.title_label(제목 문구 시절) 또는 title_src 문항 라벨에 있을 수 있다.
 function _nwTitleSrcField(form) { return (form?.fields || []).find(f => f.title_src); }
-function nwTitleLabel(form) {
-  return String(form?.target?.title_label || _nwTitleSrcField(form)?.label || '').trim();
+function nwTicketTitle(form) {
+  const t = String(form?.target?.title_text || form?.target?.title_label
+    || _nwTitleSrcField(form)?.label || '').trim();
+  return (t || 'VOC 요청').slice(0, 150);
 }
 
 function nwApplyCategoryForm(cat) {
@@ -4736,14 +4736,9 @@ function nwApplyCategoryForm(cat) {
   // 숨긴 항목은 값도 비운다 — 카테고리를 바꿔가며 입력했을 때 남은 값이 함께 접수되지 않도록.
   if (hide.has('product'))     { const el = document.getElementById('f-product');  if (el) el.value = ''; }
   if (hide.has('priority'))    { const el = document.getElementById('f-priority'); if (el) el.value = 'normal'; }
+  if (hide.has('title'))       { const el = document.getElementById('f-title');    if (el) el.value = ''; }
   if (hide.has('description')) { const el = document.getElementById('f-desc');     if (el) el.value = ''; }
   if (hide.has('attach') && _attachFiles.length) { _attachFiles.length = 0; _syncAttachInput(); }
-  // 제목 문구 — 폼이 정한 문구가 있으면 라벨을 그것으로 바꾼다(입력칸은 표준 그대로).
-  const tLab = document.getElementById('nw-title-label');
-  const tInp = document.getElementById('f-title');
-  const lab = form ? nwTitleLabel(form) : '';
-  if (tLab) tLab.innerHTML = (lab ? escHtml(lab) : '요청 제목') + ' <span class="req">*</span>';
-  if (tInp) tInp.placeholder = form ? (lab || NW_TITLE_LABEL_DEFAULT) : '문제를 간략하게 설명해 주세요';
   if (!box) return;
   const fields = Array.isArray(form?.fields) ? form.fields : [];
   if (!fields.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
@@ -7529,13 +7524,15 @@ async function submitRequest() {
   // 기본 항목을 숨긴 폼(VOC)은 제목·내용을 아예 묻지 않으므로 그만큼 필수 검증도 빠진다.
   // 같은 걸 두 번 묻지 않는 대신, 제목은 아래에서 답변으로 조립한다.
   const hidden      = nwHiddenFor(category);
-  const title       = document.getElementById('f-title')?.value?.trim() || '';
+  let title         = hidden.has('title') ? '' : (document.getElementById('f-title')?.value?.trim() || '');
   let description   = hidden.has('description') ? '' : (document.getElementById('f-desc')?.value?.trim() || '');
 
-  if (!category || !title || (!hidden.has('description') && !description)) {
-    showToast(hidden.has('description') ? '제목과 카테고리는 필수 항목입니다.' : '제목, 카테고리, 내용은 필수 항목입니다.', true);
+  if (!category || (!hidden.has('title') && !title) || (!hidden.has('description') && !description)) {
+    showToast(hidden.has('title') ? '카테고리는 필수 항목입니다.' : '제목, 카테고리, 내용은 필수 항목입니다.', true);
     return;
   }
+  // 제목을 묻지 않는 폼(VOC)은 폼 빌더에 적어 둔 문장이 제목이다. tickets.title은 not null.
+  if (hidden.has('title')) title = nwTicketTitle(vocForm);
   // 폼 빌더 추가 문항 — 필수 검증 후 문항 스냅샷과 함께 보낸다(api-layer가 tickets.form_answers에 저장).
   const _fa = nwCollectFormAnswers(category, title);
   if (!_fa.ok) return;
@@ -9111,17 +9108,18 @@ async function deleteLicenseGroup(ids, filePaths) {
 // 저장은 data-api /data/forms — DDL·data-api 등록 전에는 목록/저장이 실패하며 화면에 안내된다.
 // 실제 발송(메일)·대상 집계·고객 화면 렌더는 백엔드(api-layer) 연동 후 활성화 — 버튼은 초안 저장으로 대체.
 // VOC 요청 폼이 숨기는 기본 항목 — 문항만으로 접수하는 형태(제목은 답변으로 조립).
-const FB_REQ_HIDE = ['product', 'priority', 'description', 'attach'];
+const FB_REQ_HIDE = ['product', 'priority', 'title', 'description', 'attach'];
 // 요청 폼 target 정규화 — 숨김 목록은 저장된 값이 아니라 항상 현재 규약으로 맞춘다.
 function _fbReqTarget(t) { return { ...(t || {}), category: 'voc', hide: [...FB_REQ_HIDE] }; }
-function fbSetTitleLabel(v) { if (fbCur && !fbLocked()) fbCur.target = { ...(fbCur.target || {}), title_label: v }; }
-// 구 폼 호환 — 제목 문구가 '제목 문항'(title_src)으로 들어가 있던 폼을 열면 그 라벨을
-// target.title_label로 옮기고 문항 목록에서 뺀다(저장하면 정리된 형태로 남는다).
+function fbSetTitleText(v) { if (fbCur && !fbLocked()) fbCur.target = { ...(fbCur.target || {}), title_text: v }; }
+// 구 폼 호환 — 제목 문장이 '제목 문항'(title_src) 또는 옛 키(title_label)에 들어 있던 폼을
+// 열면 target.title_text로 모으고, 제목 문항은 문항 목록에서 뺀다(저장하면 정리된 형태로 남는다).
 function _fbMigrateTitleField(cur) {
   const i = (cur.fields || []).findIndex(f => f.title_src);
-  if (i < 0) return cur;
-  if (!cur.target?.title_label) cur.target = { ...(cur.target || {}), title_label: cur.fields[i].label || '' };
-  cur.fields = cur.fields.filter((f, k) => k !== i);
+  const from = cur.target?.title_text || cur.target?.title_label || (i >= 0 ? cur.fields[i].label : '');
+  cur.target = { ...(cur.target || {}), title_text: String(from || '').trim() };
+  delete cur.target.title_label;
+  if (i >= 0) cur.fields = cur.fields.filter((f, k) => k !== i);
   return cur;
 }
 const FB_TYPES = { single:'객관식 · 단일', multi:'객관식 · 복수', text:'주관식', line:'한 줄 입력', para:'여러 줄 입력', rating:'별점 (1~5)', nps:'NPS (0~10)', scale:'척도 (1~5)', date:'날짜' };
@@ -9253,7 +9251,7 @@ function fbPick(kind) {
     fbCur = exist
       ? _fbMigrateTitleField({ id: exist.id, form_type: 'request', title: 'VOC 요청 폼', intro: null, open_until: null, status: exist.status || 'draft', fields: JSON.parse(JSON.stringify(exist.fields || [])), target: _fbReqTarget(exist.target) })
       : { form_type: 'request', title: 'VOC 요청 폼', intro: null, open_until: null, status: 'draft',
-          fields: [], target: _fbReqTarget() };
+          fields: [], target: { ..._fbReqTarget(), title_text: '' } };
     fbShow('req-fields'); fbStep = 'req-fields'; fbRenderRail(); fbRenderDoc();
     renderFbFields();
   } else {
@@ -9379,7 +9377,7 @@ function renderFbFields() {
   if (isReq) {
     const tl = document.getElementById('fb-req-title-label');
     // 입력 중 커서가 튀지 않도록 값이 다를 때만 쓴다.
-    if (tl) { const v = fbCur?.target?.title_label ?? ''; if (tl.value !== v) tl.value = v; tl.disabled = locked; }
+    if (tl) { const v = fbCur?.target?.title_text ?? ''; if (tl.value !== v) tl.value = v; tl.disabled = locked; }
   }
   if (!fbCur || !fbCur.fields.length) { box.innerHTML = ''; if (empty) empty.style.display = ''; return; }
   if (empty) empty.style.display = 'none';
@@ -9426,11 +9424,11 @@ function fbValidateFields() {
     }
     f.label = String(f.label).trim();
   }
-  // 제목 문구는 고객 화면의 제목 입력칸 라벨이 된다 — 비어 있으면 무엇을 쓸지 알 수 없다.
+  // 이 문장이 티켓 제목으로 저장된다 — 비어 있으면 제목 없는 요청이 만들어진다(tickets.title은 not null).
   if (fbKind === 'req') {
-    const lab = String(fbCur.target?.title_label || '').trim();
-    if (!lab) { showToast('요청 제목 문구를 입력해 주세요.', true); return false; }
-    fbCur.target = { ...(fbCur.target || {}), title_label: lab };
+    const t = String(fbCur.target?.title_text || '').trim();
+    if (!t) { showToast('요청 제목을 입력해 주세요.', true); return false; }
+    fbCur.target = { ...(fbCur.target || {}), title_text: t };
   }
   return true;
 }
@@ -9448,17 +9446,16 @@ function fbRenderReqPreview() {
       f.type === 'rating' ? '★★★★☆' : f.type === 'date' ? '2026-09-07' : '입력';
     return `<div class="fb-pf added"><label>${escHtml(f.label)} ${f.required ? '<span class="req">*</span>' : ''}</label><div class="box">${hint}</div></div>`;
   }).join('');
-  const lab = String(fbCur.target?.title_label || '').trim();
+  const lab = String(fbCur.target?.title_text || '').trim();
   bd.innerHTML =
-    `<div class="fb-pf"><label>${escHtml(lab || '요청 제목')} <span class="req">*</span></label><div class="box">고객이 직접 입력</div></div>` +
     added +
     `<div class="fb-pf"><label>요청 조직 <span class="req">*</span></label><div class="box">사업부 · 팀 선택</div></div>`;
   const req = fbCur.fields.filter(f => f.required).length;
   document.getElementById('fb-req-rev').innerHTML =
     `<div class="fb-rev-row"><span class="k">적용 카테고리</span><span class="v">VOC</span></div>` +
-    `<div class="fb-rev-row"><span class="k">요청 제목 문구</span><span class="v">${lab ? escHtml(lab) : '입력 필요'}</span></div>` +
+    `<div class="fb-rev-row"><span class="k">저장되는 제목</span><span class="v">${lab ? escHtml(lab) : '입력 필요'}</span></div>` +
     `<div class="fb-rev-row"><span class="k">추가 문항</span><span class="v">${fbCur.fields.length}개 (필수 ${req})</span></div>` +
-    `<div class="fb-rev-row"><span class="k">숨기는 기본 항목</span><span class="v">내용 · 제품 · 긴급도 · 첨부</span></div>` +
+    `<div class="fb-rev-row"><span class="k">숨기는 기본 항목</span><span class="v">제목 · 내용 · 제품 · 긴급도 · 첨부</span></div>` +
     `<div class="fb-rev-row"><span class="k">Slack 알림</span><span class="v">공통 · 영업</span></div>` +
     `<div class="fb-rev-row"><span class="k">기존 요청</span><span class="v">영향 없음</span></div>`;
 }
