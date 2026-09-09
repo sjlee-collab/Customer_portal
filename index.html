@@ -4707,11 +4707,12 @@ const NW_BASE_FIELDS = [
   ['product', 'nw-product-group'], ['priority', 'nw-priority-group'], ['attach', 'nw-attach-group'],
 ];
 // 요청 제목으로 쓸 수 있는 문항 타입 — 제목은 한 줄이라 선택형·점수형은 후보가 아니다.
-// 문항이 있을 때만 기본 항목을 숨긴다 — 문항 0개인 폼에서 제목까지 숨기면 접수 자체가 불가능해진다.
+// 숨기는 기본 항목은 **코드의 현재 규약**(FB_REQ_HIDE)으로 정한다. 폼에 저장된 target.hide는
+// 쓰지 않는다 — 규약을 고치는 동안 폼마다 저장값이 달라져, 이미 만들어 둔 폼에서 제목칸이
+// 그대로 보이는 문제가 실제로 났다(2026-09-09). 적용된 폼이 없으면 아무것도 숨기지 않는다.
 function nwHiddenFor(cat) {
   const form = (cat === 'voc') ? vocForm : null;
-  const fields = Array.isArray(form?.fields) ? form.fields : [];
-  return new Set(fields.length ? (form?.target?.hide || []) : []);
+  return new Set(form ? FB_REQ_HIDE : []);
 }
 // VOC 티켓 제목 — 고객에게 묻지 않고 폼 빌더에 적어 둔 문장을 그대로 쓴다(사용자 결정).
 // 같은 폼에서 온 요청은 제목이 모두 같아지므로, 목록에서는 고객사·조직·날짜로 구분한다.
