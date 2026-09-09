@@ -10416,7 +10416,7 @@ function setFdKind(k, el) {
   document.querySelectorAll('.fd-chip').forEach(c => c.setAttribute('aria-pressed', String(c === el)));
   applyFdFilter();
 }
-function applyFdFilter() { _fdOffset = 0; _fdLastDay = ''; loadActivity(); }
+function applyFdFilter() { loadActivity(); }   // offset·lastDay 초기화는 loadActivity/_fdRenderFeed가 맡는다
 function fdFilterUser(name) {
   const q = document.getElementById('fd-q');
   if (q) q.value = name;
@@ -10426,7 +10426,10 @@ function fdFilterUser(name) {
 async function loadActivity(more) {
   const feedEl = document.getElementById('fd-feed');
   if (!feedEl) return;
-  if (!more) feedEl.innerHTML = '<div class="rq-empty">불러오는 중...</div>';
+  // 첫 페이지를 새로 그리는 호출이면 여기서 offset을 되돌린다 — 호출 지점(필터·새로고침·
+  // 탭 진입)마다 따로 초기화하면 하나를 빠뜨리게 된다. 실제로 새로고침 경로가 빠져 있어
+  // 누를 때마다 목록이 30건씩 뒤로 밀렸다.
+  if (!more) { _fdOffset = 0; feedEl.innerHTML = '<div class="rq-empty">불러오는 중...</div>'; }
   const params = new URLSearchParams({ days: String(_fdDays), limit: String(FD_PAGE), offset: String(_fdOffset) });
   if (_fdKind) params.set('kind', _fdKind);
   const q = (document.getElementById('fd-q')?.value || '').trim();
