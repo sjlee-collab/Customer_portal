@@ -2575,6 +2575,7 @@ textarea{resize:vertical;min-height:100px;}
         <!-- VOC: 2. 문항 구성 -->
         <section class="fb-panel" data-fbpanel="req-fields" hidden>
           <div class="fb-phd"><h2>문항 구성 · VOC</h2><span class="hint">VOC는 기본 항목을 묻지 않고 아래 문항만으로 접수합니다</span></div>
+          <div id="fb-locked-note-req" style="display:none;" class="fb-warn">적용 중인 폼은 문항을 수정할 수 없습니다. 고객이 작성하는 중에 문항이 바뀌면 접수가 막히기 때문입니다. 고치려면 폼 목록에서 <b>[적용 해제]</b>로 초안으로 내린 뒤 수정하고 다시 적용하세요.</div>
           <div class="fb-editor">
             <div class="fb-pal">
               <div class="cap">문항 추가</div>
@@ -2602,7 +2603,7 @@ textarea{resize:vertical;min-height:100px;}
           <div class="fb-actions">
             <button class="btn btn-ghost btn-sm" onclick="fbShow('type')">← 폼 종류</button>
             <span class="spacer"></span>
-            <button class="btn btn-outline btn-sm" onclick="fbSave('draft')">임시 저장</button>
+            <button class="btn btn-outline btn-sm" id="fb-save-req" onclick="fbSave('draft')">임시 저장</button>
             <button class="btn btn-primary btn-sm" onclick="fbGoApply()">미리보기 →</button>
           </div>
         </section>
@@ -2655,7 +2656,7 @@ textarea{resize:vertical;min-height:100px;}
           <div class="fb-actions">
             <button class="btn btn-ghost btn-sm" onclick="fbShow('type')">← 폼 종류</button>
             <span class="spacer"></span>
-            <button class="btn btn-outline btn-sm" onclick="fbSave('draft')">임시 저장</button>
+            <button class="btn btn-outline btn-sm" id="fb-save-sur" onclick="fbSave('draft')">임시 저장</button>
             <button class="btn btn-primary btn-sm" onclick="fbGoPreview()">미리보기 →</button>
           </div>
         </section>
@@ -9316,9 +9317,18 @@ async function fbDelete(id) {
 // ── 문항 편집 (두 갈래 공용) ──
 function _fbFieldsBox() { return document.getElementById(fbKind === 'req' ? 'fb-fields-req' : 'fb-fields-sur'); }
 function _fbEmptyBox() { return document.getElementById(fbKind === 'req' ? 'fb-empty-req' : 'fb-empty-sur'); }
+// 적용·발송 중인 폼은 문항을 못 고친다. 설문은 응답 정합성(같은 설문에 다른 문항) 때문이고,
+// VOC 요청 폼은 고객이 작성하는 중에 문항이 바뀌면 서버 재검증에서 접수가 막히기 때문이다.
+// 고치는 정상 경로는 [적용 해제]로 초안으로 내린 뒤 수정 → 다시 적용.
+function fbLocked() { return fbCur?.status === 'active'; }
+function _fbLockToast() {
+  showToast(fbKind === 'req'
+    ? '적용 중인 폼은 문항을 수정할 수 없습니다. 폼 목록에서 [적용 해제] 후 수정하세요.'
+    : '발송 중인 설문은 문항을 수정할 수 없습니다.', true);
+}
 function fbAddField(type) {
   if (!fbCur) return;
-  if (fbCur.status === 'active' && fbKind === 'sur') { showToast('발송 중인 설문은 문항을 수정할 수 없습니다.', true); return; }
+  if (fbLocked()) { _fbLockToast(); return; }
   const f = { id: 'f' + Date.now().toString(36) + Math.floor(Math.random() * 100), type, label: '', required: true };
   if (type === 'single' || type === 'multi') f.options = [];
   fbCur.fields.push(f);
@@ -9326,28 +9336,35 @@ function fbAddField(type) {
   setTimeout(() => { const inps = _fbFieldsBox().querySelectorAll('.fb-label-inp'); inps[inps.length - 1]?.focus(); }, 30);
 }
 function fbMove(i, dir) {
+  if (fbLocked()) return;
   const j = i + dir;
   if (j < 0 || j >= fbCur.fields.length) return;
   [fbCur.fields[i], fbCur.fields[j]] = [fbCur.fields[j], fbCur.fields[i]];
   renderFbFields();
 }
-function fbDelField(i) { fbCur.fields.splice(i, 1); renderFbFields(); }
+function fbDelField(i) { if (fbLocked()) return; fbCur.fields.splice(i, 1); renderFbFields(); }
 // 요청 제목으로 쓸 문항은 하나뿐이라 라디오처럼 동작한다(고르면 나머지 해제).
 function fbSetTitleSrc(i) {
-  if (!fbCur) return;
+  if (!fbCur || fbLocked()) return;
   fbCur.fields.forEach((f, k) => { if (k === i) f.title_src = true; else delete f.title_src; });
   renderFbFields();
 }
 function fbOptsInput(i, el) {
+  if (fbLocked()) return;
   // 인라인 핸들러 속성 문자열에는 개행 리터럴을 안전하게 넣을 수 없어 전용 함수로 분리
   fbCur.fields[i].options = el.value.split(String.fromCharCode(10));
 }
 function renderFbFields() {
   const box = _fbFieldsBox(); const empty = _fbEmptyBox();
   if (!box) return;
-  const locked = fbKind === 'sur' && fbCur?.status === 'active';
-  const lockNote = document.getElementById('fb-locked-note');
+  const locked = fbLocked();
+  const isReq = fbKind === 'req';
+  const lockNote = document.getElementById(isReq ? 'fb-locked-note-req' : 'fb-locked-note');
   if (lockNote) lockNote.style.display = locked ? '' : 'none';
+  // 잠긴 폼에서 "임시 저장"은 고칠 것이 없는데다, 눌리면 초안으로 내려가 고객 화면이
+  // 예고 없이 닫혔다(그 강등은 [적용 해제]의 일이다). 버튼 자체를 감춘다.
+  const saveBtn = document.getElementById(isReq ? 'fb-save-req' : 'fb-save-sur');
+  if (saveBtn) saveBtn.hidden = locked;
   if (!fbCur || !fbCur.fields.length) { box.innerHTML = ''; if (empty) empty.style.display = ''; return; }
   if (empty) empty.style.display = 'none';
   const dis = locked ? 'disabled' : '';
@@ -10025,8 +10042,12 @@ async function fbSave(status, silent) {
   }
   if (fbKind === 'sur' && !fbCur.title) { showToast('설문 이름을 입력해 주세요.', true); return; }
   if (!fbValidateFields()) return;
+  // 적용/발송 중인 폼을 'draft'로 저장하지 않는다 — 초안으로 내리는 것은 [적용 해제]의 일이고,
+  // 여기서 조용히 내려가면 고객의 VOC 입구나 설문 응답 화면이 예고 없이 닫힌다.
+  let want = status || fbCur.status || 'draft';
+  if (want === 'draft' && fbCur.status === 'active') want = 'active';
   const payload = { form_type: fbCur.form_type, title: fbCur.title, intro: fbCur.intro || null,
-    open_until: fbCur.open_until || null, status: status || fbCur.status || 'draft',
+    open_until: fbCur.open_until || null, status: want,
     fields: fbCur.fields, target: fbCur.target || {} };
   let error;
   if (fbCur.id) ({ error } = await sb.from('forms').update(payload).eq('id', fbCur.id));
@@ -10416,7 +10437,7 @@ function setFdKind(k, el) {
   document.querySelectorAll('.fd-chip').forEach(c => c.setAttribute('aria-pressed', String(c === el)));
   applyFdFilter();
 }
-function applyFdFilter() { _fdOffset = 0; _fdLastDay = ''; loadActivity(); }
+function applyFdFilter() { loadActivity(); }   // offset·lastDay 초기화는 loadActivity/_fdRenderFeed가 맡는다
 function fdFilterUser(name) {
   const q = document.getElementById('fd-q');
   if (q) q.value = name;
@@ -10426,7 +10447,10 @@ function fdFilterUser(name) {
 async function loadActivity(more) {
   const feedEl = document.getElementById('fd-feed');
   if (!feedEl) return;
-  if (!more) feedEl.innerHTML = '<div class="rq-empty">불러오는 중...</div>';
+  // 첫 페이지를 새로 그리는 호출이면 여기서 offset을 되돌린다 — 호출 지점(필터·새로고침·
+  // 탭 진입)마다 따로 초기화하면 하나를 빠뜨리게 된다. 실제로 새로고침 경로가 빠져 있어
+  // 누를 때마다 목록이 30건씩 뒤로 밀렸다.
+  if (!more) { _fdOffset = 0; feedEl.innerHTML = '<div class="rq-empty">불러오는 중...</div>'; }
   const params = new URLSearchParams({ days: String(_fdDays), limit: String(FD_PAGE), offset: String(_fdOffset) });
   if (_fdKind) params.set('kind', _fdKind);
   const q = (document.getElementById('fd-q')?.value || '').trim();
