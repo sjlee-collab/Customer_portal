@@ -6983,26 +6983,30 @@ async function loadDashboard() {
     const applyStatCat = (q) => statCats ? q.in('category', statCats) : q;
 
     const [
-      { count: todayCount }, { count: yesterdayCount },
+      { count: todayCount }, { count: beforeToday }, { count: beforeYesterday },
       { count: pendingCount }, { count: doneToday },
       { count: updatedToday }
     ] = await Promise.all([
       applyStatCat(sb.from('tickets').select('id',{count:'exact',head:true}).gte('created_at', todayISO)),
-      applyStatCat(sb.from('tickets').select('id',{count:'exact',head:true}).gte('created_at', yesterdayISO).lt('created_at', todayISO)),
+      // 어제 하루치 — created_at에 gte·lt를 함께 걸면 뒤 필터가 앞을 덮어써(ApiQuery.set)
+      // "오늘 이전 전체"가 세어졌다. 같은 컬럼을 한 번씩만 걸어 누적 차로 구한다.
+      applyStatCat(sb.from('tickets').select('id',{count:'exact',head:true}).lt('created_at', todayISO)),
+      applyStatCat(sb.from('tickets').select('id',{count:'exact',head:true}).lt('created_at', yesterdayISO)),
       applyStatCat(sb.from('tickets').select('id',{count:'exact',head:true}).in('status', ACTIVE)),
       applyStatCat(sb.from('tickets').select('id',{count:'exact',head:true}).eq('status','completed').gte('updated_at', todayISO)),
       // 오늘 업데이트된 요청 — 신규 접수분도 updated_at이 생성 시각과 같아 함께 잡힌다.
       applyStatCat(sb.from('tickets').select('id',{count:'exact',head:true}).gte('updated_at', todayISO)),
     ]);
 
-    const diff = (todayCount ?? 0) - (yesterdayCount ?? 0);
+    const yesterdayCount = (beforeToday ?? 0) - (beforeYesterday ?? 0);   // 어제 하루치
+    const diff = (todayCount ?? 0) - yesterdayCount;
 
     // 지연 건수 — 미처리 중 완료예정일이 오늘보다 이전인 건
     const { count: delayedCount } = await applyStatCat(sb.from('tickets')
       .select('id',{count:'exact',head:true})
       .in('status', ACTIVE)
-      .lt('due_date', todayStr)
-      .not('due_date','is',null));
+      .lt('due_date', todayStr));   // NULL은 비교에서 자동 제외 — not(is null)을 덧붙이면
+                                    // ApiQuery.set이 이 lt를 덮어써 '기한 있는 전체'가 세어졌다
 
     const todayEl   = document.getElementById('dash-admin-today-val');
     const todaySubEl = document.getElementById('dash-admin-today-sub');
