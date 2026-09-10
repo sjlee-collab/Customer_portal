@@ -6738,8 +6738,24 @@ async function refreshDashboard(btn) {
   }
 }
 
+// 홈 KPI는 화면을 열 때 한 번만 계산한다 — 홈을 띄워둔 채 다른 프로그램을 보다 돌아오면
+// 숫자가 열었던 시점에 멈춰 있었다(2026-09-10: 기한이 연장된 뒤에도 "지연 1"이 남아 보였다).
+// 브라우저 탭이 다시 보이는 순간 홈이 열려 있으면 다시 계산한다. 화면 전환으로 홈에 들어오는
+// 경로는 showPage가 이미 loadDashboard를 부르므로 건드리지 않는다.
+const DASH_REVISIT_MIN_MS = 30 * 1000;   // 탭을 자주 오가도 조회가 몰리지 않게 하는 최소 간격
+let _dashLoadedAt = 0;
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  if (!currentUser) return;
+  if (!document.getElementById('p-dashboard')?.classList.contains('active')) return;
+  if (Date.now() - _dashLoadedAt < DASH_REVISIT_MIN_MS) return;
+  loadDashboard();
+});
+
 async function loadDashboard() {
   if (!sb || !currentUser) return;
+  _dashLoadedAt = Date.now();   // 재방문 자동 갱신의 최소 간격 판정용
   loadNotices();
   const role = currentUser.role;
   const ACTIVE = ['received','classifying','in_progress','assigned','pending_customer','on_hold'];
