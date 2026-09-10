@@ -136,12 +136,11 @@ async function handleOverdueBatch(payload, results) {
   await Promise.all(tickets.map(async (item) => {
     const { ticket, overdueDays } = item;
     const dueDateStr = new Date(ticket.due_date).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' });
-    await sendSlack(
-      SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, 'overdue',
-      `⏰ *완료예정일 초과 (+${overdueDays}일)*`,
-      buildBaseMessage(ticket, item) + `\n• *완료예정일:* ${dueDateStr}` + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`,
-      results, isTestTicket(ticket)
-    );
+    const header = `⏰ *완료예정일 초과 (+${overdueDays}일)*`;
+    const body = buildBaseMessage(ticket, item) + `\n• *완료예정일:* ${dueDateStr}` + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`;
+    const isTest = isTestTicket(ticket);
+    await sendSlack(SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, 'overdue', header, body, results, isTest);
+    await fanoutCategory(ticket, item, 'overdue', header, body, results, isTest);
   }));
 }
 
@@ -203,6 +202,21 @@ async function handleLicenseExpiry(payload, results) {
 // 영업이 대리 등록한 건 — 카테고리와 무관하게 영업 채널 대상.
 // registrarRole은 DB를 못 보는 이 Lambda 대신 api-layer가 조회해 payload로 넘겨준다.
 function registeredBySales(payload) { return payload?.registrarRole === 'sales'; }
+
+// 카테고리 채널 팬아웃 — 공통 채널로 보낸 뒤 같은 메시지를 담당 채널에도 한 번 더 보낸다.
+// 신규 등록·상태 변경·답글·배정이 각자 갖고 있던 규칙과 동일하며, 완료예정일 초과 알림이
+// 공통 채널에만 가던 것을 여기에 맞춘다(2026-09-10).
+async function fanoutCategory(ticket, payload, evtType, header, body, results, isTest) {
+  if (needsSalesChannel(ticket, payload) && SLACK_WEBHOOK_SALES) {
+    await sendSlack(SLACK_WEBHOOK_SALES, '#영업-슬랙채널', ticket.id, evtType, header, body, results, isTest);
+  }
+  if (ticket.category === 'tech_support' && SLACK_WEBHOOK_TECH) {
+    await sendSlack(SLACK_WEBHOOK_TECH, '#기술지원-슬랙채널', ticket.id, evtType, header, body, results, isTest);
+  }
+  if (ticket.category === 'education' && SLACK_WEBHOOK_EDU) {
+    await sendSlack(SLACK_WEBHOOK_EDU, '#교육-슬랙채널', ticket.id, evtType, header, body, results, isTest);
+  }
+}
 
 // 영업 채널 대상 여부 — 계약·라이선스·VOC 카테고리이거나, 영업이 대리 등록한 건.
 // 두 조건을 한 곳에서 판정해 카테고리와 등록자가 겹칠 때 중복 발송되지 않게 한다.
@@ -320,12 +334,11 @@ async function handleTicketReply(payload, results) {
 async function handleTicketOverdue(payload, results) {
   const { ticket, overdueDays } = payload;
   const dueDateStr = new Date(ticket.due_date).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' });
-  await sendSlack(
-    SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, 'overdue',
-    overdueDays != null ? `⏰ *완료예정일 초과 (+${overdueDays}일)*` : `⏰ *완료예정일 초과*`,
-    buildBaseMessage(ticket, payload) + `\n• *완료예정일:* ${dueDateStr}` + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`,
-    results, isTestTicket(ticket)
-  );
+  const header = overdueDays != null ? `⏰ *완료예정일 초과 (+${overdueDays}일)*` : `⏰ *완료예정일 초과*`;
+  const body = buildBaseMessage(ticket, payload) + `\n• *완료예정일:* ${dueDateStr}` + `\n• *상세보기:* ${detailLink(ticket.ticket_number)}`;
+  const isTest = isTestTicket(ticket);
+  await sendSlack(SLACK_WEBHOOK_COMMON, '#고객지원포탈-공통', ticket.id, 'overdue', header, body, results, isTest);
+  await fanoutCategory(ticket, payload, 'overdue', header, body, results, isTest);
 }
 
 // API Gateway(공개 라우트)로 들어온 요청인지 구분 — api-layer의 내부 직접 invoke는
