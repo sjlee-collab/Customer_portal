@@ -63,6 +63,7 @@ function checkPassword(pw, stored) {
 const DEFAULT_ASSIGNEE_BY_CATEGORY = {
   education: { id: '53d240b2-b950-4c94-9289-17feb229aa69', name: '김서연' }, // syeonkim@bigxdata.io
   tech_support: { id: 'f3637639-2574-41e7-83dd-2f7891c79688', name: '강원이' }, // wykang@bigxdata.io
+  voc: { id: '82fb1e8a-da47-4f87-b5db-f690492a073c', name: '최용주' }, // yjoochoi@bigxdata.io
 };
 const COMPANY_MANAGER_FIELD_BY_CATEGORY = {
   contract: 'account_manager',
