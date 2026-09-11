@@ -31,6 +31,7 @@ def fa_of(tid):
 def run():
     t = Checker('L1 form_answers(접수 스냅샷)')
     created = {'companies': [], 'users': [], 'forms': [], 'tickets': []}
+    full_mode = True            # 예외로 조기 이탈해도 하한 판정이 NameError로 깨지지 않게
     try:
         # 운영 활성 request 폼 존재 시 축소 모드 — 내 폼이 그걸 가리면 실 접수에 간섭한다.
         prod_active = dget('forms', {'select': 'id', 'form_type': 'eq.request', 'status': 'eq.active'},
@@ -135,7 +136,10 @@ def run():
         for f in created['forms']: ddel('forms', f, role='admin')
         for u in created['users']: ddel('users', u, role='admin')
         for c in created['companies']: ddel('companies', c, role='admin')
-    return t.report(min_checks=3)
+    # 축소 모드에서는 active 창 검증이 통째로 빠지고 무접촉 검증 2건만 남는다 — 하한도 2다.
+    # 하한을 3으로 고정해 두면 "실 접수 간섭을 피한 정상 동작"이 스위트 실패로 보고돼,
+    # 운영에 VOC 폼이 적용돼 있는 내내 회귀가 빨갛게 나온다(2026-09-11 실제 발생).
+    return t.report(min_checks=3 if full_mode else 2)
 
 
 if __name__ == '__main__':
