@@ -482,7 +482,7 @@ async function notifyForStatus(ticketId, prevStatus, snapshot) {
   }
 
   if (!['completed', 'cancelled'].includes(nextStatus) && isOverdue(ticket.due_date)) {
-    await notifySlack({ type: 'TICKET_OVERDUE', ticket, ...notifyBase });
+    await notifySlack({ type: 'TICKET_OVERDUE', ticket, ...notifyBase, registrarRole: await getRegistrarRole(ticket) });
   }
 }
 
@@ -1009,7 +1009,7 @@ async function notifyForManage(job) {
     await notifySlack({ type: 'TICKET_STATUS', ticket, ...notifyBase, prevStatus, registrarRole });
   }
   if (statusChanged && !['completed', 'cancelled'].includes(ticket.status) && isOverdue(ticket.due_date)) {
-    await notifySlack({ type: 'TICKET_OVERDUE', ticket, ...notifyBase });
+    await notifySlack({ type: 'TICKET_OVERDUE', ticket, ...notifyBase, registrarRole });
   }
   // 내부 검토 티켓은 담당자가 메일 발송을 체크했어도 고객 메일을 보내지 않는다(은닉 유지).
   if (statusChanged && sendEmail && !ticket.is_internal && isNotifiableRequester(requester, ticket)) {
@@ -2165,7 +2165,8 @@ async function runOverdueBatch(event) {
     const assignee = await getUser(ticket.assigned_to);
     const overdueDays = Math.floor((Date.now() - new Date(ticket.due_date).getTime()) / (24 * 60 * 60 * 1000));
     // 계정이 삭제되면 FK(created_by/assigned_to)는 null이 되므로, 티켓에 남긴 이름 스냅샷으로 폴백한다
-    items.push({ ticket, companyName, requesterName: requester?.name ?? ticket.created_by_name, assigneeName: assignee?.name ?? ticket.assigned_to_name ?? '미배정', overdueDays });
+    // 영업이 대리 등록한 건은 카테고리와 무관하게 영업 채널에도 보낸다(다른 알림과 동일 규칙).
+    items.push({ ticket, companyName, requesterName: requester?.name ?? ticket.created_by_name, assigneeName: assignee?.name ?? ticket.assigned_to_name ?? '미배정', overdueDays, registrarRole: await getRegistrarRole(ticket) });
   }
 
   if (items.length) await notifySlack({ type: 'OVERDUE_BATCH', tickets: items });
