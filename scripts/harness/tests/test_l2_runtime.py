@@ -14,7 +14,7 @@
 
 로그인: 실 API로 나가는 진짜 로그인 — 반드시 temail 테스트 계정(P4: 통계·이력에서 제외).
 """
-import sys, os, json, subprocess
+import sys, os, json, time, subprocess
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'lib'))
 from itest import dpost, ddel, api, tname, temail, Checker
 
@@ -43,6 +43,36 @@ def pin_browsers_path(env):
     return env
 
 
+def _run_runner(env):
+    r = subprocess.run(['node', os.path.join(HDIR, 'l2-runtime.mjs')],
+                       capture_output=True, text=True, encoding='utf-8', cwd=HDIR, env=env, timeout=120)
+    out = (r.stdout or '').strip().splitlines()
+    payload = None
+    for ln in reversed(out):
+        if ln.startswith('{'):
+            try:
+                payload = json.loads(ln); break
+            except Exception:
+                pass
+    return r, out, payload
+
+
+def _diagnose_browser(env):
+    """skip 원인 규명용 — 파이썬 쪽에서 본 브라우저 설치 상태를 로그로 남긴다.
+    node(playwright)는 '없다'는데 파이썬은 '있다'고 보이면 접근권/스캔 지연 계열,
+    파이썬도 '없다'면 진짜 미설치/경로 문제로 원인이 갈린다(스케줄러 간헐 실패 추적)."""
+    base = env.get('PLAYWRIGHT_BROWSERS_PATH', '(미설정)')
+    exists = os.path.isdir(base)
+    exe = None
+    if exists:
+        for d in sorted(os.listdir(base)):
+            cand = os.path.join(base, d, 'chrome-headless-shell-win64', 'chrome-headless-shell.exe')
+            if d.startswith('chromium_headless_shell') and os.path.isfile(cand):
+                exe = cand
+    print('  [진단] BROWSERS_PATH=%s 존재=%s / headless-shell.exe %s'
+          % (base, exists, ('확인됨: ' + exe) if exe else '파이썬에서도 안 보임'))
+
+
 def run():
     t = Checker('L2 런타임(헤드리스 브라우저)')
     if not playwright_ready():
@@ -62,18 +92,20 @@ def run():
 
         env = pin_browsers_path(dict(os.environ, L2R_EMAIL=temail('l2rt'), L2R_PW=PW,
                                      PYTHONIOENCODING='utf-8'))
-        r = subprocess.run(['node', os.path.join(HDIR, 'l2-runtime.mjs')],
-                           capture_output=True, text=True, encoding='utf-8', cwd=HDIR, env=env, timeout=120)
-        out = (r.stdout or '').strip().splitlines()
-        # 마지막 JSON 줄 파싱 — 없으면 러너 자체가 죽은 것
-        payload = None
-        for ln in reversed(out):
-            if ln.startswith('{'):
-                try: payload = json.loads(ln); break
-                except Exception: pass
-        # 브라우저 실행 불가(바이너리 부재 등 환경 문제)는 실패가 아니라 건너뜀 — REALFAIL 오탐 방지.
+        r, out, payload = _run_runner(env)
+        # 브라우저 실행 불가는 스케줄러의 부팅 직후 실행에서 간헐 재발한다(9-04·9-10·9-15 실측 —
+        # 파일은 실재하는데 그 세션에서만 '없음'). 부팅 과도기(프로필/백신 첫 스캔) 추정이므로
+        # 바로 포기하지 않고 진단 로그 + 20초 대기 후 1회 재시도한다.
         if payload and payload.get('skip'):
-            print('⏭ L2 런타임 건너뜀 — 브라우저 실행 불가(%s)' % payload.get('reason', ''))
+            print('  1차 브라우저 실행 불가(%s) — 진단 후 20초 뒤 재시도' % payload.get('reason', ''))
+            _diagnose_browser(env)
+            time.sleep(20)
+            r, out, payload = _run_runner(env)
+            if payload and not payload.get('skip'):
+                print('  ↻ 재시도 성공 — 부팅 과도기 추정(1차 실패는 무해)')
+        # 재시도도 불가면 실패가 아니라 건너뜀(REALFAIL 오탐 방지) — 단 SUMMARY·슬랙에 표면화된다.
+        if payload and payload.get('skip'):
+            print('⏭ L2 런타임 건너뜀 — 브라우저 실행 불가(재시도 포함 2회: %s)' % payload.get('reason', ''))
             return True
         t.check('브라우저 러너 정상 종료', payload is not None,
                 'exit=%s tail=%s' % (r.returncode, (out[-2:] if out else r.stderr[:200])))

@@ -136,15 +136,19 @@ strip(){ printf '%s' "$*" | sed 's/\.py//g;s/test_//g'; }
 echo "TOTAL $(fmt_dur $(($(date +%s%3N)-REG_T0)))"
 # 스위트별 "최종" 카운트(재시도가 있으면 재시도 결과)를 합산한 한 줄 요약 — nightly는 이 줄만
 # 파싱한다. 예전엔 nightly가 로그 전체를 grep해서 재시도 스위트를 이중 계수했다(감사 T3).
-CP=0; CT=0
+CP=0; CT=0; SK=0; SKN=()
 for tf in "${TESTS[@]}"; do
   f="$LOGDIR/$tf.retry.log"; [ -f "$f" ] || f="$LOGDIR/$tf.log"
+  # ⏭ = 스위트가 스스로 건너뜀(브라우저 불가 등). 조용히 빠지면 커버리지 축소를 아무도
+  # 모르므로(9-10·9-15 실측: l2_runtime이 새벽마다 빠졌는데 ✅로만 보임) 집계·표면화한다.
+  if grep -q '^⏭' "$f" 2>/dev/null; then SK=$((SK+1)); SKN+=("$tf"); fi
   nm="$(grep -oE '[0-9]+/[0-9]+ PASS' "$f" 2>/dev/null | tail -1)"
   if [ -n "$nm" ]; then
     CP=$((CP + ${nm%%/*})); d="${nm#*/}"; CT=$((CT + ${d%% *}))
   fi
 done
-echo "SUMMARY suites=${#TESTS[@]} checks=${CP}/${CT} flaky=${#FLAKY[@]} realfail=${#REALFAIL[@]}"
+echo "SUMMARY suites=${#TESTS[@]} checks=${CP}/${CT} flaky=${#FLAKY[@]} realfail=${#REALFAIL[@]} skipped=${SK}"
+[ "$SK" -gt 0 ] && echo "⏭ SKIPPED: $(strip "${SKN[*]}")"
 if [ "$l2_fail" -ne 0 ] || [ "${#REALFAIL[@]}" -gt 0 ]; then
   MARK="❌ 회귀 실패"
   [ "$l2_fail" -ne 0 ] && MARK="$MARK · L2"
@@ -153,9 +157,12 @@ if [ "$l2_fail" -ne 0 ] || [ "${#REALFAIL[@]}" -gt 0 ]; then
   echo "$MARK"
   exit 1
 elif [ "${#FLAKY[@]}" -gt 0 ]; then
-  echo "⚠ 회귀 통과(불안정 ${#FLAKY[@]}종: $(strip "${FLAKY[*]}")) — 재시도에서 통과, 경합 의심"
+  SKNOTE=""; [ "$SK" -gt 0 ] && SKNOTE=" · ⏭건너뜀 ${SK}종($(strip "${SKN[*]}"))"
+  echo "⚠ 회귀 통과(불안정 ${#FLAKY[@]}종: $(strip "${FLAKY[*]}"))${SKNOTE} — 재시도에서 통과, 경합 의심"
   exit 0
 else
-  echo "✅ 회귀 전체 PASS"
+  # '✅ 회귀 전체 PASS' 접두는 nightly grep·알람 파서가 의존하므로 유지하고 뒤에만 덧붙인다.
+  SKNOTE=""; [ "$SK" -gt 0 ] && SKNOTE=" (⏭건너뜀 ${SK}종: $(strip "${SKN[*]}"))"
+  echo "✅ 회귀 전체 PASS${SKNOTE}"
   exit 0
 fi

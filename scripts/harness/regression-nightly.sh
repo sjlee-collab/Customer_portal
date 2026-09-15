@@ -46,6 +46,8 @@ notify_slack(){
 
 cd "$WT" || { echo "워크트리 없음: $WT"; exit 1; }
 log "새벽 회귀 시작 — 워크트리 $WT"
+log "※ 이 창은 실행 동안 출력이 뜸해도 정상입니다(상세는 로그 파일로 기록). 완료되면 자동으로 닫힙니다."
+log "※ 로그: $LOG"
 
 # ── 1) 최신 origin/main으로 ff (hades는 clean이라 항상 성공해야 정상) ──
 git fetch origin -q 2>>"$LOG" || { log "git fetch 실패"; notify_slack "🌙 새벽 회귀 ❌ — git fetch 실패($WT)"; exit 1; }
@@ -97,7 +99,7 @@ else
 fi
 
 # ── 3) 회귀 실행 ──
-log "회귀 실행…"
+log "회귀 스위트 실행 중 — 약 4~6분 걸립니다. 이 창이 비어 보여도 멈춘 것이 아닙니다."
 bash "$HDIR/run-regression.sh" >>"$LOG" 2>&1; RC=$?
 SUMMARY="$(grep -E '✅ 회귀 전체 PASS|⚠ 회귀 통과\(불안정|❌ 회귀 실패' "$LOG" | tail -1)"
 FAILS="$(grep -c '^FAIL ' "$LOG" 2>/dev/null)"; FAILS="${FAILS:-0}"
@@ -115,12 +117,16 @@ SHA="$(git rev-parse --short HEAD)"
 # 실패해도 통지·종료엔 영향 없도록 오류는 삼킨다.
 {
   # PASS/FAIL 라인 + 스위트별 결과 줄을 요약으로 추린다.
-  RESULT_LINES="$(grep -E '^▶ |^[0-9]+/[0-9]+ (PASS|FAIL)|✅ 회귀 전체 PASS|❌ 실패한 테스트|FAIL ' "$LOG" | tail -60)"
+  RESULT_LINES="$(grep -E '^▶ |^[0-9]+/[0-9]+ (PASS|FAIL)|✅ 회귀 전체 PASS|❌ 실패한 테스트|FAIL |^⏭' "$LOG" | tail -60)"
   # run-regression이 스위트별 최종(재시도 반영) 카운트를 SUMMARY 한 줄로 내려준다 — 그걸 그대로
   # 쓴다. 예전엔 로그 전체 grep이라 재시도 스위트가 이중 계수돼 실패한 날 숫자가 부풀었다(T3).
   SUM_LINE="$(grep -E '^SUMMARY suites=' "$LOG" | tail -1)"
   PASSED="$(echo "$SUM_LINE" | sed -nE 's/.*checks=([0-9]+)\/[0-9]+.*/\1/p')"; PASSED="${PASSED:-0}"
   TOTAL="$(echo "$SUM_LINE" | sed -nE 's/.*checks=[0-9]+\/([0-9]+).*/\1/p')";  TOTAL="${TOTAL:-0}"
+  # 건너뜀(⏭) 표면화 — 커버리지가 조용히 줄었으면 슬랙·알람에 반드시 보이게 한다(9-10·15 실측).
+  SKIPN="$(echo "$SUM_LINE" | sed -nE 's/.*skipped=([0-9]+).*//p')"; SKIPN="${SKIPN:-0}"
+  SKIP_LIST="$(grep -E '^⏭ SKIPPED:' "$LOG" | tail -1 | sed 's/^⏭ SKIPPED: //')"
+  SKIPTAG=""; [ "$SKIPN" -gt 0 ] && SKIPTAG=" · ⏭건너뜀 ${SKIPN}종(${SKIP_LIST})"
   FLAKY_LIST="$(grep -E '^⚠ FLAKY:' "$LOG" | sed -E 's/^⚠ FLAKY: ([^ ]+).*/\1/' | paste -sd ', ' -)"
   if [ "$RC" -ne 0 ]; then
     # 진짜 실패 — 재시도도 깨진 스위트가 있다.
@@ -140,6 +146,7 @@ SHA="$(git rev-parse --short HEAD)"
     ERRMSG="🚑 사이트 스모크 실패(${SMOKE_SUM})${ERRMSG:+ · $ERRMSG}"
   fi
   HEAD="$([ "$RC" -ne 0 ] && echo "❌ FAIL(${REALFAILN}종)" || { [ "${FLAKYN:-0}" -gt 0 ] && echo "⚠ PASS(불안정 ${FLAKYN}종)" || echo '✅ PASS'; })"
+  [ "${SKIPN:-0}" -gt 0 ] && HEAD="$HEAD ⏭${SKIPN}"
   [ "$SMOKE_RC" -ne 0 ] && HEAD="🚑 스모크실패 · $HEAD"
   CONTENT="🌙 새벽 회귀 ${HEAD} — $SHA${DRIFT}${BRANCHTAG}
 
@@ -167,9 +174,9 @@ if [ "$RC" -ne 0 ]; then
 elif [ "$SMOKE_RC" -ne 0 ]; then
   notify_slack "🌙 새벽 회귀 🚑 사이트 스모크 실패(${SMOKE_SUM}) — ${SHA}${DRIFT}${BRANCHTAG} · 회귀는 통과했으나 실제 API 경로 이상 · 로그: ${LOG//\\//}"
 elif [ "${FLAKYN:-0}" -gt 0 ]; then
-  notify_slack "🌙 새벽 회귀 ⚠ PASS(불안정 ${FLAKYN}종: ${FLAKY_LIST}) — ${SHA}${DRIFT}${BRANCHTAG} · 재시도 통과, 경합 의심"
+  notify_slack "🌙 새벽 회귀 ⚠ PASS(불안정 ${FLAKYN}종: ${FLAKY_LIST})${SKIPTAG} — ${SHA}${DRIFT}${BRANCHTAG} · 재시도 통과, 경합 의심"
 else
-  notify_slack "🌙 새벽 회귀 ✅ PASS — ${SHA}${DRIFT}${BRANCHTAG} · $SUMMARY"
+  notify_slack "🌙 새벽 회귀 ✅ PASS${SKIPTAG} — ${SHA}${DRIFT}${BRANCHTAG} · $SUMMARY"
 fi
 
 # 오래된 로그 정리(30일 초과)
