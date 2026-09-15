@@ -167,6 +167,9 @@ const FORCED_IDENTITY_COLUMN = {
 // role/company_id/contract_id/is_active/email 같은 컬럼은 admin만 바꿀 수 있어야 한다
 // (안 그러면 로그인한 사용자가 자기 role을 admin으로 바꾸는 권한 상승이 그대로 통과한다).
 const SELF_EDITABLE_USER_COLUMNS = new Set(['name', 'phone', 'department', 'last_login']);
+// 비스태프가 user_manage 권한으로 남의 행을 고칠 때도 이 컬럼은 못 바꾼다 — role은 권한 상승,
+// 나머지는 다른 회사·계약·조직으로 옮기는 테넌트 이탈 경로. 스태프(sales 등)는 오늘과 동일.
+const TENANT_LOCKED_USER_COLUMNS = new Set(['role', 'company_id', 'contract_id', 'unit_id']);
 
 function getAuthz(event) {
   const a = event.requestContext?.authorizer?.lambda || {};
@@ -285,6 +288,40 @@ async function tenantRowFilterSql(table, authz, paramOffset, qs) {
   return null;
 }
 
+// ── 쓰기(PATCH/DELETE) 테넌트 가드 ──
+// 지금까지 UPDATE/DELETE는 `where id=$1`만이었고 격리는 전부 assertWriteAllowed(권한 판정)에
+// 있었다. 권한 기본값(customer·internal의 company_manage/user_manage=0)에서는 안전하지만,
+// 관리자가 권한 관리 화면에서 그 역할에 권한을 켜는 순간 타사 회사·계약·사용자 행을 id만
+// 알면 고칠 수 있었다. 여기서 "쓸 수 있는 범위 = 읽을 수 있는 범위"를 SQL로 강제한다.
+// 스코프 밖 id는 0행 매치 → 기존 404 경로로 떨어져 존재 여부도 새지 않는다.
+// tenantRowFilterSql을 통째로 재사용하지 않는 이유: 그쪽엔 [테스트] 은닉·is_public·active 폼처럼
+// "화면에 무엇을 보여줄까"용 규칙이 섞여 있어 쓰기에 그대로 걸면 의미가 왜곡된다. 회사 스코프가
+// 본질인 테이블만 명시하고, 티켓 부속 테이블은 읽기 스코프(childScope)와 정확히 같아 재사용한다.
+async function tenantWriteGuardSql(table, authz, paramOffset) {
+  const { role, userId, companyId } = authz;
+  if (STAFF_ROLES.has(role)) return null; // 스태프는 오늘과 동일 — 제한 없음
+  const none = { sql: '1=0', params: [] };
+  if (table === 'companies') {
+    return companyId ? { sql: `"id" = $${paramOffset}`, params: [companyId] } : none;
+  }
+  if (table === 'company_contracts' || table === 'company_licenses') {
+    return companyId ? { sql: `"company_id" = $${paramOffset}`, params: [companyId] } : none;
+  }
+  if (table === 'users') {
+    // 같은 회사 사용자 + 본인. 소속 미지정 계정은 본인 행만.
+    if (companyId) {
+      return userId
+        ? { sql: `("company_id" = $${paramOffset} or "id" = $${paramOffset + 1})`, params: [companyId, userId] }
+        : { sql: `"company_id" = $${paramOffset}`, params: [companyId] };
+    }
+    return userId ? { sql: `"id" = $${paramOffset}`, params: [userId] } : none;
+  }
+  if (table === 'ticket_replies' || table === 'ticket_attachments' || table === 'log_notification') {
+    return await tenantRowFilterSql(table, authz, paramOffset, {});
+  }
+  return null;
+}
+
 // 스태프가 아닌 역할(고객/internal)이 users를 조회할 때, 본인 행이 아니면 이름/역할
 // 정도만(사내 조직도 수준) 남기고 이메일·전화번호·소속회사 등 나머지 컬럼은 지운다.
 const PUBLIC_USER_COLUMNS = new Set(['id', 'name', 'role']);
@@ -364,6 +401,10 @@ async function assertWriteAllowed(table, method, authz, id, cols, body) {
     }
     return;
   }
+  // org_units·user_org_units·ticket_memos: 어느 분기에도 안 걸리는 게 의도다 — 핸들러 진입 전
+  // assertTableAccess가 스태프 역할(admin·sales·tech_support·education)만 통과시키므로 여기
+  // 도달하는 요청은 전부 스태프이고, 스태프 간에는 추가 제한을 두지 않는다(관리자 화면 전용 테이블).
+  if (STAFF_ONLY_TABLES[table]) return;
   if (table === 'users') {
     if (method === 'POST' || method === 'DELETE') {
       if (!(await hasPermission(authz.role, 'user_manage'))) {
@@ -378,6 +419,12 @@ async function assertWriteAllowed(table, method, authz, id, cols, body) {
       }
       if (!(await hasPermission(authz.role, 'user_manage'))) {
         throw new HttpError(403, '이 작업을 할 권한이 없습니다');
+      }
+      // 비스태프의 user_manage는 "같은 회사 사용자 관리"까지 — 역할·소속 컬럼은 관리자 몫.
+      // (행 범위는 tenantWriteGuardSql이 SQL에서 같은 회사로 좁힌다.)
+      if (!STAFF_ROLES.has(authz.role)) {
+        const locked = cols.find(c => TENANT_LOCKED_USER_COLUMNS.has(c));
+        if (locked) throw new HttpError(403, `"${locked}" 컬럼은 관리자만 변경할 수 있습니다`);
       }
     }
     return;
@@ -640,12 +687,17 @@ async function handlePatch(table, id, body, event) {
   if (!cols.length) throw new HttpError(400, '수정할 데이터가 없습니다');
   cols.forEach(c => assertIdent(c, 'update 컬럼'));
   assertNoBlockedWrite(table, cols);
-  await assertWriteAllowed(table, 'PATCH', getAuthz(event), id, cols, body);
+  const authz = getAuthz(event);
+  await assertWriteAllowed(table, 'PATCH', authz, id, cols, body);
   const setSql = cols.map((c, i) => `"${c}" = $${i + 1}`).join(',');
   const params = cols.map(c => bindWriteValue(table, c, body[c]));
   params.push(id);
+  let where = `id = $${params.length}`;
+  // 테넌트 가드 — 권한 판정(assertWriteAllowed)과 별개로 SQL에서 한 번 더 좁힌다(위 tenantWriteGuardSql)
+  const guard = await tenantWriteGuardSql(table, authz, params.length + 1);
+  if (guard) { where += ` and (${guard.sql})`; params.push(...guard.params); }
   const updated = await query(
-    `update "${table}" set ${setSql} where id = $${params.length} returning *`,
+    `update "${table}" set ${setSql} where ${where} returning *`,
     params
   );
   if (!updated.length) throw new HttpError(404, '대상을 찾을 수 없습니다');
@@ -654,8 +706,13 @@ async function handlePatch(table, id, body, event) {
 }
 
 async function handleDelete(table, id, event) {
-  await assertWriteAllowed(table, 'DELETE', getAuthz(event), id, []);
-  const deleted = await query(`delete from "${table}" where id = $1 returning id`, [id]);
+  const authz = getAuthz(event);
+  await assertWriteAllowed(table, 'DELETE', authz, id, []);
+  const params = [id];
+  let where = 'id = $1';
+  const guard = await tenantWriteGuardSql(table, authz, 2); // PATCH와 같은 테넌트 가드
+  if (guard) { where += ` and (${guard.sql})`; params.push(...guard.params); }
+  const deleted = await query(`delete from "${table}" where ${where} returning id`, params);
   if (!deleted.length) throw new HttpError(404, '대상을 찾을 수 없습니다');
   return json(200, { id: deleted[0].id });
 }
