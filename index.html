@@ -1511,6 +1511,8 @@ textarea{resize:vertical;min-height:100px;}
           <div class="user-menu-item" onclick="openMyPage(); closeUserMenu();">👤 내 정보</div>
           <div class="user-menu-divider"></div>
           <div class="user-menu-item" style="color:var(--red-d);" onclick="doLogout()">로그아웃</div>
+          <div class="user-menu-divider"></div>
+          <div id="user-menu-build" style="padding:8px 16px;font-size:10.5px;color:var(--faint);letter-spacing:.02em;cursor:default;" title="현재 브라우저가 받은 배포본입니다. 값이 바뀌지 않으면 캐시가 남은 것이니 Ctrl+F5로 새로 받으세요.">버전 —</div>
         </div>
       </div>
     </div>
@@ -4299,6 +4301,15 @@ textarea{resize:vertical;min-height:100px;}
 //  ⚙️  백엔드 설정 — 여기만 수정하세요
 // ══════════════════════════════════════════
 const API_BASE = 'https://8xbmazu4ij.execute-api.ap-northeast-2.amazonaws.com';
+
+// ── 배포 버전 ── Amplify 빌드가 아래 자리표시자를 "YYYY-MM-DD · <커밋7자리>"로 바꾼다
+// (amplify.yml의 sed). 치환되지 않은 채로 열리면 로컬에서 파일을 직접 연 것이다.
+// 화면에 띄우는 이유: 새로고침해도 화면이 그대로일 때 "캐시가 남았는지 / 배포가 안 됐는지"를
+// 눈으로 가릴 수 있어야 한다 — 이 값이 안 바뀌면 브라우저가 옛 파일을 쓰고 있는 것이다.
+const APP_BUILD_RAW = '__BUILD_INFO__';
+const APP_BUILD = APP_BUILD_RAW.startsWith('__') ? '미주입(로컬)' : APP_BUILD_RAW;
+window.APP_BUILD = APP_BUILD;   // 콘솔에서 바로 확인할 수 있게
+document.getElementById('user-menu-build').textContent = '버전 ' + APP_BUILD;
 const S3_BUCKET_URLS = {
   'documents':           'https://bigxdata-portal-documents.s3.ap-northeast-2.amazonaws.com',
   'ticket-attachments':  'https://bigxdata-portal-ticket-attachments.s3.ap-northeast-2.amazonaws.com',

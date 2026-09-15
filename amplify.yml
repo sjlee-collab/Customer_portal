@@ -4,7 +4,15 @@ frontend:
     preBuild:
       commands: []
     build:
-      commands: []
+      commands:
+        # 배포 버전 주입 — index.html의 __BUILD_INFO__ 자리에 "빌드일(KST) · 커밋7자리"를 심는다.
+        # 화면 사용자 메뉴 하단에 보이며, 캐시로 옛 파일을 보고 있는지 눈으로 가리는 용도다.
+        - SHA=$(echo "${AWS_COMMIT_ID:-unknown}" | cut -c1-7)
+        - BUILT=$(TZ=Asia/Seoul date +%Y-%m-%d)
+        - sed -i "s/__BUILD_INFO__/${BUILT} · ${SHA}/" index.html
+        # 주입이 안 됐으면 화면에 자리표시자가 그대로 나가므로 배포를 멈춘다
+        - if grep -q "__BUILD_INFO__" index.html; then echo "❌ 버전 주입 실패 — 자리표시자가 남아 있습니다"; exit 1; fi
+        - echo "버전 주입 완료: ${BUILT} · ${SHA}"
   artifacts:
     baseDirectory: /
     files:
