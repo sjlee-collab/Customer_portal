@@ -20,7 +20,17 @@ const SEND_EMAIL_FN = process.env.SEND_EMAIL_FN || 'customer_portal_send-email';
 const lambda = new LambdaClient({});
 
 function resp(status, body) {
-  return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+  // no-store·nosniff: 다른 Lambda(data-api·storage-api)와 같은 기준. CORS는 API Gateway 라우트
+  // 설정이 붙이므로 여기선 그대로 두고 캐시·MIME 헤더만 더한다.
+  return {
+    statusCode: status,
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-store, private',
+      'X-Content-Type-Options': 'nosniff',
+    },
+    body: JSON.stringify(body),
+  };
 }
 
 // 최초 1회 테이블 생성용 — API Gateway가 아닌 직접 invoke(`{ "__migrate": true }`)로만 동작.
