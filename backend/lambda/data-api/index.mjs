@@ -531,6 +531,10 @@ function buildWhere(table, queryParams, params) {
   for (const [col, rawVal] of Object.entries(queryParams || {})) {
     if (reserved.has(col)) continue;
     assertIdent(col, '필터 컬럼');
+    // 응답에서 지우는 컬럼(password·reset_token…)은 필터 조건으로도 못 쓴다 — 결과가 나오느냐가
+    // 참/거짓 오라클이 되어 ilike.a% → ab% … 식으로 해시를 한 글자씩 뽑아낼 수 있었다. 고객은
+    // 테넌트 필터로 본인 행만이지만 스태프는 전 사용자 행을 보므로 실질적 추출 경로였다.
+    if (BLOCKED_COLUMNS[table]?.has(col)) throw new HttpError(400, `"${col}" 컬럼은 필터로 쓸 수 없습니다`);
     const dotIdx = rawVal.indexOf('.');
     const op = dotIdx === -1 ? 'eq' : rawVal.slice(0, dotIdx);
     const val = dotIdx === -1 ? rawVal : rawVal.slice(dotIdx + 1);
@@ -609,6 +613,8 @@ async function handleGet(table, qs, event) {
   if (qs.order) {
     const [col, dir] = qs.order.split('.');
     assertIdent(col, 'order 컬럼');
+    // 정렬 위치도 값의 대소를 흘리므로 차단 컬럼으로는 정렬도 못 한다(위 필터 차단과 같은 이유).
+    if (BLOCKED_COLUMNS[table]?.has(col)) throw new HttpError(400, `"${col}" 컬럼으로는 정렬할 수 없습니다`);
     const dirSql = dir === 'desc' ? 'desc' : 'asc';
     sql += ` order by "${col}" ${dirSql}`;
   }

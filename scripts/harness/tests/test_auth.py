@@ -119,6 +119,15 @@ def run():
         mb = rm.get('body') or {}
         t.check('담당영업 조회 200 + 구조', rm.get('status') == 200 and 'name' in mb and 'email' in mb,
                 'status=%s keys=%s' % (rm.get('status'), sorted(mb)))
+
+        # ── 차단 컬럼(password) 필터·정렬 오라클 차단 — 스태프가 전 사용자 행에 ilike.a% → ab% …로
+        #    해시를 한 글자씩 뽑던 경로. 응답 차단(BLOCKED_COLUMNS)만 있고 필터는 열려 있었다.
+        rf = dget('users', {'select': 'id', 'password': 'ilike.a%', 'limit': '1'}, role='sales')
+        t.check('password 필터 → 400', rf.get('status') == 400, 'status=%s body=%s' % (rf.get('status'), rf.get('body')))
+        ro = dget('users', {'select': 'id', 'order': 'password.asc', 'limit': '1'}, role='sales')
+        t.check('password 정렬 → 400', ro.get('status') == 400, 'status=%s body=%s' % (ro.get('status'), ro.get('body')))
+        rt = dget('users', {'select': 'id', 'reset_token': 'is.not.null', 'limit': '1'}, role='sales')
+        t.check('reset_token 필터 → 400', rt.get('status') == 400, 'status=%s' % rt.get('status'))
     finally:
         if staff_id: ddel('users', staff_id, role='admin')
         if uid: ddel('users', uid, role='admin')
