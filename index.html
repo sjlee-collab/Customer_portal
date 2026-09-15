@@ -7800,7 +7800,11 @@ function fmtTimeSec(iso) {
 }
 function escHtml(s) {
   if (!s) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // 따옴표까지 바꾼다 — 이 함수 결과가 onclick="fn('${escHtml(x)}')" 같은 속성 안 JS 문자열에도
+  // 들어가는데, 거기선 '가 문자열을, "가 속성을 탈출시킨다(첨부 파일명 등 사용자 입력 22곳).
+  // 브라우저가 속성 값을 파싱할 때 엔티티를 원문으로 되돌리므로 함수는 원래 값을 그대로 받는다.
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 // DB 오류(영문)를 사용자용 한글 안내로 변환 — 삭제 차단(FK 참조) 오류가 대부분이다.
