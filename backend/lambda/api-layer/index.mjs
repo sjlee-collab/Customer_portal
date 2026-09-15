@@ -18,6 +18,16 @@ const JWT_SECRET = process.env.JWT_SECRET;
 // 클라이언트의 절대 세션 만료(SESSION_ABSOLUTE_LIMIT_MS, index.html)와 맞춤 — 토큰이
 // 화면상 "로그인 유지" 시간보다 먼저 만료되면 만료 안내 없이 API가 갑자기 401나기 시작한다.
 const TOKEN_TTL_SECONDS = 8 * 60 * 60;
+// ── 계정 잠금 (무차별 대입 방어) ──
+// 연속 실패 LOGIN_MAX_FAILS회면 LOGIN_LOCK_MINUTES분 잠금. 잠금 중엔 비밀번호를 검증하지 않고
+// 일반 실패와 **같은 401**을 준다 — "잠겼다"고 알려주면 계정 존재와 임계값을 공격자에게 확인해
+// 주는 꼴이다. 5회/15분 근거: 사람이 연속 5번 틀리는 일은 드물고, 자동화엔 시도당 3분이 돼
+// 흔한 비밀번호 1,000개에 50시간이 든다. 성공·비밀번호 변경·재설정 완료·관리자 재설정 시 리셋.
+const LOGIN_MAX_FAILS = 5;
+const LOGIN_LOCK_MINUTES = 15;
+// 재설정 메일 재요청 쿨다운 — 존재가 확인된 주소로 request-reset을 반복하면 메일 폭탄이 된다.
+// 쿨다운 안의 재요청은 200을 그대로 주되 토큰 발급·메일 발송을 조용히 생략한다.
+const RESET_REQUEST_COOLDOWN_MS = 15 * 60 * 1000;
 
 const lambda = new LambdaClient({});
 const SELF_FN = process.env.AWS_LAMBDA_FUNCTION_NAME;
@@ -1043,7 +1053,7 @@ async function login(body) {
   if (!email || !password) return json(400, { error: 'email, password는 필수입니다' });
 
   const rows = await query(
-    'select id, name, role, company_id, contract_id, unit_id, phone, is_active, password from users where email=$1',
+    'select id, name, role, company_id, contract_id, unit_id, phone, is_active, password, failed_logins, locked_until from users where email=$1',
     [email]
   );
   const user = rows[0];
@@ -1054,10 +1064,34 @@ async function login(body) {
   // 비밀번호가 아예 설정되지 않은 계정(관리자가 막 등록한 신규 계정 등)은 무슨 비밀번호를
   // 넣어도 통과되던 구멍이 있었다 — 반드시 비밀번호 재설정을 먼저 거치게 막는다.
   if (!stored) return json(403, { error: '비밀번호가 설정되지 않은 계정입니다. "비밀번호를 잊으셨나요?"로 먼저 설정해주세요.' });
-  if (!checkPassword(password, stored)) return json(401, { error: '비밀번호가 올바르지 않습니다.' });
-  // 예전 형식(평문 또는 salt 없는 SHA-256)으로 저장돼 있었다면 로그인 성공 시점에 scrypt로 승격
+
+  // ── 잠금 중: 정답이어도 검증하지 않고 일반 실패와 같은 401. 카운터도 건드리지 않는다
+  //    (잠금을 연장해 주면 공격자가 피해자 계정을 무한히 잠가둘 수 있다 — 창이 지나면 자연 해제).
+  if (user.locked_until && new Date(user.locked_until).getTime() > Date.now()) {
+    console.log(`[login] 잠금 중 시도 user=${user.id}`);
+    return json(401, { error: '비밀번호가 올바르지 않습니다.' });
+  }
+  if (!checkPassword(password, stored)) {
+    // 실패 카운트는 DB에서 원자적으로 올린다 — Lambda가 동시에 여러 개 떠도 새지 않는다.
+    // 임계값에 닿는 그 시도에서 locked_until을 함께 심는다.
+    const r = await query(
+      `update users
+          set failed_logins = coalesce(failed_logins, 0) + 1,
+              locked_until  = case when coalesce(failed_logins, 0) + 1 >= $2
+                                   then now() + make_interval(mins => $3::int)
+                                   else locked_until end
+        where id = $1
+        returning failed_logins, locked_until`,
+      [user.id, LOGIN_MAX_FAILS, LOGIN_LOCK_MINUTES]
+    );
+    if (r[0]?.locked_until) console.log(`[login] 계정 잠금 user=${user.id} fails=${r[0].failed_logins} until=${r[0].locked_until}`);
+    return json(401, { error: '비밀번호가 올바르지 않습니다.' });
+  }
+  // 성공: 실패 카운터·잠금 리셋. 예전 형식(평문 또는 salt 없는 SHA-256)이면 scrypt 승격도 같은 UPDATE에.
   if (!isScryptHash(stored)) {
-    await query('update users set password=$1 where id=$2', [hashPassword(password), user.id]);
+    await query('update users set password=$1, failed_logins=0, locked_until=null where id=$2', [hashPassword(password), user.id]);
+  } else if ((user.failed_logins || 0) > 0 || user.locked_until) {
+    await query('update users set failed_logins=0, locked_until=null where id=$1', [user.id]);
   }
 
   const companyName = await getCompanyName(user.company_id);
@@ -2015,7 +2049,8 @@ async function changePassword(event, body) {
   }
   // stored가 없는(비밀번호 미설정) 계정은 로그인 자체가 안 되므로 여기 도달할 수 없다.
 
-  await query('update users set password=$1 where id=$2', [hashPassword(newPassword), userId]);
+  // 현재 비밀번호를 증명했으므로 실패 카운터·잠금도 함께 푼다 — 잠긴 사용자가 스스로 복구하는 경로.
+  await query('update users set password=$1, failed_logins=0, locked_until=null where id=$2', [hashPassword(newPassword), userId]);
   return json(200, { ok: true });
 }
 
@@ -2024,15 +2059,23 @@ async function requestPasswordReset(body) {
   const { email } = body;
   if (!email) return json(400, { error: 'email은 필수입니다' });
 
-  const rows = await query('select id, name, is_active from users where email=$1', [email]);
+  const rows = await query('select id, name, is_active, reset_requested_at from users where email=$1', [email]);
   const user = rows[0];
   if (!user || user.is_active === false) {
     return json(404, { error: '등록된 이메일이 아닙니다.' });
   }
 
+  // 쿨다운 안의 재요청: 200은 그대로, 토큰·메일은 생략(메일 폭탄 방지). 직전 토큰이 아직
+  // 유효하므로 사용자는 이미 받은 메일로 진행할 수 있다.
+  const last = user.reset_requested_at ? new Date(user.reset_requested_at).getTime() : 0;
+  if (last && Date.now() - last < RESET_REQUEST_COOLDOWN_MS) {
+    console.log(`[request-reset] 쿨다운 중 재요청 생략 user=${user.id}`);
+    return json(200, { ok: true });
+  }
+
   const token = randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS).toISOString();
-  await query('update users set reset_token=$1, reset_token_expires_at=$2 where id=$3', [token, expiresAt, user.id]);
+  await query('update users set reset_token=$1, reset_token_expires_at=$2, reset_requested_at=now() where id=$3', [token, expiresAt, user.id]);
   await notifyEmail({ type: 'PASSWORD_RESET', toEmail: email, userName: user.name, token });
   return json(200, { ok: true });
 }
@@ -2113,7 +2156,8 @@ async function adminResetPassword(body, event) {
 
   const token = randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS).toISOString();
-  await query('update users set reset_token=$1, reset_token_expires_at=$2 where id=$3',
+  // 관리자가 개입한 것이므로 로그인 잠금도 함께 푼다(잠긴 고객을 관리자가 풀어주는 경로).
+  await query('update users set reset_token=$1, reset_token_expires_at=$2, failed_logins=0, locked_until=null where id=$3',
     [token, expiresAt, target.id]);
   // 누가 누구에게 재설정을 걸었는지는 남겨야 사후 추적이 된다(별도 감사 테이블은 아직 없음).
   console.log(`[admin-reset] by=${authz.userId} role=${authz.role} target=${target.email}`);
@@ -2137,7 +2181,8 @@ async function resetPassword(body) {
   if (newPassword.length < 8) return json(400, { error: '비밀번호는 8자 이상이어야 합니다.' });
 
   const updated = await query(
-    `update users set password=$1, reset_token=null, reset_token_expires_at=null
+    `update users set password=$1, reset_token=null, reset_token_expires_at=null,
+            failed_logins=0, locked_until=null
      where reset_token=$2 and reset_token_expires_at > now() returning id`,
     [hashPassword(newPassword), token]
   );
