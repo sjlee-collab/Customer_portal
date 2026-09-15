@@ -75,7 +75,20 @@ const STATUS_KO = {
 };
 
 function json(statusCode, body) {
-  return { statusCode, headers: { ...corsHeaders(currentEvent), 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+  // no-store: 로그인 응답(JWT·이름·전화)과 티켓·통계 JSON이 브라우저 캐시에 남지 않게. nosniff:
+  // 프론트(customHttp.yml)엔 있지만 API 응답엔 없던 헤더 — data-api·storage-api·public-inquiry와
+  // 같은 기준(2026-09-15). 프론트는 조건부 요청·cache 옵션·응답 헤더 읽기가 없어 동작 변화 없음.
+  // OPTIONS 프리플라이트(2918행)와 deferred 자기호출 응답(2876행)은 이 헬퍼를 거치지 않는다.
+  return {
+    statusCode,
+    headers: {
+      ...corsHeaders(currentEvent),
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-store, private',
+      'X-Content-Type-Options': 'nosniff',
+    },
+    body: JSON.stringify(body),
+  };
 }
 
 async function getTicket(id) {
