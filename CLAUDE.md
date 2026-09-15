@@ -113,7 +113,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | `bash scripts/harness/promote.sh` | main → dev/Design/QA ff 전파 + SHA 일치 검증 |
 | `bash scripts/harness/email-safe.sh on\|off\|status` | 운영 상태 리셋(잔여 리다이렉트/태그 env 제거). 테스트 격리는 자동 — **메일=temail() 싱크 수신자**, **슬랙=`[테스트]` 제목/기업명 자동 라우팅**(`SLACK_WEBHOOK_TEST`) |
 | `bash scripts/harness/sweep.sh [--delete]` | `[테스트]` 라벨 잔여 데이터 청소 |
-| `bash scripts/harness/release.sh [--dry-run]` | 오늘자 릴리스 태그(`vYYYY.MM.DD`) + `CHANGELOG.md` 갱신 — origin/main을 태그한다 |
+| `bash scripts/harness/release.sh [--dry-run] <major\|minor\|patch>` | 릴리스 태그(SemVer `vX.Y.Z`) + `CHANGELOG.md`·`VERSION` 갱신 — origin/main을 태그한다. major=고객 공지 필요·되돌릴 수 없는 스키마, minor=하위호환 기능 추가, patch=수정·문구·성능 |
 
 **테스트 데이터 규칙(필수)**: 하네스가 만드는 모든 데이터는 이름/제목에 `[테스트]` 라벨을 붙인다(`lib/itest.py`의 `tname()`/`temail()`). 실 고객에게 메일이 가면 안 되므로 주소는 `temail()`의 sink를 쓴다. 정리는 각 테스트의 `finally` + `sweep.sh`이며, 라벨 없는 운영 데이터는 절대 건드리지 않는다.
 
