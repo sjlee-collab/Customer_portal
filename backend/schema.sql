@@ -68,7 +68,12 @@ create table public.users (
   updated_at    timestamptz not null default now(),
   password      text,
   contract_id   uuid,
-  unit_id       uuid
+  unit_id       uuid,
+  -- 로그인 잠금(2026-09-15): 연속 실패 5회 → 15분 잠금. 성공·비번 변경·재설정 완료·관리자 재설정 시 리셋.
+  failed_logins       integer not null default 0,
+  locked_until        timestamptz,
+  -- 재설정 메일 재요청 쿨다운(15분) 판정용 — 마지막으로 토큰을 발급한 시각
+  reset_requested_at  timestamptz
 );
 comment on table public.users is '포탈 사용자 (고객사 담당자 및 내부 직원)';
 comment on column public.users.role is 'customer=고객사 사용자 / internal=내부 일반 / tech_support=기술지원 담당 / sales=영업 담당 / education=교육 담당 / admin=시스템 관리자';
