@@ -37,7 +37,18 @@ function corsHeaders(event) {
 let currentEvent = null;
 
 function json(statusCode, body) {
-  return { statusCode, headers: { ...corsHeaders(currentEvent), 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+  // no-store: 개인정보·서명 URL이 담긴 JSON이 브라우저 캐시에 남지 않게. nosniff: 프론트(customHttp.yml)엔
+  // 있지만 API 응답엔 없던 헤더. 프론트는 조건부 요청·cache 옵션을 쓰지 않아 동작 변화 없음.
+  return {
+    statusCode,
+    headers: {
+      ...corsHeaders(currentEvent),
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-store, private',
+      'X-Content-Type-Options': 'nosniff',
+    },
+    body: JSON.stringify(body),
+  };
 }
 
 function resolveBucket(logicalName) {
@@ -198,7 +209,11 @@ async function handleSignedUrl(body, event) {
   if (!allowed) return json(403, { error: '이 파일에 접근할 권한이 없습니다' });
   const Bucket = resolveBucket(bucket);
   const cmd = new GetObjectCommand({ Bucket, Key: path });
-  const signedUrl = await getSignedUrl(s3, cmd, { expiresIn: expiresIn || 60 });
+  // 만료는 클라이언트 요청값을 쓰되 상한을 건다 — 상한이 없으면 임시 자격증명 수명(수 시간)까지
+  // 유효한 다운로드 링크를 만들어 외부로 넘길 수 있었다. 300은 현재 프론트가 요청하는 최대값
+  // (FAQ 이미지 재서명)이자 업로드 URL과 같은 값이라 기존 동작은 그대로다.
+  const ttl = Math.min(Math.max(parseInt(expiresIn, 10) || 60, 1), 300);
+  const signedUrl = await getSignedUrl(s3, cmd, { expiresIn: ttl });
   return json(200, { signedUrl });
 }
 

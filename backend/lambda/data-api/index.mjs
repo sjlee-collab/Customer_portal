@@ -418,7 +418,19 @@ class HttpError extends Error {
 let currentEvent = null;
 
 function json(statusCode, body) {
-  return { statusCode, headers: { ...corsHeaders(currentEvent), 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+  // no-store: 이름·전화·이메일·티켓 본문이 담긴 JSON이 브라우저 캐시에 남지 않게. nosniff: 프론트
+  // (customHttp.yml)엔 있지만 API 응답엔 없던 헤더. 프론트는 조건부 요청·cache 옵션을 쓰지 않아
+  // 동작 변화 없음. OPTIONS 프리플라이트는 이 헬퍼를 거치지 않으므로 CORS도 무관.
+  return {
+    statusCode,
+    headers: {
+      ...corsHeaders(currentEvent),
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-store, private',
+      'X-Content-Type-Options': 'nosniff',
+    },
+    body: JSON.stringify(body),
+  };
 }
 
 // "col1,col2,alias:fk(col1,col2)" 를 최상위 콤마 기준으로 분리 (괄호 안 콤마는 무시)
