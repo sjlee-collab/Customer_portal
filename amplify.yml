@@ -12,9 +12,12 @@ frontend:
         #   PyYAML은 같은 파일을 통과시키므로 로컬 파싱 성공을 믿지 말고 각 명령을 작은따옴표로 감쌀 것.
         - 'SHA=$(echo "${AWS_COMMIT_ID:-unknown}" | cut -c1-7)'
         - 'BUILT=$(TZ=Asia/Seoul date +%Y-%m-%d)'
-        - 'sed -i "s/__BUILD_INFO__/${BUILT} · ${SHA}/" index.html'
+        # 릴리스 번호(SemVer)는 release.sh가 레포 루트 VERSION 파일에 남긴다. 빌드 환경에는
+        # 태그가 안 보일 수 있어 파일로 읽는다. 파일이 없으면 날짜·커밋만 표기(기존 동작).
+        - 'VER=$(cat VERSION 2>/dev/null || true)'
+        - 'sed -i "s/__BUILD_INFO__/${VER:+v${VER} · }${BUILT} · ${SHA}/" index.html'
         # 주입이 실패해도 화면은 "미주입(로컬)"로 뜰 뿐이라 배포를 막지 않는다 — 빌드 로그에만 남긴다
-        - 'if grep -q "__BUILD_INFO__" index.html; then echo "[경고] 버전 주입 실패 - 자리표시자가 남아 있습니다"; else echo "[버전 주입] ${BUILT} · ${SHA}"; fi'
+        - 'if grep -q "__BUILD_INFO__" index.html; then echo "[경고] 버전 주입 실패 - 자리표시자가 남아 있습니다"; else echo "[버전 주입] ${VER:+v${VER} · }${BUILT} · ${SHA}"; fi'
   artifacts:
     baseDirectory: /
     files:
