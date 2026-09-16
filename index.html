@@ -6158,12 +6158,10 @@ async function showDetail(ticket) {
 
     await loadTickets();
 
-    // 대상 요청이 있는 페이지로 옮겨야 그 행이 실제로 DOM에 그려져서 펼칠 수 있다.
-    const idx = allTickets.findIndex(t => t.id === ticket.id);
-    if (idx !== -1) tkPage = Math.floor(idx / TK_PAGE_SIZE) + 1;
+    // 대상 요청으로 이동·펼치기는 렌더러(applyTicketFilter)에 맡긴다 — 여기서 페이지를 미리
+    // 계산하면 그 안의 필터 변경 리셋이 값을 1로 덮어써서 행을 못 찾는다(스태프 화면과 동일).
+    tkJumpTicketId = ticket.id;
     applyTicketFilter();
-
-    openRequestRowById(ticket.id);
     return;
   }
 
@@ -7222,6 +7220,8 @@ async function loadTickets() {
 let tkPage = 1;
 let tkLastFilterKey = null;
 const TK_PAGE_SIZE = 20;
+// 홈 "최근 요청건"에서 클릭해 넘어올 때 펼칠 요청 — 스태프 화면의 arJumpTicketId와 같은 역할.
+let tkJumpTicketId = null;
 
 function changeTkPage(delta) {
   tkPage += delta;
@@ -7253,6 +7253,13 @@ function applyTicketFilter() {
   const filterKey = JSON.stringify([q, ticketFilter, tkFilters.category, tkFilters.priority, tkFilters.status]);
   if (filterKey !== tkLastFilterKey) { tkPage = 1; tkLastFilterKey = filterKey; }
 
+  // 펼칠 요청이 지정돼 있으면 지금 렌더할 목록(filtered) 기준으로 페이지를 정한다.
+  if (tkJumpTicketId) {
+    const jumpIdx = filtered.findIndex(t => t.id === tkJumpTicketId);
+    if (jumpIdx !== -1) tkPage = Math.floor(jumpIdx / TK_PAGE_SIZE) + 1;
+    else tkJumpTicketId = null;
+  }
+
   const totalPages = Math.max(1, Math.ceil(filtered.length / TK_PAGE_SIZE));
   tkPage = Math.min(Math.max(1, tkPage), totalPages);
   const pageItems = filtered.slice((tkPage - 1) * TK_PAGE_SIZE, tkPage * TK_PAGE_SIZE);
@@ -7265,6 +7272,13 @@ function applyTicketFilter() {
   if (pageCount) pageCount.textContent = totalPages;
 
   renderTickets(pageItems);
+
+  // 행이 그려진 뒤에 펼친다. 1회성 — 이후 재렌더에서 다시 펼치지 않도록 먼저 비운다.
+  if (tkJumpTicketId) {
+    const jumpId = tkJumpTicketId;
+    tkJumpTicketId = null;
+    openRequestRowById(jumpId, { scroll: true });
+  }
 }
 
 // 요청 아코디언에 열려 있던 공용 상세 패널(rd-detail-content)이 tbody를 통째로 갈아끼울 때
@@ -7395,12 +7409,14 @@ function toggleTicketRow(tr, ticket) {
   selectRdTicket(null, ticket);
 }
 
-function openRequestRowById(ticketId) {
+function openRequestRowById(ticketId, opts) {
   const row = document.querySelector(`#ticket-tbody tr.ticket-row[data-id="${ticketId}"]`);
   if (!row) return;
   const idx = allTickets.findIndex(t => t.id === ticketId);
   if (idx === -1) return;
   toggleTicketRow(row, allTickets[idx]);
+  // 펼쳐도 화면 밖이면 안 열린 것처럼 보인다 — 홈에서 넘어온 경우만 대상 행으로 이동.
+  if (opts && opts.scroll) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
 }
 
 // ══════════════════════════════════════════
@@ -13645,6 +13661,10 @@ async function arAutoRefreshTick() {
 let arPage = 1;
 let arLastFilterKey = null;
 const AR_PAGE_SIZE = 20;
+// 홈에서 요청을 클릭해 넘어올 때 "이 요청을 펼쳐라"를 렌더러에 넘기는 1회성 신호.
+// 호출 쪽에서 페이지를 계산하지 않는다 — renderAllTickets의 필터 리셋이 그 값을 1로 덮어써서
+// 대상 행이 DOM에 없어지고 아코디언이 조용히 안 열렸다(2026-09-16).
+let arJumpTicketId = null;
 
 function changeArPage(delta) {
   arPage += delta;
@@ -13692,6 +13712,14 @@ function renderAllTickets() {
   // 검색어/필터가 실제로 바뀐 경우에만 1페이지로 리셋 (저장 후 재조회 등에는 현재 페이지 유지)
   const filterKey = JSON.stringify([q, arHideTest, arFilters.category, arFilters.priority, arFilters.status, arFilters.company, arFilters.requester, arFilters.assignee]);
   if (filterKey !== arLastFilterKey) { arPage = 1; arLastFilterKey = filterKey; }
+
+  // 펼칠 요청이 지정돼 있으면, 지금 실제로 렌더할 목록(list)에서 몇 번째인지로 페이지를 정한다.
+  // 필터에 걸려 목록에 없으면 펼칠 대상도 없으므로 신호를 버린다.
+  if (arJumpTicketId) {
+    const jumpIdx = list.findIndex(t => t.id === arJumpTicketId);
+    if (jumpIdx !== -1) arPage = Math.floor(jumpIdx / AR_PAGE_SIZE) + 1;
+    else arJumpTicketId = null;
+  }
 
   const countEl = document.getElementById('ar-count');
   if (countEl) {
@@ -13745,6 +13773,13 @@ function renderAllTickets() {
     </tr>
     <tr class="ar-spacer" style="display:none;"><td colspan="${span}" style="padding:0;border:none;height:14px;"></td></tr>`;
   }).join('');
+
+  // 행이 그려진 뒤에야 펼칠 수 있다. 1회성 — 자동 새로고침 렌더가 다시 펼치지 않도록 먼저 비운다.
+  if (arJumpTicketId) {
+    const jumpId = arJumpTicketId;
+    arJumpTicketId = null;
+    openAllTicketRowById(jumpId, { scroll: true });
+  }
 }
 
 let rdTicket = null;
@@ -13790,12 +13825,15 @@ function toggleAllTicketRow(tr, ticket) {
   selectRdTicket(null, ticket);
 }
 
-function openAllTicketRowById(ticketId) {
+function openAllTicketRowById(ticketId, opts) {
   const row = document.querySelector(`#ar-tbody tr.ticket-row[data-id="${ticketId}"]`);
   if (!row) return;
   const idx = allMgTickets.findIndex(t => t.id === ticketId);
   if (idx === -1) return;
   toggleAllTicketRow(row, allMgTickets[idx]);
+  // 한 페이지 20행 중 아래쪽 행은 펼쳐도 화면 밖이라 "안 열렸다"로 보인다.
+  // 저장 후 다시 펼치는 경로는 이미 보이는 자리라 건드리지 않는다 — 홈에서 넘어온 경우만 이동.
+  if (opts && opts.scroll) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
 }
 
 // 홈 화면(처리 대기 요청 등)에서 "요청 관리"로 이동해 해당 티켓의 아코디언을 펼침
@@ -13818,15 +13856,10 @@ async function goToManageTicket(ticketId) {
   document.querySelectorAll('#p-all-requests .th-filter-pop input[type=checkbox]').forEach(el => el.checked = false);
   updateArFilterButtonStates();
 
-  // 대상 티켓이 있는 페이지로 옮겨야 그 행이 실제로 DOM에 그려져서 펼칠 수 있다.
-  const ROLE_ALLOWED_CATS_HOME = {}; // 스태프 전 카테고리 조회 — 카테고리 제한 없음
-  const allowedCats = ROLE_ALLOWED_CATS_HOME[currentUser?.role] || null;
-  const visibleList = allowedCats ? allMgTickets.filter(t => allowedCats.includes(t.category)) : allMgTickets;
-  const idx = visibleList.findIndex(t => t.id === ticketId);
-  if (idx !== -1) arPage = Math.floor(idx / AR_PAGE_SIZE) + 1;
+  // 대상 요청으로 이동·펼치기는 렌더러에 맡긴다. 여기서 페이지를 미리 계산하면 바로 아래
+  // renderAllTickets의 필터 변경 리셋이 그 값을 1로 덮어써서 행을 못 찾는다.
+  arJumpTicketId = ticketId;
   renderAllTickets();
-
-  openAllTicketRowById(ticketId);
   startArAutoRefresh();
 }
 
