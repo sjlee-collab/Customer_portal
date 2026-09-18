@@ -42,7 +42,8 @@ def run():
 
         # ── 로그인 살아있음(순단 검출) + 분기 ──
         r1 = api('POST', '/auth/login', {'email': '__no_such_user__@example.com', 'password': 'x'})
-        t.check('미등록 이메일 404', r1.get('status') == 404, 'status=%s' % r1.get('status'))
+        # 2026-09-18: 미등록도 401·같은 문구(이메일 존재 오라클 차단, 상세는 test_email_oracle)
+        t.check('미등록 이메일 401(균일 응답)', r1.get('status') == 401, 'status=%s' % r1.get('status'))
         r2 = api('POST', '/auth/login', {'email': temail('authcust'), 'password': 'wrong-pw'})
         t.check('틀린 비밀번호 401', r2.get('status') == 401, 'status=%s' % r2.get('status'))
 
@@ -109,7 +110,7 @@ def run():
         rq = api('POST', '/auth/request-reset', {})
         t.check('재설정 요청 email 누락 400', rq.get('status') == 400, 'status=%s' % rq.get('status'))
         rq = api('POST', '/auth/request-reset', {'email': '__no_such__@example.com'})
-        t.check('재설정 요청 미등록 404(현행·열거 갭)', rq.get('status') == 404, 'status=%s' % rq.get('status'))
+        t.check('재설정 요청 미등록 200(균일 응답·메일 없음)', rq.get('status') == 200, 'status=%s' % rq.get('status'))
         # 이 테스트가 만든 발송 로그는 티켓이 없어 sweep이 못 지우므로 직접 정리
         for r in new_mails:
             ddel('log_notification', r['id'], role='admin')

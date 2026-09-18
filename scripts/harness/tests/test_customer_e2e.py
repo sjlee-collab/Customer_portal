@@ -81,7 +81,7 @@ def run():
 
         # 10) 로그인 엔드포인트(비파괴)
         ls = invoke('api', {'requestContext': {'http': {'method': 'POST'}}, 'rawPath': '/auth/login', 'body': json.dumps({'email': 'zz-nope@example.com', 'password': 'x'})})
-        t.check('로그인 엔드포인트 정상(없는계정 404)', ls.get('status') == 404, 'status=%s' % ls.get('status'))
+        t.check('로그인 엔드포인트 정상(없는계정 401·균일 응답)', ls.get('status') == 401, 'status=%s' % ls.get('status'))
 
         # --- 보안 차단(있어야 함) ---
         if myTid:

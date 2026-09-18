@@ -28,6 +28,11 @@ const LOGIN_LOCK_MINUTES = 15;
 // 재설정 메일 재요청 쿨다운 — 존재가 확인된 주소로 request-reset을 반복하면 메일 폭탄이 된다.
 // 쿨다운 안의 재요청은 200을 그대로 주되 토큰 발급·메일 발송을 조용히 생략한다.
 const RESET_REQUEST_COOLDOWN_MS = 15 * 60 * 1000;
+// 로그인 거부는 사유(미등록·비활성·비번 미설정·잠금·비번 오류)와 무관하게 **같은 401·같은 문구**로
+// 답한다(2026-09-18). 예전엔 미등록 404/비활성 403/미설정 403으로 갈려, 로그인 폼만으로 아무 이메일의
+// 가입 여부를 알 수 있었다(이메일 존재 오라클 — 피싱 표적 선별·비번 대입 표적 압축에 쓰인다).
+// 실제 사유는 CloudWatch 로그에만 남긴다(지원 시 조회).
+const LOGIN_FAIL_MSG = '이메일 또는 비밀번호가 올바르지 않습니다.';
 
 const lambda = new LambdaClient({});
 const SELF_FN = process.env.AWS_LAMBDA_FUNCTION_NAME;
@@ -52,6 +57,13 @@ function hashPassword(pw) {
   const salt = randomBytes(16);
   const hash = scryptSync(pw, salt, 64);
   return `scrypt$${salt.toString('hex')}$${hash.toString('hex')}`;
+}
+// 미등록 이메일 시도에도 scrypt 1회를 태워 등록 계정(비번 오류)과 응답 시간을 맞춘다 — 시간차로
+// 존재 여부를 재는 오라클을 막기 위함. 모듈 로드 때 한 번만 만든다.
+let DUMMY_HASH_CACHE = null;
+function burnDummyCheck(pw) {
+  if (!DUMMY_HASH_CACHE) DUMMY_HASH_CACHE = hashPassword('dummy-timing-equalizer');
+  checkPassword(pw, DUMMY_HASH_CACHE);
 }
 function isScryptHash(pw) { return typeof pw === 'string' && /^scrypt\$[0-9a-f]{32}\$[0-9a-f]{128}$/.test(pw); }
 function isSha256Hash(pw) { return typeof pw === 'string' && /^[0-9a-f]{64}$/.test(pw); }
@@ -1089,19 +1101,34 @@ async function login(body) {
     [email]
   );
   const user = rows[0];
-  if (!user) return json(404, { error: '등록되지 않은 계정입니다. 담당자에게 문의하세요.' });
-  if (user.is_active === false) return json(403, { error: '비활성화된 계정입니다. 담당자에게 문의하세요.' });
+  // 아래 거부 네 갈래는 전부 같은 401·LOGIN_FAIL_MSG — 사유는 로그로만(위 상수 주석 참고).
+  if (!user) {
+    burnDummyCheck(password); // 등록 계정의 scrypt 검증 시간과 맞춤
+    console.log(`[login] 거부 reason=no_user domain=${String(email).split('@')[1] || '-'}`);
+    return json(401, { error: LOGIN_FAIL_MSG });
+  }
+  if (user.is_active === false) {
+    burnDummyCheck(password);
+    console.log(`[login] 거부 reason=inactive user=${user.id}`);
+    return json(401, { error: LOGIN_FAIL_MSG });
+  }
 
   const stored = user.password;
   // 비밀번호가 아예 설정되지 않은 계정(관리자가 막 등록한 신규 계정 등)은 무슨 비밀번호를
-  // 넣어도 통과되던 구멍이 있었다 — 반드시 비밀번호 재설정을 먼저 거치게 막는다.
-  if (!stored) return json(403, { error: '비밀번호가 설정되지 않은 계정입니다. "비밀번호를 잊으셨나요?"로 먼저 설정해주세요.' });
+  // 넣어도 통과되던 구멍이 있었다 — 반드시 비밀번호 재설정을 먼저 거치게 막는다. 안내 문구는
+  // 존재를 드러내므로 주지 않는다; 사용자는 "비밀번호를 잊으셨나요?"(재설정 요청)로 설정할 수 있다.
+  if (!stored) {
+    burnDummyCheck(password);
+    console.log(`[login] 거부 reason=no_password user=${user.id}`);
+    return json(401, { error: LOGIN_FAIL_MSG });
+  }
 
   // ── 잠금 중: 정답이어도 검증하지 않고 일반 실패와 같은 401. 카운터도 건드리지 않는다
   //    (잠금을 연장해 주면 공격자가 피해자 계정을 무한히 잠가둘 수 있다 — 창이 지나면 자연 해제).
   if (user.locked_until && new Date(user.locked_until).getTime() > Date.now()) {
+    burnDummyCheck(password);
     console.log(`[login] 잠금 중 시도 user=${user.id}`);
-    return json(401, { error: '비밀번호가 올바르지 않습니다.' });
+    return json(401, { error: LOGIN_FAIL_MSG });
   }
   if (!checkPassword(password, stored)) {
     // 실패 카운트는 DB에서 원자적으로 올린다 — Lambda가 동시에 여러 개 떠도 새지 않는다.
@@ -1117,7 +1144,7 @@ async function login(body) {
       [user.id, LOGIN_MAX_FAILS, LOGIN_LOCK_MINUTES]
     );
     if (r[0]?.locked_until) console.log(`[login] 계정 잠금 user=${user.id} fails=${r[0].failed_logins} until=${r[0].locked_until}`);
-    return json(401, { error: '비밀번호가 올바르지 않습니다.' });
+    return json(401, { error: LOGIN_FAIL_MSG });
   }
   // 성공: 실패 카운터·잠금 리셋. 예전 형식(평문 또는 salt 없는 SHA-256)이면 scrypt 승격도 같은 UPDATE에.
   if (!isScryptHash(stored)) {
@@ -2111,8 +2138,12 @@ async function requestPasswordReset(body) {
 
   const rows = await query('select id, name, is_active, reset_requested_at from users where email=$1', [email]);
   const user = rows[0];
+  // 미등록·비활성도 **200 {ok:true}** — 프론트는 어느 경우든 "재설정 링크를 보내드렸습니다"를 띄운다
+  // (2026-09-18). 예전 404 '등록된 이메일이 아닙니다'는 비인증 이메일 존재 오라클이었다.
+  // 메일은 등록·활성 계정에만 가므로, 답은 그 주소의 주인만 받는다.
   if (!user || user.is_active === false) {
-    return json(404, { error: '등록된 이메일이 아닙니다.' });
+    console.log(`[request-reset] 거부(균일 200) reason=${!user ? 'no_user' : 'inactive'}`);
+    return json(200, { ok: true });
   }
 
   // 쿨다운 안의 재요청: 200은 그대로, 토큰·메일은 생략(메일 폭탄 방지). 직전 토큰이 아직

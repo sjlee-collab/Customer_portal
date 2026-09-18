@@ -61,18 +61,10 @@ export async function handler(event) {
   let data;
   try { data = JSON.parse(event.body || '{}'); } catch { return resp(400, { ok: false, error: 'bad json' }); }
 
-  // 이메일 중복 확인(계정 신청 폼) — users에 이미 있는 이메일이면 안내용. 대소문자 무시.
-  if (data.action === 'check-email') {
-    const em = (typeof data.email === 'string' ? data.email.trim().slice(0, 150) : '');
-    if (!em || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) return resp(200, { ok: true, exists: false });
-    try {
-      const rows = await query('select 1 from public.users where lower(email) = lower($1) limit 1', [em]);
-      return resp(200, { ok: true, exists: (rows || []).length > 0 });
-    } catch (e) {
-      console.error('[inquiry] check-email 실패', e);
-      return resp(200, { ok: true, exists: false }); // 오류 시 신청을 막지 않는다
-    }
-  }
+  // check-email(구버전 프론트 호환 스텁): 예전엔 users 존재 여부를 그대로 돌려줘 비인증으로 아무
+  // 이메일의 가입 여부를 물을 수 있었다(2026-09-18 제거). 지금은 항상 exists:false — 존재 여부는
+  // 아래 제출 경로에서 그 주소의 우편함으로만 알린다. 프론트는 더 이상 호출하지 않는다.
+  if (data.action === 'check-email') return resp(200, { ok: true, exists: false });
 
   // 허니팟: 사람에겐 보이지 않는 필드가 채워졌으면 봇으로 간주하고 조용히 성공 처리.
   if (data.website) return resp(200, { ok: true });
@@ -87,11 +79,39 @@ export async function handler(event) {
   if (!name || !company || !phone || !email) return resp(400, { ok: false, error: 'missing required fields' });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return resp(400, { ok: false, error: 'invalid email' });
 
-  // 이미 가입된 이메일이면 계정 신청을 막는다(프론트 버튼잠금의 서버측 방어).
+  // 이미 가입된(활성) 이메일: 화면에는 새 신청과 **똑같이 200 {ok:true}**로 답하고, "이미 계정이
+  // 있습니다" 안내는 그 주소의 우편함으로만 보낸다(2026-09-18). 예전엔 409 {exists:true}로 답해
+  // 비인증 요청으로 아무 이메일의 가입 여부를 알 수 있었다(이메일 존재 오라클). 이 경로는 DB 기록·
+  // Slack·관리자 메일을 만들지 않는다(신청이 아니라 로그인 안내이므로). 주소당 15분 쿨다운은
+  // users.exists_notified_at — 조건부 UPDATE 한 문장이 판정과 기록을 원자적으로 한다(동시 제출도 1통).
+  // 비활성(is_active=false) 계정은 "계정 없음"으로 보고 아래 일반 접수 경로로 흘려 담당자가 재활성화를
+  // 판단하게 한다. DB 오류 시에는 안전 쪽(균일 200, 아무 것도 안 보냄)으로 끝낸다 — 일반 접수로 흘리면
+  // 기존 계정의 정보가 Slack에 실려 나간다.
   try {
-    const dup = await query('select 1 from public.users where lower(email) = lower($1) limit 1', [email]);
-    if ((dup || []).length) return resp(409, { ok: false, exists: true, error: 'already registered' });
-  } catch (e) { console.error('[inquiry] 중복확인 실패', e); }
+    const hit = await query(
+      'select id, name, email, is_active from public.users where lower(email) = lower($1) limit 1', [email]);
+    const u = (hit || [])[0];
+    if (u && u.is_active !== false) {
+      const upd = await query(
+        `update public.users set exists_notified_at = now()
+          where id = $1 and (exists_notified_at is null or exists_notified_at < now() - interval '15 minutes')
+          returning id`, [u.id]);
+      if ((upd || []).length) {
+        // company는 send-email의 [테스트] 백스톱 판정용(payloadIsTest) — 하네스 신청은 실 수신자에게 안 간다.
+        await lambda.send(new InvokeCommand({
+          FunctionName: SEND_EMAIL_FN, InvocationType: 'Event',
+          Payload: Buffer.from(JSON.stringify({ type: 'ACCOUNT_EXISTS', toEmail: u.email, userName: u.name, company })),
+        }));
+        console.log(`[inquiry] 기존 계정 이메일로 신청 → 본인 안내 메일 user=${u.id}`);
+      } else {
+        console.log(`[inquiry] 기존 계정 이메일로 신청(쿨다운 중, 메일 생략) user=${u.id}`);
+      }
+      return resp(200, { ok: true });
+    }
+  } catch (e) {
+    console.error('[inquiry] 기존 계정 확인 실패', e);
+    return resp(200, { ok: true });
+  }
 
   // ① DB 기록 (실패해도 Slack은 시도)
   let dbOk = false;
