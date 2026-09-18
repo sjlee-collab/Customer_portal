@@ -9,3 +9,4 @@ node_modules/
 # 하네스 invoke 임시 파일 — itest.py가 lib/에 만들고 지운다(중단 시 잔여물이 남을 수 있음).
 scripts/harness/lib/_payload_*.json
 scripts/harness/lib/_out_*.json
+scripts/harness/.pw-browsers/

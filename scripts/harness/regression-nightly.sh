@@ -51,7 +51,9 @@ log "새벽 회귀 시작 — 워크트리 $WT"
 # 실측: 9-04·16·17 브라우저 폴더 불가시(l2 skip), 9-18 DNS 실패(fetch 중단·회귀 공백).
 # 네트워크(원격 접근)와 사용자 프로필(playwright 폴더 가시성)이 준비될 때까지 10초 간격,
 # 최대 5분 대기. 끝내 안 되면 현행대로 진행(더 나빠지지 않음) + 환경값을 남겨 원인 확정.
-PW_DIR="$HOME/AppData/Local/ms-playwright"
+# 브라우저는 워크트리 사본(.pw-browsers)을 본다 — %LOCALAPPDATA% 쪽은 스케줄러 컨텍스트에서
+# 상시 불가시(2026-09-18 확정)라 그걸 기다리면 매번 5분 헛대기가 된다.
+PW_DIR="$HDIR/.pw-browsers"
 for _i in $(seq 1 30); do
   _ok=1
   git ls-remote --exit-code origin HEAD >/dev/null 2>&1 || _ok=0

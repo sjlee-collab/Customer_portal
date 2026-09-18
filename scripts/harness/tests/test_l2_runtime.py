@@ -36,10 +36,16 @@ def pin_browsers_path(env):
     대화형/스케줄러가 동일 경로를 보게 한다. 이미 설정돼 있으면 존중한다.
     """
     if not env.get('PLAYWRIGHT_BROWSERS_PATH'):
+        # 워크트리 내부 사본 우선 — 스케줄러 실행 컨텍스트에서는 %LOCALAPPDATA%\ms-playwright
+        # 폴더가 파이썬 레벨에서도 상시 안 보인다(2026-09-18 재현·확정: 부팅 시점 무관,
+        # env는 정상인데 isdir=False). 워크트리(스크립트·node_modules)는 항상 보이므로
+        # 브라우저를 scripts/harness/.pw-browsers 에 두면 새벽 실행에서도 l2가 돈다.
+        local = os.path.join(HDIR, '.pw-browsers')
         base = env.get('LOCALAPPDATA') or os.path.join(os.path.expanduser('~'), 'AppData', 'Local')
-        cand = os.path.join(base, 'ms-playwright')
-        if os.path.isdir(cand):
-            env['PLAYWRIGHT_BROWSERS_PATH'] = cand
+        for cand in (local, os.path.join(base, 'ms-playwright')):
+            if os.path.isdir(cand):
+                env['PLAYWRIGHT_BROWSERS_PATH'] = cand
+                break
     return env
 
 
