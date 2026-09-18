@@ -4300,7 +4300,16 @@ textarea{resize:vertical;min-height:100px;}
 // ══════════════════════════════════════════
 //  ⚙️  백엔드 설정 — 여기만 수정하세요
 // ══════════════════════════════════════════
-const API_BASE = 'https://8xbmazu4ij.execute-api.ap-northeast-2.amazonaws.com';
+// API 주소 — 호스트명으로 결정한다.
+// 일부 고객사 보안망이 *.amazonaws.com 을 차단해 API 호출이 "CORS 오류"로 실패한다(새마을, 2026-09).
+// 해법은 Amplify 리라이트(/api/<*> → API Gateway)로 API를 같은 출처로 두는 것 — 그러면 CORS도
+// 프리플라이트도 없고 support.bigxdata.io 하나만 열려 있으면 된다. dev 앱에서 먼저 검증(헤더·본문·
+// 쿼리스트링·PATCH·404/403 전달 모두 확인)했고, 운영은 아래 조건에 호스트명을 추가하는 순간 전환된다.
+// 되돌리기도 그 한 줄. 로컬 프리뷰·운영은 당분간 기존 직접 호출 주소를 그대로 쓴다.
+const API_PROXY_HOSTS = ['dev.dlayoierdftk6.amplifyapp.com'];
+const API_BASE = API_PROXY_HOSTS.includes(location.hostname)
+  ? '/api'
+  : 'https://8xbmazu4ij.execute-api.ap-northeast-2.amazonaws.com';
 
 // ── 배포 버전 ── Amplify 빌드가 아래 자리표시자를 "YYYY-MM-DD · <커밋7자리>"로 바꾼다
 // (amplify.yml의 sed). 치환되지 않은 채로 열리면 로컬에서 파일을 직접 연 것이다.
