@@ -24,6 +24,11 @@ export const handler = async (event) => {
       // 조직 도입: 배정된 조직 id 목록. authorizer context 값은 문자열만 허용되므로
       // 콤마로 이어 전달한다. 구토큰(unit_ids 없음)은 빈 문자열 → 하위 필터가 contract/company로 폴백.
       unitIds: Array.isArray(payload.unit_ids) ? payload.unit_ids.join(',') : '',
+      // 토큰 폐기(2026-09-18): 로그인 시 users.token_version을 ver 클레임으로 싣는다. 여기선 값만
+      // 넘기고 대조는 DB가 있는 data-api/api-layer가 한다(인가자는 DB 없이 빠르게 유지).
+      // 구토큰(ver 없음)은 '0' — 컬럼 기본값과 같아 배포 순간 아무도 튕기지 않는다. 항상 키를
+      // 넣는 이유: 키 자체가 없는 컨텍스트는 "인가자를 거치지 않은 직접 invoke"(하네스·내부)로 구분한다.
+      tokenVersion: String(payload.ver ?? 0),
     },
   };
 };

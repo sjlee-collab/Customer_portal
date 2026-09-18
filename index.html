@@ -5405,6 +5405,16 @@ async function saveMyPage() {
           if (pwRes && isAuthRejection(pwRes.status, pwData)) { handleAuthExpired(); return; }
           alert('비밀번호 변경 중 오류가 발생했습니다: ' + (pwData?.error || '')); return;
         }
+        // 서버가 비밀번호 변경과 함께 이 계정의 기존 토큰을 전부 폐기(token_version +1)하고 새 토큰을
+        // 돌려준다 — 갈아끼우지 않으면 다음 요청부터 401로 튕긴다(다른 기기·탈취분은 의도대로 끊김).
+        if (pwData?.token) {
+          setAuthToken(pwData.token);
+          if (currentUser) currentUser.token = pwData.token;
+          try {
+            const s = JSON.parse(localStorage.getItem('cs_session') || 'null');
+            if (s) { s.token = pwData.token; localStorage.setItem('cs_session', JSON.stringify(s)); }
+          } catch(_) {}
+        }
       }
     }
   }
@@ -5453,6 +5463,11 @@ function startSessionWatch() {
 }
 
 function doLogout() {
+  // 서버에 토큰 폐기 통지(token_version +1) — 예전엔 localStorage만 지워 토큰이 8시간 살아 있었다.
+  // 실패·미응답은 무시(로컬 정리는 그대로 진행). 세션 만료로 불린 경우엔 이미 폐기된 토큰이라 401이 돌아올 뿐.
+  if (authToken) {
+    try { fetch(`${API_BASE}/auth/logout`, { method: 'POST', headers: authHeaders(), keepalive: true }).catch(() => {}); } catch(_) {}
+  }
   stopArAutoRefresh();
   currentUser = null;
   setAuthToken(null);
