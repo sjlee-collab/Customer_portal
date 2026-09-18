@@ -7,7 +7,7 @@
 // 멈춰버릴 수 있어 신뢰할 수 없으므로, 자기 자신을 비동기(Event) 방식으로 재호출해서
 // 완전히 별도의 Lambda 실행으로 알림 처리를 넘긴다 (deferNotify / __deferred 분기).
 
-import { randomBytes, createHash, scryptSync, timingSafeEqual } from 'node:crypto';
+import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 import { query, withTransaction } from './db.mjs';
 import { notifySlack, notifyEmail } from './notify.mjs';
@@ -51,8 +51,11 @@ function corsHeaders(event) {
 
 let currentEvent = null;
 
-// 비밀번호 해시 — scrypt(salt 포함, node:crypto 내장, 느린 KDF)를 표준으로 쓴다.
-// 예전 두 세대의 저장 형식(평문 / salt 없는 SHA-256)도 로그인 성공 시 이 형식으로 자동 승격한다.
+// 비밀번호 해시 — scrypt(salt 포함, node:crypto 내장, 느린 KDF)만 인정한다.
+// 예전 두 세대의 저장 형식(평문 / salt 없는 SHA-256)은 2026-09-18에 비교 분기를 제거했다(⑤-3):
+// 남아 있던 SHA-256 52건은 같은 날 password=null로 정리했고(재집계 0건), 분기를 남겨두면 관리자
+// 스크립트나 DB 직접 쓰기로 약한 형식의 비밀번호를 다시 심어 로그인할 수 있는 구멍이 된다.
+// scrypt 형식이 아닌 값은 무엇이 저장돼 있어도 로그인이 거부되며, 사용자는 재설정으로 복구한다.
 function hashPassword(pw) {
   const salt = randomBytes(16);
   const hash = scryptSync(pw, salt, 64);
@@ -66,20 +69,13 @@ function burnDummyCheck(pw) {
   checkPassword(pw, DUMMY_HASH_CACHE);
 }
 function isScryptHash(pw) { return typeof pw === 'string' && /^scrypt\$[0-9a-f]{32}\$[0-9a-f]{128}$/.test(pw); }
-function isSha256Hash(pw) { return typeof pw === 'string' && /^[0-9a-f]{64}$/.test(pw); }
-function isHashed(pw) { return isScryptHash(pw) || isSha256Hash(pw); }
 
 function checkPassword(pw, stored) {
-  if (isScryptHash(stored)) {
-    const [, saltHex, hashHex] = stored.split('$');
-    const expected = Buffer.from(hashHex, 'hex');
-    const actual = scryptSync(pw, Buffer.from(saltHex, 'hex'), expected.length);
-    return actual.length === expected.length && timingSafeEqual(actual, expected);
-  }
-  if (isSha256Hash(stored)) {
-    return createHash('sha256').update(pw, 'utf8').digest('hex') === stored;
-  }
-  return pw === stored; // 아주 오래된 평문 legacy 계정
+  if (!isScryptHash(stored)) return false; // scrypt 외 형식(빈 값·레거시·임의 문자열)은 전부 거부
+  const [, saltHex, hashHex] = stored.split('$');
+  const expected = Buffer.from(hashHex, 'hex');
+  const actual = scryptSync(pw, Buffer.from(saltHex, 'hex'), expected.length);
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
 const DEFAULT_ASSIGNEE_BY_CATEGORY = {
@@ -1146,10 +1142,8 @@ async function login(body) {
     if (r[0]?.locked_until) console.log(`[login] 계정 잠금 user=${user.id} fails=${r[0].failed_logins} until=${r[0].locked_until}`);
     return json(401, { error: LOGIN_FAIL_MSG });
   }
-  // 성공: 실패 카운터·잠금 리셋. 예전 형식(평문 또는 salt 없는 SHA-256)이면 scrypt 승격도 같은 UPDATE에.
-  if (!isScryptHash(stored)) {
-    await query('update users set password=$1, failed_logins=0, locked_until=null where id=$2', [hashPassword(password), user.id]);
-  } else if ((user.failed_logins || 0) > 0 || user.locked_until) {
+  // 성공: 실패 카운터·잠금 리셋. (예전 형식 → scrypt 자동 승격은 ⑤-3으로 제거 — 여기 오는 stored는 항상 scrypt)
+  if ((user.failed_logins || 0) > 0 || user.locked_until) {
     await query('update users set failed_logins=0, locked_until=null where id=$1', [user.id]);
   }
 

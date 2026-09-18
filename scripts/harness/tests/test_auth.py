@@ -40,6 +40,14 @@ def run():
         rset = api('PATCH', '/auth/change-password', {'newPassword': 'InitPw!234'}, role='customer', userId=uid)
         t.check('초기 비밀번호 설정 200', rset.get('status') == 200, 'status=%s body=%s' % (rset.get('status'), rset.get('body')))
 
+        # ── ⑤-3 소스 계약: checkPassword에 레거시(SHA-256·평문) 비교 분기가 되살아나지 않았는지 ──
+        # 하네스는 users.password를 직접 쓸 수 없어(data-api 차단) 런타임으로 못 증명한다 — 소스로 고정.
+        src = open(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'backend', 'lambda', 'api-layer', 'index.mjs'),
+                   encoding='utf-8').read()
+        t.check('checkPassword: scrypt 외 형식 즉시 거부', "if (!isScryptHash(stored)) return false;" in src)
+        t.check('레거시 SHA-256 비교 분기 없음', 'isSha256Hash' not in src and "createHash('sha256')" not in src)
+        t.check('레거시 평문 비교 없음', 'pw === stored' not in src)
+
         # ── 로그인 살아있음(순단 검출) + 분기 ──
         r1 = api('POST', '/auth/login', {'email': '__no_such_user__@example.com', 'password': 'x'})
         # 2026-09-18: 미등록도 401·같은 문구(이메일 존재 오라클 차단, 상세는 test_email_oracle)
