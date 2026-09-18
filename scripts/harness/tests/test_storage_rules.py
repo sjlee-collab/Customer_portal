@@ -15,9 +15,10 @@ FAKE = '00000000-0000-0000-0000-000000000000'
 MB = 1024 * 1024
 
 
-def upload_url(path, size, role='admin', userId='zz-admin'):
+def upload_url(path, size, role='admin', userId='zz-admin', origin=None):
     e = ctx(role, userId=userId); e['requestContext']['http']['method'] = 'POST'
     e['rawPath'] = '/storage/upload-url'
+    if origin: e['headers'] = {'origin': origin}  # Same-Origin 프록시 치환은 요청 Origin으로 판단한다
     e['body'] = json.dumps({'bucket': 'ticket-attachments', 'path': path,
                             'contentType': 'application/octet-stream', 'contentLength': size})
     return invoke('storage', e)
@@ -47,6 +48,20 @@ def run():
             b = r.get('body') or {}
             t.check('허용 티켓 경로 200', r.get('status') == 200, 'status=%s body=%s' % (r.get('status'), r.get('body')))
             t.check('uploadUrl 발급', bool(b.get('uploadUrl')), 'keys=%s' % list(b)[:5])
+            # ── Same-Origin 프록시 치환(2026-09-18): 규칙이 있는 오리진(dev)에서만 포탈 도메인으로,
+            #    Origin 없음(직접 invoke)·아직 규칙 없는 오리진은 S3 직접 주소 그대로.
+            #    운영 전환(FILE_PROXY_ORIGINS에 support 추가) 시 아래 '운영 Origin' 기대값을 프록시로 바꿀 것.
+            S3H = 'https://bigxdata-portal-ticket-attachments.s3.ap-northeast-2.amazonaws.com/'
+            DEV = 'https://dev.dlayoierdftk6.amplifyapp.com'
+            u0 = (upload_url(tid + '/p0.pdf', MB, role='admin').get('body') or {}).get('uploadUrl') or ''
+            t.check('Origin 없음 → S3 직접 주소', u0.startswith(S3H), 'url=%s' % u0[:70])
+            u1 = (upload_url(tid + '/p1.pdf', MB, role='admin', origin=DEV).get('body') or {}).get('uploadUrl') or ''
+            t.check('dev Origin → 프록시 주소(/files/ticket-attachments/)', u1.startswith(DEV + '/files/ticket-attachments/' + tid + '/p1.pdf?'), 'url=%s' % u1[:90])
+            t.check('프록시 URL에 서명 쿼리 보존', 'X-Amz-Signature=' in u1 and 'X-Amz-Credential=' in u1, 'url=%s' % u1[-60:])
+            u2 = (upload_url(tid + '/p2.pdf', MB, role='admin', origin='https://support.bigxdata.io').get('body') or {}).get('uploadUrl') or ''
+            t.check('운영 Origin(전환 전) → S3 직접 주소', u2.startswith(S3H), 'url=%s' % u2[:70])
+            u3 = (upload_url(tid + '/p3.pdf', MB, role='admin', origin='https://evil.example').get('body') or {}).get('uploadUrl') or ''
+            t.check('허용 외 Origin → S3 직접 주소', u3.startswith(S3H), 'url=%s' % u3[:70])
     finally:
         if tid: ddel('tickets', tid, role='admin')
     return t.report()
