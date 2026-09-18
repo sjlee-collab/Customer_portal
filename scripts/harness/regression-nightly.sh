@@ -46,6 +46,23 @@ notify_slack(){
 
 cd "$WT" || { echo "워크트리 없음: $WT"; exit 1; }
 log "새벽 회귀 시작 — 워크트리 $WT"
+
+# ── 0) 부팅 과도기 준비 대기 — 스케줄러 보강 실행이 로그온·네트워크 완료 전에 시작되는 문제.
+# 실측: 9-04·16·17 브라우저 폴더 불가시(l2 skip), 9-18 DNS 실패(fetch 중단·회귀 공백).
+# 네트워크(원격 접근)와 사용자 프로필(playwright 폴더 가시성)이 준비될 때까지 10초 간격,
+# 최대 5분 대기. 끝내 안 되면 현행대로 진행(더 나빠지지 않음) + 환경값을 남겨 원인 확정.
+PW_DIR="$HOME/AppData/Local/ms-playwright"
+for _i in $(seq 1 30); do
+  _ok=1
+  git ls-remote --exit-code origin HEAD >/dev/null 2>&1 || _ok=0
+  [ -d "$PW_DIR" ] || _ok=0
+  if [ "$_ok" -eq 1 ]; then
+    [ "$_i" -gt 1 ] && log "준비 완료(약 $(( (_i-1)*10 ))초 대기 후) — 진행"
+    break
+  fi
+  [ "$_i" -eq 1 ] && log "부팅 과도기 감지 — 네트워크/프로필 준비 대기(최대 5분). HOME=$HOME LOCALAPPDATA=${LOCALAPPDATA:-미설정} 프로필폴더=$([ -d \"$PW_DIR\" ] && echo 보임 || echo 안보임)"
+  sleep 10
+done
 log "※ 이 창은 실행 동안 출력이 뜸해도 정상입니다(상세는 로그 파일로 기록). 완료되면 자동으로 닫힙니다."
 log "※ 로그: $LOG"
 
