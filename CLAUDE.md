@@ -26,7 +26,7 @@
 
 - **계정:** 605163667429 / **리전:** ap-northeast-2 (서울)
 - **RDS:** 인스턴스 식별자 `csdb` (PostgreSQL 18.3, DB명 `customer_portal`), 엔드포인트 `csdb.cngoihiekj6q.ap-northeast-2.rds.amazonaws.com:5432`. 기본적으로 퍼블릭 액세스 꺼짐 + 보안그룹(`sg-034f2d418a20a6f95`)에서 특정 IP만 허용. 마스터 비밀번호는 Secrets Manager 관리형 시크릿(`rds!db-...`).
-- **API Gateway:** `https://8xbmazu4ij.execute-api.ap-northeast-2.amazonaws.com` — index.html의 `API_BASE`가 이 주소를 호출.
+- **API Gateway:** `https://8xbmazu4ij.execute-api.ap-northeast-2.amazonaws.com` — index.html의 `API_BASE`가 이 주소를 호출. **단, `API_PROXY_HOSTS`에 든 호스트에서는 `API_BASE='/api'`** — Amplify 리라이트(`/api/<*>` → API GW, 상태 200)로 같은 출처가 되어 CORS·프리플라이트가 없다(2026-09-18, 새마을 등 `*.amazonaws.com` 차단 고객망 대응). 현재 dev 앱(`dlayoierdftk6`)에만 규칙·호스트 적용, 검증 완료(헤더·본문·쿼리·PATCH/DELETE 전달, 404/403 원형 유지, 캐시 누출 없음). **운영 전환 = 운영 앱(`d197cwv814vb95`) customRules에 같은 규칙을 SPA 규칙 앞에 추가 + `API_PROXY_HOSTS`에 `support.bigxdata.io` 추가**; 되돌리기는 그 한 줄. 기존 직접 호출 주소·CSP 항목은 캐시된 옛 index.html 대비로 유지.
   - `/data/:table` — `data-api` Lambda, PostgREST 흉내낸 범용 CRUD (허용 테이블 16개, `backend/lambda/data-api/index.mjs` 참고)
   - 티켓 생성/상태변경 등 알림이 걸리는 액션 — `api-layer` Lambda
 - **Lambda 배포 함수명 매핑(소스 폴더 ↔ 실제 함수명 다름 주의):** `backend/lambda/data-api` → `customer_portal_data-api` · `jwt-authorizer` → `customer_portal_jwt-authorizer` · `storage-api` → `customer_portal_storage-api` · `notify-handler` → `customer_portal_notify-handler` · `send-email` → `customer_portal_send-email` · `public-inquiry` → `customer_portal_public-inquiry` · **`api-layer` → `customer-portal_slack_status_change`**(이름이 안 맞음).
