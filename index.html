@@ -4306,7 +4306,7 @@ textarea{resize:vertical;min-height:100px;}
 // 프리플라이트도 없고 support.bigxdata.io 하나만 열려 있으면 된다. dev 앱에서 먼저 검증(헤더·본문·
 // 쿼리스트링·PATCH·404/403 전달 모두 확인)했고, 운영은 아래 조건에 호스트명을 추가하는 순간 전환된다.
 // 되돌리기도 그 한 줄. 로컬 프리뷰·운영은 당분간 기존 직접 호출 주소를 그대로 쓴다.
-const API_PROXY_HOSTS = ['dev.dlayoierdftk6.amplifyapp.com'];
+const API_PROXY_HOSTS = ['dev.dlayoierdftk6.amplifyapp.com', 'support.bigxdata.io']; // 2026-09-18 운영 전환
 const API_BASE = API_PROXY_HOSTS.includes(location.hostname)
   ? '/api'
   : 'https://8xbmazu4ij.execute-api.ap-northeast-2.amazonaws.com';
