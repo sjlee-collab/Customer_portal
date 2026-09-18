@@ -234,6 +234,15 @@ function accountInquiryHtml(d) {
   return layout('신규 계정 신청', `<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">로그인 화면에서 신규 계정 신청이 접수되었습니다.<br>아래 정보를 확인한 뒤 계정을 생성해주세요.</p><div class="lbl">신청 정보</div><table class="info">${table}</table>`);
 }
 
+// 이미 계정이 있는 이메일로 "계정 신청"이 들어왔을 때 — 신청자 본인 우편함으로만 답한다(2026-09-18).
+// 화면에는 새 신청과 똑같이 "접수"라고만 보이므로(이메일 존재 여부 오라클 차단), 실제 안내는
+// 그 주소의 주인만 받는다. 재설정 토큰은 만들지 않는다 — 로그인/재설정 화면으로 안내만.
+function accountExistsHtml(userName, portalUrl) {
+  const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const display = portalUrl.replace(/^https?:\/\//, '');
+  return layout('계정 안내', `<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">안녕하세요, <strong>${esc(userName)}</strong>님.<br>빅스데이터 고객지원 포탈에 이 이메일 주소로 계정 신청이 접수되었습니다.<br>확인 결과 이 주소로는 <strong>이미 포탈 계정이 등록되어</strong> 있어 새로 만들지 않았습니다.</p><p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#374151;">아래 버튼으로 바로 로그인해 주세요. 비밀번호를 모르시거나 아직 설정하지 않으셨다면 로그인 화면의 <strong>"비밀번호를 잊으셨나요?"</strong>에서 새로 설정하실 수 있습니다.</p><a class="btn" href="${portalUrl}">포탈 로그인</a><div style="font-size:11px;color:#9ca3af;margin-top:8px;">${display}</div><p style="margin:20px 0 0;font-size:12px;color:#9ca3af;">본인이 신청하지 않았다면 이 메일을 무시해 주세요. 계정 이용에 어려움이 있으시면 담당 영업에게 문의해 주세요.</p>`);
+}
+
 // 설문 안내 — 고객이 받는 메일. 문항 수·예상 소요시간·마감일을 미리 알려 응답률을 높인다.
 // 응답 자체는 포탈 로그인 후 진행하므로(공개 응답 링크 아님) 메일에는 설문 내용을 넣지 않는다.
 function surveyInviteHtml({ userName, formTitle, intro, openUntil, questionCount, surveyUrl }) {
@@ -290,6 +299,17 @@ export const handler = async (event) => {
       if (!toEmail || !token) return { statusCode: 400, body: 'missing toEmail/token' };
       const resetUrl = `${PORTAL_URL}?reset=${token}`;
       await sendAndLog(toEmail, '[빅스데이터 고객지원] 비밀번호 재설정 안내', passwordResetHtml(userName || '고객', resetUrl), null, 'password_reset', results);
+      const sent = results.filter(r => r.status === 'sent').length;
+      return ok({ ok: true, sent, results });
+    }
+
+    // 계정 신청 폼에 이미 등록된(활성) 이메일이 들어온 경우 — public-inquiry가 비동기(Event)로 호출.
+    // company는 [테스트] 백스톱 판정용으로만 실린다(payloadIsTest).
+    if (payload.type === 'ACCOUNT_EXISTS') {
+      const { toEmail, userName } = payload;
+      if (!toEmail) return { statusCode: 400, body: 'missing toEmail' };
+      await sendAndLog(toEmail, '[빅스데이터 고객지원] 이미 등록된 포탈 계정이 있습니다',
+        accountExistsHtml(userName || '고객', PORTAL_URL), null, 'account_exists', results);
       const sent = results.filter(r => r.status === 'sent').length;
       return ok({ ok: true, sent, results });
     }

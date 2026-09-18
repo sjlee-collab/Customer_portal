@@ -76,7 +76,10 @@ create table public.users (
   reset_requested_at  timestamptz,
   -- JWT 폐기(2026-09-18): 로그인 시 토큰 ver 클레임에 실리고 요청마다 대조. 비번 변경·재설정·
   -- 관리자 재설정·로그아웃·role/company/contract/unit/is_active 변경 시 +1 → 기존 토큰 전부 무효.
-  token_version       integer not null default 0
+  token_version       integer not null default 0,
+  -- 계정 신청 폼에 이미 가입된 이메일이 들어와 본인에게 "이미 계정 있음" 안내 메일을 보낸 시각(2026-09-18).
+  -- public-inquiry가 주소당 15분 쿨다운 판정에 쓴다(메일 폭탄 방지). 로그인·재설정과 무관.
+  exists_notified_at  timestamptz
 );
 comment on table public.users is '포탈 사용자 (고객사 담당자 및 내부 직원)';
 comment on column public.users.role is 'customer=고객사 사용자 / internal=내부 일반 / tech_support=기술지원 담당 / sales=영업 담당 / education=교육 담당 / admin=시스템 관리자';

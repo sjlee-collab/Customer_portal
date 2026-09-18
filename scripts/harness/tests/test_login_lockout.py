@@ -21,7 +21,7 @@ from itest import api, dget, dpost, ddel, tname, temail, must_id, Checker
 
 PW_OK = 'LockPw!234'
 PW_NEW = 'LockPw!235'
-FAIL_MSG = '비밀번호가 올바르지 않습니다.'
+FAIL_MSG = '이메일 또는 비밀번호가 올바르지 않습니다.'  # 2026-09-18 균일화 문구(test_email_oracle과 동일)
 
 
 def _lock_row(uid):
