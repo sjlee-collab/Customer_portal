@@ -24,6 +24,21 @@ const BUCKET_MAP = {
 
 const ALLOWED_ORIGINS = ['https://support.bigxdata.io', 'https://dev.dlayoierdftk6.amplifyapp.com'];
 
+// ── 첨부 URL의 Same-Origin 프록시 치환 (2026-09-18, 고객 보안망 amazonaws.com 차단 대응) ──
+// 브라우저가 S3에 직접 PUT/GET 하면 *.s3.amazonaws.com 을 막는 망(새마을)에서 첨부가 실패한다.
+// Amplify 리라이트 `/files/<bucket>/<*>` → S3 버킷을 두면, presigned URL의 호스트만 포탈 도메인으로
+// 바꿔도 서명이 그대로 유효하다 — 프록시가 Host를 S3 호스트로 보내고 경로·쿼리를 그대로 전달하기
+// 때문(SigV4 서명 대상 = Host·경로·쿼리). dev에서 1KB·10MB PUT/GET·서명 변조 403·만료 403 검증 완료.
+// 규칙이 있는 오리진·버킷에만 치환한다. 운영 전환 = 운영 앱에 규칙 추가 후 아래 목록에 오리진 추가.
+const FILE_PROXY_ORIGINS = ['https://dev.dlayoierdftk6.amplifyapp.com'];
+const PROXIED_BUCKETS = new Set(['ticket-attachments']); // 자료실(documents)·계약 첨부는 범위 제외(2026-09 결정)
+function proxyFileUrl(url, logicalBucket, event) {
+  const origin = event?.headers?.origin || event?.headers?.Origin;
+  if (!FILE_PROXY_ORIGINS.includes(origin) || !PROXIED_BUCKETS.has(logicalBucket)) return url;
+  const s3Host = `https://${resolveBucket(logicalBucket)}.s3.${process.env.AWS_REGION || 'ap-northeast-2'}.amazonaws.com/`;
+  return url.startsWith(s3Host) ? `${origin}/files/${logicalBucket}/${url.slice(s3Host.length)}` : url;
+}
+
 function corsHeaders(event) {
   const origin = event?.headers?.origin || event?.headers?.Origin;
   return {
@@ -153,7 +168,7 @@ async function handleUploadUrl(body, event) {
   if (typeof contentLength === 'number') cmdParams.ContentLength = contentLength;
   const cmd = new PutObjectCommand(cmdParams);
   const uploadUrl = await getSignedUrl(s3, cmd, { expiresIn: 300 });
-  return json(200, { uploadUrl, path });
+  return json(200, { uploadUrl: proxyFileUrl(uploadUrl, bucket, event), path });
 }
 
 // signed-url(다운로드)은 "이 경로에 해당하는 메타데이터 행을 이 요청자가 볼 수 있는가"를
@@ -208,13 +223,16 @@ async function handleSignedUrl(body, event) {
   const allowed = await checkAccess(bucket, path, event);
   if (!allowed) return json(403, { error: '이 파일에 접근할 권한이 없습니다' });
   const Bucket = resolveBucket(bucket);
-  const cmd = new GetObjectCommand({ Bucket, Key: path });
+  // ResponseCacheControl: S3가 다운로드 응답에 Cache-Control: no-store 를 붙인다 — 프록시(CloudFront)를
+  // 거칠 때 서명 URL 응답이 캐시에 남아 만료 뒤에도 내려가는 일을 막는다(S3 기본은 헤더 없음).
+  // 직접 호출 경로에서도 브라우저 캐시에 첨부가 남지 않아 무해.
+  const cmd = new GetObjectCommand({ Bucket, Key: path, ResponseCacheControl: 'no-store' });
   // 만료는 클라이언트 요청값을 쓰되 상한을 건다 — 상한이 없으면 임시 자격증명 수명(수 시간)까지
   // 유효한 다운로드 링크를 만들어 외부로 넘길 수 있었다. 300은 현재 프론트가 요청하는 최대값
   // (FAQ 이미지 재서명)이자 업로드 URL과 같은 값이라 기존 동작은 그대로다.
   const ttl = Math.min(Math.max(parseInt(expiresIn, 10) || 60, 1), 300);
   const signedUrl = await getSignedUrl(s3, cmd, { expiresIn: ttl });
-  return json(200, { signedUrl });
+  return json(200, { signedUrl: proxyFileUrl(signedUrl, bucket, event) });
 }
 
 async function handleRemove(body, event) {
