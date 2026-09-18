@@ -43,6 +43,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **보안 헤더 / CSP:** 레포 루트 `customHttp.yml`이 Amplify에 적용됨 — `default-src/script-src/style-src/font-src 'self'`, img/connect는 API GW·S3 버킷만 허용. 즉 **외부 CDN 폰트·스크립트는 CSP로 차단**되므로 자체 호스팅 또는 인라인(+필요 시 `data:` 허용) 해야 한다. (artifacts와 무관, 운영 사이트 한정)
   - `/functions/:fnName` — `notify-handler`(Slack), `send-email`(Outlook/MS Graph API) Lambda 호출
 - **S3 버킷:** `bigxdata-portal-contract-attachments`(비공개), `bigxdata-portal-documents`(공개), `bigxdata-portal-ticket-attachments`(공개)
+  - **첨부 Same-Origin 프록시 (2026-09-18):** Amplify 리라이트 `/files/ticket-attachments/<*>` → 해당 S3 버킷(200). storage-api가 요청 `Origin`이 `FILE_PROXY_ORIGINS`(현재 dev만)이고 버킷이 `PROXIED_BUCKETS`(ticket-attachments)면 presigned URL 호스트를 포탈 도메인으로 치환 — 프록시가 Host를 S3 호스트로 보내고 경로·쿼리를 그대로 전달해 SigV4 서명이 유효. 다운로드 presign엔 `ResponseCacheControl: no-store`(CloudFront 캐시 차단). dev 검증 완료(1KB·10MB PUT/GET, 서명 변조·만료 403, 브라우저 SPA 업로드·다운로드). **운영 전환 = 운영 앱 customRules에 같은 규칙 추가 + `FILE_PROXY_ORIGINS`에 `https://support.bigxdata.io` 추가 후 `deploy-fn.sh storage-api`**; `test_storage_rules`의 "운영 Origin(전환 전)" 기대값도 프록시로 바꿀 것. 자료실(documents)·계약 첨부는 범위 제외.
 - **NAT 인스턴스** `customer-portal-nat`(t3.micro): `lambda-private-subnet`(172.31.100.0/24)의 인터넷 아웃바운드 전용 (NAT Gateway 대신 비용 절감)
 - **스키마/Lambda 소스:** 레포 내 `backend/schema.sql`, `backend/lambda/{api-layer,data-api,jwt-authorizer,notify-handler,send-email,storage-api}/`
 - **IAM 사용자:** `customer_portal` (CLI 연동용, 세션마다 자격증명 발급받아 사용)
