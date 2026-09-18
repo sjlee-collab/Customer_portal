@@ -5585,7 +5585,7 @@ async function loadTicketHistory(ticketId) {
     const who = h.changed_by?.name || h.changed_by_name || '';
     const when = fmtTime(h.created_at);
     const detail = h.field_name
-      ? `<div style="font-size:12px;color:var(--muted);margin:3px 0;">${h.field_name}: ${h.old_value || '?'} → ${h.new_value || '?'}</div>`
+      ? `<div style="font-size:12px;color:var(--muted);margin:3px 0;">${escHtml(h.field_name)}: ${escHtml(h.old_value || '?')} → ${escHtml(h.new_value || '?')}</div>`
       : h.note ? `<div style="font-size:12px;color:var(--muted);margin:3px 0;">${escHtml(h.note)}</div>` : '';
     return `
       <div class="tl-item">
@@ -5694,7 +5694,7 @@ async function loadDocuments() {
   const tbody = document.getElementById('docs-tbody');
   tbody.innerHTML = '<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--faint);font-size:13px;">불러오는 중...</td></tr>';
   const { data, error } = await sb.from('content_documents').select('*').order('created_at', { ascending: false }).limit(1000);
-  if (error) { tbody.innerHTML = `<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--danger);">오류: ${error.message}</td></tr>`; return; }
+  if (error) { tbody.innerHTML = `<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--danger);">오류: ${escHtml(error.message)}</td></tr>`; return; }
   allDocsAdmin = data || [];
   const faqCount = allDocsAdmin.filter(d => d.product === 'faq').length;
   document.getElementById('docs-count').textContent = `자료 ${allDocsAdmin.length - faqCount}개 · FAQ ${faqCount}개`;
@@ -7200,7 +7200,7 @@ async function loadTickets() {
 
   const { data, error } = await query;
   if (error) {
-    tbody.innerHTML = `<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--red);font-size:13px;">조회 오류: ${error.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--red);font-size:13px;">조회 오류: ${escHtml(error.message)}</td></tr>`;
     return;
   }
   allTickets = data || [];
@@ -7933,7 +7933,7 @@ async function loadCompanies() {
     sb.from('company_contracts').select('company_id,bixs_contact,end_date,status').limit(1000),
   ]);
   if (error) {
-    tbody.innerHTML = `<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--red);font-size:13px;">오류: ${error.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--red);font-size:13px;">오류: ${escHtml(error.message)}</td></tr>`;
     return;
   }
   const contractsByCompany = {};
@@ -12714,7 +12714,7 @@ async function loadUsers() {
     .limit(1000);
 
   if (error) {
-    tbody.innerHTML = `<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--red);font-size:13px;">오류: ${error.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--red);font-size:13px;">오류: ${escHtml(error.message)}</td></tr>`;
     return;
   }
   allUsers = data || [];
@@ -13618,7 +13618,7 @@ async function loadAllTickets(silent = false) {
 
   const { data, error } = await _arBaseQuery().limit(1000);
   if (error) {
-    if (!silent) tbody.innerHTML = `<tr><td colspan="8" style="padding:24px;text-align:center;color:var(--red-d);">오류: ${error.message}</td></tr>`;
+    if (!silent) tbody.innerHTML = `<tr><td colspan="8" style="padding:24px;text-align:center;color:var(--red-d);">오류: ${escHtml(error.message)}</td></tr>`;
     return;
   }
   allMgTickets = data || [];
