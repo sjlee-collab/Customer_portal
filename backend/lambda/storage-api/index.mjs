@@ -30,7 +30,7 @@ const ALLOWED_ORIGINS = ['https://support.bigxdata.io', 'https://dev.dlayoierdft
 // 바꿔도 서명이 그대로 유효하다 — 프록시가 Host를 S3 호스트로 보내고 경로·쿼리를 그대로 전달하기
 // 때문(SigV4 서명 대상 = Host·경로·쿼리). dev에서 1KB·10MB PUT/GET·서명 변조 403·만료 403 검증 완료.
 // 규칙이 있는 오리진·버킷에만 치환한다. 운영 전환 = 운영 앱에 규칙 추가 후 아래 목록에 오리진 추가.
-const FILE_PROXY_ORIGINS = ['https://dev.dlayoierdftk6.amplifyapp.com'];
+const FILE_PROXY_ORIGINS = ['https://dev.dlayoierdftk6.amplifyapp.com', 'https://support.bigxdata.io']; // 2026-09-18 운영 전환
 const PROXIED_BUCKETS = new Set(['ticket-attachments']); // 자료실(documents)·계약 첨부는 범위 제외(2026-09 결정)
 function proxyFileUrl(url, logicalBucket, event) {
   const origin = event?.headers?.origin || event?.headers?.Origin;

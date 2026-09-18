@@ -58,8 +58,9 @@ def run():
             u1 = (upload_url(tid + '/p1.pdf', MB, role='admin', origin=DEV).get('body') or {}).get('uploadUrl') or ''
             t.check('dev Origin → 프록시 주소(/files/ticket-attachments/)', u1.startswith(DEV + '/files/ticket-attachments/' + tid + '/p1.pdf?'), 'url=%s' % u1[:90])
             t.check('프록시 URL에 서명 쿼리 보존', 'X-Amz-Signature=' in u1 and 'X-Amz-Credential=' in u1, 'url=%s' % u1[-60:])
-            u2 = (upload_url(tid + '/p2.pdf', MB, role='admin', origin='https://support.bigxdata.io').get('body') or {}).get('uploadUrl') or ''
-            t.check('운영 Origin(전환 전) → S3 직접 주소', u2.startswith(S3H), 'url=%s' % u2[:70])
+            PROD = 'https://support.bigxdata.io'
+            u2 = (upload_url(tid + '/p2.pdf', MB, role='admin', origin=PROD).get('body') or {}).get('uploadUrl') or ''
+            t.check('운영 Origin → 프록시 주소 (2026-09-18 전환)', u2.startswith(PROD + '/files/ticket-attachments/' + tid + '/p2.pdf?'), 'url=%s' % u2[:90])
             u3 = (upload_url(tid + '/p3.pdf', MB, role='admin', origin='https://evil.example').get('body') or {}).get('uploadUrl') or ''
             t.check('허용 외 Origin → S3 직접 주소', u3.startswith(S3H), 'url=%s' % u3[:70])
     finally:
