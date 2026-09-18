@@ -39,7 +39,8 @@ const ALLOWED_TABLES = new Set([
 // 이 컬럼들은 select=* 나 명시적 요청과 무관하게 응답에서 절대 내려주지 않는다.
 // 비밀번호 검증은 api-layer의 /auth/* 엔드포인트가 서버 쪽에서 전담한다.
 const BLOCKED_COLUMNS = {
-  users: new Set(['password', 'reset_token', 'reset_token_expires_at']),
+  // token_version: 읽을 가치는 없고, 이 범용 API로 쓰게 두면 폐기된 토큰의 ver에 맞춰 되살릴 수 있다.
+  users: new Set(['password', 'reset_token', 'reset_token_expires_at', 'token_version']),
 };
 
 function stripBlockedColumns(table, rows) {
@@ -178,6 +179,23 @@ function getAuthz(event) {
     ? a.unitIds.split(',').filter(Boolean) : [];
   return { role: a.role || null, userId: a.userId || null, companyId: a.companyId || null, contractId: a.contractId || null, unitIds };
 }
+
+// ── 토큰 폐기 대조 (2026-09-18) — api-layer의 tokenVersionOk와 같은 규칙 ──
+// 인가자가 토큰 ver 클레임을 tokenVersion 컨텍스트로 넘긴다. users.token_version과 다르거나 계정이
+// 비활성화됐으면 401(인가자와 같은 모양 — error 키 없음 → 프론트가 세션 만료로 처리).
+// 키 자체가 없으면 인가자를 거치지 않은 직접 invoke(하네스·storage-api 내부 호출 중 컨텍스트 미전달분)라
+// 건너뛴다. 요청당 1회, 핸들러 진입에서만 부른다(getAuthz는 핸들러마다 불려 거기 두면 5번 친다).
+async function tokenVersionOk(event) {
+  const a = event.requestContext?.authorizer?.lambda;
+  if (!a || a.tokenVersion === undefined || !a.userId) return true;
+  const rows = await query('select token_version, is_active from users where id=$1', [a.userId]);
+  const row = rows[0];
+  if (!row || row.is_active === false) return false;
+  return String(row.token_version ?? 0) === String(a.tokenVersion);
+}
+// users의 이 컬럼이 바뀌면 그 사용자의 토큰을 폐기한다 — role(권한), company/contract/unit(테넌트 범위),
+// is_active(차단). 토큰이 이 값들을 클레임으로 들고 다니므로, 바꾸고도 옛 토큰이 살면 옛 권한이 8시간 유지된다.
+const TOKEN_BUMP_USER_COLUMNS = new Set(['role', 'company_id', 'contract_id', 'unit_id', 'is_active']);
 
 // GET에 항상 덧붙이는 행 단위 제한. 반환값 { sql, params } 를 whereClauses에 AND로 추가한다.
 // admin/스태프(sales·tech_support·education)는 대부분 제한이 없다 — 여러 고객사의 요청을
@@ -695,7 +713,11 @@ async function handlePatch(table, id, body, event) {
   assertNoBlockedWrite(table, cols);
   const authz = getAuthz(event);
   await assertWriteAllowed(table, 'PATCH', authz, id, cols, body);
-  const setSql = cols.map((c, i) => `"${c}" = $${i + 1}`).join(',');
+  let setSql = cols.map((c, i) => `"${c}" = $${i + 1}`).join(',');
+  // 권한·테넌트·활성 컬럼이 바뀌면 대상 사용자의 토큰을 폐기(token_version +1) — 옛 권한 토큰이 8시간 살던 갭.
+  if (table === 'users' && cols.some(c => TOKEN_BUMP_USER_COLUMNS.has(c))) {
+    setSql += ', "token_version" = coalesce("token_version", 0) + 1';
+  }
   const params = cols.map(c => bindWriteValue(table, c, body[c]));
   params.push(id);
   let where = `id = $${params.length}`;
@@ -738,6 +760,8 @@ export const handler = async (event) => {
     const table = (withId ?? noId)?.[1];
     if (!table || !ALLOWED_TABLES.has(table)) throw new HttpError(404, '알 수 없는 테이블입니다');
     assertTableAccess(table, event);
+    // 토큰 폐기 대조 — HttpError로 던지면 {error:…} 모양이 되어 프론트가 로그아웃 처리를 못 하므로 직접 반환.
+    if (!(await tokenVersionOk(event))) return json(401, { message: 'Unauthorized' });
 
     const body = event.body ? JSON.parse(event.body) : undefined;
 

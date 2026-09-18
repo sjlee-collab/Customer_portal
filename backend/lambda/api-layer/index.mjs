@@ -131,6 +131,38 @@ function getAuthz(event) {
   return { role: a.role || null, userId: a.userId || null, companyId: a.companyId || null, contractId: a.contractId || null, unitIds };
 }
 
+// ── 토큰 폐기 (2026-09-18) ──
+// JWT는 서명·만료만 검증돼 발급 뒤 8시간 동안 무효화할 수단이 없었다(비번 변경·로그아웃·비활성화·
+// 역할 변경 모두 무력). users.token_version을 토큰 ver 클레임에 싣고, 요청마다 DB 값과 대조한다.
+// 폐기 = 해당 사용자의 token_version +1 → 그 사용자의 기존 토큰 전부 무효(전 기기 로그아웃).
+// 대조는 인가자(DB 없음)가 아니라 여기서 한다 — 어차피 DB가 필요한 요청이고 PK 조회 1회다.
+// 컨텍스트에 tokenVersion 키가 없으면 인가자를 거치지 않은 직접 invoke(하네스·내부 호출)라 건너뛴다.
+// 인가자는 항상 키를 넣으므로(구토큰은 '0') 실 트래픽은 100% 대조된다.
+async function tokenVersionOk(event) {
+  const a = event.requestContext?.authorizer?.lambda;
+  if (!a || a.tokenVersion === undefined || !a.userId) return true;
+  const rows = await query('select token_version, is_active from users where id=$1', [a.userId]);
+  const row = rows[0];
+  if (!row || row.is_active === false) return false;       // 삭제·비활성화 계정은 즉시 차단(예전엔 8시간 지연)
+  return String(row.token_version ?? 0) === String(a.tokenVersion);
+}
+// 거부 응답은 API Gateway 인가자가 만드는 401과 같은 모양(error 키 없음)이어야 한다 — 프론트의
+// isAuthRejection이 그 모양만 "세션 만료 → 로그아웃"으로 처리하고, error 키가 있으면 개별 오류로 띄운다.
+function unauthorizedBare() { return json(401, { message: 'Unauthorized' }); }
+async function bumpTokenVersion(userId) {
+  await query('update users set token_version = coalesce(token_version, 0) + 1 where id=$1', [userId]);
+}
+// 비밀번호 변경처럼 "폐기 직후에도 현재 세션은 이어져야" 할 때 새 버전으로 토큰을 다시 발급한다.
+async function reissueToken(userId) {
+  const rows = await query('select id, role, company_id, contract_id, token_version from users where id=$1', [userId]);
+  const u = rows[0]; if (!u) return null;
+  const unitRows = await query('select unit_id from user_org_units where user_id=$1', [userId]);
+  return signToken(
+    { sub: u.id, role: u.role, company_id: u.company_id || null, contract_id: u.contract_id || null, unit_ids: unitRows.map(r => r.unit_id), ver: u.token_version ?? 0 },
+    JWT_SECRET, TOKEN_TTL_SECONDS
+  );
+}
+
 const STAFF_ROLES = new Set(['admin', 'sales', 'tech_support', 'education']);
 // 대리 등록 가능 역할 = 내부 + 전 스태프(고객 제외). 실제 허용은 여기에 더해 ticket_create 권한까지 확인.
 const PROXY_ROLES = new Set(['internal', 'admin', 'sales', 'tech_support', 'education']);
@@ -1053,7 +1085,7 @@ async function login(body) {
   if (!email || !password) return json(400, { error: 'email, password는 필수입니다' });
 
   const rows = await query(
-    'select id, name, role, company_id, contract_id, unit_id, phone, is_active, password, failed_logins, locked_until from users where email=$1',
+    'select id, name, role, company_id, contract_id, unit_id, phone, is_active, password, failed_logins, locked_until, token_version from users where email=$1',
     [email]
   );
   const user = rows[0];
@@ -1104,8 +1136,9 @@ async function login(body) {
       where uo.user_id = $1 order by o.unit_no`, [user.id]);
   const unitIds = unitRows.map(r => r.unit_id);
   const units = unitRows.map(r => ({ id: r.unit_id, unit_no: r.unit_no, unit_name: r.unit_name, is_primary: r.is_primary }));
+  // ver: users.token_version 스냅샷 — 요청마다 DB 값과 대조해 폐기된 토큰을 거른다(tokenVersionOk).
   const token = signToken(
-    { sub: user.id, role: user.role, company_id: user.company_id || null, contract_id: user.contract_id || null, unit_ids: unitIds },
+    { sub: user.id, role: user.role, company_id: user.company_id || null, contract_id: user.contract_id || null, unit_ids: unitIds, ver: user.token_version ?? 0 },
     JWT_SECRET, TOKEN_TTL_SECONDS
   );
   // 사용 통계(DAU/WAU/MAU)용 로그인 이벤트 기록 — 베스트에포트: 실패해도 로그인은 정상 진행.
@@ -2050,7 +2083,24 @@ async function changePassword(event, body) {
   // stored가 없는(비밀번호 미설정) 계정은 로그인 자체가 안 되므로 여기 도달할 수 없다.
 
   // 현재 비밀번호를 증명했으므로 실패 카운터·잠금도 함께 푼다 — 잠긴 사용자가 스스로 복구하는 경로.
-  await query('update users set password=$1, failed_logins=0, locked_until=null where id=$2', [hashPassword(newPassword), userId]);
+  // token_version +1: 이 계정의 기존 토큰(다른 기기·탈취분)을 전부 폐기한다. 현재 세션은 끊기지 않게
+  // 새 버전의 토큰을 응답에 실어 프론트가 갈아끼운다(B안 — 비밀번호를 바꿨는데 튕기면 문의가 온다).
+  await query(
+    'update users set password=$1, failed_logins=0, locked_until=null, token_version = coalesce(token_version, 0) + 1 where id=$2',
+    [hashPassword(newPassword), userId]
+  );
+  const token = await reissueToken(userId);
+  return json(200, { ok: true, token });
+}
+
+// ── POST /auth/logout ──
+// 예전 로그아웃은 localStorage만 지워 토큰이 8시간 살아 있었다. token_version을 올려 진짜로 폐기한다.
+// 사용자당 버전 하나라 전 기기 로그아웃이 된다(지원 포탈엔 이쪽이 안전). 이미 폐기된 토큰으로 오면
+// 디스패치의 대조에서 401이 먼저 나므로 여기 도달하는 건 유효 토큰뿐이다.
+async function logout(event) {
+  const { userId } = getAuthz(event);
+  if (!userId) return json(401, { error: '인증이 필요합니다' });
+  await bumpTokenVersion(userId);
   return json(200, { ok: true });
 }
 
@@ -2157,7 +2207,9 @@ async function adminResetPassword(body, event) {
   const token = randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS).toISOString();
   // 관리자가 개입한 것이므로 로그인 잠금도 함께 푼다(잠긴 고객을 관리자가 풀어주는 경로).
-  await query('update users set reset_token=$1, reset_token_expires_at=$2, failed_logins=0, locked_until=null where id=$3',
+  // token_version +1: 관리자가 재설정을 걸면 그 계정의 기존 토큰을 즉시 폐기한다 — 탈취 의심 시
+  // 관리자가 강제 로그아웃시키는 수단이 된다(예전엔 8시간 동안 손쓸 방법이 없었다).
+  await query('update users set reset_token=$1, reset_token_expires_at=$2, failed_logins=0, locked_until=null, token_version = coalesce(token_version, 0) + 1 where id=$3',
     [token, expiresAt, target.id]);
   // 누가 누구에게 재설정을 걸었는지는 남겨야 사후 추적이 된다(별도 감사 테이블은 아직 없음).
   console.log(`[admin-reset] by=${authz.userId} role=${authz.role} target=${target.email}`);
@@ -2182,7 +2234,8 @@ async function resetPassword(body) {
 
   const updated = await query(
     `update users set password=$1, reset_token=null, reset_token_expires_at=null,
-            failed_logins=0, locked_until=null
+            failed_logins=0, locked_until=null,
+            token_version = coalesce(token_version, 0) + 1
      where reset_token=$2 and reset_token_expires_at > now() returning id`,
     [hashPassword(newPassword), token]
   );
@@ -2978,6 +3031,10 @@ export const handler = async (event) => {
   const body = event.body ? JSON.parse(event.body) : {};
 
   try {
+    // 토큰 폐기 대조 — 인가자를 거친 요청만(비인증 라우트 /auth/login·request-reset·reset-password는
+    // 컨텍스트가 없어 자연 제외). 불일치·비활성화면 인가자와 같은 모양의 401.
+    if (!(await tokenVersionOk(event))) return unauthorizedBare();
+
     if (method === 'POST' && path === '/auth/login') {
       return await login(body);
     }
@@ -2992,6 +3049,9 @@ export const handler = async (event) => {
     }
     if (method === 'POST' && path === '/auth/reset-password') {
       return await resetPassword(body);
+    }
+    if (method === 'POST' && path === '/auth/logout') {
+      return await logout(event);
     }
     if (method === 'POST' && path === '/auth/invite') {
       return await inviteUser(body, event);

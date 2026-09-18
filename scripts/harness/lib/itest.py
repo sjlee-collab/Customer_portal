@@ -180,12 +180,16 @@ def invoke(fn, event):
     return _parse(raw)
 
 
-def ctx(role, userId=None, companyId=None, contractId=None, unitIds=None):
+def ctx(role, userId=None, companyId=None, contractId=None, unitIds=None, tokenVersion=None):
+    """인가자 컨텍스트 모사. tokenVersion을 주면 인가자가 넣는 tokenVersion 키를 함께 실어
+    토큰 폐기 대조(users.token_version)를 검증할 수 있다. 기본(None)은 키를 넣지 않는다 —
+    백엔드는 키 없는 컨텍스트를 '직접 invoke'로 보고 대조를 건너뛰므로 기존 스위트는 그대로 돈다."""
     lam = {'role': role}
     if userId: lam['userId'] = userId
     if companyId: lam['companyId'] = companyId
     if contractId: lam['contractId'] = contractId
     if unitIds: lam['unitIds'] = ','.join(unitIds)
+    if tokenVersion is not None: lam['tokenVersion'] = str(tokenVersion)
     return {'requestContext': {'authorizer': {'lambda': lam}, 'http': {'method': None}}}
 
 

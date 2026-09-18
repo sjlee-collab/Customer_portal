@@ -96,6 +96,7 @@
 - `tests/test_schema_contract.py` — **스키마 계약(안 낡게)**: schema.sql의 CHECK 허용값을 파싱해 ① 라이브 DB가 전부 수용·불량값 거부(스키마↔배포 드리프트 감지) ② test_ticket_status 상태 커버리지 = 스키마−received(값 추가 시 미반영 경고)
 - `tests/test_auth.py` — 인증: 로그인 분기(404/401) · 비밀번호 변경/확인 · 재설정(무효 토큰·요청(request-reset)·관리자 재설정·권한상승 차단) · 초대 · 담당영업 조회
 - `tests/test_login_lockout.py` — 로그인 잠금: 5회 실패→잠금 · 잠금 중 정답도 401(응답 문구 동일) · 잠금 중 카운터 불변 · change-password로 리셋 · request-reset 쿨다운(2회 → 메일 1통). 실행당 재설정 메일 1통이 싱크로 감(PAR_SAFE 아님)
+- `tests/test_token_version.py` — JWT 폐기(users.token_version ↔ 토큰 ver): 키 없음→대조 생략(호환) · 일치 200 / 불일치·구버전 401(error 키 없는 bare 모양) data-api·api-layer 양쪽 · change-password → +1 + 새 토큰(ver) 반환 · logout → +1 · admin role/is_active PATCH → +1 · name PATCH는 유지 · token_version 읽기·쓰기·필터 차단 · 비활성화 즉시 401. 로그인·메일 없음(PAR_SAFE)
 - `tests/test_customer_e2e.py` — **고객 계정 전 기능 정상성**(등록·목록·상세·수정·답글·첨부·계약/자료 조회·내정보) + 보안 차단
 - L2 프론트: `l2-smoke.mjs`(정적, 자동) + `l2-runtime.mjs`(런타임·렌더·실로그인, 자동 — test_l2_runtime이 회귀에서 실행). smoke-frontend.js 수동 붙여넣기는 회귀 없이 즉석 확인할 때만
 - 데이터 원칙: `[테스트]` 라벨 + admin 직접 insert(알림 없음) + 종료 시 정리(+ 잔여물 `sweep`). 개별 실행: `python scripts/harness/tests/test_customer_e2e.py`
