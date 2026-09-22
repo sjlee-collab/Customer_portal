@@ -8,12 +8,23 @@
 
 import { query } from './db.mjs';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
+import { getSecret } from './secrets.mjs';
 
 // 계정 문의 알림도 공통 채널(#고객지원포탈-공통)로 보낸다. 변수명 오타(WEEBHOOK)는 기존 그대로.
-const SLACK_WEBHOOK = process.env.SLACK_WEEBHOOK_COMMON || '';
+let SLACK_WEBHOOK = process.env.SLACK_WEEBHOOK_COMMON || '';
 // 하네스 테스트 모드 — email-safe.sh on 이면 실 채널 대신 테스트 채널로만 보낸다.
 // 웹훅 주소는 비밀값이라 레포가 아닌 Lambda 환경변수로만 보관한다.
-const SLACK_WEBHOOK_TEST = process.env.SLACK_WEBHOOK_TEST || '';
+let SLACK_WEBHOOK_TEST = process.env.SLACK_WEBHOOK_TEST || '';
+// 웹훅은 Secrets Manager에서(2026-09-22, P-1). 환경변수는 전환기 폴백, 핸들러 진입 시 1회 덮어쓴다.
+let _slackLoaded = false;
+async function loadSlackSecrets() {
+  if (_slackLoaded) return;
+  _slackLoaded = true;
+  const s = await getSecret('customer-portal/slack-webhooks');
+  if (!s) return;
+  SLACK_WEBHOOK      = s.SLACK_WEEBHOOK_COMMON || SLACK_WEBHOOK;
+  SLACK_WEBHOOK_TEST = s.SLACK_WEBHOOK_TEST    || SLACK_WEBHOOK_TEST;
+}
 const SLACK_REDIRECT     = process.env.SLACK_REDIRECT === '1';
 const TEST_TAG           = process.env.TEST_TAG || '';
 const SEND_EMAIL_FN = process.env.SEND_EMAIL_FN || 'customer_portal_send-email';
@@ -52,6 +63,7 @@ create index if not exists idx_account_inquiries_created on public.account_inqui
 `;
 
 export async function handler(event) {
+  await loadSlackSecrets();
   // 직접 invoke 마이그레이션/점검(HTTP 요청이 아닐 때만) — 공개 라우트로는 절대 실행 안 됨.
   if (event && event.__migrate === true && !event.requestContext) {
     await query(MIGRATE_SQL);

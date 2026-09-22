@@ -12,9 +12,18 @@ import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 import { query, withTransaction } from './db.mjs';
 import { notifySlack, notifyEmail } from './notify.mjs';
 import { signToken } from './jwt.mjs';
+import { secretValue } from './secrets.mjs';
 
 const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
-const JWT_SECRET = process.env.JWT_SECRET;
+// 서명 키는 Secrets Manager에서(2026-09-22, P-1). jwt-authorizer가 같은 시크릿으로 검증하므로
+// 두 함수의 값이 반드시 같아야 한다. 조회 실패 시 환경변수 폴백(전환기 안전장치).
+let _jwtSecret = null;
+async function jwtSecret() {
+  if (_jwtSecret === null) {
+    _jwtSecret = await secretValue('customer-portal/jwt', 'JWT_SECRET', process.env.JWT_SECRET);
+  }
+  return _jwtSecret;
+}
 // 클라이언트의 절대 세션 만료(SESSION_ABSOLUTE_LIMIT_MS, index.html)와 맞춤 — 토큰이
 // 화면상 "로그인 유지" 시간보다 먼저 만료되면 만료 안내 없이 API가 갑자기 401나기 시작한다.
 const TOKEN_TTL_SECONDS = 8 * 60 * 60;
@@ -167,7 +176,7 @@ async function reissueToken(userId) {
   const unitRows = await query('select unit_id from user_org_units where user_id=$1', [userId]);
   return signToken(
     { sub: u.id, role: u.role, company_id: u.company_id || null, contract_id: u.contract_id || null, unit_ids: unitRows.map(r => r.unit_id), ver: u.token_version ?? 0 },
-    JWT_SECRET, TOKEN_TTL_SECONDS
+    await jwtSecret(), TOKEN_TTL_SECONDS
   );
 }
 
@@ -1160,7 +1169,7 @@ async function login(body) {
   // ver: users.token_version 스냅샷 — 요청마다 DB 값과 대조해 폐기된 토큰을 거른다(tokenVersionOk).
   const token = signToken(
     { sub: user.id, role: user.role, company_id: user.company_id || null, contract_id: user.contract_id || null, unit_ids: unitIds, ver: user.token_version ?? 0 },
-    JWT_SECRET, TOKEN_TTL_SECONDS
+    await jwtSecret(), TOKEN_TTL_SECONDS
   );
   // 사용 통계(DAU/WAU/MAU)용 로그인 이벤트 기록 — 베스트에포트: 실패해도 로그인은 정상 진행.
   try {
