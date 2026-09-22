@@ -24,17 +24,33 @@
 // 출력: { ok: true, results: [{ channel:'slack', eventType, recipient, ticketId, status, errorMessage }] }
 // results는 caller가 log_notification 테이블에 직접 기록한다 (이 함수는 DB를 모른다).
 
-const SLACK_WEBHOOK_COMMON = process.env.SLACK_WEEBHOOK_COMMON || ''; // 오타 그대로 유지 (원본 환경변수명)
-const SLACK_WEBHOOK_SALES  = process.env.SLACK_WEBHOOK_SALES || '';
-const SLACK_WEBHOOK_TECH   = process.env.SLACK_WEBHOOK_TECH || '';
-const SLACK_WEBHOOK_EDU    = process.env.SLACK_WEBHOOK_EDU || '';
+// 웹훅 주소는 Secrets Manager에서 읽는다(2026-09-22, P-1). 환경변수는 전환기 폴백으로만 남기고
+// 핸들러 진입 시 loadSlackSecrets()가 컨테이너당 1회 덮어쓴다(그래서 const가 아니라 let).
+import { getSecret } from './secrets.mjs';
+
+let SLACK_WEBHOOK_COMMON = process.env.SLACK_WEEBHOOK_COMMON || ''; // 오타 그대로 유지 (원본 환경변수명)
+let SLACK_WEBHOOK_SALES  = process.env.SLACK_WEBHOOK_SALES || '';
+let SLACK_WEBHOOK_TECH   = process.env.SLACK_WEBHOOK_TECH || '';
+let SLACK_WEBHOOK_EDU    = process.env.SLACK_WEBHOOK_EDU || '';
 const PORTAL_URL           = process.env.PORTAL_URL || 'https://support.bigxdata.io';
 // 테스트 모드 표기 — 하네스 email-safe.sh on 이면 TEST_TAG='[테스트]'가 설정되어 슬랙 헤더에 접두된다.
 const TEST_TAG             = process.env.TEST_TAG || '';
 // 테스트 모드 슬랙 리다이렉트 — email-safe.sh on 이 SLACK_REDIRECT=1을 설정하면
 // 모든 슬랙 알림이 실 채널 대신 테스트 채널(SLACK_WEBHOOK_TEST)로만 간다.
 // 웹훅 주소는 비밀값이라 레포에 두지 않고 Lambda 환경변수로만 보관한다.
-const SLACK_WEBHOOK_TEST   = process.env.SLACK_WEBHOOK_TEST || '';
+let SLACK_WEBHOOK_TEST   = process.env.SLACK_WEBHOOK_TEST || '';
+let _slackLoaded = false;
+async function loadSlackSecrets() {
+  if (_slackLoaded) return;
+  _slackLoaded = true;   // 실패해도 매 요청 재시도하지 않는다(환경변수 폴백 유지)
+  const s = await getSecret('customer-portal/slack-webhooks');
+  if (!s) return;
+  SLACK_WEBHOOK_COMMON = s.SLACK_WEEBHOOK_COMMON || SLACK_WEBHOOK_COMMON;
+  SLACK_WEBHOOK_SALES  = s.SLACK_WEBHOOK_SALES  || SLACK_WEBHOOK_SALES;
+  SLACK_WEBHOOK_TECH   = s.SLACK_WEBHOOK_TECH   || SLACK_WEBHOOK_TECH;
+  SLACK_WEBHOOK_EDU    = s.SLACK_WEBHOOK_EDU    || SLACK_WEBHOOK_EDU;
+  SLACK_WEBHOOK_TEST   = s.SLACK_WEBHOOK_TEST   || SLACK_WEBHOOK_TEST;
+}
 const SLACK_REDIRECT       = process.env.SLACK_REDIRECT === '1';
 
 const STATUS_KO = {
@@ -351,6 +367,7 @@ function isPublicGatewayRequest(event) { return !!event?.requestContext; }
 function getRequesterRole(event) { return event?.requestContext?.authorizer?.lambda?.role || null; }
 
 export const handler = async (event) => {
+  await loadSlackSecrets();
   const payload = typeof event.body === 'string' ? JSON.parse(event.body) : (event.body || event);
   const results = [];
 

@@ -18,9 +18,18 @@
 // 출력: { ok: true, results: [{ channel:'email', eventType, recipient, subject, ticketId, status, errorMessage }] }
 // results는 caller가 log_notification 테이블에 직접 기록한다.
 
+import { secretValue } from './secrets.mjs';
+
 const MS_TENANT_ID     = process.env.MS_TENANT_ID || '';
 const MS_CLIENT_ID     = process.env.MS_CLIENT_ID || '';
-const MS_CLIENT_SECRET = process.env.MS_CLIENT_SECRET || '';
+// MS Graph 클라이언트 시크릿은 Secrets Manager에서(2026-09-22, P-1). 조회 실패 시 환경변수 폴백.
+let _msSecret = null;
+async function msClientSecret() {
+  if (_msSecret === null) {
+    _msSecret = await secretValue('customer-portal/ms-graph', 'MS_CLIENT_SECRET', process.env.MS_CLIENT_SECRET);
+  }
+  return _msSecret;
+}
 const MS_FROM          = process.env.MS_FROM || 'hr@bigxdata.io';
 const PORTAL_URL       = process.env.PORTAL_URL || '';
 // 통합테스트용: 설정돼있으면 실제 수신자 대신 이 주소로만 발송 (원래 수신자는 제목에 표시).
@@ -62,7 +71,7 @@ async function getAccessToken() {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       client_id: MS_CLIENT_ID,
-      client_secret: MS_CLIENT_SECRET,
+      client_secret: await msClientSecret(),
       scope: 'https://graph.microsoft.com/.default',
       grant_type: 'client_credentials',
     }),
@@ -343,7 +352,7 @@ export const handler = async (event) => {
     }
 
     if (payload.type === 'CONNECTION_TEST') {
-      if (!MS_TENANT_ID || !MS_CLIENT_ID || !MS_CLIENT_SECRET) {
+      if (!MS_TENANT_ID || !MS_CLIENT_ID || !(await msClientSecret())) {
         return ok({ ok: false, error: 'MS_TENANT_ID / MS_CLIENT_ID / MS_CLIENT_SECRET 환경변수 미설정' });
       }
       try {

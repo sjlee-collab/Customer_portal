@@ -4,13 +4,23 @@
 // isAuthorized:false를 반환하면 API Gateway가 403을 내려준다 (401이 아님에 주의 —
 // 프런트엔드에서 "인증 만료" 판단 시 401과 403을 함께 봐야 한다).
 import { verifyToken } from './jwt.mjs';
+import { secretValue } from './secrets.mjs';
 
-const JWT_SECRET = process.env.JWT_SECRET;
+// 서명 키는 Secrets Manager에서 읽는다(2026-09-22, P-1). 환경변수 노출을 없애되, 조회 실패 시
+// JWT_SECRET 환경변수로 폴백해 인증이 통째로 멈추지 않게 한다. 컨테이너당 1회만 조회(캐시).
+// api-layer의 signToken과 반드시 같은 값이어야 하므로 같은 시크릿을 본다.
+let _jwtSecret = null;
+async function jwtSecret() {
+  if (_jwtSecret === null) {
+    _jwtSecret = await secretValue('customer-portal/jwt', 'JWT_SECRET', process.env.JWT_SECRET);
+  }
+  return _jwtSecret;
+}
 
 export const handler = async (event) => {
   const authHeader = event.headers?.authorization || event.headers?.Authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  const payload = token ? verifyToken(token, JWT_SECRET) : null;
+  const payload = token ? verifyToken(token, await jwtSecret()) : null;
 
   if (!payload) return { isAuthorized: false };
 
