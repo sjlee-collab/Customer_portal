@@ -9,5 +9,13 @@ customHeaders:
         value: 'DENY'
       - key: 'Referrer-Policy'
         value: 'strict-origin-when-cross-origin'
+      # 2세대 헤더(2026-09-22, S-5): 안 쓰는 브라우저 기능 차단 + 창/리소스 출처 격리.
+      # Nuclei/ZAP 지적. COEP는 S3 첨부 이미지가 CORP 헤더를 안 줘 깨지므로 제외.
+      - key: 'Permissions-Policy'
+        value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), serial=(), hid=()'
+      - key: 'Cross-Origin-Opener-Policy'
+        value: 'same-origin'
+      - key: 'Cross-Origin-Resource-Policy'
+        value: 'same-origin'
       - key: 'Content-Security-Policy'
         value: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://bigxdata-portal-documents.s3.ap-northeast-2.amazonaws.com https://bigxdata-portal-ticket-attachments.s3.ap-northeast-2.amazonaws.com https://bigxdata-portal-contract-attachments.s3.ap-northeast-2.amazonaws.com; connect-src 'self' https://8xbmazu4ij.execute-api.ap-northeast-2.amazonaws.com https://bigxdata-portal-documents.s3.ap-northeast-2.amazonaws.com https://bigxdata-portal-ticket-attachments.s3.ap-northeast-2.amazonaws.com https://bigxdata-portal-contract-attachments.s3.ap-northeast-2.amazonaws.com; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
