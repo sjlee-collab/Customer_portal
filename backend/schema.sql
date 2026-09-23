@@ -10,6 +10,17 @@
 -- org_units 쪽 제약조건은 대조하지 않았으므로 새 환경 적용 전 아래 쿼리로 확인할 것.
 --   select conname, pg_get_constraintdef(oid) from pg_constraint
 --    where conrelid = 'public.org_units'::regclass;
+--
+-- [2026-09-23 정정] 개발환경 구축 중 이 파일을 빈 DB에 적용한 뒤 운영 카탈로그와 대조해
+-- 아래 차이를 발견하고 채워넣었다(운영 DB 기준이 정답):
+--   · users.reset_token / reset_token_expires_at (누락)
+--   · company_contracts.unit_id + FK (누락)
+--   · org_units UNIQUE(unit_no), UNIQUE(company_id, unit_name) (누락)
+--   · user_org_units: 운영은 UNIQUE 제약이 아니라 독립 유니크 인덱스
+--   · org_units/users/tickets 의 unit 관련 FK에 ON DELETE 절 누락
+-- 운영에만 있는 public.form_responses(0행, 코드 참조 0, ALLOWED_TABLES 미등록)는
+-- 2026-09-07에 survey_history로 대체된 잔재이므로 이 파일에 되살리지 않는다 — 운영에서 DROP 대상.
+-- 대조 방법: scripts/devenv/migrate.mjs 의 verify 액션(컬럼·인덱스·제약·트리거 양방향 diff).
 -- ============================================================
 
 -- ── 1. companies ──
@@ -49,7 +60,8 @@ create table public.company_contracts (
   updated_at        timestamptz not null default now(),
   file_name         text,
   file_path         text,
-  salesforce_id     text
+  salesforce_id     text,
+  unit_id           uuid          -- 조직(org_units). 계약을 조직 단위로 나눠 관리할 때 사용.
 );
 
 -- ── 3. users ──
@@ -72,6 +84,9 @@ create table public.users (
   -- 로그인 잠금(2026-09-15): 연속 실패 5회 → 15분 잠금. 성공·비번 변경·재설정 완료·관리자 재설정 시 리셋.
   failed_logins       integer not null default 0,
   locked_until        timestamptz,
+  -- 비밀번호 재설정 토큰 — api-layer만 다루며 data-api는 읽기·쓰기 모두 차단(BLOCKED_COLUMNS).
+  reset_token            text,
+  reset_token_expires_at timestamptz,
   -- 재설정 메일 재요청 쿨다운(15분) 판정용 — 마지막으로 토큰을 발급한 시각
   reset_requested_at  timestamptz,
   -- JWT 폐기(2026-09-18): 로그인 시 토큰 ver 클레임에 실리고 요청마다 대조. 비번 변경·재설정·
@@ -323,7 +338,9 @@ create table public.org_units (
   unit_name   text not null,
   status      text not null default 'active',
   created_at  timestamptz not null default now(),
-  updated_at  timestamptz not null default now()
+  updated_at  timestamptz not null default now(),
+  unique (unit_no),
+  unique (company_id, unit_name)     -- 같은 고객사 안에서 조직명 중복 방지
 );
 comment on table public.org_units is '고객사 내 조직(사업부/팀/최종고객). 계약 갱신과 무관하게 유지되는 요청 격리 단위.';
 comment on column public.org_units.unit_no is '조직 고유번호 (ORG-0001 형식). 화면에서 조직명과 함께 표시.';
@@ -337,9 +354,10 @@ create table public.user_org_units (
   is_primary  boolean not null default false,
   created_at  timestamptz not null default now(),
   id          uuid not null default gen_random_uuid(),
-  primary key (user_id, unit_id),
-  unique (id)
+  primary key (user_id, unit_id)
 );
+-- 운영은 제약이 아니라 독립 유니크 인덱스로 존재한다(add-user-org-units-id.sql 경로).
+create unique index if not exists user_org_units_id_key on public.user_org_units (id);
 comment on table public.user_org_units is '사용자-조직 다중 배정. 요청 조회 범위는 배정된 조직 전체 + 본인이 등록한 요청.';
 comment on column public.user_org_units.is_primary is '대표 조직. 요청 등록 시 기본으로 선택되는 조직.';
 comment on column public.user_org_units.id is '행 지목용 대리키. 실제 유일성은 (user_id, unit_id) 복합 PK가 보장한다. data-api의 PATCH/DELETE가 /data/:table/:id 경로만 지원해서 추가됨(add-user-org-units-id.sql).';
@@ -393,17 +411,20 @@ alter table public.role_permissions
 -- 조직(org_units / user_org_units) — 사용자·티켓이 조직을 참조한다.
 -- tickets.unit_id는 unit_name 스냅샷이 함께 있으므로 조직이 지워져도 과거 요청 표시가 유지된다.
 alter table public.org_units
-  add constraint org_units_company_id_fkey foreign key (company_id) references public.companies(id);
+  add constraint org_units_company_id_fkey foreign key (company_id) references public.companies(id) on delete restrict;
 
 alter table public.user_org_units
   add constraint user_org_units_user_id_fkey foreign key (user_id) references public.users(id) on delete cascade,
   add constraint user_org_units_unit_id_fkey foreign key (unit_id) references public.org_units(id) on delete cascade;
 
 alter table public.users
-  add constraint users_unit_id_fkey foreign key (unit_id) references public.org_units(id);
+  add constraint users_unit_id_fkey foreign key (unit_id) references public.org_units(id) on delete set null;
 
 alter table public.tickets
-  add constraint tickets_unit_id_fkey foreign key (unit_id) references public.org_units(id);
+  add constraint tickets_unit_id_fkey foreign key (unit_id) references public.org_units(id) on delete set null;
+
+alter table public.company_contracts
+  add constraint company_contracts_unit_id_fkey foreign key (unit_id) references public.org_units(id) on delete set null;
 
 -- ============================================================
 -- 시퀀스 / 트리거 함수 / 트리거

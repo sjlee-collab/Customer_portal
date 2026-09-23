@@ -195,6 +195,41 @@ export const handler = async (ev) => {
     } catch (e) { await dev.end(); return { ok: false, error: e.message }; }
   }
 
+
+  if (action === 'schema_check') {   // 임시 DB에 schema.sql을 적용해 운영 카탈로그와 대조 → 임시 DB 삭제
+    const TMP = 'customer_portal_schemacheck';
+    const adm = await conn('postgres');
+    try { await adm.query(`drop database if exists "${TMP}"`); } catch {}
+    await adm.query(`create database "${TMP}"`);
+    await adm.end();
+    const sql = fs.readFileSync(new URL('./schema.sql', import.meta.url), 'utf8');
+    const t = await conn(TMP);
+    let applyErr = null;
+    try { await t.query(sql); } catch (e) { applyErr = e.message; }
+    const S = {
+      cols: `select table_name||'.'||column_name||':'||data_type||':'||is_nullable s
+               from information_schema.columns where table_schema='public' order by 1`,
+      idx: `select tablename||':'||indexdef s from pg_indexes where schemaname='public' order by 1`,
+      con: `select conrelid::regclass::text||':'||pg_get_constraintdef(oid) s
+              from pg_constraint where connamespace='public'::regnamespace order by 1`,
+      trg: `select tgrelid::regclass::text||':'||tgname s from pg_trigger where not tgisinternal order by 1`,
+      tbl: `select c.relname s from pg_class c join pg_namespace n on n.oid=c.relnamespace
+             where n.nspname='public' and c.relkind='r' order by 1`,
+    };
+    const prod = await conn(PROD_DB);
+    const out = {};
+    for (const [k, q] of Object.entries(S)) {
+      const a = (await prod.query(q)).rows.map(r => r.s);
+      const b = (await t.query(q)).rows.map(r => r.s);
+      out[k] = { onlyProd: a.filter(x => !b.includes(x)), onlyFile: b.filter(x => !a.includes(x)) };
+    }
+    await prod.end(); await t.end();
+    const adm2 = await conn('postgres');
+    await adm2.query(`drop database if exists "${TMP}"`);
+    await adm2.end();
+    return { applyErr, diff: out };
+  }
+
   if (action === 'verify') {
     const prod = await conn(PROD_DB), dev = await conn(DEV_DB);
     const pt = (await prod.query(TABLES_SQL)).rows.map(r => r.relname);
