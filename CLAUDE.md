@@ -26,7 +26,7 @@
 
 - **계정:** 605163667429 / **리전:** ap-northeast-2 (서울)
 - **RDS:** 인스턴스 식별자 `csdb` (PostgreSQL 18.3, DB명 `customer_portal`), 엔드포인트 `csdb.cngoihiekj6q.ap-northeast-2.rds.amazonaws.com:5432`. 기본적으로 퍼블릭 액세스 꺼짐 + 보안그룹(`sg-034f2d418a20a6f95`)에서 특정 IP만 허용. 마스터 비밀번호는 Secrets Manager 관리형 시크릿(`rds!db-...`).
-- **API Gateway:** `https://8xbmazu4ij.execute-api.ap-northeast-2.amazonaws.com` — index.html의 `API_BASE`가 이 주소를 호출. **단, `API_PROXY_HOSTS`에 든 호스트에서는 `API_BASE='/api'`** — Amplify 리라이트(`/api/<*>` → API GW, 상태 200)로 같은 출처가 되어 CORS·프리플라이트가 없다(2026-09-18, 새마을 등 `*.amazonaws.com` 차단 고객망 대응). 현재 dev 앱(`dlayoierdftk6`)에만 규칙·호스트 적용, 검증 완료(헤더·본문·쿼리·PATCH/DELETE 전달, 404/403 원형 유지, 캐시 누출 없음). **운영 전환 = 운영 앱(`d197cwv814vb95`) customRules에 같은 규칙을 SPA 규칙 앞에 추가 + `API_PROXY_HOSTS`에 `support.bigxdata.io` 추가**; 되돌리기는 그 한 줄. 기존 직접 호출 주소·CSP 항목은 캐시된 옛 index.html 대비로 유지.
+- **API Gateway:** `https://8xbmazu4ij.execute-api.ap-northeast-2.amazonaws.com` — index.html의 `API_BASE`가 이 주소를 호출. **단, `API_PROXY_HOSTS`에 든 호스트에서는 `API_BASE='/api'`** — Amplify 리라이트(`/api/<*>` → API GW, 상태 200)로 같은 출처가 되어 CORS·프리플라이트가 없다(2026-09-18, 새마을 등 `*.amazonaws.com` 차단 고객망 대응). **운영·개발 양쪽 전환 완료(2026-09-18)** — 두 앱 모두 customRules에 `/api`, `/files/ticket-attachments`, `/<*>` 순으로 규칙이 있고 `API_PROXY_HOSTS`에 두 호스트가 다 들어 있다. 되돌리기는 해당 호스트를 목록에서 빼는 것. 기존 직접 호출 주소·CSP 항목은 캐시된 옛 index.html 대비로 유지.
   - `/data/:table` — `data-api` Lambda, PostgREST 흉내낸 범용 CRUD (허용 테이블 16개, `backend/lambda/data-api/index.mjs` 참고)
   - 티켓 생성/상태변경 등 알림이 걸리는 액션 — `api-layer` Lambda
 - **Lambda 배포 함수명 매핑(소스 폴더 ↔ 실제 함수명 다름 주의):** `backend/lambda/data-api` → `customer_portal_data-api` · `jwt-authorizer` → `customer_portal_jwt-authorizer` · `storage-api` → `customer_portal_storage-api` · `notify-handler` → `customer_portal_notify-handler` · `send-email` → `customer_portal_send-email` · `public-inquiry` → `customer_portal_public-inquiry` · **`api-layer` → `customer-portal_slack_status_change`**(이름이 안 맞음).
@@ -49,6 +49,31 @@
 
 ---
 
+## 개발환경(dev 백엔드) — 2026-09-23 구축
+
+개발 사이트는 **자기 백엔드**를 쓴다. 운영과 공유하는 것은 RDS 인스턴스·VPC·NAT·보안그룹뿐이다.
+구축 경위·검증 결과·교훈은 **[scripts/devenv/BUILD-RUNBOOK.md](scripts/devenv/BUILD-RUNBOOK.md)**.
+
+| 자원 | 운영 | 개발 |
+|---|---|---|
+| API Gateway | `8xbmazu4ij` | **`p4ozzm0omb`** (라우트 46개 동일, 액세스 로그 ON) |
+| 데이터베이스 | `customer_portal` | **`customer_portal_dev`** (같은 인스턴스 `csdb`) |
+| Lambda | 7종 | 같은 7종 + `-dev` 접미사 (`customer_portal_api-layer-dev` 등) |
+| 실행롤 | 기존 | `customer_portal_dev-{vpc,basic}-role` — 운영 시크릿·버킷 접근 불가 |
+| 시크릿 | `customer-portal/{jwt,ms-graph,slack-webhooks}` | `customer-portal/dev-*` 3종 (JWT는 **다른 값** → 토큰 상호 통용 불가) |
+| S3 | 버킷 3종 | 같은 이름 + `-dev` |
+| Slack | 실채널 4개 | 전 채널 키에 **테스트 채널 URL** + `SLACK_REDIRECT=1` |
+| 메일 | 실수신자 | `TEST_EMAIL_OVERRIDE=sjlee@bigxdata.io` |
+| EventBridge 배치 | 3개 가동 | **없음** (필요 시 `api-layer-dev` 수동 호출) |
+
+- **환경 전환 스위치는 Amplify 리라이트 2줄**(dev 앱의 `/api`·`/files` 대상). `index.html`에는 환경 분기가 없다 — 동일출처 `/api` 구조 덕분에 dev→main 머지에서 설정 충돌이 생기지 않는다. 되돌리기도 그 2줄(전환 전 값: `scripts/devenv/dev-app-rules-BEFORE.json`).
+- **시크릿 이름은 환경변수로 덮어쓴다** — `SECRET_JWT`/`SECRET_SLACK`/`SECRET_MS_GRAPH`. 미설정이면 운영 기본값이라 운영 동작은 그대로.
+- ⚠️ **dev Slack 시크릿의 채널 키를 비워두지 말 것.** `notify-handler`는 웹훅 값이 비면 그 채널 발송을 통째로 건너뛰어 팬아웃 검증이 불가능해진다. 값은 테스트 채널 URL이므로 실 채널로 샐 수 없다.
+- ⚠️ **시크릿을 바꾸면 콜드스타트를 유도해야 반영된다**(`secrets.mjs`가 컨테이너당 1회 캐시). 설정 변경으로 새 실행환경을 강제하면 된다.
+- **dev DB 재복사(리프레시)**: `scripts/devenv/migrate.mjs`를 data-api 배포본 zip에 넣어 일회용 Lambda로 띄운 뒤 `create_db`→`apply_schema`→`fix_schema`→`copy_data`→`sync_sequences`→`verify` 순으로 실행하고 함수를 삭제한다.
+
+---
+
 ## 필수 규칙
 
 ### 1. index.html 수정 후 자동 배포
@@ -63,7 +88,8 @@
 - `org_units`(조직)·`user_org_units`(사용자↔조직 N:M)·`ticket_memos`·`log_integration`은 **스태프 전용**이라 고객/내부 역할로는 조회조차 안 된다(`data-api`의 `STAFF_ONLY_TABLES`). 고객 화면에서 조직 정보가 필요하면 JWT의 `unit_ids` 클레임과 `tickets.unit_name` 스냅샷을 쓴다.
 
 ### 변경 하네스 (운영 변경 시 표준 절차) — `scripts/harness/`
-운영 백엔드가 dev와 공유되고 병렬 세션이 같은 워크트리를 쓰기 때문에, 변경은 아래 루프를 따른다.
+병렬 세션이 같은 워크트리를 쓰기 때문에, 변경은 아래 루프를 따른다.
+**하네스의 기본 대상은 dev다(2026-09-23~).** 회귀는 운영 DB를 건드리지 않는다. 운영을 검증해야 하면 `HARNESS_ENV=prod`를 명시한다 — 기본값을 안전한 쪽에 둬서 '모르고 운영을 쳤다'가 구조적으로 불가능하다. 배포 도구(`deploy-fn.sh`·`drift-check.sh`·`apigw-route.sh`)는 성격이 달라 운영 대상 그대로다.
 설계·상세는 **[scripts/harness/README.md](scripts/harness/README.md)**, 변경 유형별 절차는 **[scripts/harness/CHECKLIST.md](scripts/harness/CHECKLIST.md)** 에 있다. 작업 전 이 두 문서를 먼저 읽을 것.
 
 표준 루프: 편집 → 프론트 스모크 → (백엔드면) `deploy-fn.sh <fn>` → (DDL이면 마이그레이션 경로) → `run-regression.sh` → `guard-commit.sh <파일…>` → commit → `promote.sh`

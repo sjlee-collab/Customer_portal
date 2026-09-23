@@ -59,7 +59,7 @@
   | `customer_portal_storage-api-dev` | storage-api | `BUCKET_*`=-dev 3종, `DATA_API_FN`=data-api-dev |
 - **B3** dev API Gateway `customer-portal-api-dev` = **`p4ozzm0omb`** → `https://p4ozzm0omb.execute-api.ap-northeast-2.amazonaws.com`
   - 라우트 46개(운영과 동일), authorizer `jwt-authorizer`(REQUEST/2.0/simple/TTL 300) → `jwt-authorizer-dev`, CORS는 dev 오리진만, `$default` 스테이지 auto-deploy
-  - ⚠️ **액세스 로그 미설정** — `logs:CreateLogGroup` 권한 없음. 콘솔에서 로그그룹 `/aws/apigateway/p4ozzm0omb-access`를 만들면 켤 수 있다(운영은 이미 ON).
+  - 액세스 로그 **ON (2026-09-23)** — 로그그룹 `/aws/apigateway/p4ozzm0omb-access`(보존 90일). `customer_portal` 사용자에게 `logs:CreateLogGroup`·`logs:CreateLogDelivery`가 없어 콘솔에서 설정했다. 포맷은 운영과 완전 동일(13개 필드, 쿼리스트링 미포함).
 
 ### B단계 검증 결과 (전부 통과)
 
@@ -101,7 +101,6 @@
 ### 남은 것
 
 1. **`backend/schema.sql` 갱신** — 운영과 20건 차이(A3 기록 참고). dev DB는 이미 맞춰져 있으나 파일은 그대로다.
-2. **dev API Gateway 액세스 로그** — `logs:CreateLogGroup` 권한이 없어 꺼져 있다. 콘솔에서 `/aws/apigateway/p4ozzm0omb-access` 생성 후 스테이지에 연결하면 됨.
 3. **브라우저 최종 확인** — 원격 세션은 네트워크 정책상 `*.amplifyapp.com`에 접근할 수 없어, Amplify 리라이트 홉만 설정 확인에 머물렀다. dev 사이트에서 로그인 1회로 확정 가능.
 4. **하네스를 dev로 옮길지 결정** — 옮기면 회귀가 더 이상 운영 DB를 치지 않는다(DESIGN.md §6.1 한계 해소).
 
