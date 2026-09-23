@@ -20,15 +20,28 @@
 
 ## 진행 상태
 
-- [ ] **A1** dev 시크릿 3종 (`customer-portal/dev-jwt`, `dev-slack-webhooks`, `dev-ms-graph`)
-- [ ] **A2** dev S3 버킷 3종 (+버저닝·라이프사이클·CORS·암호화)
-- [ ] **A3** `customer_portal_dev` DB 생성 + 전체 복사 + 시퀀스 동기화
+- [x] **A1** dev 시크릿 3종 (`customer-portal/dev-jwt`, `dev-slack-webhooks`, `dev-ms-graph`)
+- [x] **A2** dev S3 버킷 3종 (+버저닝·라이프사이클·CORS·암호화)
+- [x] **A3** `customer_portal_dev` DB 생성 + 전체 복사 + 시퀀스 동기화
 - [ ] **B1** dev 실행롤 (VPC용 / 비VPC용)
 - [ ] **B2** dev Lambda 7종
 - [ ] **B3** dev API Gateway + 라우트 46개 + authorizer + 액세스 로그
 - [ ] **--- 여기서 중단하고 보고 ---**
 - [ ] **C1** 개발 Amplify 앱(`dlayoierdftk6`) 리라이트 2줄 전환
 - [ ] **C2** 검증 (로그인·티켓 생성·알림·메일 격리)
+
+## A단계 실행 기록 (2026-09-23)
+
+- **A1** 시크릿 3종 생성: `customer-portal/dev-jwt`(운영과 다른 새 랜덤 값) · `dev-slack-webhooks`(테스트 채널 웹훅만, 실 채널 4종 의도적 제외) · `dev-ms-graph`
+- **A2** 버킷 3종 생성: `bigxdata-portal-{contract-attachments,documents,ticket-attachments}-dev` — BPA 4종 · 버저닝 · SSE-S3+BucketKey · 라이프사이클(운영과 동일) · CORS는 dev 오리진만
+- **A3** `customer_portal_dev` 생성 → schema.sql 적용 → 데이터 7,619행 복사 → 시퀀스 동기화 → **행 수·구조 전부 일치 확인**
+
+### A3에서 발견한 것 (중요)
+
+1. **`backend/schema.sql`이 운영보다 뒤처져 있었다.** 운영에만 있던 것: 테이블 `form_responses`(+PK·UNIQUE·FK·인덱스 2), 컬럼 `users.reset_token`·`users.reset_token_expires_at`·`company_contracts.unit_id`, `org_units` UNIQUE 2종, FK의 `ON DELETE` 절 3건.
+   반대로 schema.sql에만 있던 잘못된 제약 `user_org_units UNIQUE (id)`도 발견. → dev DB는 **운영 카탈로그를 기준으로** 20건 보정해 일치시킴. **schema.sql 자체 갱신은 별도 작업으로 남아 있음.**
+2. **복사 시 테이블별 `TRUNCATE ... CASCADE` 금지.** 뒤 테이블의 CASCADE가 앞서 복사한 테이블을 비운다(실제 발생, 11개 테이블이 0행이 됐다). 전체를 한 번에 truncate 해야 한다.
+3. 운영 DB에 상시 연결이 4개 있어 `CREATE DATABASE ... TEMPLATE` 방식은 쓸 수 없다(운영 연결 차단 위험). 빈 DB + 스키마 + 행 복사 방식이 맞다.
 
 ## 운영 설정 스냅샷 (2026-09-23 조회)
 
