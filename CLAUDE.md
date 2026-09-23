@@ -120,6 +120,8 @@
 
 ## 대기 중 작업
 
+- **schema.sql ↔ 운영 DB 동기화 — 완료 (2026-09-23)**: 개발환경 구축 중 이 파일을 빈 DB에 적용해 운영 카탈로그와 대조한 결과 드리프트 7종(users.reset_token·reset_token_expires_at, company_contracts.unit_id+FK, org_units UNIQUE 2종, user_org_units 유니크 형태, unit FK들의 ON DELETE 절)을 발견해 파일을 운영 기준으로 맞췄다. 또한 survey_history로 대체된 뒤 빈 껍데기로 남아 있던 `form_responses`(0행·코드 참조 0)를 운영·개발 DB에서 DROP했다. **현재 파일과 운영 DB는 예외 없이 일치**하며, 대조는 `scripts/devenv/migrate.mjs`의 `schema_check`/`verify` 액션으로 언제든 재현할 수 있다.
+
 - 노션 기술지원 내역 → 포탈 배치 연동 (노션 DB 구조 확인 필요)
 - **안 쓰는 DB 컬럼 정리 — 완료** (2026-07-31 조사 → 2026-08-12 실행):
   - **[2026-08-12 운영 RDS DROP 완료, 총 11개]** 코드·스키마의존 0으로 확인된 컬럼 삭제:

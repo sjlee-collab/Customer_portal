@@ -18,8 +18,9 @@
 --   · org_units UNIQUE(unit_no), UNIQUE(company_id, unit_name) (누락)
 --   · user_org_units: 운영은 UNIQUE 제약이 아니라 독립 유니크 인덱스
 --   · org_units/users/tickets 의 unit 관련 FK에 ON DELETE 절 누락
--- 운영에만 있는 public.form_responses(0행, 코드 참조 0, ALLOWED_TABLES 미등록)는
--- 2026-09-07에 survey_history로 대체된 잔재이므로 이 파일에 되살리지 않는다 — 운영에서 DROP 대상.
+-- public.form_responses는 2026-09-07 survey_history로 대체된 뒤 운영에 빈 껍데기로 남아 있었다.
+-- 0행·코드 참조 0·ALLOWED_TABLES 미등록을 확인하고 2026-09-23 운영·개발 DB에서 DROP했다.
+-- 이제 이 파일과 운영 DB는 테이블·컬럼·인덱스·제약·트리거가 예외 없이 일치한다.
 -- 대조 방법: scripts/devenv/migrate.mjs 의 verify 액션(컬럼·인덱스·제약·트리거 양방향 diff).
 -- ============================================================
 

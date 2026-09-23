@@ -230,6 +230,48 @@ export const handler = async (ev) => {
     return { applyErr, diff: out };
   }
 
+
+  if (action === 'drop_form_responses') {
+    // 운영/dev 양쪽에서 form_responses를 제거한다. 사전 조건을 만족하지 않으면 아무것도 하지 않는다.
+    // dryRun !== false 이면 점검만 하고 DROP은 하지 않는다.
+    const target = ev.db === 'prod' ? PROD_DB : DEV_DB;
+    const c = await conn(target);
+    const chk = {};
+    try {
+      const ex = await c.query(`select to_regclass('public.form_responses') r`);
+      chk.exists = !!ex.rows[0].r;
+      if (!chk.exists) { await c.end(); return { db: target, skipped: '테이블 없음' }; }
+      chk.rowCount = (await c.query(`select count(*)::int n from public.form_responses`)).rows[0].n;
+      chk.referencedBy = (await c.query(
+        `select conrelid::regclass::text tbl, conname from pg_constraint
+          where confrelid='public.form_responses'::regclass`)).rows;
+      chk.usedByViews = (await c.query(
+        `select distinct view_name from information_schema.view_table_usage
+          where table_schema='public' and table_name='form_responses'`)).rows.map(r => r.view_name);
+      chk.ddl = (await c.query(
+        `select a.attname col, format_type(a.atttypid,a.atttypmod) typ, a.attnotnull nn,
+                pg_get_expr(d.adbin,d.adrelid) def
+           from pg_attribute a left join pg_attrdef d on d.adrelid=a.attrelid and d.adnum=a.attnum
+          where a.attrelid='public.form_responses'::regclass and a.attnum>0 and not a.attisdropped
+          order by a.attnum`)).rows;
+      chk.constraints = (await c.query(
+        `select conname, pg_get_constraintdef(oid) def from pg_constraint
+          where conrelid='public.form_responses'::regclass order by conname`)).rows;
+      chk.indexes = (await c.query(
+        `select pg_get_indexdef(indexrelid) def from pg_index
+          where indrelid='public.form_responses'::regclass`)).rows.map(r => r.def);
+    } catch (e) { await c.end(); return { db: target, error: e.message }; }
+
+    const safe = chk.rowCount === 0 && chk.referencedBy.length === 0 && chk.usedByViews.length === 0;
+    if (ev.dryRun !== false || !safe) { await c.end(); return { db: target, dryRun: true, safe, chk }; }
+    try {
+      await c.query(`drop table public.form_responses`);   // CASCADE 쓰지 않음 — 의존이 있으면 실패해야 한다
+      const after = (await c.query(`select to_regclass('public.form_responses') r`)).rows[0].r;
+      await c.end();
+      return { db: target, dropped: true, stillExists: !!after, chk };
+    } catch (e) { await c.end(); return { db: target, dropped: false, error: e.message, chk }; }
+  }
+
   if (action === 'verify') {
     const prod = await conn(PROD_DB), dev = await conn(DEV_DB);
     const pt = (await prod.query(TABLES_SQL)).rows.map(r => r.relname);
