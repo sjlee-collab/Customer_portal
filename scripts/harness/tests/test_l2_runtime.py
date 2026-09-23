@@ -16,7 +16,7 @@
 """
 import sys, os, json, time, subprocess
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'lib'))
-from itest import dpost, ddel, api, tname, temail, Checker
+from itest import dpost, ddel, api, tname, temail, Checker, API_BASE
 
 HDIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
@@ -96,7 +96,7 @@ def run():
         r = api('PATCH', '/auth/change-password', {'newPassword': PW}, role='customer', userId=uid)
         t.check('픽스처: 계정+비번', r.get('status') == 200, 'status=%s' % r.get('status'))
 
-        env = pin_browsers_path(dict(os.environ, L2R_EMAIL=temail('l2rt'), L2R_PW=PW,
+        env = pin_browsers_path(dict(os.environ, L2R_API_BASE=API_BASE, L2R_EMAIL=temail('l2rt'), L2R_PW=PW,
                                      PYTHONIOENCODING='utf-8'))
         r, out, payload = _run_runner(env)
         # 브라우저 실행 불가는 스케줄러의 부팅 직후 실행에서 간헐 재발한다(9-04·9-10·9-15 실측 —

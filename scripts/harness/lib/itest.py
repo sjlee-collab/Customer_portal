@@ -10,6 +10,31 @@ Windows/Git Bash 환경 기준(임시파일은 스레드 안전하게 고유 이
 import os, json, subprocess, threading, time, contextlib
 
 REGION = 'ap-northeast-2'
+
+# ── 대상 환경 (HARNESS_ENV) ───────────────────────────────────────────────
+# 2026-09-23 개발 백엔드 분리 이후, 하네스의 기본 대상은 **dev**다.
+# 회귀는 더 이상 운영 DB에 행을 만들지 않는다(DESIGN.md §6.1의 근본 한계 해소).
+# 운영을 겨냥하려면 HARNESS_ENV=prod 를 **명시**해야 한다 — 기본값을 안전한 쪽에 두어
+# '모르고 운영을 쳤다'가 구조적으로 불가능하게 한다(설계 원칙 1: 잊었을 때의 기본값이 안전).
+#   예) 운영 배포 직후 확인:  HARNESS_ENV=prod bash scripts/harness/run-regression.sh auth
+HARNESS_ENV = (os.environ.get('HARNESS_ENV') or 'dev').strip().lower()
+if HARNESS_ENV not in ('dev', 'prod'):
+    raise SystemExit("HARNESS_ENV는 dev 또는 prod만 가능합니다 (받은 값: %r)" % HARNESS_ENV)
+IS_PROD = HARNESS_ENV == 'prod'
+
+API_BASE = ('https://8xbmazu4ij.execute-api.ap-northeast-2.amazonaws.com' if IS_PROD
+            else 'https://p4ozzm0omb.execute-api.ap-northeast-2.amazonaws.com')
+# S3 버킷은 dev만 '-dev' 접미사를 쓴다. 테스트가 버킷 주소를 단언할 때 이걸로 조립한다.
+BUCKET_SUFFIX = '' if IS_PROD else '-dev'
+# 포탈 도메인 — 첨부 same-origin 프록시 주소 단언에 쓴다.
+PORTAL_ORIGIN = ('https://support.bigxdata.io' if IS_PROD
+                 else 'https://dev.dlayoierdftk6.amplifyapp.com')
+
+
+def env_banner():
+    """실행 대상을 한 줄로. 운영이면 눈에 띄게 경고한다."""
+    return ('⚠  대상: 운영(prod) — 운영 DB에 테스트 데이터가 생깁니다'
+            if IS_PROD else '대상: 개발(dev) — 운영 무접촉')
 # 한 실행(프로세스)을 식별하는 토큰 — temail()에 섞어 테스트 계정 이메일을 실행마다 고유하게
 # 만든다. users.email은 unique 제약이 있어, 예전엔 고정 주소(sjlee+permA@…)가 중단된 실행의
 # 잔재 계정과 충돌해 재생성이 500(unique violation)→KeyError로 죽었다. pid+시각으로 충돌 제거.
@@ -18,8 +43,8 @@ REGION = 'ap-northeast-2'
 _RUN = '%x%x' % (os.getpid(), int(time.time()) % 0x100000)
 ENV = dict(os.environ); ENV['AWS_PROFILE'] = ENV.get('AWS_PROFILE', 'customer_portal')
 
-# 소스 폴더명 ↔ 실제 배포 함수명 (CLAUDE.md 매핑)
-FN = {
+# 소스 폴더명 ↔ 실제 배포 함수명 (CLAUDE.md 매핑). 환경별로 두 벌을 두고 HARNESS_ENV로 고른다.
+_FN_PROD = {
     'data':     'customer_portal_data-api',
     'api':      'customer-portal_slack_status_change',   # api-layer
     'inquiry':  'customer_portal_public-inquiry',
@@ -28,6 +53,16 @@ FN = {
     'jwt':      'customer_portal_jwt-authorizer',        # 배포 스모크용(직접 invoke)
     'notify':   'customer_portal_notify-handler',        # 〃
 }
+_FN_DEV = {
+    'data':     'customer_portal_data-api-dev',
+    'api':      'customer_portal_api-layer-dev',
+    'inquiry':  'customer_portal_public-inquiry-dev',
+    'email':    'customer_portal_send-email-dev',
+    'storage':  'customer_portal_storage-api-dev',
+    'jwt':      'customer_portal_jwt-authorizer-dev',
+    'notify':   'customer_portal_notify-handler-dev',
+}
+FN = _FN_PROD if IS_PROD else _FN_DEV
 
 # ── 테스트 데이터 식별 규칙 ───────────────────────────────────────────────
 # 하네스가 만드는 모든 데이터는 사람이 바로 알아볼 수 있도록 이름/제목 필드에

@@ -5,14 +5,23 @@
 # 사용법:
 #   scripts/harness/smoke.sh                         # 비인증 경로만 (로그인 없이 안전)
 #   SMOKE_EMAIL=... SMOKE_PASSWORD=... scripts/harness/smoke.sh   # 로그인·조회 경로까지
-#   API_BASE=https://dev... scripts/harness/smoke.sh # dev 등 다른 환경 대상
+#   HARNESS_ENV=prod scripts/harness/smoke.sh        # 운영 대상(기본은 dev)
+#   API_BASE=https://... scripts/harness/smoke.sh     # 주소 직접 지정(위 선택보다 우선)
 #
 # 성격: 전부 읽기전용/비파괴. account-inquiry는 허니팟 값이라 DB·Slack 미발생.
 # 종료코드: 실패 0건이면 0, 하나라도 실패면 1 (CI/배포 후 훅에서 사용 가능)
 # ─────────────────────────────────────────────────────────────────────────────
 set -u
 
-API_BASE="${API_BASE:-https://8xbmazu4ij.execute-api.ap-northeast-2.amazonaws.com}"
+# 기본 대상은 dev(운영 무접촉). 운영을 치려면 HARNESS_ENV=prod 를 명시한다.
+HARNESS_ENV="${HARNESS_ENV:-dev}"
+case "$HARNESS_ENV" in
+  dev)  _DEFAULT_API=https://p4ozzm0omb.execute-api.ap-northeast-2.amazonaws.com ;;
+  prod) _DEFAULT_API=https://8xbmazu4ij.execute-api.ap-northeast-2.amazonaws.com ;;
+  *)    echo "HARNESS_ENV는 dev 또는 prod만 가능합니다 (받은 값: $HARNESS_ENV)"; exit 2 ;;
+esac
+API_BASE="${API_BASE:-$_DEFAULT_API}"
+echo "▶ 대상: $HARNESS_ENV ($API_BASE)"
 TMP="$(mktemp)"; trap 'rm -f "$TMP"' EXIT
 PASS=0; FAIL=0; SKIP=0
 ok()   { echo "  ✅ $1"; PASS=$((PASS+1)); }

@@ -5,8 +5,10 @@
 // 호출한다. 입력은 env: L2R_EMAIL / L2R_PW (로그인 검증용 — 없으면 로그인 단계 생략).
 // 출력: 마지막 줄에 JSON 한 줄({checks:[{name,ok,detail}...]}) — 파이썬이 파싱해 단언.
 //
-// 페이지는 로컬 정적 서버로 서빙한다(file://는 fetch·경로가 깨짐). API 호출은 페이지의
-// API_BASE(실 운영 API GW)로 나간다 — 로그인은 실제 요청이므로 반드시 [테스트] 계정만.
+// 페이지는 로컬 정적 서버로 서빙한다(file://는 fetch·경로가 깨짐). 127.0.0.1은 index.html의
+// API_PROXY_HOSTS에 없으므로 페이지는 '운영 API GW 직접 호출'로 계산된다. 대상 환경이 dev면
+// L2R_API_BASE로 그 요청을 가로채 dev API GW로 돌린다(index.html은 건드리지 않는다).
+// 로그인은 실제 요청이므로 반드시 [테스트] 계정만.
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -18,6 +20,9 @@ const ROOT = path.join(here, '..', '..');          // 워크트리 루트(index.
 const SMOKE = path.join(here, 'smoke-frontend.js');
 const EMAIL = process.env.L2R_EMAIL || '';
 const PW = process.env.L2R_PW || '';
+// 비어 있으면 페이지 기본값(운영)을 그대로 쓴다. test_l2_runtime.py가 itest.API_BASE를 넣어준다.
+const API_BASE = process.env.L2R_API_BASE || '';
+const PROD_API_HOST = '8xbmazu4ij.execute-api.ap-northeast-2.amazonaws.com';
 
 const checks = [];
 const t = (name, ok, detail = '') => checks.push({ name, ok: !!ok, detail: String(detail).slice(0, 300) });
@@ -55,6 +60,13 @@ try {
 }
 try {
   const page = await browser.newPage();
+  // 대상이 운영이 아니면 페이지가 계산한 운영 API 호출을 대상 환경으로 재지정한다.
+  if (API_BASE && !API_BASE.includes(PROD_API_HOST)) {
+    await page.route(`**://${PROD_API_HOST}/**`, route => {
+      const u = new URL(route.request().url());
+      route.continue({ url: API_BASE.replace(/\/$/, '') + u.pathname + u.search });
+    });
+  }
   const errors = [];   // 콘솔 error + 페이지 예외 수집
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));

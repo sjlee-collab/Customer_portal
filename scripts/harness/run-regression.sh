@@ -9,12 +9,21 @@
 #   비동기로 "현재 티켓 상태"를 읽어 event_type을 정하는 구조라, 병렬 CPU 부하에서 전이와
 #   비동기 발송이 경합해 분포가 어긋난다(실측). 그래서 알림·전역집계 민감 스위트는 직렬로 둔다.
 #   벽시계 = max(병렬안전 무리) + sum(직렬). boto3 전환으로 개별 호출 오버헤드는 이미 크게 줄었다.
+# 대상 환경: 기본 dev(운영 무접촉). 운영을 치려면 HARNESS_ENV=prod 를 명시한다.
+#   예) HARNESS_ENV=prod bash scripts/harness/run-regression.sh auth
 # 전제: AWS_PROFILE=customer_portal (기본), python(+boto3 권장 — 없으면 CLI 폴백), node.
 set -u
 export AWS_PROFILE="${AWS_PROFILE:-customer_portal}"
 export PYTHONIOENCODING=utf-8
 HDIR="$(cd "$(dirname "$0")" && pwd)"
 export HARNESS_TMP="$HDIR/lib"
+export HARNESS_ENV="${HARNESS_ENV:-dev}"
+echo "════════════════════════════════════════"
+if [ "$HARNESS_ENV" = "prod" ]; then
+  echo "⚠  대상: 운영(prod) — 운영 DB에 테스트 데이터가 생깁니다"
+else
+  echo "▶ 대상: 개발(dev) — 운영 무접촉"
+fi
 
 ALL=(test_harness_lint.py test_itest_helpers.py test_deploy_gate.py test_fn_smoke.py test_promote.py test_permissions.py test_ticket_delete.py test_ticket_status.py test_ticket_assign.py test_notify_routing.py test_internal_review.py test_ticket_rate.py test_customer_e2e.py test_stats_view.py test_proxy_register.py test_storage_rules.py test_auth.py test_schema_contract.py test_batch.py test_jwt.py test_l2_runtime.py test_email_backstop.py test_survey_send.py test_form_access.py test_form_answers.py test_login_lockout.py test_token_version.py test_email_oracle.py)
 # 병렬 안전 = 알림 발송 건수/타입을 단언하지 않는 스위트(응답 코드·권한·구조만 검사).

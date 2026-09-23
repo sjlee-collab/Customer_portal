@@ -22,8 +22,10 @@ import sys, os, json, base64
 import urllib.request, urllib.error
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'lib'))
 from itest import dget, dpost, ddel, api, wipe_ticket, tname, temail, Checker
+from itest import API_BASE as _ENV_API_BASE
 
-API_BASE = os.environ.get('API_BASE', 'https://8xbmazu4ij.execute-api.ap-northeast-2.amazonaws.com')
+# 기본 주소는 대상 환경(HARNESS_ENV)을 따른다 — API_BASE를 직접 주면 그게 우선.
+API_BASE = os.environ.get('API_BASE', _ENV_API_BASE)
 
 
 def http(method, path, body=None, token=None):

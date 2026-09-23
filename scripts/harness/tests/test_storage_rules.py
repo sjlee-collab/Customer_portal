@@ -10,6 +10,7 @@
 import sys, os, json
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'lib'))
 from itest import ctx, invoke, dpost, ddel, tname, Checker
+from itest import BUCKET_SUFFIX
 
 FAKE = '00000000-0000-0000-0000-000000000000'
 MB = 1024 * 1024
@@ -51,7 +52,7 @@ def run():
             # ── Same-Origin 프록시 치환(2026-09-18): 규칙이 있는 오리진(dev)에서만 포탈 도메인으로,
             #    Origin 없음(직접 invoke)·아직 규칙 없는 오리진은 S3 직접 주소 그대로.
             #    운영 전환(FILE_PROXY_ORIGINS에 support 추가) 시 아래 '운영 Origin' 기대값을 프록시로 바꿀 것.
-            S3H = 'https://bigxdata-portal-ticket-attachments.s3.ap-northeast-2.amazonaws.com/'
+            S3H = 'https://bigxdata-portal-ticket-attachments%s.s3.ap-northeast-2.amazonaws.com/' % BUCKET_SUFFIX
             DEV = 'https://dev.dlayoierdftk6.amplifyapp.com'
             u0 = (upload_url(tid + '/p0.pdf', MB, role='admin').get('body') or {}).get('uploadUrl') or ''
             t.check('Origin 없음 → S3 직접 주소', u0.startswith(S3H), 'url=%s' % u0[:70])
