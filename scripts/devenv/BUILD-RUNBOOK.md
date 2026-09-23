@@ -23,9 +23,9 @@
 - [x] **A1** dev 시크릿 3종 (`customer-portal/dev-jwt`, `dev-slack-webhooks`, `dev-ms-graph`)
 - [x] **A2** dev S3 버킷 3종 (+버저닝·라이프사이클·CORS·암호화)
 - [x] **A3** `customer_portal_dev` DB 생성 + 전체 복사 + 시퀀스 동기화
-- [ ] **B1** dev 실행롤 (VPC용 / 비VPC용)
-- [ ] **B2** dev Lambda 7종
-- [ ] **B3** dev API Gateway + 라우트 46개 + authorizer + 액세스 로그
+- [x] **B1** dev 실행롤 (VPC용 / 비VPC용)
+- [x] **B2** dev Lambda 7종
+- [x] **B3** dev API Gateway + 라우트 46개 + authorizer + 액세스 로그
 - [ ] **--- 여기서 중단하고 보고 ---**
 - [ ] **C1** 개발 Amplify 앱(`dlayoierdftk6`) 리라이트 2줄 전환
 - [ ] **C2** 검증 (로그인·티켓 생성·알림·메일 격리)
@@ -42,6 +42,39 @@
    반대로 schema.sql에만 있던 잘못된 제약 `user_org_units UNIQUE (id)`도 발견. → dev DB는 **운영 카탈로그를 기준으로** 20건 보정해 일치시킴. **schema.sql 자체 갱신은 별도 작업으로 남아 있음.**
 2. **복사 시 테이블별 `TRUNCATE ... CASCADE` 금지.** 뒤 테이블의 CASCADE가 앞서 복사한 테이블을 비운다(실제 발생, 11개 테이블이 0행이 됐다). 전체를 한 번에 truncate 해야 한다.
 3. 운영 DB에 상시 연결이 4개 있어 `CREATE DATABASE ... TEMPLATE` 방식은 쓸 수 없다(운영 연결 차단 위험). 빈 DB + 스키마 + 행 복사 방식이 맞다.
+
+## B단계 실행 기록 (2026-09-23)
+
+- **B1** dev 전용 실행롤 2종 — `customer_portal_dev-vpc-role`(VPC 3종용: 로그·ENI·`customer-portal/dev-*`+RDS 시크릿·dev 함수 invoke) / `customer_portal_dev-basic-role`(비VPC 4종용: 로그·dev 시크릿·`-dev` 버킷·dev 함수 invoke). **운영 시크릿·운영 버킷 접근 불가**.
+  - `iam:TagRole` 권한이 없어 태그는 못 붙였다(기능 무관).
+- **B2** dev Lambda 7종 — 운영 배포본 zip에 레포 `.mjs`를 덮어써 패키징(deploy-fn.sh와 동일 방식).
+  | dev 함수 | 원본 | 핵심 env |
+  |---|---|---|
+  | `customer_portal_api-layer-dev` | slack_status_change | `DB_NAME=customer_portal_dev`, `SECRET_JWT=customer-portal/dev-jwt`, NOTIFY/SEND_EMAIL → dev |
+  | `customer_portal_data-api-dev` | data-api | `DB_NAME=customer_portal_dev` |
+  | `customer_portal_public-inquiry-dev` | public-inquiry | dev DB, `SLACK_REDIRECT=1`, dev slack 시크릿 |
+  | `customer_portal_jwt-authorizer-dev` | jwt-authorizer | `SECRET_JWT=customer-portal/dev-jwt` |
+  | `customer_portal_notify-handler-dev` | notify-handler | `SLACK_REDIRECT=1`, dev slack 시크릿, `PORTAL_URL`=dev |
+  | `customer_portal_send-email-dev` | send-email | `TEST_EMAIL_OVERRIDE=sjlee@bigxdata.io`, dev ms-graph 시크릿 |
+  | `customer_portal_storage-api-dev` | storage-api | `BUCKET_*`=-dev 3종, `DATA_API_FN`=data-api-dev |
+- **B3** dev API Gateway `customer-portal-api-dev` = **`p4ozzm0omb`** → `https://p4ozzm0omb.execute-api.ap-northeast-2.amazonaws.com`
+  - 라우트 46개(운영과 동일), authorizer `jwt-authorizer`(REQUEST/2.0/simple/TTL 300) → `jwt-authorizer-dev`, CORS는 dev 오리진만, `$default` 스테이지 auto-deploy
+  - ⚠️ **액세스 로그 미설정** — `logs:CreateLogGroup` 권한 없음. 콘솔에서 로그그룹 `/aws/apigateway/p4ozzm0omb-access`를 만들면 켤 수 있다(운영은 이미 ON).
+
+### B단계 검증 결과 (전부 통과)
+
+| 검증 | 결과 |
+|---|---|
+| data-api-dev → dev DB 연결 | 200, companies 407 |
+| DB 격리 (dev에 1행 추가) | dev 407→408, **운영 407 유지** |
+| dev 사이트 미인증 요청 | 401 |
+| 잘못된 비밀번호 | 401 (균일 메시지) |
+| dev API 정상 로그인 | 200, 토큰 발급 |
+| 토큰으로 dev 데이터 조회 | companies 407 · tickets 44 |
+| **같은 토큰을 운영 API에 제시** | **403 거부 — JWT 분리 확인** |
+
+- dev 전용 검증 계정: `devtest+harness@bigxdata.io` (role=admin, dev DB에만 존재)
+- `scripts/devenv/migrate.mjs` = DB 생성·복사·구조대조 도구. 재사용 시 data-api 배포본 zip에 이 파일과 `schema.sql`, CA를 넣어 일회용 Lambda로 띄운 뒤 삭제한다(이번에도 그렇게 하고 삭제함).
 
 ## 운영 설정 스냅샷 (2026-09-23 조회)
 
