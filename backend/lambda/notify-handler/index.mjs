@@ -43,7 +43,7 @@ let _slackLoaded = false;
 async function loadSlackSecrets() {
   if (_slackLoaded) return;
   _slackLoaded = true;   // 실패해도 매 요청 재시도하지 않는다(환경변수 폴백 유지)
-  const s = await getSecret('customer-portal/slack-webhooks');
+  const s = await getSecret(process.env.SECRET_SLACK || 'customer-portal/slack-webhooks');
   if (!s) return;
   SLACK_WEBHOOK_COMMON = s.SLACK_WEEBHOOK_COMMON || SLACK_WEBHOOK_COMMON;
   SLACK_WEBHOOK_SALES  = s.SLACK_WEBHOOK_SALES  || SLACK_WEBHOOK_SALES;

@@ -26,7 +26,7 @@ const MS_CLIENT_ID     = process.env.MS_CLIENT_ID || '';
 let _msSecret = null;
 async function msClientSecret() {
   if (_msSecret === null) {
-    _msSecret = await secretValue('customer-portal/ms-graph', 'MS_CLIENT_SECRET', process.env.MS_CLIENT_SECRET);
+    _msSecret = await secretValue(process.env.SECRET_MS_GRAPH || 'customer-portal/ms-graph', 'MS_CLIENT_SECRET', process.env.MS_CLIENT_SECRET);
   }
   return _msSecret;
 }

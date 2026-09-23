@@ -20,7 +20,7 @@ let _slackLoaded = false;
 async function loadSlackSecrets() {
   if (_slackLoaded) return;
   _slackLoaded = true;
-  const s = await getSecret('customer-portal/slack-webhooks');
+  const s = await getSecret(process.env.SECRET_SLACK || 'customer-portal/slack-webhooks');
   if (!s) return;
   SLACK_WEBHOOK      = s.SLACK_WEEBHOOK_COMMON || SLACK_WEBHOOK;
   SLACK_WEBHOOK_TEST = s.SLACK_WEBHOOK_TEST    || SLACK_WEBHOOK_TEST;

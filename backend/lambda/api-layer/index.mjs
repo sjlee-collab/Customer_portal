@@ -20,7 +20,7 @@ const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
 let _jwtSecret = null;
 async function jwtSecret() {
   if (_jwtSecret === null) {
-    _jwtSecret = await secretValue('customer-portal/jwt', 'JWT_SECRET', process.env.JWT_SECRET);
+    _jwtSecret = await secretValue(process.env.SECRET_JWT || 'customer-portal/jwt', 'JWT_SECRET', process.env.JWT_SECRET);
   }
   return _jwtSecret;
 }
