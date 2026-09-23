@@ -1,0 +1,17 @@
+[
+ {
+  "source": "/api/<*>",
+  "target": "https://8xbmazu4ij.execute-api.ap-northeast-2.amazonaws.com/<*>",
+  "status": "200"
+ },
+ {
+  "source": "/files/ticket-attachments/<*>",
+  "target": "https://bigxdata-portal-ticket-attachments.s3.ap-northeast-2.amazonaws.com/<*>",
+  "status": "200"
+ },
+ {
+  "source": "/<*>",
+  "target": "/index.html",
+  "status": "404-200"
+ }
+]

@@ -26,9 +26,9 @@
 - [x] **B1** dev 실행롤 (VPC용 / 비VPC용)
 - [x] **B2** dev Lambda 7종
 - [x] **B3** dev API Gateway + 라우트 46개 + authorizer + 액세스 로그
-- [ ] **--- 여기서 중단하고 보고 ---**
-- [ ] **C1** 개발 Amplify 앱(`dlayoierdftk6`) 리라이트 2줄 전환
-- [ ] **C2** 검증 (로그인·티켓 생성·알림·메일 격리)
+- [x] **--- 중단·보고 완료 ---**
+- [x] **C1** 개발 Amplify 앱(`dlayoierdftk6`) 리라이트 2줄 전환
+- [x] **C2** 검증 (로그인·티켓 생성·알림·메일 격리)
 
 ## A단계 실행 기록 (2026-09-23)
 
@@ -75,6 +75,35 @@
 
 - dev 전용 검증 계정: `devtest+harness@bigxdata.io` (role=admin, dev DB에만 존재)
 - `scripts/devenv/migrate.mjs` = DB 생성·복사·구조대조 도구. 재사용 시 data-api 배포본 zip에 이 파일과 `schema.sql`, CA를 넣어 일회용 Lambda로 띄운 뒤 삭제한다(이번에도 그렇게 하고 삭제함).
+
+## C단계 실행 기록 (2026-09-23) — 구축 완료
+
+- **C1** 개발 Amplify 앱(`dlayoierdftk6`) 리라이트 2줄 전환:
+  - `/api/<*>` → `https://p4ozzm0omb.execute-api.ap-northeast-2.amazonaws.com/<*>`
+  - `/files/ticket-attachments/<*>` → `https://bigxdata-portal-ticket-attachments-dev.s3.ap-northeast-2.amazonaws.com/<*>`
+  - 운영 앱(`d197cwv814vb95`) 규칙은 그대로 확인함. **전환 전 규칙은 `dev-app-rules-BEFORE.json`에 백업**(롤백 시 위 2줄을 `8xbmazu4ij` / 운영 버킷으로 되돌리면 끝).
+  - `index.html`·`customHttp.yml` **수정 없음** — 동일출처 `/api` 구조 덕분.
+- **C2** 종단 검증 (dev API 직접 호출 기준, 전부 통과):
+
+| 검증 | 결과 |
+|---|---|
+| 정상 로그인 → 토큰 발급 | 200 |
+| 티켓 생성 | 201 `TK-20260923-6661` |
+| **dev tickets 44 → 45 / 운영 tickets 44 유지** | 데이터 격리 확인 |
+| Slack 알림 | `is_test=true`, 본문에 `[테스트]` + `_(원래 대상: #고객지원포탈-공통)_` → **테스트 채널로만** |
+| 메일 | `is_test=true`, `TEST_EMAIL_OVERRIDE=sjlee@bigxdata.io` 적용(로그의 recipient는 설계상 원래 대상을 남김) |
+| dev 토큰을 운영 API에 제시 | 403 거부 |
+| dev Lambda 7종 격리 env 감사 | 7/7 일치 |
+| 운영 Lambda 환경변수 | 무변경 확인(`SECRET_*` 없음 = 기본값 사용) |
+
+- 검증용 티켓은 삭제함(dev tickets 44로 복귀).
+
+### 남은 것
+
+1. **`backend/schema.sql` 갱신** — 운영과 20건 차이(A3 기록 참고). dev DB는 이미 맞춰져 있으나 파일은 그대로다.
+2. **dev API Gateway 액세스 로그** — `logs:CreateLogGroup` 권한이 없어 꺼져 있다. 콘솔에서 `/aws/apigateway/p4ozzm0omb-access` 생성 후 스테이지에 연결하면 됨.
+3. **브라우저 최종 확인** — 원격 세션은 네트워크 정책상 `*.amplifyapp.com`에 접근할 수 없어, Amplify 리라이트 홉만 설정 확인에 머물렀다. dev 사이트에서 로그인 1회로 확정 가능.
+4. **하네스를 dev로 옮길지 결정** — 옮기면 회귀가 더 이상 운영 DB를 치지 않는다(DESIGN.md §6.1 한계 해소).
 
 ## 운영 설정 스냅샷 (2026-09-23 조회)
 
