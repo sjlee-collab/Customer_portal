@@ -7,9 +7,9 @@
   - 실제 [테스트] 티켓 경로 + admin → 200 + uploadUrl(전 경로 통과)
 데이터: [테스트] 티켓 1개(data-api 직접 insert — 알림 트리거 없음), 종료 시 삭제.
 """
-import sys, os, json
+import sys, os, json, re
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'lib'))
-from itest import ctx, invoke, dpost, ddel, tname, Checker
+from itest import ctx, invoke, dpost, ddel, wipe_ticket, tname, Checker
 from itest import BUCKET_SUFFIX
 
 FAKE = '00000000-0000-0000-0000-000000000000'
@@ -25,9 +25,23 @@ def upload_url(path, size, role='admin', userId='zz-admin', origin=None):
     return invoke('storage', e)
 
 
+def signed_url(path, expires=None, role='admin', userId='zz-admin'):
+    e = ctx(role, userId=userId); e['requestContext']['http']['method'] = 'POST'
+    e['rawPath'] = '/storage/signed-url'
+    body = {'bucket': 'ticket-attachments', 'path': path}
+    if expires is not None: body['expiresIn'] = expires
+    e['body'] = json.dumps(body)
+    return invoke('storage', e)
+
+
+def expires_of(url):
+    m = re.search(r'X-Amz-Expires=(\d+)', url or '')
+    return int(m.group(1)) if m else None
+
+
 def run():
     t = Checker('L1 첨부 업로드 규칙(storage-api)')
-    tid = None
+    tid = aid = None
     try:
         # 형식 거부
         r = upload_url(FAKE + '/x.exe', 3 * MB)
@@ -64,8 +78,30 @@ def run():
             t.check('운영 Origin → 프록시 주소 (2026-09-18 전환)', u2.startswith(PROD + '/files/ticket-attachments/' + tid + '/p2.pdf?'), 'url=%s' % u2[:90])
             u3 = (upload_url(tid + '/p3.pdf', MB, role='admin', origin='https://evil.example').get('body') or {}).get('uploadUrl') or ''
             t.check('허용 외 Origin → S3 직접 주소', u3.startswith(S3H), 'url=%s' % u3[:70])
+
+            # ── presign 만료 상한(2026-09-15 하드닝): 다운로드 URL의 expiresIn은 1~300초로
+            #    클램프된다 — 상한이 없으면 임시 자격증명 수명(수 시간)짜리 링크가 외부로
+            #    넘어갈 수 있었다. signed-url은 메타데이터 행(checkAccess)을 요구하므로
+            #    ticket_attachments 픽스처를 만들어 통과시킨 뒤 X-Amz-Expires 값을 본다.
+            att = dpost('ticket_attachments', {'ticket_id': tid, 'file_name': 'exp.pdf',
+                                               'storage_path': tid + '/exp.pdf'}, role='admin').get('body') or {}
+            aid = (att[0] if isinstance(att, list) else att).get('id')
+            t.check('픽스처: 첨부 메타행 생성', bool(aid), 'att=%s' % att)
+            if aid:
+                r = signed_url(tid + '/exp.pdf', expires=999999)
+                u = (r.get('body') or {}).get('signedUrl') or ''
+                t.check('과대 만료 요청(999999초) → 300초 클램프',
+                        r.get('status') == 200 and expires_of(u) == 300,
+                        'status=%s X-Amz-Expires=%s' % (r.get('status'), expires_of(u)))
+                r = signed_url(tid + '/exp.pdf')
+                u = (r.get('body') or {}).get('signedUrl') or ''
+                t.check('만료 미지정 → 기본 60초', expires_of(u) == 60, 'X-Amz-Expires=%s' % expires_of(u))
+                r = signed_url(tid + '/exp.pdf', expires=-5)
+                u = (r.get('body') or {}).get('signedUrl') or ''
+                t.check('음수 만료 → 하한 클램프(1초 이상)', (expires_of(u) or 0) >= 1, 'X-Amz-Expires=%s' % expires_of(u))
     finally:
-        if tid: ddel('tickets', tid, role='admin')
+        # 첨부 메타행이 생기면서 단순 ddel(tickets)는 FK에 막힌다 — 자식행까지 지우는 표준 경로 사용.
+        if tid: wipe_ticket(tid)
     return t.report()
 
 
