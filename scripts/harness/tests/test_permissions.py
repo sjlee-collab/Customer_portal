@@ -5,7 +5,9 @@
 """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'lib'))
-from itest import dget, dpost, dpatch, ddel, api, wipe_ticket, tname, temail, Checker
+from itest import dget, dpost, dpatch, ddel, api, wipe_ticket, tname, temail, Checker, permission, HarnessError, must_id
+
+FAKE = '00000000-0000-0000-0000-000000000000'
 
 
 def run():
@@ -70,6 +72,31 @@ def run():
         t.check('[테스트] 은닉: admin은 테스트 티켓 보임', len(admS) == 2, '%d/2건' % len(admS))
         intS = dget('tickets', {'select': 'id', 'id': 'eq.' + tA}, role='internal', userId='zz-int').get('body') or []
         t.check('[테스트] 은닉: internal 기본 조회도 제외', len(intS) == 0, '결과=%d건' % len(intS))
+
+        # ── 쓰기 테넌트 가드(2026-09-15 하드닝): user_manage가 "있는" 비스태프도 ──
+        # role/company_id/contract_id/unit_id는 403 — role은 권한 상승, 나머지는 테넌트
+        # 이탈 경로. 기존 검사(위 36행대)는 customer가 user_manage가 없어 권한 403으로도
+        # 통과하므로(잠금 분기 미도달), 여기서 권한을 잠시 켜고 잠금 자체를 본다.
+        uA2 = must_id(dpost('users', {'email': temail('permA2'), 'name': tname('고객A2'), 'role': 'customer',
+                                      'company_id': coA, 'is_active': True}))
+        created['users'].append(uA2)
+        try:
+            with permission('customer', 'user_manage', True):
+                r = dpatch('users', uA2, {'name': tname('고객A2 개명')}, **A)
+                t.check('양성대조: user_manage 고객, 같은회사 name 수정 200',
+                        r.get('status') == 200, 'status=%s' % r.get('status'))
+                for col, val in [('role', 'admin'), ('company_id', coB),
+                                 ('contract_id', FAKE), ('unit_id', FAKE)]:
+                    r = dpatch('users', uA2, {col: val}, **A)
+                    t.check('테넌트 잠금: %s PATCH 403' % col, r.get('status') == 403,
+                            'status=%s body=%s' % (r.get('status'), str(r.get('body'))[:80]))
+                row = (dget('users', {'select': 'role,company_id', 'id': 'eq.' + uA2},
+                            role='admin').get('body') or [{}])[0]
+                t.check('테넌트 잠금: 값 불변(role·company_id)',
+                        row.get('role') == 'customer' and row.get('company_id') == coA,
+                        'row=%s' % row)
+        except HarnessError as e:
+            print('⏭ 테넌트 잠금 검증 건너뜀 — %s' % e)
     finally:
         for tid in created['tickets']: wipe_ticket(tid)
         for d in created['documents']: ddel('content_documents', d, role='admin')

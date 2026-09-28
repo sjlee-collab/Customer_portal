@@ -118,7 +118,7 @@
 |---|---|---|---|
 | L1 | 백엔드 계약(권한·격리·전이·알림 라우팅) | Lambda direct invoke | `run-regression.sh` |
 | L1-C | 고객 계정 전 기능 경로 | 〃 (실 api-layer 경로) | 〃 |
-| L2-정적 | 프론트 문법·핸들러·DOM id 참조 | `l2-smoke.mjs` (실행 없이 검사, 의존성 0) | run-regression 첫 단계 |
+| L2-정적 | 프론트 문법·핸들러·DOM id 참조·XSS 싱크 래칫 | `l2-smoke.mjs` (실행 없이 검사, 의존성 0) | run-regression 첫 단계 |
 | L2-런타임 | 프론트 렌더·핵심 함수·실로그인 후 화면 | `l2-runtime.mjs`(headless chromium) ← `test_l2_runtime` | 자동(P5, 2026-09-03) |
 | 스모크 | 배포 직후 생존 확인(비파괴) | `smoke.sh` (HTTP), deploy-fn 내장 스모크 | 반자동 |
 | L3 | 실브라우저 클릭 흐름 E2E | (핵심 렌더·로그인은 l2-runtime이 커버) | 부재 — 필요성 낮음 |
@@ -164,7 +164,7 @@
 
 ---
 
-## 4. 커버리지 맵 (2026-09-09, 25종 472건)
+## 4. 커버리지 맵 (2026-09-22, 28종 544건)
 
 ### api-layer 라우트 — 일반 22개 + 설문 4개(send·remind·answer·report)·집계 2개
 
@@ -192,6 +192,10 @@
 | 배치 3종(overdue_batch·license_expiry_notice·expire_contracts) | test_batch | only_test 모드로 [테스트] 라벨만 스캔 — 안전 검증 |
 | (횡단) 이메일 [테스트] 백스톱 | test_email_backstop | 실 관리자·영업 주소로 가는 메일도 발송 직전 싱크로 재라우팅 — 격리의 마지막 겹 |
 | (횡단) 테스트 요청 은닉 | test_permissions(3건) | 비관리자 스태프·internal 목록에서 [테스트] 요청 제외, admin·include_test=1만 노출 |
+| (횡단) 쓰기 테넌트 가드 | test_permissions(6건) | user_manage 있는 비스태프도 role/company_id/contract_id/unit_id PATCH 403 (2차 하드닝 커버, 2026-09-22) |
+| (횡단) presign 만료 상한 | test_storage_rules(4건) | 과대 expiresIn→300초 클램프·미지정 60초·음수 하한 (2차 하드닝 커버) |
+| (횡단) 보안 헤더·/api 프록시 | smoke.sh(2건) | customHttp.yml 헤더 8종 실적용 + Amplify /api 리라이트 생존 (운영 도메인 GET/POST 각 1회, 비파괴) |
+| (횡단) XSS 싱크 래칫 | l2-smoke.mjs(4건) | innerHTML 296·insertAdjacentHTML 4·document.write 0·outerHTML 0 총량 고정 — 새 싱크는 감사 후 기준 갱신 |
 
 ### 기타 Lambda
 

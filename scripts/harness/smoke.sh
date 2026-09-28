@@ -70,6 +70,40 @@ else
   skip "로그인·조회 경로 (SMOKE_EMAIL/SMOKE_PASSWORD 미설정)"
 fi
 
+# 5) 운영 프론트 보안 헤더 — customHttp.yml(Amplify)이 실제 적용돼 있는지 (2026-09-22, S-5 후속)
+#    콘솔에서 헤더를 지우거나 customHttp.yml이 배포에서 빠지는 회귀를 잡는다. 읽기전용(GET 1회).
+PORTAL_URL="${PORTAL_URL:-https://support.bigxdata.io}"
+if [ -n "$PORTAL_URL" ]; then
+  hdr=$(curl -s -D - -o /dev/null --max-time 15 "$PORTAL_URL/")
+  if [ -z "$hdr" ]; then
+    bad "포탈 헤더 조회 실패 ($PORTAL_URL — 네트워크/도메인 확인)"
+  else
+    missing=""
+    for h in strict-transport-security x-content-type-options x-frame-options \
+             referrer-policy content-security-policy permissions-policy \
+             cross-origin-opener-policy cross-origin-resource-policy; do
+      printf '%s' "$hdr" | grep -qi "^$h:" || missing="$missing $h"
+    done
+    if [ -z "$missing" ]; then ok "보안 헤더 8종 적용됨 (customHttp.yml)"
+    else bad "보안 헤더 누락:$missing"; fi
+  fi
+
+  # 6) /api Same-Origin 프록시 생존 — Amplify 리라이트 규칙이 살아있는지 (2026-09-18 운영 전환분)
+  #    규칙이 지워지면 SPA 규칙이 /api를 삼켜 200+HTML이 온다 → 401(JSON, 균일 응답)이어야 정상.
+  code=$(curl -s -o "$TMP" -w '%{http_code}' --max-time 15 -X POST "$PORTAL_URL/api/auth/login" \
+    -H 'Content-Type: application/json' \
+    -d '{"email":"smoke-nonexistent@example.com","password":"x"}')
+  if [ "$code" = "401" ] && grep -q '"error"' "$TMP"; then
+    ok "/api 프록시 경유 auth/login 정상 (HTTP 401, 리라이트 생존)"
+  elif [ "$code" = "200" ]; then
+    bad "/api 프록시 이상 — 200 응답(SPA가 삼킴: Amplify customRules에서 /api 규칙 확인)"
+  else
+    bad "/api 프록시 이상 (HTTP $code: $(head -c 120 "$TMP"))"
+  fi
+else
+  skip "운영 프론트 헤더·프록시 (PORTAL_URL 빈 값)"
+fi
+
 echo ""
 echo "== 결과:  ✅ $PASS   ❌ $FAIL   ⏭️ $SKIP =="
 [ "$FAIL" -eq 0 ]

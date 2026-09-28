@@ -119,6 +119,26 @@ if (fs.existsSync(smokePath)) {
   t('smoke-frontend.js 존재', false, smokePath);
 }
 
+// ── 5) XSS 싱크 래칫(2026-09-22, S-2·S-4 후속) ──────────────────────────────
+// 2026-09-18 하드닝에서 innerHTML 전수(약 300곳)를 감사해 사용자 입력 경로는 전부
+// escHtml 처리했다. 그 감사가 썩지 않도록 싱크 "총량"을 래칫으로 고정한다 — 새 싱크가
+// 늘면 실패시켜 커밋 전에 이스케이프 여부를 사람이 확인하게 만든다(개별 라인의 안전성은
+// 정적으로 판별 불가 — 총량 게이트가 감사 트리거 역할).
+// 새 싱크를 감사(escHtml 확인)한 뒤에는 아래 기준 숫자를 올려서 커밋한다. 줄면 내려도 된다.
+{
+  const SINKS = [
+    ['innerHTML 대입', /\.innerHTML\s*[+]?=/g, 296],
+    ['insertAdjacentHTML', /insertAdjacentHTML/g, 4],
+    ['document.write', /document\.write\(/g, 0],
+    ['outerHTML 대입', /\bouterHTML\s*=/g, 0],
+  ];
+  for (const [name, re, base] of SINKS) {
+    const n = (html.match(re) || []).length;
+    t(`XSS 싱크 래칫 — ${name} ${n}건 (기준 ${base})`, n <= base,
+      n > base ? `새 싱크 +${n - base}건: escHtml 이스케이프를 확인한 뒤 l2-smoke.mjs의 기준을 ${n}으로 갱신` : '');
+  }
+}
+
 // ── 보고 ────────────────────────────────────────────────────────────────────
 const fails = results.filter(r => !r.ok);
 for (const r of results) console.log(`${r.ok ? 'PASS' : 'FAIL'} ${r.name}${r.detail ? '  (' + r.detail + ')' : ''}`);
