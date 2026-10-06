@@ -1,0 +1,1057 @@
+{
+  "customer-portal_slack_status_change": {
+    "Architectures": [
+      "x86_64"
+    ],
+    "Description": "",
+    "Environment": {
+      "Variables": {
+        "DB_HOST": "csdb.cngoihiekj6q.ap-northeast-2.rds.amazonaws.com",
+        "DB_NAME": "customer_portal",
+        "DB_PORT": "5432",
+        "DB_SECRET_ID": "rds!db-3ac5cc91-42d4-4a33-8a1d-c221d48cd7e3",
+        "DB_USER": "postgres",
+        "NOTIFY_HANDLER_FN": "customer_portal_notify-handler",
+        "SEND_EMAIL_FN": "customer_portal_send-email"
+      }
+    },
+    "EphemeralStorage": {
+      "Size": 512
+    },
+    "FunctionArn": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer-portal_slack_status_change",
+    "FunctionName": "customer-portal_slack_status_change",
+    "Handler": "index.handler",
+    "LastUpdateStatus": "Successful",
+    "LoggingConfig": {
+      "LogFormat": "Text",
+      "LogGroup": "/aws/lambda/customer-portal_slack_status_change"
+    },
+    "MemorySize": 512,
+    "PackageType": "Zip",
+    "Role": "arn:aws:iam::605163667429:role/service-role/customer-portal_slack_status_change-role-qwrqoeqq",
+    "Runtime": "nodejs24.x",
+    "RuntimeVersionConfig": {
+      "RuntimeVersionArn": "arn:aws:lambda:ap-northeast-2::runtime:b4034471676cabadeaaeee03f72c70e7e9a9914ab759044dc004efc746ce9a96"
+    },
+    "SnapStart": {
+      "ApplyOn": "None",
+      "OptimizationStatus": "Off"
+    },
+    "State": "Active",
+    "Timeout": 30,
+    "TracingConfig": {
+      "Mode": "PassThrough"
+    },
+    "Version": "$LATEST",
+    "VpcConfig": {
+      "Ipv6AllowedForDualStack": false,
+      "SecurityGroupIds": [
+        "sg-01c9a980db122761c"
+      ],
+      "SubnetIds": [
+        "subnet-0749129aa60c4fa18"
+      ],
+      "VpcId": "vpc-06ce4ed92e8593ccf"
+    },
+    "_reservedConcurrency": null,
+    "_resourcePolicy": {
+      "Id": "default",
+      "Statement": [
+        {
+          "Action": "lambda:InvokeFunction",
+          "Condition": {
+            "ArnLike": {
+              "AWS:SourceArn": "arn:aws:execute-api:ap-northeast-2:605163667429:8xbmazu4ij/*/*/tickets"
+            }
+          },
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "apigateway.amazonaws.com"
+          },
+          "Resource": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer-portal_slack_status_change",
+          "Sid": "459980fb-044a-53d8-bba8-1fa5de950995"
+        },
+        {
+          "Action": "lambda:InvokeFunction",
+          "Condition": {
+            "ArnLike": {
+              "AWS:SourceArn": "arn:aws:execute-api:ap-northeast-2:605163667429:8xbmazu4ij/*/*/tickets/{id}/assign"
+            }
+          },
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "apigateway.amazonaws.com"
+          },
+          "Resource": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer-portal_slack_status_change",
+          "Sid": "9b4f29c8-b822-5af3-a685-63af919c466a"
+        },
+        {
+          "Action": "lambda:InvokeFunction",
+          "Condition": {
+            "ArnLike": {
+              "AWS:SourceArn": "arn:aws:execute-api:ap-northeast-2:605163667429:8xbmazu4ij/*/*/tickets/{id}/status"
+            }
+          },
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "apigateway.amazonaws.com"
+          },
+          "Resource": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer-portal_slack_status_change",
+          "Sid": "d4fe723a-b4df-550a-8bb5-719eccd2f9a9"
+        },
+        {
+          "Action": "lambda:InvokeFunction",
+          "Condition": {
+            "ArnLike": {
+              "AWS:SourceArn": "arn:aws:execute-api:ap-northeast-2:605163667429:8xbmazu4ij/*/*"
+            }
+          },
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "apigateway.amazonaws.com"
+          },
+          "Resource": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer-portal_slack_status_change",
+          "Sid": "apigw-manage"
+        }
+      ],
+      "Version": "2012-10-17"
+    }
+  },
+  "customer_portal_api-layer-dev": {
+    "Architectures": [
+      "x86_64"
+    ],
+    "Description": "dev environment clone of customer-portal_slack_status_change",
+    "Environment": {
+      "Variables": {
+        "DB_HOST": "csdb.cngoihiekj6q.ap-northeast-2.rds.amazonaws.com",
+        "DB_NAME": "customer_portal_dev",
+        "DB_PORT": "5432",
+        "DB_SECRET_ID": "rds!db-3ac5cc91-42d4-4a33-8a1d-c221d48cd7e3",
+        "DB_USER": "postgres",
+        "NOTIFY_HANDLER_FN": "customer_portal_notify-handler-dev",
+        "SECRET_CACHE_BUST": {
+          "__len": 10,
+          "__sha256_12": "719b7fc9dedd"
+        },
+        "SECRET_JWT": "customer-portal/dev-jwt",
+        "SEND_EMAIL_FN": "customer_portal_send-email-dev"
+      }
+    },
+    "EphemeralStorage": {
+      "Size": 512
+    },
+    "FunctionArn": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_api-layer-dev",
+    "FunctionName": "customer_portal_api-layer-dev",
+    "Handler": "index.handler",
+    "LastUpdateStatus": "Successful",
+    "LoggingConfig": {
+      "LogFormat": "Text",
+      "LogGroup": "/aws/lambda/customer_portal_api-layer-dev"
+    },
+    "MemorySize": 512,
+    "PackageType": "Zip",
+    "Role": "arn:aws:iam::605163667429:role/customer_portal_dev-vpc-role",
+    "Runtime": "nodejs24.x",
+    "RuntimeVersionConfig": {
+      "RuntimeVersionArn": "arn:aws:lambda:ap-northeast-2::runtime:b4034471676cabadeaaeee03f72c70e7e9a9914ab759044dc004efc746ce9a96"
+    },
+    "SnapStart": {
+      "ApplyOn": "None",
+      "OptimizationStatus": "Off"
+    },
+    "State": "Active",
+    "Timeout": 30,
+    "TracingConfig": {
+      "Mode": "PassThrough"
+    },
+    "Version": "$LATEST",
+    "VpcConfig": {
+      "Ipv6AllowedForDualStack": false,
+      "SecurityGroupIds": [
+        "sg-01c9a980db122761c"
+      ],
+      "SubnetIds": [
+        "subnet-0749129aa60c4fa18"
+      ],
+      "VpcId": "vpc-06ce4ed92e8593ccf"
+    },
+    "_reservedConcurrency": null,
+    "_resourcePolicy": {
+      "Id": "default",
+      "Statement": [
+        {
+          "Action": "lambda:InvokeFunction",
+          "Condition": {
+            "ArnLike": {
+              "AWS:SourceArn": "arn:aws:execute-api:ap-northeast-2:605163667429:p4ozzm0omb/*/*"
+            }
+          },
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "apigateway.amazonaws.com"
+          },
+          "Resource": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_api-layer-dev",
+          "Sid": "apigw-dev-invoke"
+        }
+      ],
+      "Version": "2012-10-17"
+    }
+  },
+  "customer_portal_data-api": {
+    "Architectures": [
+      "x86_64"
+    ],
+    "Description": "",
+    "Environment": {
+      "Variables": {
+        "DB_HOST": "csdb.cngoihiekj6q.ap-northeast-2.rds.amazonaws.com",
+        "DB_NAME": "customer_portal",
+        "DB_PORT": "5432",
+        "DB_SECRET_ID": "rds!db-3ac5cc91-42d4-4a33-8a1d-c221d48cd7e3",
+        "DB_USER": "postgres"
+      }
+    },
+    "EphemeralStorage": {
+      "Size": 512
+    },
+    "FunctionArn": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_data-api",
+    "FunctionName": "customer_portal_data-api",
+    "Handler": "index.handler",
+    "LastUpdateStatus": "Successful",
+    "LoggingConfig": {
+      "LogFormat": "Text",
+      "LogGroup": "/aws/lambda/customer_portal_data-api"
+    },
+    "MemorySize": 128,
+    "PackageType": "Zip",
+    "Role": "arn:aws:iam::605163667429:role/service-role/customer_portal_data-api-role-vcnec06f",
+    "Runtime": "nodejs24.x",
+    "RuntimeVersionConfig": {
+      "RuntimeVersionArn": "arn:aws:lambda:ap-northeast-2::runtime:b4034471676cabadeaaeee03f72c70e7e9a9914ab759044dc004efc746ce9a96"
+    },
+    "SnapStart": {
+      "ApplyOn": "None",
+      "OptimizationStatus": "Off"
+    },
+    "State": "Active",
+    "Timeout": 30,
+    "TracingConfig": {
+      "Mode": "PassThrough"
+    },
+    "Version": "$LATEST",
+    "VpcConfig": {
+      "Ipv6AllowedForDualStack": false,
+      "SecurityGroupIds": [
+        "sg-01c9a980db122761c"
+      ],
+      "SubnetIds": [
+        "subnet-0749129aa60c4fa18"
+      ],
+      "VpcId": "vpc-06ce4ed92e8593ccf"
+    },
+    "_reservedConcurrency": null,
+    "_resourcePolicy": {
+      "Id": "default",
+      "Statement": [
+        {
+          "Action": "lambda:InvokeFunction",
+          "Condition": {
+            "ArnLike": {
+              "AWS:SourceArn": "arn:aws:execute-api:ap-northeast-2:605163667429:8xbmazu4ij/*/*/data/{table}"
+            }
+          },
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "apigateway.amazonaws.com"
+          },
+          "Resource": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_data-api",
+          "Sid": "d34a3185-19da-598f-86fc-98306bffd687"
+        },
+        {
+          "Action": "lambda:InvokeFunction",
+          "Condition": {
+            "ArnLike": {
+              "AWS:SourceArn": "arn:aws:execute-api:ap-northeast-2:605163667429:8xbmazu4ij/*/*/data/{table}/{id}"
+            }
+          },
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "apigateway.amazonaws.com"
+          },
+          "Resource": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_data-api",
+          "Sid": "2196c670-f375-5ce2-a63c-396d1e1f3ef9"
+        }
+      ],
+      "Version": "2012-10-17"
+    }
+  },
+  "customer_portal_data-api-dev": {
+    "Architectures": [
+      "x86_64"
+    ],
+    "Description": "dev environment clone of customer_portal_data-api",
+    "Environment": {
+      "Variables": {
+        "DB_HOST": "csdb.cngoihiekj6q.ap-northeast-2.rds.amazonaws.com",
+        "DB_NAME": "customer_portal_dev",
+        "DB_PORT": "5432",
+        "DB_SECRET_ID": "rds!db-3ac5cc91-42d4-4a33-8a1d-c221d48cd7e3",
+        "DB_USER": "postgres"
+      }
+    },
+    "EphemeralStorage": {
+      "Size": 512
+    },
+    "FunctionArn": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_data-api-dev",
+    "FunctionName": "customer_portal_data-api-dev",
+    "Handler": "index.handler",
+    "LastUpdateStatus": "Successful",
+    "LoggingConfig": {
+      "LogFormat": "Text",
+      "LogGroup": "/aws/lambda/customer_portal_data-api-dev"
+    },
+    "MemorySize": 128,
+    "PackageType": "Zip",
+    "Role": "arn:aws:iam::605163667429:role/customer_portal_dev-vpc-role",
+    "Runtime": "nodejs24.x",
+    "RuntimeVersionConfig": {
+      "RuntimeVersionArn": "arn:aws:lambda:ap-northeast-2::runtime:b4034471676cabadeaaeee03f72c70e7e9a9914ab759044dc004efc746ce9a96"
+    },
+    "SnapStart": {
+      "ApplyOn": "None",
+      "OptimizationStatus": "Off"
+    },
+    "State": "Active",
+    "Timeout": 30,
+    "TracingConfig": {
+      "Mode": "PassThrough"
+    },
+    "Version": "$LATEST",
+    "VpcConfig": {
+      "Ipv6AllowedForDualStack": false,
+      "SecurityGroupIds": [
+        "sg-01c9a980db122761c"
+      ],
+      "SubnetIds": [
+        "subnet-0749129aa60c4fa18"
+      ],
+      "VpcId": "vpc-06ce4ed92e8593ccf"
+    },
+    "_reservedConcurrency": null,
+    "_resourcePolicy": {
+      "Id": "default",
+      "Statement": [
+        {
+          "Action": "lambda:InvokeFunction",
+          "Condition": {
+            "ArnLike": {
+              "AWS:SourceArn": "arn:aws:execute-api:ap-northeast-2:605163667429:p4ozzm0omb/*/*"
+            }
+          },
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "apigateway.amazonaws.com"
+          },
+          "Resource": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_data-api-dev",
+          "Sid": "apigw-dev-invoke"
+        }
+      ],
+      "Version": "2012-10-17"
+    }
+  },
+  "customer_portal_jwt-authorizer": {
+    "Architectures": [
+      "x86_64"
+    ],
+    "Description": "",
+    "EphemeralStorage": {
+      "Size": 512
+    },
+    "FunctionArn": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_jwt-authorizer",
+    "FunctionName": "customer_portal_jwt-authorizer",
+    "Handler": "index.handler",
+    "LastUpdateStatus": "Successful",
+    "LoggingConfig": {
+      "LogFormat": "Text",
+      "LogGroup": "/aws/lambda/customer_portal_jwt-authorizer"
+    },
+    "MemorySize": 128,
+    "PackageType": "Zip",
+    "Role": "arn:aws:iam::605163667429:role/customer_portal_jwt-authorizer-role",
+    "Runtime": "nodejs22.x",
+    "RuntimeVersionConfig": {
+      "RuntimeVersionArn": "arn:aws:lambda:ap-northeast-2::runtime:499184cc22861bf242d649538cd9643369901c319b3a13ee104b5d2d15ec9d43"
+    },
+    "SnapStart": {
+      "ApplyOn": "None",
+      "OptimizationStatus": "Off"
+    },
+    "State": "Active",
+    "Timeout": 5,
+    "TracingConfig": {
+      "Mode": "PassThrough"
+    },
+    "Version": "$LATEST",
+    "_reservedConcurrency": null,
+    "_resourcePolicy": {
+      "Id": "default",
+      "Statement": [
+        {
+          "Action": "lambda:InvokeFunction",
+          "Condition": {
+            "ArnLike": {
+              "AWS:SourceArn": "arn:aws:execute-api:ap-northeast-2:605163667429:8xbmazu4ij/*"
+            }
+          },
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "apigateway.amazonaws.com"
+          },
+          "Resource": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_jwt-authorizer",
+          "Sid": "apigw-authorizer-invoke"
+        }
+      ],
+      "Version": "2012-10-17"
+    }
+  },
+  "customer_portal_jwt-authorizer-dev": {
+    "Architectures": [
+      "x86_64"
+    ],
+    "Description": "dev environment clone of customer_portal_jwt-authorizer",
+    "Environment": {
+      "Variables": {
+        "SECRET_JWT": "customer-portal/dev-jwt"
+      }
+    },
+    "EphemeralStorage": {
+      "Size": 512
+    },
+    "FunctionArn": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_jwt-authorizer-dev",
+    "FunctionName": "customer_portal_jwt-authorizer-dev",
+    "Handler": "index.handler",
+    "LastUpdateStatus": "Successful",
+    "LoggingConfig": {
+      "LogFormat": "Text",
+      "LogGroup": "/aws/lambda/customer_portal_jwt-authorizer-dev"
+    },
+    "MemorySize": 128,
+    "PackageType": "Zip",
+    "Role": "arn:aws:iam::605163667429:role/customer_portal_dev-basic-role",
+    "Runtime": "nodejs22.x",
+    "RuntimeVersionConfig": {
+      "RuntimeVersionArn": "arn:aws:lambda:ap-northeast-2::runtime:499184cc22861bf242d649538cd9643369901c319b3a13ee104b5d2d15ec9d43"
+    },
+    "SnapStart": {
+      "ApplyOn": "None",
+      "OptimizationStatus": "Off"
+    },
+    "State": "Active",
+    "Timeout": 5,
+    "TracingConfig": {
+      "Mode": "PassThrough"
+    },
+    "Version": "$LATEST",
+    "_reservedConcurrency": null,
+    "_resourcePolicy": {
+      "Id": "default",
+      "Statement": [
+        {
+          "Action": "lambda:InvokeFunction",
+          "Condition": {
+            "ArnLike": {
+              "AWS:SourceArn": "arn:aws:execute-api:ap-northeast-2:605163667429:p4ozzm0omb/authorizers/r9w0zj"
+            }
+          },
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "apigateway.amazonaws.com"
+          },
+          "Resource": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_jwt-authorizer-dev",
+          "Sid": "apigw-dev-auth"
+        }
+      ],
+      "Version": "2012-10-17"
+    }
+  },
+  "customer_portal_notify-handler": {
+    "Architectures": [
+      "x86_64"
+    ],
+    "Description": "",
+    "Environment": {
+      "Variables": {
+        "PORTAL_URL": "https://support.bigxdata.io",
+        "SLACK_REDIRECT": "",
+        "TEST_TAG": ""
+      }
+    },
+    "EphemeralStorage": {
+      "Size": 512
+    },
+    "FunctionArn": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_notify-handler",
+    "FunctionName": "customer_portal_notify-handler",
+    "Handler": "index.handler",
+    "LastUpdateStatus": "Successful",
+    "LoggingConfig": {
+      "LogFormat": "Text",
+      "LogGroup": "/aws/lambda/customer_portal_notify-handler"
+    },
+    "MemorySize": 128,
+    "PackageType": "Zip",
+    "Role": "arn:aws:iam::605163667429:role/service-role/customer_portal_notify-handler-role-l4ufyocd",
+    "Runtime": "nodejs24.x",
+    "RuntimeVersionConfig": {
+      "RuntimeVersionArn": "arn:aws:lambda:ap-northeast-2::runtime:b4034471676cabadeaaeee03f72c70e7e9a9914ab759044dc004efc746ce9a96"
+    },
+    "SnapStart": {
+      "ApplyOn": "None",
+      "OptimizationStatus": "Off"
+    },
+    "State": "Active",
+    "Timeout": 30,
+    "TracingConfig": {
+      "Mode": "PassThrough"
+    },
+    "Version": "$LATEST",
+    "_reservedConcurrency": null,
+    "_resourcePolicy": {
+      "Id": "default",
+      "Statement": [
+        {
+          "Action": "lambda:InvokeFunction",
+          "Condition": {
+            "ArnLike": {
+              "AWS:SourceArn": "arn:aws:execute-api:ap-northeast-2:605163667429:8xbmazu4ij/*/*"
+            }
+          },
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "apigateway.amazonaws.com"
+          },
+          "Resource": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_notify-handler",
+          "Sid": "apigw-fn-notify"
+        }
+      ],
+      "Version": "2012-10-17"
+    }
+  },
+  "customer_portal_notify-handler-dev": {
+    "Architectures": [
+      "x86_64"
+    ],
+    "Description": "dev environment clone of customer_portal_notify-handler",
+    "Environment": {
+      "Variables": {
+        "PORTAL_URL": "https://dev.dlayoierdftk6.amplifyapp.com",
+        "SECRET_CACHE_BUST": {
+          "__len": 10,
+          "__sha256_12": "d91f69057f8f"
+        },
+        "SECRET_SLACK": "customer-portal/dev-slack-webhooks",
+        "SLACK_REDIRECT": "1",
+        "TEST_TAG": ""
+      }
+    },
+    "EphemeralStorage": {
+      "Size": 512
+    },
+    "FunctionArn": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_notify-handler-dev",
+    "FunctionName": "customer_portal_notify-handler-dev",
+    "Handler": "index.handler",
+    "LastUpdateStatus": "Successful",
+    "LoggingConfig": {
+      "LogFormat": "Text",
+      "LogGroup": "/aws/lambda/customer_portal_notify-handler-dev"
+    },
+    "MemorySize": 128,
+    "PackageType": "Zip",
+    "Role": "arn:aws:iam::605163667429:role/customer_portal_dev-basic-role",
+    "Runtime": "nodejs24.x",
+    "RuntimeVersionConfig": {
+      "RuntimeVersionArn": "arn:aws:lambda:ap-northeast-2::runtime:b4034471676cabadeaaeee03f72c70e7e9a9914ab759044dc004efc746ce9a96"
+    },
+    "SnapStart": {
+      "ApplyOn": "None",
+      "OptimizationStatus": "Off"
+    },
+    "State": "Active",
+    "Timeout": 30,
+    "TracingConfig": {
+      "Mode": "PassThrough"
+    },
+    "Version": "$LATEST",
+    "_reservedConcurrency": null,
+    "_resourcePolicy": {
+      "Id": "default",
+      "Statement": [
+        {
+          "Action": "lambda:InvokeFunction",
+          "Condition": {
+            "ArnLike": {
+              "AWS:SourceArn": "arn:aws:execute-api:ap-northeast-2:605163667429:p4ozzm0omb/*/*"
+            }
+          },
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "apigateway.amazonaws.com"
+          },
+          "Resource": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_notify-handler-dev",
+          "Sid": "apigw-dev-invoke"
+        }
+      ],
+      "Version": "2012-10-17"
+    }
+  },
+  "customer_portal_public-inquiry": {
+    "Architectures": [
+      "x86_64"
+    ],
+    "Description": "",
+    "Environment": {
+      "Variables": {
+        "DB_HOST": "csdb.cngoihiekj6q.ap-northeast-2.rds.amazonaws.com",
+        "DB_NAME": "customer_portal",
+        "DB_PORT": "5432",
+        "DB_SECRET_ID": "rds!db-3ac5cc91-42d4-4a33-8a1d-c221d48cd7e3",
+        "DB_USER": "postgres",
+        "SLACK_REDIRECT": "",
+        "TEST_TAG": ""
+      }
+    },
+    "EphemeralStorage": {
+      "Size": 512
+    },
+    "FunctionArn": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_public-inquiry",
+    "FunctionName": "customer_portal_public-inquiry",
+    "Handler": "index.handler",
+    "LastUpdateStatus": "Successful",
+    "LoggingConfig": {
+      "LogFormat": "Text",
+      "LogGroup": "/aws/lambda/customer_portal_public-inquiry"
+    },
+    "MemorySize": 512,
+    "PackageType": "Zip",
+    "Role": "arn:aws:iam::605163667429:role/service-role/customer_portal_data-api-role-vcnec06f",
+    "Runtime": "nodejs24.x",
+    "RuntimeVersionConfig": {
+      "RuntimeVersionArn": "arn:aws:lambda:ap-northeast-2::runtime:b4034471676cabadeaaeee03f72c70e7e9a9914ab759044dc004efc746ce9a96"
+    },
+    "SnapStart": {
+      "ApplyOn": "None",
+      "OptimizationStatus": "Off"
+    },
+    "State": "Active",
+    "Timeout": 15,
+    "TracingConfig": {
+      "Mode": "PassThrough"
+    },
+    "Version": "$LATEST",
+    "VpcConfig": {
+      "Ipv6AllowedForDualStack": false,
+      "SecurityGroupIds": [
+        "sg-01c9a980db122761c"
+      ],
+      "SubnetIds": [
+        "subnet-0749129aa60c4fa18"
+      ],
+      "VpcId": "vpc-06ce4ed92e8593ccf"
+    },
+    "_reservedConcurrency": null,
+    "_resourcePolicy": {
+      "Id": "default",
+      "Statement": [
+        {
+          "Action": "lambda:InvokeFunction",
+          "Condition": {
+            "ArnLike": {
+              "AWS:SourceArn": "arn:aws:execute-api:ap-northeast-2:605163667429:8xbmazu4ij/*/*/public/account-inquiry"
+            }
+          },
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "apigateway.amazonaws.com"
+          },
+          "Resource": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_public-inquiry",
+          "Sid": "apigw-public-inquiry"
+        }
+      ],
+      "Version": "2012-10-17"
+    }
+  },
+  "customer_portal_public-inquiry-dev": {
+    "Architectures": [
+      "x86_64"
+    ],
+    "Description": "dev environment clone of customer_portal_public-inquiry",
+    "Environment": {
+      "Variables": {
+        "DB_HOST": "csdb.cngoihiekj6q.ap-northeast-2.rds.amazonaws.com",
+        "DB_NAME": "customer_portal_dev",
+        "DB_PORT": "5432",
+        "DB_SECRET_ID": "rds!db-3ac5cc91-42d4-4a33-8a1d-c221d48cd7e3",
+        "DB_USER": "postgres",
+        "SECRET_CACHE_BUST": {
+          "__len": 10,
+          "__sha256_12": "719b7fc9dedd"
+        },
+        "SECRET_SLACK": "customer-portal/dev-slack-webhooks",
+        "SEND_EMAIL_FN": "customer_portal_send-email-dev",
+        "SLACK_REDIRECT": "1",
+        "TEST_TAG": ""
+      }
+    },
+    "EphemeralStorage": {
+      "Size": 512
+    },
+    "FunctionArn": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_public-inquiry-dev",
+    "FunctionName": "customer_portal_public-inquiry-dev",
+    "Handler": "index.handler",
+    "LastUpdateStatus": "Successful",
+    "LoggingConfig": {
+      "LogFormat": "Text",
+      "LogGroup": "/aws/lambda/customer_portal_public-inquiry-dev"
+    },
+    "MemorySize": 512,
+    "PackageType": "Zip",
+    "Role": "arn:aws:iam::605163667429:role/customer_portal_dev-vpc-role",
+    "Runtime": "nodejs24.x",
+    "RuntimeVersionConfig": {
+      "RuntimeVersionArn": "arn:aws:lambda:ap-northeast-2::runtime:b4034471676cabadeaaeee03f72c70e7e9a9914ab759044dc004efc746ce9a96"
+    },
+    "SnapStart": {
+      "ApplyOn": "None",
+      "OptimizationStatus": "Off"
+    },
+    "State": "Active",
+    "Timeout": 15,
+    "TracingConfig": {
+      "Mode": "PassThrough"
+    },
+    "Version": "$LATEST",
+    "VpcConfig": {
+      "Ipv6AllowedForDualStack": false,
+      "SecurityGroupIds": [
+        "sg-01c9a980db122761c"
+      ],
+      "SubnetIds": [
+        "subnet-0749129aa60c4fa18"
+      ],
+      "VpcId": "vpc-06ce4ed92e8593ccf"
+    },
+    "_reservedConcurrency": null,
+    "_resourcePolicy": {
+      "Id": "default",
+      "Statement": [
+        {
+          "Action": "lambda:InvokeFunction",
+          "Condition": {
+            "ArnLike": {
+              "AWS:SourceArn": "arn:aws:execute-api:ap-northeast-2:605163667429:p4ozzm0omb/*/*"
+            }
+          },
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "apigateway.amazonaws.com"
+          },
+          "Resource": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_public-inquiry-dev",
+          "Sid": "apigw-dev-invoke"
+        }
+      ],
+      "Version": "2012-10-17"
+    }
+  },
+  "customer_portal_send-email": {
+    "Architectures": [
+      "x86_64"
+    ],
+    "Description": "",
+    "Environment": {
+      "Variables": {
+        "EMAIL_TEST_SINK": "sjlee@bigxdata.io",
+        "MS_CLIENT_ID": "36a7ff45-10b4-49b7-ad49-f8aa8b7409f6",
+        "MS_FROM": "hr@bigxdata.io",
+        "MS_TENANT_ID": "5c6be8f2-23ae-45fd-b6e3-9fc12ac40a56",
+        "PORTAL_URL": "https://support.bigxdata.io",
+        "SLACK_REDIRECT": "",
+        "TEST_EMAIL_OVERRIDE": "",
+        "TEST_TAG": ""
+      }
+    },
+    "EphemeralStorage": {
+      "Size": 512
+    },
+    "FunctionArn": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_send-email",
+    "FunctionName": "customer_portal_send-email",
+    "Handler": "index.handler",
+    "LastUpdateStatus": "Successful",
+    "LoggingConfig": {
+      "LogFormat": "Text",
+      "LogGroup": "/aws/lambda/customer_portal_send-email"
+    },
+    "MemorySize": 128,
+    "PackageType": "Zip",
+    "Role": "arn:aws:iam::605163667429:role/service-role/customer_portal_send-email-role-snp1l1l6",
+    "Runtime": "nodejs24.x",
+    "RuntimeVersionConfig": {
+      "RuntimeVersionArn": "arn:aws:lambda:ap-northeast-2::runtime:b4034471676cabadeaaeee03f72c70e7e9a9914ab759044dc004efc746ce9a96"
+    },
+    "SnapStart": {
+      "ApplyOn": "None",
+      "OptimizationStatus": "Off"
+    },
+    "State": "Active",
+    "Timeout": 30,
+    "TracingConfig": {
+      "Mode": "PassThrough"
+    },
+    "Version": "$LATEST",
+    "_reservedConcurrency": null,
+    "_resourcePolicy": {
+      "Id": "default",
+      "Statement": [
+        {
+          "Action": "lambda:InvokeFunction",
+          "Condition": {
+            "ArnLike": {
+              "AWS:SourceArn": "arn:aws:execute-api:ap-northeast-2:605163667429:8xbmazu4ij/*/*"
+            }
+          },
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "apigateway.amazonaws.com"
+          },
+          "Resource": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_send-email",
+          "Sid": "apigw-fn-email"
+        }
+      ],
+      "Version": "2012-10-17"
+    }
+  },
+  "customer_portal_send-email-dev": {
+    "Architectures": [
+      "x86_64"
+    ],
+    "Description": "dev environment clone of customer_portal_send-email",
+    "Environment": {
+      "Variables": {
+        "EMAIL_TEST_SINK": "sjlee@bigxdata.io",
+        "MS_CLIENT_ID": "36a7ff45-10b4-49b7-ad49-f8aa8b7409f6",
+        "MS_FROM": "hr@bigxdata.io",
+        "MS_TENANT_ID": "5c6be8f2-23ae-45fd-b6e3-9fc12ac40a56",
+        "PORTAL_URL": "https://dev.dlayoierdftk6.amplifyapp.com",
+        "SECRET_CACHE_BUST": {
+          "__len": 10,
+          "__sha256_12": "39f167538d64"
+        },
+        "SECRET_MS_GRAPH": "customer-portal/dev-ms-graph",
+        "SLACK_REDIRECT": "1",
+        "TEST_EMAIL_OVERRIDE": "sjlee@bigxdata.io",
+        "TEST_TAG": ""
+      }
+    },
+    "EphemeralStorage": {
+      "Size": 512
+    },
+    "FunctionArn": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_send-email-dev",
+    "FunctionName": "customer_portal_send-email-dev",
+    "Handler": "index.handler",
+    "LastUpdateStatus": "Successful",
+    "LoggingConfig": {
+      "LogFormat": "Text",
+      "LogGroup": "/aws/lambda/customer_portal_send-email-dev"
+    },
+    "MemorySize": 128,
+    "PackageType": "Zip",
+    "Role": "arn:aws:iam::605163667429:role/customer_portal_dev-basic-role",
+    "Runtime": "nodejs24.x",
+    "RuntimeVersionConfig": {
+      "RuntimeVersionArn": "arn:aws:lambda:ap-northeast-2::runtime:b4034471676cabadeaaeee03f72c70e7e9a9914ab759044dc004efc746ce9a96"
+    },
+    "SnapStart": {
+      "ApplyOn": "None",
+      "OptimizationStatus": "Off"
+    },
+    "State": "Active",
+    "Timeout": 30,
+    "TracingConfig": {
+      "Mode": "PassThrough"
+    },
+    "Version": "$LATEST",
+    "_reservedConcurrency": null,
+    "_resourcePolicy": {
+      "Id": "default",
+      "Statement": [
+        {
+          "Action": "lambda:InvokeFunction",
+          "Condition": {
+            "ArnLike": {
+              "AWS:SourceArn": "arn:aws:execute-api:ap-northeast-2:605163667429:p4ozzm0omb/*/*"
+            }
+          },
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "apigateway.amazonaws.com"
+          },
+          "Resource": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_send-email-dev",
+          "Sid": "apigw-dev-invoke"
+        }
+      ],
+      "Version": "2012-10-17"
+    }
+  },
+  "customer_portal_storage-api": {
+    "Architectures": [
+      "x86_64"
+    ],
+    "Description": "",
+    "Environment": {
+      "Variables": {
+        "BUCKET_CONTRACT_ATTACHMENTS": "bigxdata-portal-contract-attachments",
+        "BUCKET_DOCUMENTS": "bigxdata-portal-documents",
+        "BUCKET_TICKET_ATTACHMENTS": "bigxdata-portal-ticket-attachments"
+      }
+    },
+    "EphemeralStorage": {
+      "Size": 512
+    },
+    "FunctionArn": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_storage-api",
+    "FunctionName": "customer_portal_storage-api",
+    "Handler": "index.handler",
+    "LastUpdateStatus": "Successful",
+    "LoggingConfig": {
+      "LogFormat": "Text",
+      "LogGroup": "/aws/lambda/customer_portal_storage-api"
+    },
+    "MemorySize": 128,
+    "PackageType": "Zip",
+    "Role": "arn:aws:iam::605163667429:role/service-role/customer_portal_storage-api-role-ca1qrvju",
+    "Runtime": "nodejs24.x",
+    "RuntimeVersionConfig": {
+      "RuntimeVersionArn": "arn:aws:lambda:ap-northeast-2::runtime:3f2695d917b249350567df30dd784ee6b9547bbdb635b4c188153c39b5347c8b"
+    },
+    "SnapStart": {
+      "ApplyOn": "None",
+      "OptimizationStatus": "Off"
+    },
+    "State": "Active",
+    "Timeout": 30,
+    "TracingConfig": {
+      "Mode": "PassThrough"
+    },
+    "Version": "$LATEST",
+    "_reservedConcurrency": null,
+    "_resourcePolicy": {
+      "Id": "default",
+      "Statement": [
+        {
+          "Action": "lambda:InvokeFunction",
+          "Condition": {
+            "ArnLike": {
+              "AWS:SourceArn": "arn:aws:execute-api:ap-northeast-2:605163667429:8xbmazu4ij/*/*"
+            }
+          },
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "apigateway.amazonaws.com"
+          },
+          "Resource": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_storage-api",
+          "Sid": "apigw-storage-upload"
+        },
+        {
+          "Action": "lambda:InvokeFunction",
+          "Condition": {
+            "ArnLike": {
+              "AWS:SourceArn": "arn:aws:execute-api:ap-northeast-2:605163667429:8xbmazu4ij/*/*"
+            }
+          },
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "apigateway.amazonaws.com"
+          },
+          "Resource": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_storage-api",
+          "Sid": "apigw-storage-signed"
+        },
+        {
+          "Action": "lambda:InvokeFunction",
+          "Condition": {
+            "ArnLike": {
+              "AWS:SourceArn": "arn:aws:execute-api:ap-northeast-2:605163667429:8xbmazu4ij/*/*"
+            }
+          },
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "apigateway.amazonaws.com"
+          },
+          "Resource": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_storage-api",
+          "Sid": "apigw-storage-remove"
+        }
+      ],
+      "Version": "2012-10-17"
+    }
+  },
+  "customer_portal_storage-api-dev": {
+    "Architectures": [
+      "x86_64"
+    ],
+    "Description": "dev environment clone of customer_portal_storage-api",
+    "Environment": {
+      "Variables": {
+        "BUCKET_CONTRACT_ATTACHMENTS": "bigxdata-portal-contract-attachments-dev",
+        "BUCKET_DOCUMENTS": "bigxdata-portal-documents-dev",
+        "BUCKET_TICKET_ATTACHMENTS": "bigxdata-portal-ticket-attachments-dev",
+        "DATA_API_FN": "customer_portal_data-api-dev"
+      }
+    },
+    "EphemeralStorage": {
+      "Size": 512
+    },
+    "FunctionArn": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_storage-api-dev",
+    "FunctionName": "customer_portal_storage-api-dev",
+    "Handler": "index.handler",
+    "LastUpdateStatus": "Successful",
+    "LoggingConfig": {
+      "LogFormat": "Text",
+      "LogGroup": "/aws/lambda/customer_portal_storage-api-dev"
+    },
+    "MemorySize": 128,
+    "PackageType": "Zip",
+    "Role": "arn:aws:iam::605163667429:role/customer_portal_dev-basic-role",
+    "Runtime": "nodejs24.x",
+    "RuntimeVersionConfig": {
+      "RuntimeVersionArn": "arn:aws:lambda:ap-northeast-2::runtime:b4034471676cabadeaaeee03f72c70e7e9a9914ab759044dc004efc746ce9a96"
+    },
+    "SnapStart": {
+      "ApplyOn": "None",
+      "OptimizationStatus": "Off"
+    },
+    "State": "Active",
+    "Timeout": 30,
+    "TracingConfig": {
+      "Mode": "PassThrough"
+    },
+    "Version": "$LATEST",
+    "_reservedConcurrency": null,
+    "_resourcePolicy": {
+      "Id": "default",
+      "Statement": [
+        {
+          "Action": "lambda:InvokeFunction",
+          "Condition": {
+            "ArnLike": {
+              "AWS:SourceArn": "arn:aws:execute-api:ap-northeast-2:605163667429:p4ozzm0omb/*/*"
+            }
+          },
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "apigateway.amazonaws.com"
+          },
+          "Resource": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_storage-api-dev",
+          "Sid": "apigw-dev-invoke"
+        }
+      ],
+      "Version": "2012-10-17"
+    }
+  }
+}

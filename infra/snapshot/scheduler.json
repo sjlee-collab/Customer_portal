@@ -1,0 +1,71 @@
+{
+  "daily-contract-expiry-check": {
+    "ActionAfterCompletion": "NONE",
+    "Arn": "arn:aws:scheduler:ap-northeast-2:605163667429:schedule/default/daily-contract-expiry-check",
+    "Description": "daily-contract-expiry-check",
+    "FlexibleTimeWindow": {
+      "Mode": "OFF"
+    },
+    "GroupName": "default",
+    "LastModificationDate": "2026-08-03T13:28:49.999000+09:00",
+    "Name": "daily-contract-expiry-check",
+    "ScheduleExpression": "cron(1 0 * * ? *)",
+    "ScheduleExpressionTimezone": "Asia/Seoul",
+    "State": "ENABLED",
+    "Target": {
+      "Arn": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer-portal_slack_status_change",
+      "Input": "{\"task\": \"expire_contracts\"}",
+      "RetryPolicy": {
+        "MaximumEventAgeInSeconds": 86400,
+        "MaximumRetryAttempts": 0
+      },
+      "RoleArn": "arn:aws:iam::605163667429:role/service-role/Amazon_EventBridge_Scheduler_LAMBDA_c6e45db921"
+    }
+  },
+  "daily-license-expiry-notice": {
+    "ActionAfterCompletion": "NONE",
+    "Arn": "arn:aws:scheduler:ap-northeast-2:605163667429:schedule/default/daily-license-expiry-notice",
+    "Description": "라이선스 만료/갱신 7일 전 Slack 공통채널 알림",
+    "FlexibleTimeWindow": {
+      "Mode": "OFF"
+    },
+    "GroupName": "default",
+    "LastModificationDate": "2026-08-07T09:55:37.078000+09:00",
+    "Name": "daily-license-expiry-notice",
+    "ScheduleExpression": "cron(0 9 * * ? *)",
+    "ScheduleExpressionTimezone": "Asia/Seoul",
+    "State": "ENABLED",
+    "Target": {
+      "Arn": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer-portal_slack_status_change",
+      "Input": "{\"task\": \"license_expiry_notice\"}",
+      "RetryPolicy": {
+        "MaximumEventAgeInSeconds": 86400,
+        "MaximumRetryAttempts": 185
+      },
+      "RoleArn": "arn:aws:iam::605163667429:role/service-role/Amazon_EventBridge_Scheduler_LAMBDA_c6e45db921"
+    }
+  },
+  "daily-overdue-ticket-check": {
+    "ActionAfterCompletion": "NONE",
+    "Arn": "arn:aws:scheduler:ap-northeast-2:605163667429:schedule/default/daily-overdue-ticket-check",
+    "Description": "daily-overdue-ticket-check",
+    "FlexibleTimeWindow": {
+      "Mode": "OFF"
+    },
+    "GroupName": "default",
+    "LastModificationDate": "2026-07-31T09:25:49.436000+09:00",
+    "Name": "daily-overdue-ticket-check",
+    "ScheduleExpression": "cron(0 9 * * ? *)",
+    "ScheduleExpressionTimezone": "Asia/Seoul",
+    "State": "ENABLED",
+    "Target": {
+      "Arn": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer-portal_slack_status_change",
+      "Input": "{\"task\": \"overdue_batch\"}",
+      "RetryPolicy": {
+        "MaximumEventAgeInSeconds": 86400,
+        "MaximumRetryAttempts": 0
+      },
+      "RoleArn": "arn:aws:iam::605163667429:role/service-role/Amazon_EventBridge_Scheduler_LAMBDA_c6e45db921"
+    }
+  }
+}

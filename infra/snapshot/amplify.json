@@ -1,0 +1,140 @@
+{
+  "d197cwv814vb95": {
+    "app": {
+      "appArn": "arn:aws:amplify:ap-northeast-2:605163667429:apps/d197cwv814vb95",
+      "appId": "d197cwv814vb95",
+      "buildSpec": "version: 1\nfrontend:\n    phases:\n        build:\n            commands:\n                - \"\"\n    artifacts:\n        baseDirectory: /\n        files:\n            - '**/*'\n    cache:\n        paths: []\n",
+      "cacheConfig": {
+        "type": "AMPLIFY_MANAGED_NO_COOKIES"
+      },
+      "customHeaders": "",
+      "customRules": [
+        {
+          "source": "/api/<*>",
+          "status": "200",
+          "target": "https://8xbmazu4ij.execute-api.ap-northeast-2.amazonaws.com/<*>"
+        },
+        {
+          "source": "/files/ticket-attachments/<*>",
+          "status": "200",
+          "target": "https://bigxdata-portal-ticket-attachments.s3.ap-northeast-2.amazonaws.com/<*>"
+        },
+        {
+          "source": "/<*>",
+          "status": "404-200",
+          "target": "/index.html"
+        }
+      ],
+      "defaultDomain": "d197cwv814vb95.amplifyapp.com",
+      "enableAutoBranchCreation": false,
+      "enableBasicAuth": false,
+      "enableBranchAutoBuild": false,
+      "enableBranchAutoDeletion": false,
+      "jobConfig": {
+        "buildComputeType": "STANDARD_8GB"
+      },
+      "name": "Customer_portal",
+      "platform": "WEB",
+      "productionBranch": {
+        "branchName": "main",
+        "status": "SUCCEED"
+      },
+      "repository": "https://github.com/sjlee-collab/Customer_portal",
+      "repositoryCloneMethod": "TOKEN",
+      "tags": {}
+    },
+    "branches": [
+      {
+        "branchName": "main",
+        "enableAutoBuild": true,
+        "enableBasicAuth": false,
+        "enablePullRequestPreview": false,
+        "environmentVariables": {},
+        "framework": "Web",
+        "stage": "PRODUCTION",
+        "ttl": "5"
+      }
+    ],
+    "domains": [
+      {
+        "certificate": {
+          "certificateVerificationDNSRecord": "_084952a787c77c7bc4db4063a3c73df8.bigxdata.io. CNAME _ab3e74d6825ba75f9462946e2e92aba6.jkddzztszm.acm-validations.aws.",
+          "type": "AMPLIFY_MANAGED"
+        },
+        "certificateVerificationDNSRecord": "_084952a787c77c7bc4db4063a3c73df8.bigxdata.io. CNAME _ab3e74d6825ba75f9462946e2e92aba6.jkddzztszm.acm-validations.aws.",
+        "domainAssociationArn": "arn:aws:amplify:ap-northeast-2:605163667429:apps/d197cwv814vb95/domains/bigxdata.io",
+        "domainName": "bigxdata.io",
+        "domainStatus": "AVAILABLE",
+        "enableAutoSubDomain": false,
+        "subDomains": [
+          {
+            "dnsRecord": "support CNAME dbx47sjo4rpd3.cloudfront.net",
+            "subDomainSetting": {
+              "branchName": "main",
+              "prefix": "support"
+            },
+            "verified": true
+          }
+        ]
+      }
+    ]
+  },
+  "dlayoierdftk6": {
+    "app": {
+      "appArn": "arn:aws:amplify:ap-northeast-2:605163667429:apps/dlayoierdftk6",
+      "appId": "dlayoierdftk6",
+      "buildSpec": "version: 1\nfrontend:\n  phases:\n    preBuild:\n      commands: []\n    build:\n      commands: []\n  artifacts:\n    baseDirectory: /\n    files:\n      - index.html\n  cache:\n    paths: []\n",
+      "cacheConfig": {
+        "type": "AMPLIFY_MANAGED_NO_COOKIES"
+      },
+      "customHeaders": "",
+      "customRules": [
+        {
+          "source": "/api/<*>",
+          "status": "200",
+          "target": "https://p4ozzm0omb.execute-api.ap-northeast-2.amazonaws.com/<*>"
+        },
+        {
+          "source": "/files/ticket-attachments/<*>",
+          "status": "200",
+          "target": "https://bigxdata-portal-ticket-attachments-dev.s3.ap-northeast-2.amazonaws.com/<*>"
+        },
+        {
+          "source": "/<*>",
+          "status": "404-200",
+          "target": "/index.html"
+        }
+      ],
+      "defaultDomain": "dlayoierdftk6.amplifyapp.com",
+      "enableAutoBranchCreation": false,
+      "enableBasicAuth": false,
+      "enableBranchAutoBuild": false,
+      "enableBranchAutoDeletion": false,
+      "jobConfig": {
+        "buildComputeType": "STANDARD_8GB"
+      },
+      "name": "Customer_portal_DEV",
+      "platform": "WEB",
+      "productionBranch": {
+        "branchName": "dev",
+        "status": "SUCCEED"
+      },
+      "repository": "https://github.com/sjlee-collab/Customer_portal",
+      "repositoryCloneMethod": "TOKEN",
+      "tags": {}
+    },
+    "branches": [
+      {
+        "branchName": "dev",
+        "enableAutoBuild": true,
+        "enableBasicAuth": false,
+        "enablePullRequestPreview": false,
+        "environmentVariables": {},
+        "framework": "Web",
+        "stage": "PRODUCTION",
+        "ttl": "5"
+      }
+    ],
+    "domains": []
+  }
+}

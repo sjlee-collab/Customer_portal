@@ -24,6 +24,7 @@
 | `bash scripts/harness/email-safe.sh on\|off\|status` | 운영 상태 리셋(잔여 리다이렉트/태그 env 제거). 테스트 격리는 자동 — **메일=temail() 싱크 수신자**, **슬랙=`[테스트]` 제목/기업명 자동 라우팅**(SLACK_WEBHOOK_TEST). status로 현재 env 확인 |
 | `bash scripts/harness/apigw-route.sh list\|add "METHOD /path"` | API GW 라우트 조회/추가 |
 | `bash scripts/harness/sweep.sh [--delete]` | `[테스트]` 라벨 잔여 데이터 미리보기/삭제(중단 뒷정리) |
+| `bash scripts/harness/infra-snapshot.sh [--check]` | 인프라 구성 스냅샷 — CloudFormation이 없어 콘솔에만 있던 설정을 레포에 남긴다. 비밀값은 담지 않음(`infra/snapshot/README.md`) |
 | `bash scripts/harness/release.sh [--dry-run]` | 릴리스 태그 + 변경 이력 — "언제 무엇이 나갔는지"와 되돌릴 기준점. 화면 버전 표기와 같은 날짜 |
 | `node scripts/harness/l2-smoke.mjs [html]` | **index.html 정적 검사(1초)** — `<script>` 문법 컴파일 · 인라인 핸들러 함수 존재 · JS가 참조하는 DOM id 존재 · 수동 스모크 체크리스트 대조 · **XSS 싱크 래칫**(innerHTML 등 총량 고정, 새 싱크는 escHtml 감사 후 기준 갱신). run-regression이 첫 단계로 자동 실행 |
 | `bash scripts/harness/drift-check.sh [fn]` | 레포↔배포본 대조(읽기 전용). 재배포·리뷰 전에 drift 확인 — 배포본이 앞서 있으면 역동기화 먼저 |
