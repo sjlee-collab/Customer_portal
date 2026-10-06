@@ -1,0 +1,123 @@
+{
+  "instances": {
+    "csdb": {
+      "ActivityStreamStatus": "stopped",
+      "AllocatedStorage": 100,
+      "AssociatedRoles": [],
+      "AutoMinorVersionUpgrade": true,
+      "AvailabilityZone": "ap-northeast-2d",
+      "BackupRetentionPeriod": 7,
+      "BackupTarget": "region",
+      "CACertificateIdentifier": "rds-ca-rsa2048-g1",
+      "CertificateDetails": {
+        "CAIdentifier": "rds-ca-rsa2048-g1",
+        "ValidTill": "2027-07-30T05:29:48+00:00"
+      },
+      "CopyTagsToSnapshot": true,
+      "CustomerOwnedIpEnabled": false,
+      "DBInstanceArn": "arn:aws:rds:ap-northeast-2:605163667429:db:csdb",
+      "DBInstanceClass": "db.t3.micro",
+      "DBInstanceIdentifier": "csdb",
+      "DBInstanceStatus": "available",
+      "DBName": "customer_portal",
+      "DBParameterGroups": [
+        {
+          "DBParameterGroupName": "default.postgres18",
+          "ParameterApplyStatus": "in-sync"
+        }
+      ],
+      "DBSecurityGroups": [],
+      "DBSubnetGroup": {
+        "DBSubnetGroupDescription": "Created from the RDS Management Console",
+        "DBSubnetGroupName": "default-vpc-06ce4ed92e8593ccf",
+        "SubnetGroupStatus": "Complete",
+        "Subnets": [
+          {
+            "SubnetAvailabilityZone": {
+              "Name": "ap-northeast-2c"
+            },
+            "SubnetIdentifier": "subnet-07f4c015651c03c80",
+            "SubnetOutpost": {},
+            "SubnetStatus": "Active"
+          },
+          {
+            "SubnetAvailabilityZone": {
+              "Name": "ap-northeast-2a"
+            },
+            "SubnetIdentifier": "subnet-0a04ac90c16f71ad3",
+            "SubnetOutpost": {},
+            "SubnetStatus": "Active"
+          },
+          {
+            "SubnetAvailabilityZone": {
+              "Name": "ap-northeast-2b"
+            },
+            "SubnetIdentifier": "subnet-0af74732dbc9798ce",
+            "SubnetOutpost": {},
+            "SubnetStatus": "Active"
+          },
+          {
+            "SubnetAvailabilityZone": {
+              "Name": "ap-northeast-2d"
+            },
+            "SubnetIdentifier": "subnet-0f81ed3e981914459",
+            "SubnetOutpost": {},
+            "SubnetStatus": "Active"
+          }
+        ],
+        "VpcId": "vpc-06ce4ed92e8593ccf"
+      },
+      "DatabaseInsightsMode": "standard",
+      "DbInstancePort": 0,
+      "DbiResourceId": "db-J7N3NNWTYLFHG2YMHCNEWZTKKM",
+      "DedicatedLogVolume": false,
+      "DeletionProtection": true,
+      "DomainMemberships": [],
+      "Endpoint": {
+        "Address": "csdb.cngoihiekj6q.ap-northeast-2.rds.amazonaws.com",
+        "HostedZoneId": "ZLA2NUCOLGUUR",
+        "Port": 5432
+      },
+      "Engine": "postgres",
+      "EngineLifecycleSupport": "open-source-rds-extended-support-disabled",
+      "EngineVersion": "18.3",
+      "IAMDatabaseAuthenticationEnabled": false,
+      "Iops": 3000,
+      "IsStorageConfigUpgradeAvailable": false,
+      "KmsKeyId": "arn:aws:kms:ap-northeast-2:605163667429:key/8a4d107d-a31a-4b09-aa97-8c3428283d7d",
+      "LicenseModel": "postgresql-license",
+      "MasterUsername": "postgres",
+      "MaxAllocatedStorage": 1000,
+      "MonitoringInterval": 0,
+      "MultiAZ": false,
+      "NetworkType": "IPV4",
+      "OptionGroupMemberships": [
+        {
+          "OptionGroupName": "default:postgres-18",
+          "Status": "in-sync"
+        }
+      ],
+      "PerformanceInsightsEnabled": true,
+      "PerformanceInsightsKMSKeyId": "arn:aws:kms:ap-northeast-2:605163667429:key/8a4d107d-a31a-4b09-aa97-8c3428283d7d",
+      "PerformanceInsightsRetentionPeriod": 7,
+      "PreferredBackupWindow": "20:10-20:40",
+      "PreferredMaintenanceWindow": "sat:15:00-sat:15:30",
+      "PubliclyAccessible": false,
+      "ReadReplicaDBInstanceIdentifiers": [],
+      "StorageEncrypted": true,
+      "StorageThroughput": 125,
+      "StorageType": "gp3",
+      "TagList": [],
+      "UpgradeRolloutOrder": "second",
+      "VpcSecurityGroups": [
+        {
+          "Status": "active",
+          "VpcSecurityGroupId": "sg-034f2d418a20a6f95"
+        }
+      ]
+    }
+  },
+  "parameterGroups": {
+    "default.postgres18": []
+  }
+}

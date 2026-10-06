@@ -1,0 +1,96 @@
+{
+  "securityGroups": {
+    "sg-01c9a980db122761c": {
+      "Description": "customer_portal_lambda-sg",
+      "GroupName": "lambda-sg",
+      "IpPermissions": [],
+      "IpPermissionsEgress": [
+        {
+          "IpProtocol": "-1",
+          "IpRanges": [
+            {
+              "CidrIp": "0.0.0.0/0"
+            }
+          ],
+          "Ipv6Ranges": [],
+          "PrefixListIds": [],
+          "UserIdGroupPairs": []
+        }
+      ],
+      "VpcId": "vpc-06ce4ed92e8593ccf"
+    },
+    "sg-034f2d418a20a6f95": {
+      "Description": "Created by RDS management console",
+      "GroupName": "csdb-sg",
+      "IpPermissions": [
+        {
+          "FromPort": 5432,
+          "IpProtocol": "tcp",
+          "IpRanges": [
+            {
+              "CidrIp": "220.85.35.50/32"
+            },
+            {
+              "CidrIp": "218.236.72.161/32"
+            }
+          ],
+          "Ipv6Ranges": [],
+          "PrefixListIds": [],
+          "ToPort": 5432,
+          "UserIdGroupPairs": [
+            {
+              "GroupId": "sg-01c9a980db122761c",
+              "UserId": "605163667429"
+            }
+          ]
+        }
+      ],
+      "IpPermissionsEgress": [
+        {
+          "IpProtocol": "-1",
+          "IpRanges": [
+            {
+              "CidrIp": "0.0.0.0/0"
+            }
+          ],
+          "Ipv6Ranges": [],
+          "PrefixListIds": [],
+          "UserIdGroupPairs": []
+        }
+      ],
+      "VpcId": "vpc-06ce4ed92e8593ccf"
+    }
+  },
+  "subnets": {
+    "subnet-0749129aa60c4fa18": {
+      "AvailabilityZone": "ap-northeast-2c",
+      "CidrBlock": "172.31.100.0/24",
+      "MapPublicIpOnLaunch": false,
+      "VpcId": "vpc-06ce4ed92e8593ccf"
+    },
+    "subnet-07f4c015651c03c80": {
+      "AvailabilityZone": "ap-northeast-2c",
+      "CidrBlock": "172.31.32.0/20",
+      "MapPublicIpOnLaunch": true,
+      "VpcId": "vpc-06ce4ed92e8593ccf"
+    },
+    "subnet-0a04ac90c16f71ad3": {
+      "AvailabilityZone": "ap-northeast-2a",
+      "CidrBlock": "172.31.0.0/20",
+      "MapPublicIpOnLaunch": true,
+      "VpcId": "vpc-06ce4ed92e8593ccf"
+    },
+    "subnet-0af74732dbc9798ce": {
+      "AvailabilityZone": "ap-northeast-2b",
+      "CidrBlock": "172.31.16.0/20",
+      "MapPublicIpOnLaunch": true,
+      "VpcId": "vpc-06ce4ed92e8593ccf"
+    },
+    "subnet-0f81ed3e981914459": {
+      "AvailabilityZone": "ap-northeast-2d",
+      "CidrBlock": "172.31.48.0/20",
+      "MapPublicIpOnLaunch": true,
+      "VpcId": "vpc-06ce4ed92e8593ccf"
+    }
+  }
+}

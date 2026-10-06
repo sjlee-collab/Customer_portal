@@ -1,0 +1,443 @@
+{
+  "bigxdata-portal-contract-attachments": {
+    "cors": {
+      "CORSRules": [
+        {
+          "AllowedHeaders": [
+            "*"
+          ],
+          "AllowedMethods": [
+            "GET",
+            "PUT",
+            "POST",
+            "HEAD"
+          ],
+          "AllowedOrigins": [
+            "https://support.bigxdata.io",
+            "https://dev.dlayoierdftk6.amplifyapp.com"
+          ],
+          "ExposeHeaders": [
+            "ETag"
+          ],
+          "MaxAgeSeconds": 3000
+        }
+      ]
+    },
+    "encryption": {
+      "ServerSideEncryptionConfiguration": {
+        "Rules": [
+          {
+            "ApplyServerSideEncryptionByDefault": {
+              "SSEAlgorithm": "AES256"
+            },
+            "BlockedEncryptionTypes": {
+              "EncryptionType": [
+                "SSE-C"
+              ]
+            },
+            "BucketKeyEnabled": true
+          }
+        ]
+      }
+    },
+    "lifecycle": {
+      "Rules": [
+        {
+          "AbortIncompleteMultipartUpload": {
+            "DaysAfterInitiation": 7
+          },
+          "Expiration": {
+            "ExpiredObjectDeleteMarker": true
+          },
+          "Filter": {
+            "Prefix": ""
+          },
+          "ID": "noncurrent-90d-cleanup",
+          "NoncurrentVersionExpiration": {
+            "NoncurrentDays": 90
+          },
+          "Status": "Enabled"
+        }
+      ],
+      "TransitionDefaultMinimumObjectSize": "all_storage_classes_128K"
+    },
+    "publicAccessBlock": {
+      "PublicAccessBlockConfiguration": {
+        "BlockPublicAcls": true,
+        "BlockPublicPolicy": true,
+        "IgnorePublicAcls": true,
+        "RestrictPublicBuckets": true
+      }
+    },
+    "versioning": {
+      "Status": "Enabled"
+    }
+  },
+  "bigxdata-portal-contract-attachments-dev": {
+    "cors": {
+      "CORSRules": [
+        {
+          "AllowedHeaders": [
+            "*"
+          ],
+          "AllowedMethods": [
+            "GET",
+            "PUT",
+            "POST",
+            "HEAD"
+          ],
+          "AllowedOrigins": [
+            "https://dev.dlayoierdftk6.amplifyapp.com"
+          ],
+          "ExposeHeaders": [
+            "ETag"
+          ],
+          "MaxAgeSeconds": 3000
+        }
+      ]
+    },
+    "encryption": {
+      "ServerSideEncryptionConfiguration": {
+        "Rules": [
+          {
+            "ApplyServerSideEncryptionByDefault": {
+              "SSEAlgorithm": "AES256"
+            },
+            "BlockedEncryptionTypes": {
+              "EncryptionType": [
+                "SSE-C"
+              ]
+            },
+            "BucketKeyEnabled": true
+          }
+        ]
+      }
+    },
+    "lifecycle": {
+      "Rules": [
+        {
+          "AbortIncompleteMultipartUpload": {
+            "DaysAfterInitiation": 7
+          },
+          "Expiration": {
+            "ExpiredObjectDeleteMarker": true
+          },
+          "Filter": {
+            "Prefix": ""
+          },
+          "ID": "noncurrent-90d-cleanup",
+          "NoncurrentVersionExpiration": {
+            "NoncurrentDays": 90
+          },
+          "Status": "Enabled"
+        }
+      ],
+      "TransitionDefaultMinimumObjectSize": "all_storage_classes_128K"
+    },
+    "publicAccessBlock": {
+      "PublicAccessBlockConfiguration": {
+        "BlockPublicAcls": true,
+        "BlockPublicPolicy": true,
+        "IgnorePublicAcls": true,
+        "RestrictPublicBuckets": true
+      }
+    },
+    "versioning": {
+      "Status": "Enabled"
+    }
+  },
+  "bigxdata-portal-documents": {
+    "cors": {
+      "CORSRules": [
+        {
+          "AllowedHeaders": [
+            "*"
+          ],
+          "AllowedMethods": [
+            "GET",
+            "PUT",
+            "POST",
+            "HEAD"
+          ],
+          "AllowedOrigins": [
+            "https://support.bigxdata.io",
+            "https://dev.dlayoierdftk6.amplifyapp.com"
+          ],
+          "ExposeHeaders": [
+            "ETag"
+          ],
+          "MaxAgeSeconds": 3000
+        }
+      ]
+    },
+    "encryption": {
+      "ServerSideEncryptionConfiguration": {
+        "Rules": [
+          {
+            "ApplyServerSideEncryptionByDefault": {
+              "SSEAlgorithm": "AES256"
+            },
+            "BlockedEncryptionTypes": {
+              "EncryptionType": [
+                "SSE-C"
+              ]
+            },
+            "BucketKeyEnabled": true
+          }
+        ]
+      }
+    },
+    "lifecycle": {
+      "Rules": [
+        {
+          "AbortIncompleteMultipartUpload": {
+            "DaysAfterInitiation": 7
+          },
+          "Expiration": {
+            "ExpiredObjectDeleteMarker": true
+          },
+          "Filter": {
+            "Prefix": ""
+          },
+          "ID": "noncurrent-90d-cleanup",
+          "NoncurrentVersionExpiration": {
+            "NoncurrentDays": 90
+          },
+          "Status": "Enabled"
+        }
+      ],
+      "TransitionDefaultMinimumObjectSize": "all_storage_classes_128K"
+    },
+    "publicAccessBlock": {
+      "PublicAccessBlockConfiguration": {
+        "BlockPublicAcls": true,
+        "BlockPublicPolicy": true,
+        "IgnorePublicAcls": true,
+        "RestrictPublicBuckets": true
+      }
+    },
+    "versioning": {
+      "Status": "Enabled"
+    }
+  },
+  "bigxdata-portal-documents-dev": {
+    "cors": {
+      "CORSRules": [
+        {
+          "AllowedHeaders": [
+            "*"
+          ],
+          "AllowedMethods": [
+            "GET",
+            "PUT",
+            "POST",
+            "HEAD"
+          ],
+          "AllowedOrigins": [
+            "https://dev.dlayoierdftk6.amplifyapp.com"
+          ],
+          "ExposeHeaders": [
+            "ETag"
+          ],
+          "MaxAgeSeconds": 3000
+        }
+      ]
+    },
+    "encryption": {
+      "ServerSideEncryptionConfiguration": {
+        "Rules": [
+          {
+            "ApplyServerSideEncryptionByDefault": {
+              "SSEAlgorithm": "AES256"
+            },
+            "BlockedEncryptionTypes": {
+              "EncryptionType": [
+                "SSE-C"
+              ]
+            },
+            "BucketKeyEnabled": true
+          }
+        ]
+      }
+    },
+    "lifecycle": {
+      "Rules": [
+        {
+          "AbortIncompleteMultipartUpload": {
+            "DaysAfterInitiation": 7
+          },
+          "Expiration": {
+            "ExpiredObjectDeleteMarker": true
+          },
+          "Filter": {
+            "Prefix": ""
+          },
+          "ID": "noncurrent-90d-cleanup",
+          "NoncurrentVersionExpiration": {
+            "NoncurrentDays": 90
+          },
+          "Status": "Enabled"
+        }
+      ],
+      "TransitionDefaultMinimumObjectSize": "all_storage_classes_128K"
+    },
+    "publicAccessBlock": {
+      "PublicAccessBlockConfiguration": {
+        "BlockPublicAcls": true,
+        "BlockPublicPolicy": true,
+        "IgnorePublicAcls": true,
+        "RestrictPublicBuckets": true
+      }
+    },
+    "versioning": {
+      "Status": "Enabled"
+    }
+  },
+  "bigxdata-portal-ticket-attachments": {
+    "cors": {
+      "CORSRules": [
+        {
+          "AllowedHeaders": [
+            "*"
+          ],
+          "AllowedMethods": [
+            "GET",
+            "PUT",
+            "POST",
+            "HEAD"
+          ],
+          "AllowedOrigins": [
+            "https://support.bigxdata.io",
+            "https://dev.dlayoierdftk6.amplifyapp.com"
+          ],
+          "ExposeHeaders": [
+            "ETag"
+          ],
+          "MaxAgeSeconds": 3000
+        }
+      ]
+    },
+    "encryption": {
+      "ServerSideEncryptionConfiguration": {
+        "Rules": [
+          {
+            "ApplyServerSideEncryptionByDefault": {
+              "SSEAlgorithm": "AES256"
+            },
+            "BlockedEncryptionTypes": {
+              "EncryptionType": [
+                "SSE-C"
+              ]
+            },
+            "BucketKeyEnabled": true
+          }
+        ]
+      }
+    },
+    "lifecycle": {
+      "Rules": [
+        {
+          "AbortIncompleteMultipartUpload": {
+            "DaysAfterInitiation": 7
+          },
+          "Expiration": {
+            "ExpiredObjectDeleteMarker": true
+          },
+          "Filter": {
+            "Prefix": ""
+          },
+          "ID": "noncurrent-90d-cleanup",
+          "NoncurrentVersionExpiration": {
+            "NoncurrentDays": 90
+          },
+          "Status": "Enabled"
+        }
+      ],
+      "TransitionDefaultMinimumObjectSize": "all_storage_classes_128K"
+    },
+    "publicAccessBlock": {
+      "PublicAccessBlockConfiguration": {
+        "BlockPublicAcls": true,
+        "BlockPublicPolicy": true,
+        "IgnorePublicAcls": true,
+        "RestrictPublicBuckets": true
+      }
+    },
+    "versioning": {
+      "Status": "Enabled"
+    }
+  },
+  "bigxdata-portal-ticket-attachments-dev": {
+    "cors": {
+      "CORSRules": [
+        {
+          "AllowedHeaders": [
+            "*"
+          ],
+          "AllowedMethods": [
+            "GET",
+            "PUT",
+            "POST",
+            "HEAD"
+          ],
+          "AllowedOrigins": [
+            "https://dev.dlayoierdftk6.amplifyapp.com"
+          ],
+          "ExposeHeaders": [
+            "ETag"
+          ],
+          "MaxAgeSeconds": 3000
+        }
+      ]
+    },
+    "encryption": {
+      "ServerSideEncryptionConfiguration": {
+        "Rules": [
+          {
+            "ApplyServerSideEncryptionByDefault": {
+              "SSEAlgorithm": "AES256"
+            },
+            "BlockedEncryptionTypes": {
+              "EncryptionType": [
+                "SSE-C"
+              ]
+            },
+            "BucketKeyEnabled": true
+          }
+        ]
+      }
+    },
+    "lifecycle": {
+      "Rules": [
+        {
+          "AbortIncompleteMultipartUpload": {
+            "DaysAfterInitiation": 7
+          },
+          "Expiration": {
+            "ExpiredObjectDeleteMarker": true
+          },
+          "Filter": {
+            "Prefix": ""
+          },
+          "ID": "noncurrent-90d-cleanup",
+          "NoncurrentVersionExpiration": {
+            "NoncurrentDays": 90
+          },
+          "Status": "Enabled"
+        }
+      ],
+      "TransitionDefaultMinimumObjectSize": "all_storage_classes_128K"
+    },
+    "publicAccessBlock": {
+      "PublicAccessBlockConfiguration": {
+        "BlockPublicAcls": true,
+        "BlockPublicPolicy": true,
+        "IgnorePublicAcls": true,
+        "RestrictPublicBuckets": true
+      }
+    },
+    "versioning": {
+      "Status": "Enabled"
+    }
+  }
+}
