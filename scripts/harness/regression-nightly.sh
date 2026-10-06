@@ -110,6 +110,20 @@ else
   BRANCHTAG=""
 fi
 
+# ── 2.3) 인프라 구성 변화 점검(읽기 전용) — 콘솔에서 Lambda env·API GW 라우트·Amplify
+# 리라이트 같은 설정을 손으로 바꾸면 레포의 스냅샷과 어긋난다. 여기서 그걸 드러낸다.
+# 스냅샷 파일을 덮어쓰므로 결과와 무관하게 반드시 원복한다 — hades가 dirty로 남으면
+# 다음 날 ff가 막혀 회귀 자체가 중단된다(위 1단계). 실제 반영(커밋)은 사람이 낮에 한다.
+if ! bash "$HDIR/infra-snapshot.sh" --check >>"$LOG" 2>&1; then
+  # xargs가 줄바꿈을 공백으로 합쳐 파일 이름을 한 줄로 만든다.
+  INFRA_FILES="$(git diff --name-only -- infra/snapshot | grep -v _meta.json | sed 's|infra/snapshot/||' | xargs)"
+  log "⚠ 인프라 구성 변화 — ${INFRA_FILES:-(목록 확인 실패)} · 콘솔에서 설정이 바뀐 것으로 보임"
+  INFRATAG=" · ⚠인프라변경(${INFRA_FILES})"
+else
+  INFRATAG=""
+fi
+git checkout -- infra/snapshot 2>/dev/null || true
+
 # ── 2.5) 사이트 스모크 — 실제 API가 HTTP로 살아있나(비파괴). 회귀(Lambda 직접 invoke)는
 # 백엔드 계약만 봐서, Amplify 배포·API Gateway가 밤사이 죽어도 못 잡는다. smoke.sh가 그 빈 곳을
 # 메운다(로그인 엔드포인트·공개 계정문의 생존). 실패해도 회귀는 계속하되, 통지엔 크게 표시한다.
@@ -179,7 +193,7 @@ SHA="$(git rev-parse --short HEAD)"
   HEAD="$([ "$RC" -ne 0 ] && echo "❌ FAIL(${REALFAILN}종)" || { [ "${FLAKYN:-0}" -gt 0 ] && echo "⚠ PASS(불안정 ${FLAKYN}종)" || echo '✅ PASS'; })"
   [ "${SKIPN:-0}" -gt 0 ] && HEAD="$HEAD ⏭${SKIPN}"
   [ "$SMOKE_RC" -ne 0 ] && HEAD="🚑 스모크실패 · $HEAD"
-  CONTENT="🌙 새벽 회귀 ${HEAD} — $SHA${DRIFT}${BRANCHTAG}
+  CONTENT="🌙 새벽 회귀 ${HEAD} — $SHA${DRIFT}${BRANCHTAG}${INFRATAG}
 
 [사이트 스모크] $([ "$SMOKE_RC" -eq 0 ] && echo '✅' || echo '❌') ${SMOKE_SUM}
 
@@ -201,13 +215,13 @@ PY
 
 # ── 5) 결과 통지 ── 회귀실패 / 사이트다운 / 불안정 / 통과
 if [ "$RC" -ne 0 ]; then
-  notify_slack "🌙 새벽 회귀 ❌ FAIL($FAILS건)${SMOKETAG} — ${SHA}${DRIFT}${BRANCHTAG} · 로그: ${LOG//\\//}"
+  notify_slack "🌙 새벽 회귀 ❌ FAIL($FAILS건)${SMOKETAG} — ${SHA}${DRIFT}${BRANCHTAG}${INFRATAG} · 로그: ${LOG//\\//}"
 elif [ "$SMOKE_RC" -ne 0 ]; then
-  notify_slack "🌙 새벽 회귀 🚑 사이트 스모크 실패(${SMOKE_SUM}) — ${SHA}${DRIFT}${BRANCHTAG} · 회귀는 통과했으나 실제 API 경로 이상 · 로그: ${LOG//\\//}"
+  notify_slack "🌙 새벽 회귀 🚑 사이트 스모크 실패(${SMOKE_SUM}) — ${SHA}${DRIFT}${BRANCHTAG}${INFRATAG} · 회귀는 통과했으나 실제 API 경로 이상 · 로그: ${LOG//\\//}"
 elif [ "${FLAKYN:-0}" -gt 0 ]; then
-  notify_slack "🌙 새벽 회귀 ⚠ PASS(불안정 ${FLAKYN}종: ${FLAKY_LIST})${SKIPTAG} — ${SHA}${DRIFT}${BRANCHTAG} · 재시도 통과, 경합 의심"
+  notify_slack "🌙 새벽 회귀 ⚠ PASS(불안정 ${FLAKYN}종: ${FLAKY_LIST})${SKIPTAG} — ${SHA}${DRIFT}${BRANCHTAG}${INFRATAG} · 재시도 통과, 경합 의심"
 else
-  notify_slack "🌙 새벽 회귀 ✅ PASS${SKIPTAG} — ${SHA}${DRIFT}${BRANCHTAG} · $SUMMARY"
+  notify_slack "🌙 새벽 회귀 ✅ PASS${SKIPTAG} — ${SHA}${DRIFT}${BRANCHTAG}${INFRATAG} · $SUMMARY"
 fi
 
 # 오래된 로그 정리(30일 초과)
