@@ -1,0 +1,427 @@
+{
+  "customer-portal_slack_status_change-role-qwrqoeqq": {
+    "attached": [
+      {
+        "PolicyArn": "arn:aws:iam::605163667429:policy/customer-portal-read-secrets",
+        "PolicyName": "customer-portal-read-secrets"
+      },
+      {
+        "PolicyArn": "arn:aws:iam::605163667429:policy/service-role/AWSLambdaBasicExecutionRole-c324dd4a-ba89-4f07-b185-b64d620b3690",
+        "PolicyName": "AWSLambdaBasicExecutionRole-c324dd4a-ba89-4f07-b185-b64d620b3690"
+      },
+      {
+        "PolicyArn": "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole",
+        "PolicyName": "AWSLambdaVPCAccessExecutionRole"
+      }
+    ],
+    "inline": {
+      "customer-portal-invoke-notify-fn": {
+        "Statement": [
+          {
+            "Action": "lambda:InvokeFunction",
+            "Effect": "Allow",
+            "Resource": [
+              "arn:aws:lambda:ap-northeast-2:*:function:customer_portal_notify-handler",
+              "arn:aws:lambda:ap-northeast-2:*:function:customer_portal_send-email",
+              "arn:aws:lambda:ap-northeast-2:*:function:customer-portal_slack_status_change"
+            ]
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "read-rds-master-secret": {
+        "Statement": [
+          {
+            "Action": "secretsmanager:GetSecretValue",
+            "Effect": "Allow",
+            "Resource": "arn:aws:secretsmanager:ap-northeast-2:605163667429:secret:rds!db-3ac5cc91-42d4-4a33-8a1d-c221d48cd7e3-sZwzEP",
+            "Sid": "ReadRdsMasterSecret"
+          }
+        ],
+        "Version": "2012-10-17"
+      }
+    },
+    "role": {
+      "Arn": "arn:aws:iam::605163667429:role/service-role/customer-portal_slack_status_change-role-qwrqoeqq",
+      "AssumeRolePolicyDocument": {
+        "Statement": [
+          {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "Service": "lambda.amazonaws.com"
+            }
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "MaxSessionDuration": 3600,
+      "Path": "/service-role/",
+      "RoleId": "AROAYZZUQX7SQLCJAHDQS",
+      "RoleName": "customer-portal_slack_status_change-role-qwrqoeqq"
+    }
+  },
+  "customer_portal_data-api-role-vcnec06f": {
+    "attached": [
+      {
+        "PolicyArn": "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole",
+        "PolicyName": "AWSLambdaVPCAccessExecutionRole"
+      },
+      {
+        "PolicyArn": "arn:aws:iam::605163667429:policy/customer-portal-read-secrets",
+        "PolicyName": "customer-portal-read-secrets"
+      },
+      {
+        "PolicyArn": "arn:aws:iam::605163667429:policy/service-role/AWSLambdaBasicExecutionRole-a91b1f80-c935-4002-85f5-de13f380a6ce",
+        "PolicyName": "AWSLambdaBasicExecutionRole-a91b1f80-c935-4002-85f5-de13f380a6ce"
+      }
+    ],
+    "inline": {
+      "invoke-send-email": {
+        "Statement": [
+          {
+            "Action": "lambda:InvokeFunction",
+            "Effect": "Allow",
+            "Resource": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_send-email"
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "read-rds-master-secret": {
+        "Statement": [
+          {
+            "Action": "secretsmanager:GetSecretValue",
+            "Effect": "Allow",
+            "Resource": "arn:aws:secretsmanager:ap-northeast-2:605163667429:secret:rds!db-3ac5cc91-42d4-4a33-8a1d-c221d48cd7e3-sZwzEP",
+            "Sid": "ReadRdsMasterSecret"
+          }
+        ],
+        "Version": "2012-10-17"
+      }
+    },
+    "role": {
+      "Arn": "arn:aws:iam::605163667429:role/service-role/customer_portal_data-api-role-vcnec06f",
+      "AssumeRolePolicyDocument": {
+        "Statement": [
+          {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "Service": "lambda.amazonaws.com"
+            }
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "MaxSessionDuration": 3600,
+      "Path": "/service-role/",
+      "RoleId": "AROAYZZUQX7S6M4LL6P4M",
+      "RoleName": "customer_portal_data-api-role-vcnec06f"
+    }
+  },
+  "customer_portal_dev-basic-role": {
+    "attached": [],
+    "inline": {
+      "dev-runtime": {
+        "Statement": [
+          {
+            "Action": [
+              "logs:CreateLogGroup",
+              "logs:CreateLogStream",
+              "logs:PutLogEvents"
+            ],
+            "Effect": "Allow",
+            "Resource": "arn:aws:logs:ap-northeast-2:605163667429:*"
+          },
+          {
+            "Action": [
+              "secretsmanager:GetSecretValue"
+            ],
+            "Effect": "Allow",
+            "Resource": [
+              "arn:aws:secretsmanager:ap-northeast-2:605163667429:secret:customer-portal/dev-*"
+            ]
+          },
+          {
+            "Action": [
+              "lambda:InvokeFunction"
+            ],
+            "Effect": "Allow",
+            "Resource": [
+              "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_data-api-dev",
+              "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_notify-handler-dev",
+              "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_send-email-dev",
+              "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_storage-api-dev",
+              "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_api-layer-dev"
+            ]
+          },
+          {
+            "Action": [
+              "s3:GetObject",
+              "s3:PutObject",
+              "s3:DeleteObject",
+              "s3:ListBucket",
+              "s3:GetObjectVersion"
+            ],
+            "Effect": "Allow",
+            "Resource": [
+              "arn:aws:s3:::bigxdata-portal-contract-attachments-dev",
+              "arn:aws:s3:::bigxdata-portal-documents-dev",
+              "arn:aws:s3:::bigxdata-portal-ticket-attachments-dev",
+              "arn:aws:s3:::bigxdata-portal-contract-attachments-dev/*",
+              "arn:aws:s3:::bigxdata-portal-documents-dev/*",
+              "arn:aws:s3:::bigxdata-portal-ticket-attachments-dev/*"
+            ]
+          }
+        ],
+        "Version": "2012-10-17"
+      }
+    },
+    "role": {
+      "Arn": "arn:aws:iam::605163667429:role/customer_portal_dev-basic-role",
+      "AssumeRolePolicyDocument": {
+        "Statement": [
+          {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "Service": "lambda.amazonaws.com"
+            }
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "Description": "dev env non-VPC Lambdas (jwt-authorizer/notify-handler/send-email/storage-api). Scoped to dev secrets + -dev buckets.",
+      "MaxSessionDuration": 3600,
+      "Path": "/",
+      "RoleId": "AROAYZZUQX7S7MSFXWVKI",
+      "RoleName": "customer_portal_dev-basic-role"
+    }
+  },
+  "customer_portal_dev-vpc-role": {
+    "attached": [],
+    "inline": {
+      "dev-runtime": {
+        "Statement": [
+          {
+            "Action": [
+              "logs:CreateLogGroup",
+              "logs:CreateLogStream",
+              "logs:PutLogEvents"
+            ],
+            "Effect": "Allow",
+            "Resource": "arn:aws:logs:ap-northeast-2:605163667429:*"
+          },
+          {
+            "Action": [
+              "ec2:CreateNetworkInterface",
+              "ec2:DescribeNetworkInterfaces",
+              "ec2:DeleteNetworkInterface",
+              "ec2:AssignPrivateIpAddresses",
+              "ec2:UnassignPrivateIpAddresses"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+          },
+          {
+            "Action": [
+              "secretsmanager:GetSecretValue"
+            ],
+            "Effect": "Allow",
+            "Resource": [
+              "arn:aws:secretsmanager:ap-northeast-2:605163667429:secret:customer-portal/dev-*",
+              "arn:aws:secretsmanager:ap-northeast-2:605163667429:secret:rds!db-3ac5cc91-42d4-4a33-8a1d-c221d48cd7e3-sZwzEP"
+            ]
+          },
+          {
+            "Action": [
+              "lambda:InvokeFunction"
+            ],
+            "Effect": "Allow",
+            "Resource": [
+              "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_data-api-dev",
+              "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_notify-handler-dev",
+              "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_send-email-dev",
+              "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_storage-api-dev",
+              "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_api-layer-dev"
+            ]
+          }
+        ],
+        "Version": "2012-10-17"
+      }
+    },
+    "role": {
+      "Arn": "arn:aws:iam::605163667429:role/customer_portal_dev-vpc-role",
+      "AssumeRolePolicyDocument": {
+        "Statement": [
+          {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "Service": "lambda.amazonaws.com"
+            }
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "Description": "dev env VPC Lambdas (api-layer/data-api/public-inquiry). Scoped to customer-portal/dev-* secrets + RDS secret.",
+      "MaxSessionDuration": 3600,
+      "Path": "/",
+      "RoleId": "AROAYZZUQX7S5SA32WKWL",
+      "RoleName": "customer_portal_dev-vpc-role"
+    }
+  },
+  "customer_portal_jwt-authorizer-role": {
+    "attached": [
+      {
+        "PolicyArn": "arn:aws:iam::605163667429:policy/customer-portal-read-secrets",
+        "PolicyName": "customer-portal-read-secrets"
+      },
+      {
+        "PolicyArn": "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+        "PolicyName": "AWSLambdaBasicExecutionRole"
+      }
+    ],
+    "inline": {},
+    "role": {
+      "Arn": "arn:aws:iam::605163667429:role/customer_portal_jwt-authorizer-role",
+      "AssumeRolePolicyDocument": {
+        "Statement": [
+          {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "Service": "lambda.amazonaws.com"
+            }
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "MaxSessionDuration": 3600,
+      "Path": "/",
+      "RoleId": "AROAYZZUQX7S4FEZGGRS4",
+      "RoleName": "customer_portal_jwt-authorizer-role"
+    }
+  },
+  "customer_portal_notify-handler-role-l4ufyocd": {
+    "attached": [
+      {
+        "PolicyArn": "arn:aws:iam::605163667429:policy/customer-portal-read-secrets",
+        "PolicyName": "customer-portal-read-secrets"
+      },
+      {
+        "PolicyArn": "arn:aws:iam::605163667429:policy/service-role/AWSLambdaBasicExecutionRole-0782914e-455f-4268-a298-ccb5ca5f8989",
+        "PolicyName": "AWSLambdaBasicExecutionRole-0782914e-455f-4268-a298-ccb5ca5f8989"
+      }
+    ],
+    "inline": {},
+    "role": {
+      "Arn": "arn:aws:iam::605163667429:role/service-role/customer_portal_notify-handler-role-l4ufyocd",
+      "AssumeRolePolicyDocument": {
+        "Statement": [
+          {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "Service": "lambda.amazonaws.com"
+            }
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "MaxSessionDuration": 3600,
+      "Path": "/service-role/",
+      "RoleId": "AROAYZZUQX7S2JO5YKN2P",
+      "RoleName": "customer_portal_notify-handler-role-l4ufyocd"
+    }
+  },
+  "customer_portal_send-email-role-snp1l1l6": {
+    "attached": [
+      {
+        "PolicyArn": "arn:aws:iam::605163667429:policy/customer-portal-read-secrets",
+        "PolicyName": "customer-portal-read-secrets"
+      },
+      {
+        "PolicyArn": "arn:aws:iam::605163667429:policy/service-role/AWSLambdaBasicExecutionRole-ea21286b-5cb6-4796-b135-3985adba6f8c",
+        "PolicyName": "AWSLambdaBasicExecutionRole-ea21286b-5cb6-4796-b135-3985adba6f8c"
+      }
+    ],
+    "inline": {},
+    "role": {
+      "Arn": "arn:aws:iam::605163667429:role/service-role/customer_portal_send-email-role-snp1l1l6",
+      "AssumeRolePolicyDocument": {
+        "Statement": [
+          {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "Service": "lambda.amazonaws.com"
+            }
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "MaxSessionDuration": 3600,
+      "Path": "/service-role/",
+      "RoleId": "AROAYZZUQX7S6NNHMMWWM",
+      "RoleName": "customer_portal_send-email-role-snp1l1l6"
+    }
+  },
+  "customer_portal_storage-api-role-ca1qrvju": {
+    "attached": [
+      {
+        "PolicyArn": "arn:aws:iam::605163667429:policy/service-role/AWSLambdaBasicExecutionRole-8f0def97-f965-479f-8a05-d6834cdd312f",
+        "PolicyName": "AWSLambdaBasicExecutionRole-8f0def97-f965-479f-8a05-d6834cdd312f"
+      }
+    ],
+    "inline": {
+      "customer-portal-storage-invoke-data-api": {
+        "Statement": [
+          {
+            "Action": "lambda:InvokeFunction",
+            "Effect": "Allow",
+            "Resource": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_data-api"
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "customer-portal-storage-s3-access": {
+        "Statement": [
+          {
+            "Action": [
+              "s3:PutObject",
+              "s3:GetObject",
+              "s3:DeleteObject"
+            ],
+            "Effect": "Allow",
+            "Resource": [
+              "arn:aws:s3:::bigxdata-portal-documents/*",
+              "arn:aws:s3:::bigxdata-portal-ticket-attachments/*",
+              "arn:aws:s3:::bigxdata-portal-contract-attachments/*"
+            ]
+          }
+        ],
+        "Version": "2012-10-17"
+      }
+    },
+    "role": {
+      "Arn": "arn:aws:iam::605163667429:role/service-role/customer_portal_storage-api-role-ca1qrvju",
+      "AssumeRolePolicyDocument": {
+        "Statement": [
+          {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "Service": "lambda.amazonaws.com"
+            }
+          }
+        ],
+        "Version": "2012-10-17"
+      },
+      "MaxSessionDuration": 3600,
+      "Path": "/service-role/",
+      "RoleId": "AROAYZZUQX7SXKIUDEYTA",
+      "RoleName": "customer_portal_storage-api-role-ca1qrvju"
+    }
+  }
+}

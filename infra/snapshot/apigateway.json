@@ -1,0 +1,1048 @@
+{
+  "8xbmazu4ij": {
+    "api": {
+      "ApiEndpoint": "https://8xbmazu4ij.execute-api.ap-northeast-2.amazonaws.com",
+      "ApiId": "8xbmazu4ij",
+      "ApiKeySelectionExpression": "$request.header.x-api-key",
+      "CorsConfiguration": {
+        "AllowHeaders": [
+          "content-type",
+          "authorization"
+        ],
+        "AllowMethods": [
+          "GET",
+          "POST",
+          "PATCH",
+          "DELETE",
+          "OPTIONS"
+        ],
+        "AllowOrigins": [
+          "https://support.bigxdata.io",
+          "https://dev.dlayoierdftk6.amplifyapp.com"
+        ]
+      },
+      "CreatedDate": "2026-07-30T10:39:07+00:00",
+      "DisableExecuteApiEndpoint": false,
+      "IpAddressType": "ipv4",
+      "Name": "customer-portal-api",
+      "ProtocolType": "HTTP",
+      "RouteSelectionExpression": "$request.method $request.path",
+      "Tags": {}
+    },
+    "authorizers": [
+      {
+        "AuthorizerId": "od8yx5",
+        "AuthorizerPayloadFormatVersion": "2.0",
+        "AuthorizerResultTtlInSeconds": 300,
+        "AuthorizerType": "REQUEST",
+        "AuthorizerUri": "arn:aws:apigateway:ap-northeast-2:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_jwt-authorizer/invocations",
+        "EnableSimpleResponses": true,
+        "IdentitySource": [
+          "$request.header.Authorization"
+        ],
+        "Name": "jwt-authorizer"
+      }
+    ],
+    "integrations": [
+      {
+        "ConnectionType": "INTERNET",
+        "IntegrationId": "0phu365",
+        "IntegrationMethod": "POST",
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_storage-api",
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 30000
+      },
+      {
+        "ConnectionType": "INTERNET",
+        "IntegrationId": "323s26p",
+        "IntegrationMethod": "POST",
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_data-api",
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 30000
+      },
+      {
+        "ConnectionType": "INTERNET",
+        "IntegrationId": "68tkqmb",
+        "IntegrationMethod": "POST",
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_storage-api",
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 30000
+      },
+      {
+        "ConnectionType": "INTERNET",
+        "IntegrationId": "7url9k6",
+        "IntegrationMethod": "POST",
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_notify-handler",
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 30000
+      },
+      {
+        "ConnectionType": "INTERNET",
+        "IntegrationId": "ci3l1zl",
+        "IntegrationMethod": "POST",
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_storage-api",
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 30000
+      },
+      {
+        "ConnectionType": "INTERNET",
+        "IntegrationId": "m2czv0k",
+        "IntegrationMethod": "POST",
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_public-inquiry",
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 30000
+      },
+      {
+        "ConnectionType": "INTERNET",
+        "IntegrationId": "njsm1gk",
+        "IntegrationMethod": "POST",
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer-portal_slack_status_change",
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 30000
+      },
+      {
+        "ConnectionType": "INTERNET",
+        "IntegrationId": "oxq0llc",
+        "IntegrationMethod": "POST",
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_send-email",
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 30000
+      },
+      {
+        "ConnectionType": "INTERNET",
+        "IntegrationId": "oyo4pjb",
+        "IntegrationMethod": "POST",
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer-portal_slack_status_change",
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 30000
+      },
+      {
+        "ConnectionType": "INTERNET",
+        "IntegrationId": "p44leqt",
+        "IntegrationMethod": "POST",
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer-portal_slack_status_change",
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 30000
+      },
+      {
+        "ConnectionType": "INTERNET",
+        "IntegrationId": "x76xruq",
+        "IntegrationMethod": "POST",
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer-portal_slack_status_change",
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 30000
+      }
+    ],
+    "routes": [
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "qp0sybt",
+        "RouteKey": "DELETE /data/{table}/{id}",
+        "Target": "integrations/323s26p"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "a3dka6a",
+        "RouteKey": "DELETE /tickets/{id}",
+        "Target": "integrations/x76xruq"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "cb2r527",
+        "RouteKey": "GET /data/{table}",
+        "Target": "integrations/323s26p"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "k9eo856",
+        "RouteKey": "GET /my/account-manager",
+        "Target": "integrations/oyo4pjb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "eeq58b7",
+        "RouteKey": "GET /proxy/bootstrap",
+        "Target": "integrations/x76xruq"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "ug3s2n4",
+        "RouteKey": "GET /proxy/customers",
+        "Target": "integrations/x76xruq"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "rpjrm0c",
+        "RouteKey": "GET /stats/active-users",
+        "Target": "integrations/x76xruq"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "e8fd65m",
+        "RouteKey": "GET /stats/activity",
+        "Target": "integrations/x76xruq"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "y9nq0ot",
+        "RouteKey": "GET /stats/companies",
+        "Target": "integrations/x76xruq"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "calfwgq",
+        "RouteKey": "GET /stats/company-detail",
+        "Target": "integrations/x76xruq"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "a98ltbu",
+        "RouteKey": "GET /stats/documents",
+        "Target": "integrations/x76xruq"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "9gf4ga4",
+        "RouteKey": "GET /stats/login-history",
+        "Target": "integrations/x76xruq"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "f0a23pl",
+        "RouteKey": "GET /stats/satisfaction",
+        "Target": "integrations/x76xruq"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "ojjz5af",
+        "RouteKey": "GET /stats/survey-detail",
+        "Target": "integrations/x76xruq"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "6yg82lr",
+        "RouteKey": "GET /stats/surveys",
+        "Target": "integrations/x76xruq"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "mr1xheb",
+        "RouteKey": "GET /stats/system",
+        "Target": "integrations/x76xruq"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "1hzpkkl",
+        "RouteKey": "GET /stats/tickets",
+        "Target": "integrations/x76xruq"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "4kpcwvs",
+        "RouteKey": "GET /survey/my",
+        "Target": "integrations/x76xruq"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "60ed9mp",
+        "RouteKey": "GET /survey/report",
+        "Target": "integrations/x76xruq"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "blaslkb",
+        "RouteKey": "PATCH /auth/change-password",
+        "Target": "integrations/oyo4pjb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "5mxkocr",
+        "RouteKey": "PATCH /data/{table}/{id}",
+        "Target": "integrations/323s26p"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "ua5w6a6",
+        "RouteKey": "PATCH /tickets/{id}",
+        "Target": "integrations/x76xruq"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationScopes": [],
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RequestParameters": {},
+        "RouteId": "s25qzrl",
+        "RouteKey": "PATCH /tickets/{id}/assign",
+        "Target": "integrations/p44leqt"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "v4759t4",
+        "RouteKey": "PATCH /tickets/{id}/manage",
+        "Target": "integrations/x76xruq"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationScopes": [],
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RequestParameters": {},
+        "RouteId": "g861v5q",
+        "RouteKey": "PATCH /tickets/{id}/status",
+        "Target": "integrations/njsm1gk"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "b2tv2cc",
+        "RouteKey": "POST /auth/admin-reset-password",
+        "Target": "integrations/oyo4pjb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "clau1cg",
+        "RouteKey": "POST /auth/invite",
+        "Target": "integrations/oyo4pjb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "NONE",
+        "RouteId": "0bko4h5",
+        "RouteKey": "POST /auth/login",
+        "Target": "integrations/oyo4pjb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "y9o0dn5",
+        "RouteKey": "POST /auth/logout",
+        "Target": "integrations/x76xruq"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "NONE",
+        "RouteId": "11111j2",
+        "RouteKey": "POST /auth/request-reset",
+        "Target": "integrations/oyo4pjb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "NONE",
+        "RouteId": "ens9yav",
+        "RouteKey": "POST /auth/reset-password",
+        "Target": "integrations/oyo4pjb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "k8ohzlc",
+        "RouteKey": "POST /auth/verify-password",
+        "Target": "integrations/oyo4pjb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "6y7n3j1",
+        "RouteKey": "POST /data/{table}",
+        "Target": "integrations/323s26p"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "zyr16b1",
+        "RouteKey": "POST /docs/download-event",
+        "Target": "integrations/x76xruq"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "r965i7h",
+        "RouteKey": "POST /functions/notify-handler",
+        "Target": "integrations/7url9k6"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "5gb7vc2",
+        "RouteKey": "POST /functions/send-email",
+        "Target": "integrations/oxq0llc"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "NONE",
+        "RouteId": "xc8ibtu",
+        "RouteKey": "POST /public/account-inquiry",
+        "Target": "integrations/m2czv0k"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "i5zdmgb",
+        "RouteKey": "POST /storage/remove",
+        "Target": "integrations/68tkqmb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "tiphm3k",
+        "RouteKey": "POST /storage/signed-url",
+        "Target": "integrations/0phu365"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "k7oxl6e",
+        "RouteKey": "POST /storage/upload-url",
+        "Target": "integrations/ci3l1zl"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "6z5f73c",
+        "RouteKey": "POST /survey/answer",
+        "Target": "integrations/x76xruq"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "fcloyk8",
+        "RouteKey": "POST /survey/remind",
+        "Target": "integrations/x76xruq"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "t4ru4bl",
+        "RouteKey": "POST /survey/send",
+        "Target": "integrations/x76xruq"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationScopes": [],
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RequestParameters": {},
+        "RouteId": "tdcbo37",
+        "RouteKey": "POST /tickets",
+        "Target": "integrations/oyo4pjb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "1fxocoj",
+        "RouteKey": "POST /tickets/{id}/rate",
+        "Target": "integrations/x76xruq"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "od8yx5",
+        "RouteId": "z2s2z5l",
+        "RouteKey": "POST /tickets/{id}/reply",
+        "Target": "integrations/x76xruq"
+      }
+    ],
+    "stages": [
+      {
+        "AccessLogSettings": {
+          "DestinationArn": "arn:aws:logs:ap-northeast-2:605163667429:log-group:/aws/apigateway/8xbmazu4ij-access",
+          "Format": "{\"requestId\":\"$context.requestId\",\"time\":\"$context.requestTime\",\"ip\":\"$context.identity.sourceIp\",\"method\":\"$context.httpMethod\",\"routeKey\":\"$context.routeKey\",\"path\":\"$context.path\",\"status\":\"$context.status\",\"respLen\":\"$context.responseLength\",\"intLatency\":\"$context.integrationLatency\",\"latency\":\"$context.responseLatency\",\"ua\":\"$context.identity.userAgent\",\"authzErr\":\"$context.authorizer.error\",\"intErr\":\"$context.integrationErrorMessage\"}"
+        },
+        "AutoDeploy": true,
+        "CreatedDate": "2026-07-30T10:39:08+00:00",
+        "DefaultRouteSettings": {
+          "DetailedMetricsEnabled": false,
+          "ThrottlingBurstLimit": 50,
+          "ThrottlingRateLimit": 25.0
+        },
+        "DeploymentId": "yjy605",
+        "LastUpdatedDate": "2026-09-22T07:20:06+00:00",
+        "RouteSettings": {
+          "PATCH /auth/change-password": {
+            "ThrottlingBurstLimit": 10,
+            "ThrottlingRateLimit": 5.0
+          },
+          "POST /auth/login": {
+            "ThrottlingBurstLimit": 10,
+            "ThrottlingRateLimit": 5.0
+          },
+          "POST /auth/request-reset": {
+            "ThrottlingBurstLimit": 10,
+            "ThrottlingRateLimit": 5.0
+          },
+          "POST /auth/reset-password": {
+            "ThrottlingBurstLimit": 10,
+            "ThrottlingRateLimit": 5.0
+          },
+          "POST /auth/verify-password": {
+            "ThrottlingBurstLimit": 10,
+            "ThrottlingRateLimit": 5.0
+          }
+        },
+        "StageName": "$default",
+        "StageVariables": {},
+        "Tags": {}
+      }
+    ]
+  },
+  "p4ozzm0omb": {
+    "api": {
+      "ApiEndpoint": "https://p4ozzm0omb.execute-api.ap-northeast-2.amazonaws.com",
+      "ApiId": "p4ozzm0omb",
+      "ApiKeySelectionExpression": "$request.header.x-api-key",
+      "CorsConfiguration": {
+        "AllowHeaders": [
+          "content-type",
+          "authorization"
+        ],
+        "AllowMethods": [
+          "GET",
+          "POST",
+          "PATCH",
+          "DELETE",
+          "OPTIONS"
+        ],
+        "AllowOrigins": [
+          "https://dev.dlayoierdftk6.amplifyapp.com"
+        ]
+      },
+      "CreatedDate": "2026-09-23T01:15:46+00:00",
+      "Description": "dev environment API (clone of customer-portal-api)",
+      "DisableExecuteApiEndpoint": false,
+      "IpAddressType": "ipv4",
+      "Name": "customer-portal-api-dev",
+      "ProtocolType": "HTTP",
+      "RouteSelectionExpression": "$request.method $request.path",
+      "Tags": {}
+    },
+    "authorizers": [
+      {
+        "AuthorizerId": "r9w0zj",
+        "AuthorizerPayloadFormatVersion": "2.0",
+        "AuthorizerResultTtlInSeconds": 300,
+        "AuthorizerType": "REQUEST",
+        "AuthorizerUri": "arn:aws:apigateway:ap-northeast-2:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_jwt-authorizer-dev/invocations",
+        "EnableSimpleResponses": true,
+        "IdentitySource": [
+          "$request.header.Authorization"
+        ],
+        "Name": "jwt-authorizer"
+      }
+    ],
+    "integrations": [
+      {
+        "ConnectionType": "INTERNET",
+        "IntegrationId": "b441bz1",
+        "IntegrationMethod": "POST",
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_storage-api-dev",
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 30000
+      },
+      {
+        "ConnectionType": "INTERNET",
+        "IntegrationId": "dpfyo9q",
+        "IntegrationMethod": "POST",
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_public-inquiry-dev",
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 30000
+      },
+      {
+        "ConnectionType": "INTERNET",
+        "IntegrationId": "k4zqkjb",
+        "IntegrationMethod": "POST",
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_data-api-dev",
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 30000
+      },
+      {
+        "ConnectionType": "INTERNET",
+        "IntegrationId": "legoefu",
+        "IntegrationMethod": "POST",
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_notify-handler-dev",
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 30000
+      },
+      {
+        "ConnectionType": "INTERNET",
+        "IntegrationId": "r3ra6nd",
+        "IntegrationMethod": "POST",
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_send-email-dev",
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 30000
+      },
+      {
+        "ConnectionType": "INTERNET",
+        "IntegrationId": "zimzbwb",
+        "IntegrationMethod": "POST",
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": "arn:aws:lambda:ap-northeast-2:605163667429:function:customer_portal_api-layer-dev",
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 30000
+      }
+    ],
+    "routes": [
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "3lriejg",
+        "RouteKey": "DELETE /data/{table}/{id}",
+        "Target": "integrations/k4zqkjb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "m5phpqq",
+        "RouteKey": "DELETE /tickets/{id}",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "1m4b268",
+        "RouteKey": "GET /data/{table}",
+        "Target": "integrations/k4zqkjb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "w8vneah",
+        "RouteKey": "GET /my/account-manager",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "c5janif",
+        "RouteKey": "GET /proxy/bootstrap",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "inml2mn",
+        "RouteKey": "GET /proxy/customers",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "z5oggbf",
+        "RouteKey": "GET /stats/active-users",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "ss0xqwr",
+        "RouteKey": "GET /stats/activity",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "3egcl5o",
+        "RouteKey": "GET /stats/companies",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "0qgkm8g",
+        "RouteKey": "GET /stats/company-detail",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "yp4b28m",
+        "RouteKey": "GET /stats/documents",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "o1ptfuh",
+        "RouteKey": "GET /stats/login-history",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "sc8cqds",
+        "RouteKey": "GET /stats/satisfaction",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "zv9i34c",
+        "RouteKey": "GET /stats/survey-detail",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "y4ymo1n",
+        "RouteKey": "GET /stats/surveys",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "nu5fya4",
+        "RouteKey": "GET /stats/system",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "rfpsabt",
+        "RouteKey": "GET /stats/tickets",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "3d8rocj",
+        "RouteKey": "GET /survey/my",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "ih0gmx9",
+        "RouteKey": "GET /survey/report",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "f11c5f1",
+        "RouteKey": "PATCH /auth/change-password",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "p5u8cvi",
+        "RouteKey": "PATCH /data/{table}/{id}",
+        "Target": "integrations/k4zqkjb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "b8flf1f",
+        "RouteKey": "PATCH /tickets/{id}",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "7gi80ba",
+        "RouteKey": "PATCH /tickets/{id}/assign",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "ggvow39",
+        "RouteKey": "PATCH /tickets/{id}/manage",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "pcj4aqb",
+        "RouteKey": "PATCH /tickets/{id}/status",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "vdepaga",
+        "RouteKey": "POST /auth/admin-reset-password",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "aywz51f",
+        "RouteKey": "POST /auth/invite",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "NONE",
+        "RouteId": "i86gq1j",
+        "RouteKey": "POST /auth/login",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "vlvemur",
+        "RouteKey": "POST /auth/logout",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "NONE",
+        "RouteId": "vcw0rg7",
+        "RouteKey": "POST /auth/request-reset",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "NONE",
+        "RouteId": "0eulfcv",
+        "RouteKey": "POST /auth/reset-password",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "f7bvxcd",
+        "RouteKey": "POST /auth/verify-password",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "suvs8e1",
+        "RouteKey": "POST /data/{table}",
+        "Target": "integrations/k4zqkjb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "g4fx1x8",
+        "RouteKey": "POST /docs/download-event",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "9bjauda",
+        "RouteKey": "POST /functions/notify-handler",
+        "Target": "integrations/legoefu"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "0mxrdoe",
+        "RouteKey": "POST /functions/send-email",
+        "Target": "integrations/r3ra6nd"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "NONE",
+        "RouteId": "d6eat38",
+        "RouteKey": "POST /public/account-inquiry",
+        "Target": "integrations/dpfyo9q"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "b0ylac5",
+        "RouteKey": "POST /storage/remove",
+        "Target": "integrations/b441bz1"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "ssduh1m",
+        "RouteKey": "POST /storage/signed-url",
+        "Target": "integrations/b441bz1"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "o5fuzwk",
+        "RouteKey": "POST /storage/upload-url",
+        "Target": "integrations/b441bz1"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "68oke6j",
+        "RouteKey": "POST /survey/answer",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "1c2hy2g",
+        "RouteKey": "POST /survey/remind",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "gcgdiz3",
+        "RouteKey": "POST /survey/send",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "6ofrp07",
+        "RouteKey": "POST /tickets",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "3tfdbao",
+        "RouteKey": "POST /tickets/{id}/rate",
+        "Target": "integrations/zimzbwb"
+      },
+      {
+        "ApiKeyRequired": false,
+        "AuthorizationType": "CUSTOM",
+        "AuthorizerId": "r9w0zj",
+        "RouteId": "pimopy7",
+        "RouteKey": "POST /tickets/{id}/reply",
+        "Target": "integrations/zimzbwb"
+      }
+    ],
+    "stages": [
+      {
+        "AccessLogSettings": {
+          "DestinationArn": "arn:aws:logs:ap-northeast-2:605163667429:log-group:/aws/apigateway/p4ozzm0omb-access",
+          "Format": "{\"requestId\":\"$context.requestId\",\"time\":\"$context.requestTime\",\"ip\":\"$context.identity.sourceIp\",\"method\":\"$context.httpMethod\",\"routeKey\":\"$context.routeKey\",\"path\":\"$context.path\",\"status\":\"$context.status\",\"respLen\":\"$context.responseLength\",\"intLatency\":\"$context.integrationLatency\",\"latency\":\"$context.responseLatency\",\"ua\":\"$context.identity.userAgent\",\"authzErr\":\"$context.authorizer.error\",\"intErr\":\"$context.integrationErrorMessage\"}"
+        },
+        "AutoDeploy": true,
+        "CreatedDate": "2026-09-23T01:16:09+00:00",
+        "DefaultRouteSettings": {
+          "DetailedMetricsEnabled": false
+        },
+        "DeploymentId": "fv20wo",
+        "LastUpdatedDate": "2026-09-23T03:08:54+00:00",
+        "RouteSettings": {},
+        "StageName": "$default",
+        "StageVariables": {},
+        "Tags": {}
+      }
+    ]
+  }
+}
