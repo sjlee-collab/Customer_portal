@@ -58,10 +58,6 @@
       "MaxSessionDuration": 3600,
       "Path": "/service-role/",
       "RoleId": "AROAYZZUQX7SQLCJAHDQS",
-      "RoleLastUsed": {
-        "LastUsedDate": "2026-10-06T07:40:22+00:00",
-        "Region": "ap-northeast-2"
-      },
       "RoleName": "customer-portal_slack_status_change-role-qwrqoeqq"
     }
   },
@@ -120,10 +116,6 @@
       "MaxSessionDuration": 3600,
       "Path": "/service-role/",
       "RoleId": "AROAYZZUQX7S6M4LL6P4M",
-      "RoleLastUsed": {
-        "LastUsedDate": "2026-10-06T07:47:14+00:00",
-        "Region": "ap-northeast-2"
-      },
       "RoleName": "customer_portal_data-api-role-vcnec06f"
     }
   },
@@ -203,10 +195,6 @@
       "MaxSessionDuration": 3600,
       "Path": "/",
       "RoleId": "AROAYZZUQX7S7MSFXWVKI",
-      "RoleLastUsed": {
-        "LastUsedDate": "2026-10-02T01:29:50+00:00",
-        "Region": "ap-northeast-2"
-      },
       "RoleName": "customer_portal_dev-basic-role"
     }
   },
@@ -280,10 +268,6 @@
       "MaxSessionDuration": 3600,
       "Path": "/",
       "RoleId": "AROAYZZUQX7S5SA32WKWL",
-      "RoleLastUsed": {
-        "LastUsedDate": "2026-10-02T01:29:52+00:00",
-        "Region": "ap-northeast-2"
-      },
       "RoleName": "customer_portal_dev-vpc-role"
     }
   },
@@ -316,10 +300,6 @@
       "MaxSessionDuration": 3600,
       "Path": "/",
       "RoleId": "AROAYZZUQX7S4FEZGGRS4",
-      "RoleLastUsed": {
-        "LastUsedDate": "2026-10-06T07:35:01+00:00",
-        "Region": "ap-northeast-2"
-      },
       "RoleName": "customer_portal_jwt-authorizer-role"
     }
   },
@@ -352,10 +332,6 @@
       "MaxSessionDuration": 3600,
       "Path": "/service-role/",
       "RoleId": "AROAYZZUQX7S2JO5YKN2P",
-      "RoleLastUsed": {
-        "LastUsedDate": "2026-10-06T06:59:19+00:00",
-        "Region": "ap-northeast-2"
-      },
       "RoleName": "customer_portal_notify-handler-role-l4ufyocd"
     }
   },
@@ -388,10 +364,6 @@
       "MaxSessionDuration": 3600,
       "Path": "/service-role/",
       "RoleId": "AROAYZZUQX7S6NNHMMWWM",
-      "RoleLastUsed": {
-        "LastUsedDate": "2026-10-06T06:37:25+00:00",
-        "Region": "ap-northeast-2"
-      },
       "RoleName": "customer_portal_send-email-role-snp1l1l6"
     }
   },
@@ -449,10 +421,6 @@
       "MaxSessionDuration": 3600,
       "Path": "/service-role/",
       "RoleId": "AROAYZZUQX7SXKIUDEYTA",
-      "RoleLastUsed": {
-        "LastUsedDate": "2026-10-05T10:01:29+00:00",
-        "Region": "ap-northeast-2"
-      },
       "RoleName": "customer_portal_storage-api-role-ca1qrvju"
     }
   }

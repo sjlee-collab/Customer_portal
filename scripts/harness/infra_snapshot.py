@@ -73,6 +73,8 @@ VOLATILE = {
     'updateTimeInMillis', 'lastDeployTime', 'totalNumberOfJobs', 'jobArn', 'CodeSigningConfigArn',
     'MasterUserSecret', 'Endpoint.HostedZoneId', 'StatusInfos', 'PendingModifiedValues',
     'webhookCreateTime', 'webhookUpdateTime', 'LastDeploymentStatusMessage',
+    # 역할이 '마지막으로 쓰인 시각'은 설정이 아니라 사용 흔적이라 돌릴 때마다 바뀐다.
+    'RoleLastUsed',
 }
 
 errors = []
