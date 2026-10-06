@@ -58,9 +58,14 @@
   등록 후 노트북 절전·배터리 대응(PowerShell, 안 하면 절전 중 안 돎):
   ```powershell
   $t=Get-ScheduledTask -TaskName "portal-nightly-regression"; $s=$t.Settings
-  $s.WakeToRun=$true; $s.DisallowStartIfOnBatteries=$false; $s.StopIfGoingOnBatteries=$false; $s.StartWhenAvailable=$true
+  $s.WakeToRun=$true; $s.DisallowStartIfOnBatteries=$false; $s.StopIfGoingOnBatteries=$false; $s.StartWhenAvailable=$false
   Set-ScheduledTask -TaskName "portal-nightly-regression" -Settings $s
   ```
+  ⚠️ StartWhenAvailable은 **false로 둘 것** — true면 놓친 실행을 업무시간에 보충해 [테스트]
+  알림이 낮에 쏟아진다. 그리고 false여도 WakeToRun의 웨이크 타이머가 절전 중 못 깨우면
+  **절전 복귀 시점에 밀린 타이머가 전달돼 그때 실행**된다(2026-10-06 실측). 그래서
+  regression-nightly.sh 자체에 **시간 게이트(03~06시 밖 기동은 조용히 종료)**가 있다 —
+  수동으로 아무 때나 돌리려면 `NIGHTLY_FORCE=1`을 붙인다.
   ⚠️ 완전 종료·뚜껑 닫힘·일부 최신(S0) 기종은 깨우기가 안 될 수 있다 — 확실한 무인 실행이
   필요하면 AWS(EventBridge+CodeBuild)나 GitHub Actions가 노트북 상태와 무관하다.
 - 검증: 등록 후 `schtasks /run /tn "portal-nightly-regression"`으로 즉시 1회 실행 → 슬랙 확인.

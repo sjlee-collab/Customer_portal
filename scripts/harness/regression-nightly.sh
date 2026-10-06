@@ -30,6 +30,18 @@ LOG="$LOGDIR/$(date +%Y%m%d_%H%M%S).log"
 
 log(){ echo "[$(date +%H:%M:%S)] $*" | tee -a "$LOG"; }
 
+# ── 시간 게이트(2026-10-06): 새벽 창(03~06시) 밖 기동은 조용히 종료 ──
+# WakeToRun의 웨이크 타이머가 절전 중 PC를 못 깨우면(배터리에선 웨이크 타이머 비활성),
+# Windows가 "절전 복귀 시점"에 밀린 타이머를 전달해 그 자리에서 즉시 실행한다 —
+# StartWhenAvailable=false 로도 이 경로는 막히지 않는다(10/1~10/6 전부 복귀 시각에 실행,
+# 업무시간에 [테스트] 슬랙·메일이 쏟아진 원인). 스케줄러 설정으로는 제어 불가라
+# 스크립트가 직접 시각을 보고 거른다. 수동 실행은 NIGHTLY_FORCE=1 로 우회.
+HOUR=$((10#$(date +%H)))
+if [ "${NIGHTLY_FORCE:-0}" != "1" ] && { [ "$HOUR" -lt 3 ] || [ "$HOUR" -ge 7 ]; }; then
+  log "시간창(03~06시) 밖 기동(${HOUR}시) — 절전 복귀 보충 실행으로 보고 조용히 종료 (강제 실행: NIGHTLY_FORCE=1)"
+  exit 0
+fi
+
 # ── 슬랙 통지 헬퍼: 웹훅은 레포에 없고 Lambda env에만 있으므로 런타임 조회 ──
 notify_slack(){
   local text="$1" hook
