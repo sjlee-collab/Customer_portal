@@ -7604,7 +7604,35 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('#pxy-staff-wrap')) { const b = document.getElementById('pxy-staff-list'); if (b) b.style.display = 'none'; }
 });
 
+// ── 요청 접수 ──
+// 접수 중 플래그: 첨부 업로드가 끝나기 전에 버튼이 다시 눌리면 같은 요청이 두 번 만들어진다
+// (2026-10-15 HMM TK-20261015-7789/7790 — 3.8초 간격, 본문·첨부 동일). 예전엔 티켓 생성 직후
+// 버튼을 풀고 그 뒤에 첨부를 올려, 모달이 열린 채 "요청 접수"가 다시 눌리는 공백이 있었다.
+// 답글·메모 저장과 같은 실행 중 플래그를 두고, 해제는 아래 한 함수로만 한다 — 본문 중간에
+// 빠져나가는 길이 여럿이라 각자 풀게 두면 하나를 빠뜨려 버튼이 영영 잠긴다.
+let _submittingRequest = false;
+
+function _releaseSubmitRequest() {
+  _submittingRequest = false;
+  const btn = document.querySelector('#modal-new .btn-primary');
+  if (btn) { btn.disabled = false; btn.textContent = '요청 접수'; }
+}
+
 async function submitRequest() {
+  if (_submittingRequest) {
+    // 처리 도중 모달을 닫았다 다시 열고 누른 경우 — 조용히 무시하면 또 "반응 없음"으로 보인다.
+    showToast('이전 요청을 접수하는 중입니다. 잠시만 기다려 주세요.');
+    return;
+  }
+  _submittingRequest = true;
+  try {
+    await _submitRequestBody();
+  } finally {
+    _releaseSubmitRequest();
+  }
+}
+
+async function _submitRequestBody() {
   const category    = document.getElementById('f-category')?.value;
   const product     = document.getElementById('f-product')?.value;
   const priority    = document.getElementById('f-priority')?.value || 'normal';
@@ -7640,7 +7668,6 @@ async function submitRequest() {
     });
     applyTicketFilter();
     closeModal('modal-new');
-    if (btn) { btn.disabled = false; btn.textContent = '요청 접수'; }
     showToast('✅ ' + fakeNum + ' 접수 완료');
     return;
   }
@@ -7666,7 +7693,6 @@ async function submitRequest() {
     const coId = document.getElementById('pxy-company-id')?.value;
     if (!coId || !onBehalf) {
       showToast('대리 등록: 고객사와 고객(요청자)을 선택해 주세요.', true);
-      if (btn) { btn.disabled = false; btn.textContent = '요청 접수'; }
       return;
     }
     payload.on_behalf_of = onBehalf;
@@ -7679,8 +7705,6 @@ async function submitRequest() {
   }
 
   const { data, error } = await apiCreateTicket(payload);
-
-  if (btn) { btn.disabled = false; btn.textContent = '요청 접수'; }
 
   if (error) {
     showToast('등록 실패: ' + error.message, true);
@@ -7695,7 +7719,9 @@ async function submitRequest() {
   if (ticketId && attachInput?.files?.length) {
     const uploadRows = [];
     const baseTs = Date.now();
-    for (const [idx, file] of [...attachInput.files].entries()) {
+    const attachList = [...attachInput.files];
+    for (const [idx, file] of attachList.entries()) {
+      if (btn) btn.textContent = `첨부 올리는 중 ${idx + 1}/${attachList.length}…`;
       const ext = file.name.includes('.') ? '.' + file.name.split('.').pop() : '';
       const safeName = file.name.replace(/[^a-zA-Z0-9.\-]/g, '_');
       const storagePath = `${ticketId}/${baseTs}_${idx}_${safeName || ('file' + ext)}`;
@@ -7725,6 +7751,7 @@ async function submitRequest() {
 
   closeModal('modal-new');
   showToast('✅ ' + (ticketNum || '티켓') + ' 접수 완료.');
+  _releaseSubmitRequest();   // 목록 새로고침(아래)을 기다리며 버튼을 잡아 둘 이유는 없다
   await loadTickets();
   loadDashboard();
 }
