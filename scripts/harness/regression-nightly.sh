@@ -17,6 +17,11 @@
 # 종료코드: 회귀 통과 0 / 실패·중단 1. (스케줄러 Last Result로도 확인 가능)
 set -uo pipefail
 
+# ── 자기교체 가드: 아래 main 정의로 bash가 스크립트 전체를 먼저 파싱한다. 이 스크립트는
+#    실행 중 git ff로 "자기 자신"이 갱신될 수 있는데(2026-10-07 실측: 줄 오프셋이 밀려
+#    가짜 오류·중단 위험), 전체가 함수 안이면 교체돼도 이미 읽은 정의로 끝까지 돈다.
+main() {
+
 REGION=ap-northeast-2
 NOTIFY_FN=customer_portal_notify-handler
 export AWS_PROFILE="${AWS_PROFILE:-customer_portal}"
@@ -45,8 +50,8 @@ fi
 # ── 슬랙 통지 헬퍼: 웹훅은 레포에 없고 Lambda env에만 있으므로 런타임 조회 ──
 notify_slack(){
   local text="$1" hook
-  hook="$(aws.exe lambda get-function-configuration --function-name "$NOTIFY_FN" --region "$REGION" \
-          --query 'Environment.Variables.SLACK_WEBHOOK_TEST' --output text 2>/dev/null)"
+  # P-1(2026-09-22)로 웹훅이 Lambda env에서 Secrets Manager로 이관됨 — env 조회는 늘 None이었다.
+  hook="$(aws.exe secretsmanager get-secret-value --secret-id customer-portal/slack-webhooks \n          --region "$REGION" --query SecretString --output text 2>/dev/null \n        | python -c 'import json,sys; print(json.loads(sys.stdin.read()).get("SLACK_WEBHOOK_TEST",""))' 2>/dev/null)"
   if [ -z "$hook" ] || [ "$hook" = "None" ]; then
     log "슬랙 웹훅 조회 실패 — 통지 생략(로그만): $text"; return
   fi
@@ -229,3 +234,5 @@ find "$LOGDIR" -name '*.log' -type f -mtime +30 -delete 2>/dev/null || true
 # 종료코드: 회귀 실패 또는 사이트 스모크 실패면 1 (스케줄러 LastResult로 감지)
 [ "$RC" -ne 0 ] || [ "$SMOKE_RC" -ne 0 ] && exit 1
 exit 0
+}
+main "$@"
